@@ -27,7 +27,7 @@ var spritesheet_info = {
 	}
 };
 
-var keys_tr = {'a': 'left', 'd': 'right', ' ': 'jump'}
+var keys_tr = {'arrowleft': 'left', 'arrowright': 'right', ' ': 'jump'}
 var keys = {left: false, right: false, jump: false};
 
 var texture_loader = new THREE.TextureLoader();
@@ -49,12 +49,14 @@ class SpriteSheet {
 
 	add_sprite_to_scene(scene, id, x, y) {
 		let skin = this.info.sprites[id];
-		// x -= skin.pivot[0];
-		// y -= skin.pivot[1];
 		let sx = skin.x;
 		let sy = skin.y;
 		let sw = skin.width;
 		let sh = skin.height;
+		x += sw/2;
+		y -= sh/2;
+		x -= skin.pivot[0];
+		y += skin.pivot[1];
 		let geometry = new THREE.PlaneGeometry(sw, sh, 1, 1);
 		let uvs = geometry.attributes.uv;
 		let x0 = sx / this.info.width;
@@ -71,7 +73,7 @@ class SpriteSheet {
 		let group = new THREE.Group();
 		group.add(sprite);
 		if (true) {
-			let material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+			let material = new THREE.LineBasicMaterial({ color: 0xffffff });
 			let points = [];
 			for (let p of (skin.hitbox || [])) {
 				let px = p[0] - sw / 2 + x;
@@ -82,7 +84,7 @@ class SpriteSheet {
 			let line = new THREE.LineLoop(geometry, material);
 			group.add(line);
 			if (skin.pivot) {
-				let material = new THREE.LineBasicMaterial({ color: 0xff00ff });
+				let material = new THREE.LineBasicMaterial({ color: 0xff0000 });
 				points = [];
 				let px = skin.pivot[0] - sw / 2 + x;
 				let py = sh - skin.pivot[1] - sh / 2 + y;
@@ -118,17 +120,27 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 sheet = new SpriteSheet('spritesheet.png', spritesheet_info);
-// let tree = sheet.add_sprite_to_scene(scene, 'tree', 30, 32-20);
-// sheet.add_sprite_to_scene(scene, 'shrub', -80, -10-20);
+let tree = sheet.add_sprite_to_scene(scene, 'tree', 48, -24);
+sheet.add_sprite_to_scene(scene, 'shrub', -80, 0-24);
 for (let x = -6; x <= 6; x++)
-	sheet.add_sprite_to_scene(scene, 'grass', x * 24, 0);
-let player = sheet.add_sprite_to_scene(scene, 'dustin', 0, 0);
+	sheet.add_sprite_to_scene(scene, 'grass', x * 24, 0-24);
+let player = sheet.add_sprite_to_scene(scene, 'dustin', 0, 0-24);
+
+// let material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+// points = [];
+// points.push(new THREE.Vector3(0, 10, 2));
+// points.push(new THREE.Vector3(0, 0, 2));
+// points.push(new THREE.Vector3(10, 0, 2));
+// let geometry = new THREE.BufferGeometry().setFromPoints(points);
+// let line = new THREE.Line(geometry, material);
+// scene.add(line);
+
 
 var render = function () {
 	requestAnimationFrame(render);
 	let t = clock.getElapsedTime();
-	if (keys.left) player.position.x -= 1;
-	if (keys.right) player.position.x += 1;
+	if (keys.left) player.position.x -= 0.5;
+	if (keys.right) player.position.x += 0.5;
 	renderer.setRenderTarget(null);
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	renderer.render(scene, camera);
