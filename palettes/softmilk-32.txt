@@ -1,0 +1,37 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Softmilk 32
+;Description: Created by <a target="_blank" href="https://gumroad.com/mnrart">MortMort</a>. #SoftMilk32
+;Colors: 32
+FF23213d
+FFd95b9a
+FF9e4491
+FF633662
+FF903d62
+FFbd515a
+FFd69a4e
+FFf3d040
+FFffe88c
+FFf2f2f0
+FF94e092
+FF1f9983
+FF22636b
+FF57546f
+FFc56876
+FF76747d
+FF5c3841
+FF945848
+FFd17f6b
+FFeb9f7f
+FFf1c28f
+FFb9b5c3
+FF454194
+FF425bbd
+FF4884d4
+FF45a1de
+FF7cd8eb
+FFe2f266
+FFc3d442
+FF82aa28
+FF597f1e
+FF376129

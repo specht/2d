@@ -1,0 +1,13 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: retrocal-8
+;Description: 
+;Colors: 8
+FF6eb8a8
+FF2a584f
+FF74a33f
+FFfcffc0
+FFc6505a
+FF2f142f
+FF774448
+FFee9c5d

@@ -1,0 +1,13 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Nyx8
+;Description: Palette created by <a target="_blank" href="https://twitter.com/Xavier_Gd/status/878378320878022661">Javier Guerrero</a>.
+;Colors: 8
+FF08141e
+FF0f2a3f
+FF20394f
+FFf6d6bd
+FFc3a38a
+FF997577
+FF816271
+FF4e495f

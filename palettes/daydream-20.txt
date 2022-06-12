@@ -1,0 +1,25 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: DAYDREAM 20
+;Description: 
+;Colors: 20
+FF430f43
+FF472561
+FF205973
+FF248077
+FF2d9a77
+FF5ec688
+FFaae68f
+FF64154d
+FF8e184b
+FFba3155
+FFd9505e
+FFe3744f
+FFf29e64
+FFffc477
+FFffdd96
+FFfff4b0
+FFc22e35
+FFd24f38
+FFdf6939
+FFed9b4a

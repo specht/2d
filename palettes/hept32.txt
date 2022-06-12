@@ -1,0 +1,37 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: hept32
+;Description: <b>THE SUCCESSOR TO EDG32</b><p><i>A palette built with higher contrast, range, and saturation.</i></p>
+;Colors: 32
+FF000000
+FF180d2f
+FF353658
+FF686b72
+FF8b97b6
+FFc5cddb
+FFffffff
+FF5ee9e9
+FF2890dc
+FF1831a7
+FF053239
+FF005f41
+FF08b23b
+FF47f641
+FFe8ff75
+FFfbbe82
+FFde9751
+FFb66831
+FF8a4926
+FF461c14
+FF1e090d
+FF720d0d
+FF813704
+FFda2424
+FFef6e10
+FFecab11
+FFece910
+FFf78d8d
+FFf94e6d
+FFc12458
+FF841252
+FF3d083b

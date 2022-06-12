@@ -1,0 +1,37 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Punolite Plus Plus
+;Description: 32 color palette, expansion/recreation of <a href="https://lospec.com/palette-list/punolite" target="_blank">punolite</a>
+;Colors: 32
+FF2e2e43
+FF4a4b5b
+FF707b89
+FFa9bcbf
+FFe6eeed
+FFfcfbf3
+FFfceba8
+FFf5c47c
+FFe39764
+FFc06852
+FF9d4343
+FF813645
+FF542240
+FF2a152d
+FF4f2d4d
+FF5b3a56
+FF794e6d
+FF3e4c7e
+FF495f94
+FF5a78b2
+FF7396d5
+FF7fbbdc
+FFaaeeea
+FFd5f893
+FF96dc7f
+FF6ec077
+FF4e9363
+FF3c6c54
+FF2c5049
+FF34404f
+FF405967
+FF5c8995

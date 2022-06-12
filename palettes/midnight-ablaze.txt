@@ -1,0 +1,12 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Midnight ablaze
+;Description: Color palette I made for a very ominous night sky. Named by one of my followers. 
+;Colors: 7
+FFff8274
+FFd53c6a
+FF7c183c
+FF460e2b
+FF31051e
+FF1f0510
+FF130208

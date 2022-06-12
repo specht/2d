@@ -1,0 +1,41 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Lux2K
+;Description: Created by <a target="_blank" href="https://twitter.com/thisislux">lux</a> in celebration of reaching 2,000 twitter followers.
+;Colors: 36
+FF25131a
+FF3d253b
+FF523b40
+FF1f3736
+FF2a5a39
+FF427f3b
+FF80a53f
+FFbbc44e
+FF96c641
+FFccf61f
+FF8a961f
+FF5c6b53
+FF895a45
+FFd1851e
+FFffd569
+FFbf704d
+FFe1a171
+FFe6deca
+FF9b4c51
+FF802954
+FFd01946
+FFe84444
+FF40369f
+FF7144ff
+FFaf69bf
+FFeaa5ff
+FF5880cc
+FF62abd4
+FF9bf0fd
+FFcae6f5
+FFffffff
+FFa7acba
+FF606060
+FF56587b
+FF9a8571
+FFdfbbb3

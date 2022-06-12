@@ -1,0 +1,41 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Pear36
+;Description: 
+;Colors: 36
+FF5e315b
+FF8c3f5d
+FFba6156
+FFf2a65e
+FFffe478
+FFcfff70
+FF8fde5d
+FF3ca370
+FF3d6e70
+FF323e4f
+FF322947
+FF473b78
+FF4b5bab
+FF4da6ff
+FF66ffe3
+FFffffeb
+FFc2c2d1
+FF7e7e8f
+FF606070
+FF43434f
+FF272736
+FF3e2347
+FF57294b
+FF964253
+FFe36956
+FFffb570
+FFff9166
+FFeb564b
+FFb0305c
+FF73275c
+FF422445
+FF5a265e
+FF80366b
+FFbd4882
+FFff6b97
+FFffb5b5

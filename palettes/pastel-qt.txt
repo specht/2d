@@ -1,0 +1,12 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: pastel qt
+;Description: 
+;Colors: 7
+FFcb8175
+FFe2a97e
+FFf0cf8e
+FFf6edcd
+FFa8c8a6
+FF6d8d8a
+FF655057

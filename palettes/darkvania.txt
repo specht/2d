@@ -1,0 +1,37 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: DarkVania
+;Description: A darker and contrasty version of RPGVANIA
+;Colors: 32
+FF120e2f
+FF1b1b52
+FF293377
+FF5670c2
+FFcfe8ff
+FFaabfe0
+FF9b9ed2
+FF4d3c66
+FF1d1023
+FF38173c
+FF4e0b3c
+FF66123b
+FFad4557
+FFc9757e
+FFebb1ae
+FFffdcd6
+FFecb78c
+FFcb9367
+FFb8814f
+FF77491e
+FF572b16
+FF360c01
+FF7b2f11
+FFd6761c
+FFf69d18
+FFffd21c
+FFc7fba1
+FF7ec177
+FF519a57
+FF33694a
+FF265448
+FF102f2e

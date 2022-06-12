@@ -1,0 +1,36 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: 👌31
+;Description: based on colors sampled from pictures of nature. Most of the colors altered doe to vibe better 
+;Colors: 31
+FF636663
+FF87857c
+FFbcad9f
+FFf2b888
+FFeb9661
+FFb55945
+FF734c44
+FF3d3333
+FF593e47
+FF7a5859
+FFa57855
+FFde9f47
+FFfdd179
+FFfee1b8
+FFd4c692
+FFa6b04f
+FF819447
+FF44702d
+FF2f4d2f
+FF546756
+FF89a477
+FFa4c5af
+FFcae6d9
+FFf1f6f0
+FFd5d6db
+FFbbc3d0
+FF96a9c1
+FF6c81a1
+FF405273
+FF303843
+FF14233a

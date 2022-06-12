@@ -1,0 +1,60 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: NES advanced
+;Description: What if the colours on the NES palette were better and closer to those you see in SNES games?Here I created a heavily SNES inspired palette with only as many unique colours as the original NES!
+;Colors: 55
+FF000000
+FF26232f
+FF314047
+FF596d62
+FF929c74
+FFc8c5a3
+FFfcfcfc
+FF1b377f
+FF147abf
+FF40afdd
+FFb2dbf4
+FF181667
+FF3b2c96
+FF706ae1
+FF8f95ee
+FF440a41
+FF812593
+FFcc4bb9
+FFec99db
+FF3f0011
+FFb31c35
+FFef2064
+FFf26282
+FF960811
+FFe81813
+FFa75d69
+FFec9ea4
+FF560d04
+FFc43611
+FFe26a12
+FFf0af66
+FF2a1a14
+FF5d342a
+FFa66e46
+FFdf9c6e
+FF8e4e11
+FFd89511
+FFead11e
+FFf5eb6b
+FF2f541c
+FF5a831b
+FFa2bb1e
+FFc6df6b
+FF0f450f
+FF008b12
+FF0bcb12
+FF3ef33f
+FF115153
+FF0c8563
+FF04bf79
+FF6ae6aa
+FF262726
+FF514f4c
+FF887e83
+FFb3aac0

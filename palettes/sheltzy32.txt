@@ -1,0 +1,37 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Sheltzy32
+;Description: An upgrade to the <a target="_blank" href="/palette-list/nt1h">NT1H pallete</a>. Yeethaw!
+;Colors: 32
+FF8cffde
+FF45b8b3
+FF839740
+FFc9ec85
+FF46c657
+FF158968
+FF2c5b6d
+FF222a5c
+FF566a89
+FF8babbf
+FFcce2e1
+FFffdba5
+FFccac68
+FFa36d3e
+FF683c34
+FF000000
+FF38002c
+FF663b93
+FF8b72de
+FF9cd8fc
+FF5e96dd
+FF3953c0
+FF800c53
+FFc34b91
+FFff94b3
+FFbd1f3f
+FFec614a
+FFffa468
+FFfff6ae
+FFffda70
+FFf4b03c
+FFffffff

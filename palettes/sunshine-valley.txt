@@ -1,0 +1,54 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Sunshine Valley
+;Description: A master palette full of vibrant colors I made specifically for a game, however it could definitely be used for other art pieces.
+;Colors: 49
+FF0e0e1a
+FF2b1f4d
+FF513185
+FF8235bd
+FFc36ac4
+FFeb83dd
+FFf0c5df
+FF93f0fa
+FF76ccf5
+FF51a6f0
+FF3760c8
+FF3c4891
+FF2c3661
+FFf0baa3
+FFd6968b
+FFd17e79
+FFb56d77
+FF965367
+FF853e61
+FF57352c
+FF784735
+FF9e643f
+FFc78350
+FFd99f66
+FFe6c07e
+FFedf067
+FFd6b751
+FFbf872c
+FFb5671f
+FF963e1e
+FF802114
+FF611b2a
+FFb02e3b
+FFde3c31
+FFf55e38
+FFf78952
+FFfcb177
+FFc8ed8c
+FF86d468
+FF4cbd48
+FF3f8f4f
+FF366e4d
+FF274d41
+FF22202e
+FF3b3d4d
+FF69728a
+FF8294ab
+FFabc7d9
+FFf5f8fa

@@ -1,0 +1,41 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Tofu 20k
+;Description: Releasing a palette I've been working on, as a thanks for 20k on Twitter. This palette is intended for painterly style game art/icons/small illustrations. It is very vivid. You can swap many values between ramps, and the pink works occasionally as a highlight colour.
+;Colors: 36
+FF120a1a
+FF2a2a41
+FF404863
+FF59607a
+FF787d8b
+FF9da5ae
+FFc8d6ac
+FFfeffe5
+FFe4cd5a
+FFd49733
+FFd68552
+FFbe5a1e
+FF894835
+FF602631
+FF4b0c30
+FF81173f
+FFcc1825
+FFdc4926
+FFf1934c
+FFfad5af
+FFed9d7c
+FFd16363
+FFb7ab76
+FFb59857
+FF926d3c
+FF8b5b37
+FFff82a0
+FFff26a8
+FF422490
+FF2749d0
+FF4477ff
+FF4cc5e4
+FF8bf5c6
+FF85c448
+FF439d40
+FF29694e

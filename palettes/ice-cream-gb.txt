@@ -1,0 +1,9 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Ice Cream GB
+;Description: 
+;Colors: 4
+FF7c3f58
+FFeb6b6f
+FFf9a875
+FFfff6d3

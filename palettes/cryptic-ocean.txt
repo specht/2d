@@ -1,0 +1,11 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Cryptic Ocean
+;Description: A 6 colors deep palette, ranging from a deep purple to blue, with a bit of a green to it.
+;Colors: 6
+FF2a173b
+FF3f2c5f
+FF443f7b
+FF4c5c87
+FF69809e
+FF95c5ac

@@ -1,0 +1,37 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Carnival 32
+;Description: 'Universal' palette meant primarily for quick sketching of your ideas. Can be used for final work as well. Use grays to lay value ranges when starting a new image or as a way to bridge between complementary colours. 
+;Colors: 32
+FF4d2235
+FF71282a
+FF975638
+FFd0763e
+FFebac4d
+FFf2d08d
+FFddac88
+FFc68d80
+FFaf6d77
+FFc74446
+FF9f3847
+FF6e406d
+FFa7a758
+FF718141
+FF496541
+FF37433b
+FF2a1c31
+FF423157
+FF4d528a
+FF556a97
+FF5c81a3
+FF7dadc8
+FFb0d6d9
+FFece6df
+FFcfccca
+FFa6a6a6
+FF787878
+FF626262
+FF4a4a4a
+FF363636
+FF618c70
+FF8b7463

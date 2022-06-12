@@ -1,0 +1,37 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: colordome-32
+;Description: 
+;Colors: 32
+FF0d0b0d
+FFfff8e1
+FFc8b89f
+FF987a68
+FF674949
+FF3a3941
+FF6b6f72
+FFadb9b8
+FFadd9b7
+FF6eb39d
+FF30555b
+FF1a1e2d
+FF284e43
+FF467e3e
+FF93ab52
+FFf2cf5c
+FFec773d
+FFb83530
+FF722030
+FF281721
+FF6d2944
+FFc85257
+FFec9983
+FFdbaf77
+FFb77854
+FF833e35
+FF50282f
+FF65432f
+FF7e6d37
+FF6ebe70
+FFb75834
+FFd55c4d

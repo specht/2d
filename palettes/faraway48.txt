@@ -1,0 +1,54 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Faraway48
+
+;Description: Created by <a target="_blank" href="https://twitter.com/diemorth">Igor Ferreira</a>.
+;Colors: 48
+FF0d0709
+FF220915
+FF3d0518
+FFad1818
+FFd94f0c
+FFff980e
+FFfff959
+FFd6f668
+FF8ffa37
+FF169e26
+FF1c5d2a
+FF0d3822
+FF0d1d1f
+FF00191f
+FF003138
+FF006457
+FF008d6d
+FF08c49f
+FF59dfb0
+FFaae8ca
+FF45c5d9
+FF2595cf
+FF025999
+FF193a91
+FF101438
+FF090d19
+FF151538
+FF2e264d
+FF562e73
+FFa03a9e
+FFc8658f
+FFedafb9
+FFf7c8d9
+FFf7f3ce
+FFf1e4af
+FFe7cc93
+FFd19e71
+FF9e6d4f
+FF73322e
+FF4d2630
+FF241720
+FF1c1216
+FF101112
+FF202223
+FF586162
+FFa9b0b0
+FFd2d6d7
+FFf1f2f1

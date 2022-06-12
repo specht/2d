@@ -1,0 +1,25 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: mojave20
+;Description: Palette for desertic landscapes, mountains and cloudy skies. Some greens for cacti and bush, yellow/orange for sand and brushland, greys and light blues for skies, clouds and mountains, dark reds and browns for road pavement and tires. 
+;Colors: 20
+FFdcd1b8
+FFc8b496
+FFaeb0b2
+FF9196a0
+FF60606a
+FF403f4a
+FF38353e
+FF4b444c
+FF79625d
+FF9e8676
+FFbe9668
+FFa46848
+FF715a3b
+FF453e2a
+FF3f2926
+FF2e1515
+FF17090c
+FF541e13
+FFd03c32
+FFfba64c

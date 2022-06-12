@@ -1,0 +1,13 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Winter Wonderland
+;Description: 
+;Colors: 8
+FF20284e
+FF2c4a78
+FF3875a1
+FF8bcadd
+FFffffff
+FFd6e1e9
+FFa7bcc9
+FF738d9d

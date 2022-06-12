@@ -1,0 +1,29 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Florentine24
+;Description: Florentine24 is a multi-purpose palette designed to be used on very dark even pure black background. The colours are incredibly vibrant and create a sort of "Neon Sign" look that brings a beam of light into an otherwise dark canvas.
+;Colors: 24
+FF175145
+FF2e8065
+FF51b341
+FF9bd547
+FFfff971
+FFff7f4f
+FFff4f4f
+FFee3046
+FFdf426e
+FFa62654
+FF621b52
+FF371848
+FF0c082a
+FF261152
+FF272573
+FF4876bb
+FF7fd3e6
+FFc7f7f2
+FFffffff
+FFd29c8a
+FF9e4d4d
+FF712835
+FF5d1835
+FF35082a

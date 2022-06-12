@@ -5,6 +5,7 @@ class Canvas {
     constructor(element, menu) {
         this.element = element;
         this.menu = menu;
+        this.backdrop_color = document.createElement('canvas');
         this.backdrop = document.createElement('canvas');
         this.bitmap = document.createElement('canvas');
         this.overlay_bitmap = document.createElement('canvas');
@@ -13,6 +14,8 @@ class Canvas {
         this.bitmap.height = DEFAULT_HEIGHT;
         $(this.element).css('overflow', 'hidden');
         $(this.element).css('cursor', 'crosshair');
+        $(this.backdrop_color).css('background-color', `#777`);
+        $(this.backdrop_color).css('position', 'absolute');
         $(this.backdrop).css('background-image', `url(transparent.png)`);
         $(this.backdrop).css('background-attachment', 'fixed');
         $(this.backdrop).css('position', 'absolute');
@@ -22,6 +25,7 @@ class Canvas {
         $(this.overlay_bitmap).css('image-rendering', 'pixelated');
         $(this.overlay_bitmap).css('opacity', 0.5);
         $(this.overlay_grid).css('position', 'absolute');
+        this.element.append(this.backdrop_color);
         this.element.append(this.backdrop);
         this.element.append(this.bitmap);
         this.element.append(this.overlay_bitmap);
@@ -90,9 +94,9 @@ class Canvas {
     }
 
     handle_move(e) {
-        let p = this.get_touch_point(e);
         if (this.menu.get('tool') === 'tool/pan') {
             if (this.moving) {
+                let p = this.get_touch_point(e);
                 let dx = p.x - this.moving_x;
                 let dy = p.y - this.moving_y;
                 this.offset_x += dx;
@@ -128,6 +132,10 @@ class Canvas {
             self.autoFit();
         };
         drawing.src = url;
+    }
+
+    toUrl() {
+        return this.bitmap.toDataURL('image/png');
     }
 
     autoFit() {
@@ -174,7 +182,7 @@ class Canvas {
 
     handleResize() {
         let height = window.innerHeight;
-        this.size = Math.max(100, height - 80);
+        this.size = Math.max(100, height - 110);
         this.fix_scale();
         this.scrollable_x = (this.bitmap.width * this.scale > this.size);
         this.scrollable_y = (this.bitmap.height * this.scale > this.size);
@@ -196,6 +204,8 @@ class Canvas {
         }
         this.element.css('height', `${this.size}px`);
         this.element.css('width', `${this.size}px`);
+        this.backdrop_color.width = Math.min(this.bitmap.width * this.scale, this.size + 32);
+        this.backdrop_color.height = Math.min(this.bitmap.height * this.scale, this.size + 32);
         this.backdrop.width = Math.min(this.bitmap.width * this.scale, this.size + 32);
         this.backdrop.height = Math.min(this.bitmap.height * this.scale, this.size + 32);
         this.overlay_grid.width = Math.min(this.bitmap.width * this.scale, this.size + 2 * this.scale) + 1;
@@ -233,16 +243,20 @@ class Canvas {
         $(this.overlay_bitmap).css('top', `${this.offset_y}px`);
         if (this.scrollable_x) {
             $(this.overlay_grid).css('left', `${this.offset_x % this.scale}px`);
+            $(this.backdrop_color).css('left', `${this.offset_x % 16}px`);
             $(this.backdrop).css('left', `${this.offset_x % 16}px`);
         } else {
             $(this.overlay_grid).css('left', `${this.offset_x}px`);
+            $(this.backdrop_color).css('left', `${this.offset_x}px`);
             $(this.backdrop).css('left', `${this.offset_x}px`);
         }
         if (this.scrollable_y) {
             $(this.overlay_grid).css('top', `${this.offset_y % this.scale}px`);
+            $(this.backdrop_color).css('top', `${this.offset_y % 16}px`);
             $(this.backdrop).css('top', `${this.offset_y % 16}px`);
         } else {
             $(this.overlay_grid).css('top', `${this.offset_y}px`);
+            $(this.backdrop_color).css('top', `${this.offset_y}px`);
             $(this.backdrop).css('top', `${this.offset_y}px`);
         }
     }

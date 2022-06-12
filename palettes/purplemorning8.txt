@@ -1,0 +1,13 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: PurpleMorning8
+;Description: Palette from my PJ secret santa 2020 piece. 
+;Colors: 8
+FF211d38
+FF2e2a4f
+FF3b405e
+FF60556e
+FF9a6278
+FFc7786f
+FFcfa98a
+FFcdd4a5

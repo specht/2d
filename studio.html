@@ -3,7 +3,7 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no,maximum-scale=1">
     <meta charset="UTF-8" />
-    <title>2D Game Engine</title>
+    <title>Hackschule Game Studio</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -23,7 +23,7 @@
 
         #canvas {
             left: 200px;
-            top: 20px;
+            top: 50px;
             border-radius: 8px;
             position: absolute;
             background-color: rgba(0, 0, 0, 0.5);
@@ -31,22 +31,39 @@
             box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
         }
 
-        #menu {
-            width: 152px;
+        #menu_container {
+            position: absolute;
+            top: 50px;
+            left: 0px;
+            width: 166px;
+        }
+
+        .menu {
+            /* width: 152px; */
             border: 1px solid #444;
             background-color: rgba(0, 0, 0, 0.3);
             padding: 5px;
-            left: 20px;
-            top: 20px;
-            position: absolute;
             border-radius: 10px;
+            margin-bottom: 10px;
         }
 
-        #menu hr {
+        .menu hr {
             margin: 5px 0;
             border: none;
             height: 1px;
             border-top: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        #menu_container select {
+            width: 100%;
+            display: block;
+            margin-bottom: 5px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 90%;
+            padding: 0.5em 0.2em;
+            color: #fff;
+            border-radius: 4px;
         }
 
         .button {
@@ -60,6 +77,11 @@
             background-position: 50% 50%;
             position: relative;
             margin: 2px;
+        }
+
+        .button-5 {
+            width: 24px;
+            height: 24px;
         }
 
         .button.active {
@@ -84,12 +106,16 @@
             padding: 0 0.4em;
             height: 1.4em;
             text-align: center;
-            background-color: #eee;
+            background-color: #ddd;
             border-radius: 0.2em;
             font-size: 12px;
             box-shadow: 0 0 4px rgb(0 0 0 / 80%);
             color: #000;
             margin-right: 0.8em;
+            border-top: 1px solid rgba(255, 255, 255, 1);
+            border-left: 1px solid rgba(255, 255, 255, 1);
+            border-right: 1px solid rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.4);
         }
 
         .tooltip {
@@ -119,7 +145,6 @@
             color: #fff;
         }
 
-
         .status-bar-item {
             display: inline-block;
             padding: 0.5em 0.8em;
@@ -144,18 +169,95 @@
             color: #fff;
             transition: none;
         }
+
+        #main-nav {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #aaa;
+            padding: 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 14px;
+            overflow-x: hidden;
+            white-space: nowrap;
+            /* font-size: 110%; */
+            text-align: center;
+        }
+
+        .main-nav-item {
+            display: inline-block;
+            padding: 0.7em 2em;
+            margin: 0;
+            cursor: pointer;
+            width: 100px;
+            /* border-right: 1px solid rgba(255, 255, 255, 0.3); */
+        }
+
+        .main-nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .main-nav-item.active {
+            color: #fff;
+            font-weight: bold;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
     </style>
     <script src="jquery-3.6.0.min.js"></script>
     <script src="canvas.js"></script>
     <script src="menu.js"></script>
+    <script src="cling-colors.js"></script>
+    <script src="palettes.js"></script>
 </head>
 
 <body>
-    <div id='menu'></div>
+    <div id='main-nav'>
+        <div class='main-nav-item active'>Sprites</div>
+        <div class='main-nav-item'>Level</div>
+        <div class='main-nav-item'>Code</div>
+        <div class='main-nav-item'>Einstellungen</div>
+        <div class='main-nav-item'>Spielen</div>
+        <div class='main-nav-item'>Hilfe</div>
+    </div>
+    <div id='menu_container'>
+        <div id='tool_menu' class='menu'></div>
+        <select id='palettes_here'></select>
+        <div id='color_menu' class='menu'></div>
+    </div>
     <div id='canvas'></div>
     <div id='status-bar'></div>
     <script>
-        let menu_info = [
+        function handleResize() {
+            canvas.handleResize();
+            $('#canvas').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
+            $('#menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('#menu_container').width() - 25}px`);
+        }
+        function update_color_palette() {
+            let i = parseInt($('#palettes_here').val());
+            color_menu_items = [];
+            cling_colors = palettes[i].colors;
+            // let height = Math.floor(cling_colors.length / 5);
+            for (let i = 0; i < cling_colors.length + 1; i++) {
+                let color = '';
+                let k = i;
+                // let x = i % 5;
+                // let y = Math.floor(i / 5);
+                // let k = x * height + y;
+                if (k < cling_colors.length) {
+                    let item = cling_colors[k];
+                    color = item;
+                    color_menu_items.push({ group: 'color', command: color, color: color, size: 5 });
+                } else {
+                    color_menu_items.push({ group: 'color', command: '', size: 5, css: `background-image: url(transparent.png); background-repeat: repeat; background-color: #777;` });
+                }
+            }
+            $('#color_menu').empty();
+            color_menu = new Menu($('#color_menu'), color_menu_items);
+
+        }
+        let tool_menu_items = [
             {
                 group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen'
             },
@@ -184,6 +286,7 @@
                     { key: '+', label: 'Größer', callback: () => canvas.zoomIn() },
                     { key: '-', label: 'Kleiner', callback: () => canvas.zoomOut() },
                     { key: ' ', label: 'Automatisch anpassen', callback: () => canvas.autoFit() },
+                    // { key: '.', label: 'Hintergrundhelligkeit', callback: () => canvas.toggleBackdropLight() },
                     `Zoome mit dem Mausrad und klicke, um den sichtbaren Ausschnitt zu verschieben`]
             },
             { command: 'rotate-left', image: 'transform-rotate-left' },
@@ -195,14 +298,26 @@
             { group: 'penWidth', command: '2', image: 'pen-width-2' },
             { group: 'penWidth', command: '3', image: 'pen-width-3' },
             { group: 'penWidth', command: '4', image: 'pen-width-4' },
+            { type: 'divider' },
         ];
-        var menu = new Menu($('#menu'), menu_info);
+        let color_menu_items = [];
+        for (let i = 0; i < palettes.length; i++) {
+            let palette = palettes[i];
+            $('#palettes_here').append($('<option>').text(palette.name).val(`${i}`));
+        }
+        $('#palettes_here').change(function (e) {
+            update_color_palette();
+        });
+        $('#palettes_here').val('3');
+        update_color_palette();
+        var menu = new Menu($('#tool_menu'), tool_menu_items);
 
         var canvas = new Canvas($('#canvas'), menu);
         canvas.loadFromUrl('tree.png');
+        handleResize();
 
         $(window).resize(function () {
-            canvas.handleResize();
+            handleResize();
         });
     </script>
 </body>

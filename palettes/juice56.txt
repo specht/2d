@@ -1,0 +1,61 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: juice56
+;Description: Created as the sequel to <a href="https://lospec.com/palette-list/juice32" target="_blank">juice32</a>.
+;Colors: 56
+FF000005
+FFffffff
+FFc8e1eb
+FFa5becd
+FF7891a5
+FF55647d
+FF37415a
+FF191e3c
+FF14465a
+FF0f7373
+FF0fa569
+FF41cd73
+FF73ff73
+FFdc9b78
+FFb26247
+FF8c3c32
+FF5a1423
+FF370a14
+FFffd2a5
+FFf5a56e
+FFe66e46
+FFc3412d
+FF8c2323
+FF410041
+FF7d0041
+FFaa143c
+FFd72d2d
+FFf06923
+FFffaa32
+FFffe65a
+FFbed72d
+FF64a51e
+FF237d14
+FF0f5519
+FF0f3223
+FF82ffe1
+FF41d7d7
+FF14a0cd
+FF1469c3
+FF0f379b
+FF0f0f69
+FF3c1e8c
+FF642db4
+FFa041d7
+FFe65ae6
+FFff8cc8
+FF4b143c
+FF820a64
+FFb4236e
+FFe65078
+FFff8c8c
+FFffcdb4
+FFe69b96
+FFbe6973
+FF96465f
+FF6e2850

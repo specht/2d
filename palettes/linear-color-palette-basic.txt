@@ -1,0 +1,36 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Linear Color Palette Basic
+;Description: Palette created by <a href="http://grafxkid.tumblr.com/palettes" target="_blank">GrafxKid</a>.
+;Colors: 31
+FF0e0c0c
+FF5f2d56
+FF993970
+FFdc4a7b
+FFf78697
+FF9f294e
+FF62232f
+FF8f4029
+FFc56025
+FFee8e2e
+FFfccba3
+FFda4e38
+FFfacb3e
+FF97da3f
+FF4ba747
+FF3d734f
+FF314152
+FF417089
+FF49a790
+FF72d6ce
+FF5698cc
+FF5956bd
+FF473579
+FF8156aa
+FFc278d0
+FFf0b3dd
+FFfdf7ed
+FFd3bfa9
+FFaa8d7a
+FF775c55
+FF483b3a

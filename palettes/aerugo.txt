@@ -1,0 +1,37 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Aerugo
+;Description: A palette based on pixel art I made last year, with some edits.
+;Colors: 32
+FF2f1e1a
+FF4f3322
+FF723627
+FF95392c
+FFc75533
+FFe76d46
+FF934e28
+FFa2663c
+FFc87d40
+FFf5a95b
+FF6b8b8c
+FF81a38e
+FFaac39e
+FFffffff
+FFd1d0ce
+FFbab7b2
+FF898a8a
+FF686461
+FF554d4b
+FF3c3d3b
+FF343230
+FF87d1ef
+FF64a1c2
+FF466480
+FF2f485c
+FF242e35
+FF1b2026
+FFaa9c8a
+FF917f6d
+FF86624a
+FF715b48
+FF5e4835

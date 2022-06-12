@@ -1,0 +1,11 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Hot Sand 6
+;Description: Warm nights at a marcian wasteland
+;Colors: 6
+FF3a0000
+FF590000
+FF7c0300
+FFc02b18
+FFe04217
+FFf26d1f

@@ -1,0 +1,52 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Mort vs Zughy
+;Description: Created by <a target="_blank" href="https://twitter.com/GamesFruit">Purple Fruit</a> by combining <a target="_blank" href="/palette-list/softmilk-32">Softmilk 32</a> by <a target="_blank" href="https://twitter.com/mnrart">MortMort</a> and <a target="_blank" href="/palette-list/zughy-32">Zughy32</a> by <a target="_blank" href="https://twitter.com/_Zughy">Zughy</a>.
+;Colors: 47
+FFf8f8f8
+FFbcb7c5
+FF8d87a2
+FF50576b
+FF2e3740
+FF101e29
+FF302c2e
+FF5a5353
+FF7d7071
+FFa0938e
+FFcfc6b8
+FFf4cca1
+FFeea160
+FFbf7958
+FFa05b53
+FF7a444a
+FF5e3643
+FF472d3c
+FF39314b
+FF64468d
+FF8e478c
+FFae57a4
+FFea71bd
+FFffaeb6
+FFff8b9c
+FFe1534a
+FFa93b3b
+FFf47e1b
+FFf4b41b
+FFffce00
+FFfbfcaa
+FFb6d53c
+FF71aa34
+FF3f7e00
+FF005f1b
+FF00635c
+FF00a383
+FF3fc778
+FFa1ef79
+FFdff6f5
+FF92f4ff
+FF42cafd
+FF3978a8
+FF243f72
+FF564064
+FF827094
+FF4f546b

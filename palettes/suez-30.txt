@@ -1,0 +1,35 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Suez 30
+;Description: A muted pallete, useful for numerous skin tones due to elaborate brown/orange ramps. Good for textiles, too.
+;Colors: 30
+FFc4a78b
+FF7d665f
+FF493936
+FF200d0a
+FF5f2323
+FF78311d
+FF944c2e
+FF83453e
+FFc36846
+FFe29365
+FFfbbb81
+FFffdba5
+FFfff3cd
+FFffffff
+FFffe892
+FFfbc669
+FFdb6447
+FFb3382a
+FFe5e4b8
+FFb3b887
+FF6c8760
+FF305b46
+FF303c52
+FFe4fbe2
+FFc3dbce
+FF89b5b0
+FF5c8197
+FF425985
+FF403675
+FF230d51

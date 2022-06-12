@@ -1,0 +1,43 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Vine's Flexible Linear Ramps
+;Description: Created by <a target="_blank" href="https://twitter.com/VINE2D">Vine 2D</a>.
+;Colors: 38
+FF150a1f
+FF280b26
+FF361027
+FF681824
+FFb42313
+FFf4680b
+FFf4c047
+FFfffdf0
+FF0c1327
+FF03282b
+FF09493f
+FF118337
+FF57c52b
+FFb9ed5e
+FF1a112e
+FF291945
+FF5e1c5a
+FF8f1767
+FFf45d92
+FFfeb58b
+FF0e092f
+FF1b1853
+FF222d81
+FF465be7
+FF2ac0f2
+FF7df2cf
+FF220c27
+FF2f1316
+FF431e1e
+FF74341a
+FFaf5d23
+FFf8993a
+FF19102e
+FF241e44
+FF25315e
+FF3a5c85
+FF56a1bf
+FF97dbd2

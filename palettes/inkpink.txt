@@ -1,0 +1,11 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: INKPINK
+;Description: 
+;Colors: 6
+FFffffff
+FFfe6c90
+FFd03791
+FF87286a
+FF452459
+FF260d34

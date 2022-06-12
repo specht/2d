@@ -1,0 +1,29 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Fantasy 24
+;Description: Created by <a target="_blank" href="https://twitter.com/cigsandflowers">Gabriel C</a>.
+;Colors: 24
+FF1f240a
+FF39571c
+FFa58c27
+FFefac28
+FFefd8a1
+FFab5c1c
+FF183f39
+FFef692f
+FFefb775
+FFa56243
+FF773421
+FF724113
+FF2a1d0d
+FF392a1c
+FF684c3c
+FF927e6a
+FF276468
+FFef3a0c
+FF45230d
+FF3c9f9c
+FF9b1a0a
+FF36170c
+FF550f0a
+FF300f0a

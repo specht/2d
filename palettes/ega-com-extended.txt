@@ -1,0 +1,25 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: EGA-COM Extended
+;Description: Created by <a href="https://twitter.com/Novellatronic/status/967353295340793857" target="_blank">Sunspire</a>. The 16-color version can be used by leaving off the last 4 colors.
+;Colors: 20
+FF292929
+FF52575c
+FF94999e
+FFdeeedc
+FF7b2d2f
+FFd04043
+FFcb8f21
+FFe6c439
+FF6c4b37
+FF8c6946
+FF538a6a
+FF63b465
+FF2c4267
+FF38668b
+FF775780
+FFf4a66c
+FF576e54
+FF82e8e8
+FF9d446a
+FFeb7272

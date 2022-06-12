@@ -1,0 +1,33 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Cloudy-28
+;Description: A vibrant palette designed for clouds and landscapes, but with enough functionality for other things too
+;Colors: 28
+FFdaddee
+FFb6cde3
+FF92bbcd
+FF6ba9b4
+FF51887c
+FF66a96d
+FFa6c87b
+FFd9e68f
+FFecaa6d
+FFd56247
+FFa43c3c
+FF59160e
+FF773c35
+FF9e6257
+FFd3847a
+FFdb96ad
+FFc277a3
+FF9b5d99
+FF62417d
+FF0c0f32
+FF252a6f
+FF34539e
+FF457bb4
+FF68a5d5
+FF92cade
+FF97a6b7
+FF7b8aa4
+FF5a6685

@@ -1,0 +1,53 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: GOB-48
+;Description: My first palette, warm colours are my personal preference so I thought I may as well make my own colours!
+;Colors: 48
+FF000000
+FF140f24
+FF221f3e
+FF34315b
+FF3b486d
+FF4c6589
+FF60839c
+FF7aa2b0
+FF9cbbc1
+FFc0dadc
+FFffffff
+FFaaf8ff
+FF75d1e4
+FF5aa6bf
+FF5a8cb0
+FF483b6d
+FF66408d
+FF964fad
+FFc26cc9
+FFe089e0
+FFffc3f0
+FF203040
+FF174646
+FF206437
+FF3a892a
+FF5bb031
+FF9bd32c
+FFcced27
+FFfff15e
+FFffce3b
+FFe49b35
+FFcc702f
+FFb14926
+FF952008
+FF760811
+FF490a15
+FF2e040f
+FFa00c0c
+FFbe3333
+FFd35858
+FFdd9393
+FF581d17
+FF72311b
+FF954f2c
+FFa76b3f
+FFc18c56
+FFdcab7a
+FFedd5a5

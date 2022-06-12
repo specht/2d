@@ -1,0 +1,13 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Calm Sunset
+;Description: 
+Warm color palette ideal for sunsets
+;Colors: 7
+FF684971
+FFa06389
+FFcb7ca2
+FFe1aea4
+FFf9d8a1
+FFffecb2
+FFfffcf1

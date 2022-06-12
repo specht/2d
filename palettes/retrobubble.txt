@@ -1,0 +1,21 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: retrobubble.
+;Description: 
+;Colors: 16
+FF9dc1c0
+FF525b80
+FF312139
+FF120e1f
+FF284646
+FF62ab46
+FF95533d
+FF6a2435
+FF654147
+FFfff169
+FFd7793f
+FFab3229
+FF9e8f84
+FFffface
+FFe0b56d
+FFf68b69

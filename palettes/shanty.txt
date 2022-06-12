@@ -1,0 +1,53 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Shanty
+;Description: Just another palette I put together for a game. Pirate themed this time, hence the name "Sea Shanty". If you're wondering about the low contrast blues and greens, I used them primarily for background objects far away.
+;Colors: 48
+FF1e1526
+FF343147
+FF404861
+FF5a758f
+FF8eb2bd
+FF152b24
+FF1d4732
+FF488535
+FF77c242
+FFc6e563
+FFddf19c
+FFa9da86
+FF8ab27d
+FFf28ddb
+FFde4ee6
+FF9143cc
+FF3a2d73
+FF214780
+FF1875cc
+FF18b3f5
+FF3de5f5
+FFf5f5f7
+FFbfeaf5
+FF93cfed
+FFf5915b
+FFbd5044
+FF6e2b23
+FF301b2a
+FF4f293b
+FF854657
+FFb06a72
+FFe69e97
+FFfacc34
+FFfa9a41
+FFe86d25
+FF96181e
+FFd10f2f
+FFf02645
+FF362427
+FF693c3c
+FF875340
+FFb38247
+FFdeb87a
+FFe7dbad
+FFad9e7b
+FF94866b
+FF73695a
+FF5a514a

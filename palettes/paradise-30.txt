@@ -1,0 +1,35 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: PARADISE 30
+;Description: 
+;Colors: 30
+FF1a0e14
+FF321921
+FF4d292d
+FF70483c
+FF96705a
+FFb59571
+FFe0c892
+FFfff4b0
+FF4c2126
+FF70282b
+FF993833
+FFbd4c35
+FFd9643d
+FFf0824b
+FFfba75d
+FFffc973
+FFffe08a
+FFbf2b29
+FFe64e47
+FFed572d
+FFff9130
+FFffbd40
+FF364121
+FF5a7a22
+FFb3a720
+FF402b50
+FF4e59c2
+FF48ace0
+FF863ba1
+FFd663d7

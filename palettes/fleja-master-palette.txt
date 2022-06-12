@@ -1,0 +1,38 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Fleja  Master Palette
+;Description: Created by <a href="https://twitter.com/Fleja2003" target="_blank">Fleja</a> as a general use palette for their pixel art pieces.
+;Colors: 33
+FF1f1833
+FF2b2e42
+FF414859
+FF68717a
+FF90a1a8
+FFb6cbcf
+FFffffff
+FFfcbf8a
+FFb58057
+FF8a503e
+FF5c3a41
+FFc93038
+FFde6a38
+FFffad3b
+FFffe596
+FFfcf960
+FFb4d645
+FF51c43f
+FF309c63
+FF236d7a
+FF264f6e
+FF233663
+FF417291
+FF4c93ad
+FF63c2c9
+FF94d2d4
+FFb8fdff
+FF3c2940
+FF46275c
+FF826481
+FFf7a48b
+FFc27182
+FF852d66

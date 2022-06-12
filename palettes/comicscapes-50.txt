@@ -1,0 +1,55 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Comicscapes 50
+;Description: An universal pallete with desaturated colour and papery vibes
+;Colors: 50
+FF8ec5b5
+FF70ada4
+FF5b9a9a
+FF4d7d8d
+FF365471
+FF2a4268
+FF192449
+FF150d37
+FF140726
+FF0c1634
+FF102d40
+FF16444d
+FF1f605e
+FF2e8172
+FF409e74
+FF62bb7d
+FF79cd7a
+FF240d39
+FF38154e
+FF551e66
+FF712d7a
+FF92428f
+FFad608f
+FF92b5b8
+FF869da2
+FF79878e
+FF676c78
+FF595966
+FF47444e
+FF3f3a43
+FF362f37
+FF2a2328
+FF0e020a
+FF340f21
+FF4e1f32
+FF743444
+FF8c454e
+FFa25959
+FFb3736a
+FFc69580
+FFd2ae91
+FFe5ccab
+FFf2e9cd
+FFf2dfa7
+FFdfb684
+FFd29567
+FFbf6e50
+FFb24e3d
+FFa43045
+FF952452

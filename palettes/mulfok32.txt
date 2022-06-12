@@ -1,0 +1,37 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: mulfok32
+;Description: A colour palette containing soft, pastel colours. My personal palette!
+;Colors: 32
+FF5ba675
+FF6bc96c
+FFabdd64
+FFfcef8d
+FFffb879
+FFea6262
+FFcc425e
+FFa32858
+FF751756
+FF390947
+FF611851
+FF873555
+FFa6555f
+FFc97373
+FFf2ae99
+FFffc3f2
+FFee8fcb
+FFd46eb3
+FF873e84
+FF1f102a
+FF4a3052
+FF7b5480
+FFa6859f
+FFd9bdc8
+FFffffff
+FFaee2ff
+FF8db7ff
+FF6d80fa
+FF8465ec
+FF834dc4
+FF7d2da0
+FF4e187c

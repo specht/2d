@@ -17,7 +17,13 @@ class Menu {
             if (item.group) key_parts.push(item.group);
             key_parts.push(item.command);
             let key = key_parts.join('/');
-            let button = $('<div>').addClass('button').css('background-image', `url(icons/${item.image}.png)`);
+            let button = $('<div>').addClass('button');
+            if (item.css) button.attr('style', item.css);
+            if (item.image) button.css('background-image', `url(icons/${item.image}.png)`);
+            if (item.size === 5)
+                button.addClass('button-5');
+            if (item.color)
+                button.css('background-color', item.color);
             button.data('key', key);
             this.element.append(button);
             this.commands[key] = { button: button, hints: item.hints, label: item.label };

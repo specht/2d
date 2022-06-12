@@ -1,0 +1,21 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Nanner 16
+;Description: 
+;Colors: 16
+FF7acccc
+FF627db3
+FF554080
+FF592858
+FF804055
+FFb37d62
+FFccc97a
+FF70b362
+FF40806a
+FF274457
+FFcccccc
+FF999491
+FF665c5f
+FF332b33
+FF804e46
+FF4d2a2a

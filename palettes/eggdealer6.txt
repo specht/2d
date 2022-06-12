@@ -1,0 +1,11 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: EggDealer6
+;Description: EggDealer6 is a palette like no other. Years of color combination technology has finally brought humanity to the only set of colors that truly matter: one perfectly apt to the drawing of eggs. May its desaturated orange, its calm purples and its greenish whites bring you to the golden gates of egg heaven.
+;Colors: 6
+FF47323b
+FF5c4657
+FF735a55
+FFb0764f
+FFbaac81
+FFe9d79d

@@ -1,0 +1,12 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Nirvana 7
+;Description: 
+;Colors: 7
+FF1e0b37
+FF45176e
+FF8e20a7
+FFd53be3
+FFef7bdd
+FFf6b7d6
+FFfcf2de

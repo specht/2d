@@ -1,0 +1,9 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: CGA Palette 1 (High)
+;Description: One of the palettes available in the standard mode on the <a href="https://en.wikipedia.org/wiki/Color_Graphics_Adapter">CGA</a>. The black can be replaced by any of the other colors in the full CGA palette.
+;Colors: 4
+FF000000
+FFff55ff
+FF55ffff
+FFffffff

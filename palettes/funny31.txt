@@ -1,0 +1,36 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: funny31
+;Description: so funny, made by me on pixilart.com/palettes/archer-a
+;Colors: 31
+FF180a24
+FF3b3542
+FF565466
+FF757785
+FF929ca3
+FFbdc4c9
+FFfff8f0
+FFebd2a7
+FFe6ad87
+FFd97368
+FFc94556
+FFa12758
+FF701664
+FF94357b
+FFb05674
+FFc2808b
+FFd6a9a9
+FFb37254
+FF9e5542
+FF783838
+FF521e2f
+FF101657
+FF263973
+FF385382
+FF286c78
+FF4b798f
+FF649da1
+FFbbc499
+FF89a66d
+FF509950
+FF39825b

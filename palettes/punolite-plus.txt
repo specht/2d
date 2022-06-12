@@ -1,0 +1,30 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Punolite Plus
+;Description: Punolite put good. 
+;Colors: 25
+FF431c3f
+FF6d324e
+FFa65658
+FFc57763
+FFde9d75
+FFf0d898
+FFeef3aa
+FFbef3aa
+FF69c886
+FF50aa82
+FF3d766d
+FF294e58
+FF06041b
+FF101b4c
+FF1e4676
+FF377d99
+FF61b6b1
+FF90d5bf
+FFc7eada
+FFaacec8
+FF96b9b9
+FF809da4
+FF647789
+FF535d76
+FF3b3c58

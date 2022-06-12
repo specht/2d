@@ -1,0 +1,13 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Dreamscape8
+;Description: A palette made of low saturation colours to give your art a dreamlike quality. 
+;Colors: 8
+FFc9cca1
+FFcaa05a
+FFae6a47
+FF8b4049
+FF543344
+FF515262
+FF63787d
+FF8ea091

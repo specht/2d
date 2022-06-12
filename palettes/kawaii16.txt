@@ -1,0 +1,21 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Kawaii16
+;Description: This palette is designed to meet pc-98 16-colour limits, while offering enough rainbow colours to depict a wide variety of anime characters. For the following quilt: https://fy.do/quilt/197
+;Colors: 16
+FF65471e
+FFb57075
+FFdcab80
+FFf8d8ab
+FFb8aaaa
+FFfff5f5
+FFfca5c2
+FFec4646
+FFffa322
+FFf9fa93
+FF7bc188
+FF8ed3f8
+FF5989a3
+FFd793fa
+FF74518e
+FF1d173c

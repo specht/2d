@@ -1,0 +1,29 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: sweet24
+;Description: 
+;Colors: 24
+FF2c4941
+FF66a650
+FFb9d850
+FF82dcd7
+FF208cb2
+FF253348
+FF1d1b24
+FF3a3a41
+FF7a7576
+FFb59a66
+FFcec7b1
+FFedefe2
+FFd78b98
+FFa13d77
+FF6d2047
+FF3c1c43
+FF2c2228
+FF5e3735
+FF885a44
+FFb8560f
+FFdc9824
+FFefcb84
+FFe68556
+FFc02931
