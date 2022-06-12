@@ -52,7 +52,7 @@ class Menu {
             if (k in self.status_shortcuts) {
                 e.preventDefault();
                 e.stopPropagation();
-                self.handle_status_button_down(self.status_shortcuts[k]);
+                self.handle_status_button_down(self.status_shortcuts[k], true);
                 return;
             }
         })
@@ -61,7 +61,7 @@ class Menu {
             if (k in self.status_shortcuts) {
                 e.preventDefault();
                 e.stopPropagation();
-                self.handle_status_button_up(self.status_shortcuts[k]);
+                self.handle_status_button_up(self.status_shortcuts[k], true);
                 return;
             }
         })
@@ -71,13 +71,15 @@ class Menu {
         return this.groups[group].active;
     }
 
-    handle_status_button_down(is) {
+    handle_status_button_down(is, was_key) {
         let self = this;
         if (this.status_buttons[is].type === 'checkbox') {
             if (this.status_buttons[is].value) {
-                this.status_buttons[is].value = false;
-                this.status_buttons[is].button.removeClass('active');
-                this.status_buttons[is].callback(false);
+                if (!was_key) {
+                    this.status_buttons[is].value = false;
+                    this.status_buttons[is].button.removeClass('active');
+                    this.status_buttons[is].callback(false);
+                }
             } else {
                 this.status_buttons[is].value = true;
                 this.status_buttons[is].button.addClass('active');
@@ -90,8 +92,13 @@ class Menu {
         }
     }
 
-    handle_status_button_up(is) {
+    handle_status_button_up(is, was_key) {
         let self = this;
+        if (was_key && this.status_buttons[is].value) {
+            this.status_buttons[is].value = false;
+            this.status_buttons[is].button.removeClass('active');
+            this.status_buttons[is].callback(false);
+        }
     }
 
     handle_click(key) {
@@ -122,12 +129,12 @@ class Menu {
                     button.append($(`<span class='key longkey'>${KEY_TR[hint.key] || hint.key}</span>`));
                     button.append(hint.label);
                     button.append($(`<span class='hint-divider'></span>`));
-                    this.status_buttons[is] = { button: button, value: false, type: hint.type, callback: hint.callback || (() => {})};
+                    this.status_buttons[is] = { button: button, value: false, type: hint.type, callback: hint.callback || (() => { }) };
                     this.status_shortcuts[hint.key.toLowerCase()] = is;
                     statusBar.append(button);
 
-                    button.mousedown(function () { self.handle_status_button_down(is); });
-                    button.mouseup(function () { self.handle_status_button_up(is); });
+                    button.mousedown(function () { self.handle_status_button_down(is, false); });
+                    button.mouseup(function () { self.handle_status_button_up(is, false); });
                     button.mouseleave(function () { self.handle_status_button_up(is); });
                 }
                 i += 1;

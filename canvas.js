@@ -76,7 +76,6 @@ class Canvas {
 
     handle_down(e) {
         let p = this.get_touch_point(e);
-        console.log(p);
         if (this.menu.get('tool') === 'tool/pan') {
             this.moving = true;
             this.moving_x = p.x;
