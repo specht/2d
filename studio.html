@@ -156,7 +156,12 @@
     <div id='status-bar'></div>
     <script>
         let menu_info = [
-            { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen' },
+            {
+                group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen', hints: [
+                    { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox' },
+                    { key: 'Shift', label: 'Zentrieren', type: 'checkbox' },
+                ]
+            },
             { group: 'tool', command: 'line', image: 'draw-line', shortcut: 'W', label: 'Linie zeichnen' },
             {
                 group: 'tool', command: 'rect', image: 'draw-rectangle', shortcut: 'E', label: 'Rechteck zeichnen', hints: [

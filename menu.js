@@ -74,9 +74,15 @@ class Menu {
     handle_status_button_down(is) {
         let self = this;
         if (this.status_buttons[is].type === 'checkbox') {
-            this.status_buttons[is].button.addClass('active');
-            this.status_buttons[is].value = true;
-            this.status_buttons[is].callback(true);
+            if (this.status_buttons[is].value) {
+                this.status_buttons[is].value = false;
+                this.status_buttons[is].button.removeClass('active');
+                this.status_buttons[is].callback(false);
+            } else {
+                this.status_buttons[is].value = true;
+                this.status_buttons[is].button.addClass('active');
+                this.status_buttons[is].callback(true);
+            }
         } else {
             this.status_buttons[is].button.addClass('active');
             setTimeout(function () { self.status_buttons[is].button.removeClass('active'); }, 20);
@@ -86,13 +92,6 @@ class Menu {
 
     handle_status_button_up(is) {
         let self = this;
-        if (this.status_buttons[is].type === 'checkbox') {
-            if (this.status_buttons[is].value) {
-                this.status_buttons[is].value = false;
-                this.status_buttons[is].button.removeClass('active');
-                this.status_buttons[is].callback(false);
-            }
-        }
     }
 
     handle_click(key) {

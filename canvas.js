@@ -55,38 +55,61 @@ class Canvas {
                 self.handleResize();
             }
         });
-        $(this.element).mousedown(function (e) {
-            if (self.menu.get('tool') === 'tool/pan') {
-                self.moving = true;
-                self.moving_x = e.clientX;
-                self.moving_y = e.clientY;
+        // $(this.element).mousedown((e) => self.handle_down(e));
+        // $(this.element).mouseup((e) => self.handle_up(e));
+        // $(this.element).mousemove((e) => self.handle_move(e));
+        $(this.element).on('mousedown touchstart', (e) => self.handle_down(e));
+        $(window).on('mouseup touchend', (e) => self.handle_up(e));
+        $(window).on('mousemove touchmove', (e) => self.handle_move(e));
+        // $(this.element).on({ touchend: (e) => self.handle_up(e) });
+        // $(this.element).on({ touchmove: (e) => self.handle_move(e) });
+        // $(window).mousemove(function (e) {
+        // });
+    }
+
+    get_touch_point(e) {
+        if (e.clientX)
+            return { x: e.clientX, y: e.clientY };
+        else
+            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+
+    handle_down(e) {
+        let p = this.get_touch_point(e);
+        console.log(p);
+        if (this.menu.get('tool') === 'tool/pan') {
+            this.moving = true;
+            this.moving_x = p.x;
+            this.moving_y = p.y;
+        }
+    }
+
+    handle_up(e) {
+        if (this.menu.get('tool') === 'tool/pan') {
+            this.moving = false;
+        }
+    }
+
+    handle_move(e) {
+        let p = this.get_touch_point(e);
+        if (this.menu.get('tool') === 'tool/pan') {
+            if (this.moving) {
+                let dx = p.x - this.moving_x;
+                let dy = p.y - this.moving_y;
+                this.offset_x += dx;
+                this.offset_y += dy;
+                this.moving_x = p.x;
+                this.moving_y = p.y;
+                this.handleResize();
+            } else {
+                // let cx = e.clientX - this.element.position().left;
+                // let cy = e.clientY - this.element.position().top;
+                // let sx = (cx - this.offset_x) / this.scale;
+                // let sy = (cy - this.offset_y) / this.scale;
+                // this.clear(this.overlay_bitmap);
+                // this.set_pixel(this.overlay_bitmap, Math.floor(sx), Math.floor(sy), 0xff);
             }
-        });
-        $(window).mouseup(function (e) {
-            if (self.menu.get('tool') === 'tool/pan') {
-                self.moving = false;
-            }
-        });
-        $(window).mousemove(function (e) {
-            if (self.menu.get('tool') === 'tool/pan') {
-                if (self.moving) {
-                    let dx = e.clientX - self.moving_x;
-                    let dy = e.clientY - self.moving_y;
-                    self.offset_x += dx;
-                    self.offset_y += dy;
-                    self.moving_x = e.clientX;
-                    self.moving_y = e.clientY;
-                    self.handleResize();
-                } else {
-                    // let cx = e.clientX - self.element.position().left;
-                    // let cy = e.clientY - self.element.position().top;
-                    // let sx = (cx - self.offset_x) / self.scale;
-                    // let sy = (cy - self.offset_y) / self.scale;
-                    // self.clear(self.overlay_bitmap);
-                    // self.set_pixel(self.overlay_bitmap, Math.floor(sx), Math.floor(sy), 0xff);
-                }
-            }
-        });
+        }
     }
 
     loadFromUrl(url) {
