@@ -35,7 +35,7 @@
             position: absolute;
             top: 50px;
             left: 0px;
-            width: 166px;
+            width: 202px;
         }
 
         .menu {
@@ -80,8 +80,8 @@
         }
 
         .button-5 {
-            width: 24px;
-            height: 24px;
+            width: 25px;
+            height: 25px;
         }
 
         .button.active {
@@ -258,9 +258,7 @@
 
         }
         let tool_menu_items = [
-            {
-                group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen'
-            },
+            { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen' },
             { group: 'tool', command: 'line', image: 'draw-line', shortcut: 'W', label: 'Linie zeichnen' },
             {
                 group: 'tool', command: 'rect', image: 'draw-rectangle', shortcut: 'E', label: 'Rechteck zeichnen', hints: [
@@ -274,30 +272,30 @@
                     { key: 'Shift', label: 'Zentrieren', type: 'checkbox' },
                 ]
             },
+            { group: 'tool', command: 'spray', image: 'spray-can', shortcut: 'T', label: 'Sprühdose' },
             { group: 'tool', command: 'fill', image: 'color-fill', shortcut: 'A', label: 'Fläche füllen' },
             { group: 'tool', command: 'gradient', image: 'color-gradient', shortcut: 'S', label: 'Farbverlauf' },
             { group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'D', label: 'Rechteck füllen' },
             { group: 'tool', command: 'fill-ellipse', image: 'fill-ellipse', shortcut: 'F', label: 'Ellipse füllen' },
-            { group: 'tool', command: 'spray', image: 'spray-can', shortcut: 'Y', label: 'Sprühdose' },
-            { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'X', label: 'Farbe auswählen' },
-            { group: 'tool', command: 'move', image: 'transform-move', shortcut: 'C', label: 'Sprite verschieben' },
             {
-                group: 'tool', command: 'pan', image: 'system-search', shortcut: 'V', label: 'Sichtbaren Ausschnitt ändern', hints: [
+                group: 'tool', command: 'pan', image: 'system-search', shortcut: 'G', label: 'Sichtbaren Ausschnitt ändern', hints: [
                     { key: '+', label: 'Größer', callback: () => canvas.zoomIn() },
                     { key: '-', label: 'Kleiner', callback: () => canvas.zoomOut() },
                     { key: ' ', label: 'Automatisch anpassen', callback: () => canvas.autoFit() },
-                    // { key: '.', label: 'Hintergrundhelligkeit', callback: () => canvas.toggleBackdropLight() },
                     `Zoome mit dem Mausrad und klicke, um den sichtbaren Ausschnitt zu verschieben`]
             },
-            { command: 'rotate-left', image: 'transform-rotate-left' },
-            { command: 'rotate-right', image: 'transform-rotate-right' },
-            { command: 'flip-h', image: 'transform-flip-h' },
-            { command: 'flip-v', image: 'transform-flip-v' },
+            { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Y', label: 'Farbe auswählen' },
+            { group: 'tool', command: 'move', image: 'transform-move', shortcut: 'X', label: 'Sprite verschieben' },
+            // { command: 'rotate-left', image: 'transform-rotate-left' },
+            { command: 'rotate-right', image: 'transform-rotate-right', shortcut: 'C'},
+            { command: 'flip-h', image: 'transform-flip-h', shortcut: 'V' },
+            { command: 'flip-v', image: 'transform-flip-v', shortcut: 'B' },
             { type: 'divider' },
-            { group: 'penWidth', command: '1', image: 'pen-width-1' },
-            { group: 'penWidth', command: '2', image: 'pen-width-2' },
-            { group: 'penWidth', command: '3', image: 'pen-width-3' },
-            { group: 'penWidth', command: '4', image: 'pen-width-4' },
+            { group: 'penWidth', command: '1', image: 'pen-width-1', shortcut: '1' },
+            { group: 'penWidth', command: '2', image: 'pen-width-2', shortcut: '2' },
+            { group: 'penWidth', command: '3', image: 'pen-width-3', shortcut: '3' },
+            { group: 'penWidth', command: '4', image: 'pen-width-4', shortcut: '4' },
+            { group: 'penWidth', command: '5', image: 'pen-width-5', shortcut: '5' },
         ];
         let color_menu_items = [];
         for (let i = 0; i < palettes.length; i++) {
