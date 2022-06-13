@@ -50,13 +50,7 @@ class Canvas {
                 e.preventDefault();
                 let cx = e.clientX - self.element.position().left;
                 let cy = e.clientY - self.element.position().top;
-                let sx = (cx - self.offset_x) / self.scale;
-                let sy = (cy - self.offset_y) / self.scale;
-                self.visible_pixels *= (1 + e.deltaY * 0.001);
-                self.fix_scale();
-                self.offset_x = cx - sx * self.scale;
-                self.offset_y = cy - sy * self.scale;
-                self.handleResize();
+                self.zoom_at_point(e.deltaY, cx, cy);
             }
         });
         // $(this.element).mousedown((e) => self.handle_down(e));
@@ -76,6 +70,16 @@ class Canvas {
             return { x: e.clientX, y: e.clientY };
         else
             return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+
+    zoom_at_point(delta, cx, cy) {
+        let sx = (cx - this.offset_x) / this.scale;
+        let sy = (cy - this.offset_y) / this.scale;
+        this.visible_pixels *= (1 + delta * 0.001);
+        this.fix_scale();
+        this.offset_x = cx - sx * this.scale;
+        this.offset_y = cy - sy * this.scale;
+        this.handleResize();
     }
 
     handle_down(e) {
@@ -144,13 +148,11 @@ class Canvas {
     }
 
     zoomIn() {
-        this.visible_pixels *= 0.8;
-        this.handleResize();
+        this.zoom_at_point(-200, this.size / 2, this.size / 2);
     }
 
     zoomOut() {
-        this.visible_pixels /= 0.8;
-        this.handleResize();
+        this.zoom_at_point(200, this.size / 2, this.size / 2);
     }
 
     set_pixel(canvas, x, y, color) {

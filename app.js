@@ -12,12 +12,12 @@ var spritesheet_info = {
 			"hitbox": [[0, 0], [0, 22], [14, 22], [14, 0]]
 		},
 		"grass": {
-			"x": 90, "y": 235, "width": 24, "height": 24,
+			"x": 92, "y": 234, "width": 24, "height": 24,
 			"pivot": [12, 0],
 			"hitbox": [[0, 0], [0, 24], [24, 24], [24, 0]]
 		},
 		"soil": {
-			"x": 66, "y": 235, "width": 24, "height": 24,
+			"x": 67, "y": 234, "width": 24, "height": 24,
 			"pivot": [12, 0],
 			"hitbox": [[0, 0], [0, 24], [24, 24], [24, 0]]
 		},
@@ -72,10 +72,11 @@ class SpriteSheet {
 		y += skin.pivot[1];
 		let geometry = new THREE.PlaneGeometry(sw, sh, 1, 1);
 		let uvs = geometry.attributes.uv;
-		let x0 = sx / this.info.width;
-		let x1 = (sx + sw) / this.info.width;
-		let y0 = sy / this.info.height;
-		let y1 = (sy + sh) / this.info.height;
+		let p = 0.05;
+		let x0 = (sx + p) / this.info.width;
+		let x1 = (sx + sw - p) / this.info.width;
+		let y0 = (sy + p) / this.info.height;
+		let y1 = (sy + sh - p) / this.info.height;
 		uvs.setXY(0, x0, 1 - y0);
 		uvs.setXY(1, x1, 1 - y0);
 		uvs.setXY(2, x0, 1 - y1);
@@ -86,7 +87,7 @@ class SpriteSheet {
 		let group = new THREE.Group();
 		group.add(sprite);
 		if (false) {
-			let material = new THREE.LineBasicMaterial({ color: 0xffffff });
+			let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5 });
 			let points = [];
 			for (let p of (skin.hitbox || [])) {
 				let px = p[0] - sw / 2 + x;
@@ -126,7 +127,7 @@ var camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
 camera.position.x = 0;
 camera.position.z = 10;
 camera.position.y = 0;
-var renderer = new THREE.WebGLRenderer({ antialias: false });
+var renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setClearColor("#058");
 renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -192,9 +193,12 @@ function animate_step() {
 		// camera_x -= 4;
 	// camera_x = player.position.x * 6;
 	// player_a.multiplyScalar(0.9);
-	let d = (camera_x - player.position.x * 6);
-	camera_x += -d * 0.05;
+	let dx = (camera_x - player.position.x * 6);
+	camera_x += -dx * 0.05;
 	sky.position.x = camera_x / 8.0;
+	let dy = (camera_y - player.position.y * 6);
+	camera_y += -dy * 0.05;
+	sky.position.y = camera_y / 8.0;
 }
 
 var last_t = null;
@@ -202,6 +206,7 @@ var shake_x = 0.0;
 var shake_y = 0.0;
 var shake_magnitude = 0.0;
 var camera_x = 0.0;
+var camera_y = 0.0;
 
 var render = function () {
 	requestAnimationFrame(render);
@@ -235,10 +240,11 @@ function resize_handler() {
 	let height = window.innerHeight;
 	let scale = 6;
 	renderer.setSize(width, height);
+	// camera_y = 0;
 	camera.left = (-width / 2 + shake_x + camera_x) / scale;
 	camera.right = (width / 2 + shake_x + camera_x) / scale;
-	camera.top = (height / 2 + shake_y) / scale;
-	camera.bottom = (-height / 2 + shake_y) / scale;
+	camera.top = (height / 2 + shake_y + camera_y) / scale;
+	camera.bottom = (-height / 2 + shake_y + camera_y) / scale;
 	camera.updateProjectionMatrix();
 }
 
