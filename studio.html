@@ -103,7 +103,7 @@
             display: inline-block;
             font-family: 'Roboto Mono', monospace;
             font-weight: bold;
-            padding: 0 0.4em;
+            padding: 0.2em 0.5em 0 0.5em;
             height: 1.4em;
             text-align: center;
             background-color: #ddd;
@@ -279,15 +279,26 @@
             { group: 'tool', command: 'fill-ellipse', image: 'fill-ellipse', shortcut: 'F', label: 'Ellipse füllen' },
             {
                 group: 'tool', command: 'pan', image: 'system-search', shortcut: 'G', label: 'Sichtbaren Ausschnitt ändern', hints: [
-                    { key: '+', label: 'Größer', callback: () => canvas.zoomIn() },
-                    { key: '-', label: 'Kleiner', callback: () => canvas.zoomOut() },
+                    {
+                        type: 'group', keys: ['Pfeiltasten'], label: 'Verschieben', shortcuts: [
+                            { key: 'ArrowLeft', label: 'Links', callback: () => canvas.panLeft() },
+                            { key: 'ArrowRight', label: 'Rechts', callback: () => canvas.panRight() },
+                            { key: 'ArrowUp', label: 'Hoch', callback: () => canvas.panUp() },
+                            { key: 'ArrowDown', label: 'Runter', callback: () => canvas.panDown() }]
+                    },
+                    {
+                        type: 'group', keys: ['+', '-'], label: 'Zoom', shortcuts: [
+                            { key: '+', callback: () => canvas.zoomIn() },
+                            { key: '-', callback: () => canvas.zoomOut() },
+                        ]
+                    },
                     { key: ' ', label: 'Automatisch anpassen', callback: () => canvas.autoFit() },
                     `Zoome mit dem Mausrad und klicke, um den sichtbaren Ausschnitt zu verschieben`]
             },
             { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Y', label: 'Farbe auswählen' },
             { group: 'tool', command: 'move', image: 'transform-move', shortcut: 'X', label: 'Sprite verschieben' },
             // { command: 'rotate-left', image: 'transform-rotate-left' },
-            { command: 'rotate-right', image: 'transform-rotate-right', shortcut: 'C'},
+            { command: 'rotate-right', image: 'transform-rotate-right', shortcut: 'C' },
             { command: 'flip-h', image: 'transform-flip-h', shortcut: 'V' },
             { command: 'flip-v', image: 'transform-flip-v', shortcut: 'B' },
             { type: 'divider' },

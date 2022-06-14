@@ -197,7 +197,7 @@ function animate_step() {
 	camera_x += -dx * 0.05;
 	sky.position.x = camera_x / 8.0;
 	let dy = (camera_y - player.position.y * 6);
-	camera_y += -dy * 0.05;
+	// camera_y += -dy * 0.05;
 	sky.position.y = camera_y / 8.0;
 }
 

@@ -155,6 +155,26 @@ class Canvas {
         this.zoom_at_point(200, this.size / 2, this.size / 2);
     }
 
+    panLeft() {
+        this.offset_x += this.size * 0.1;
+        this.handleResize();
+    }
+
+    panRight() {
+        this.offset_x -= this.size * 0.1;
+        this.handleResize();
+    }
+
+    panUp() {
+        this.offset_y += this.size * 0.1;
+        this.handleResize();
+    }
+
+    panDown() {
+        this.offset_y -= this.size * 0.1;
+        this.handleResize();
+    }
+
     set_pixel(canvas, x, y, color) {
         let context = canvas.getContext('2d');
         let data = context.getImageData(x, y, 1, 1);

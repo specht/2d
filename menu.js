@@ -1,4 +1,11 @@
-const KEY_TR = { ' ': '␣', 'Control': 'Strg' };
+const KEY_TR = {
+    ' ': '␣',
+    'Control': 'Strg',
+    'ArrowLeft': '◄',
+    'ArrowRight': '►',
+    'ArrowUp': '▲',
+    'ArrowDown': '▼'
+};
 class Menu {
     constructor(element, info) {
         this.element = element;
@@ -131,19 +138,34 @@ class Menu {
                 if (typeof (hint) == 'string') {
                     statusBar.append($('<div>').addClass('status-bar-item').append(hint));
                 } else if (typeof (hint) === 'object') {
-                    let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
-                    button.append($(`<span class='key longkey'>${KEY_TR[hint.key] || hint.key}</span>`));
-                    button.append(hint.label);
-                    button.append($(`<span class='hint-divider'></span>`));
-                    this.status_buttons[is] = { button: button, value: false, type: hint.type, callback: hint.callback || (() => { }) };
-                    this.status_shortcuts[hint.key.toLowerCase()] = is;
-                    statusBar.append(button);
+                    if (hint.type === 'group') {
+                        let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
+                        for (let key of hint.keys)
+                            button.append($(`<span class='key longkey'>${KEY_TR[key] || key}</span>`));
+                        button.append(hint.label);
+                        button.append($(`<span class='hint-divider'></span>`));
+                        for (let shortcut of hint.shortcuts) {
+                            let is = i.toString();
+                            this.status_buttons[is] = { button: button, value: false, callback: shortcut.callback || (() => { }) };
+                            this.status_shortcuts[shortcut.key.toLowerCase()] = is;
+                            i += 1;
+                        }
+                        statusBar.append(button);
+                    } else {
+                        let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
+                        button.append($(`<span class='key longkey'>${KEY_TR[hint.key] || hint.key}</span>`));
+                        button.append(hint.label);
+                        button.append($(`<span class='hint-divider'></span>`));
+                        this.status_buttons[is] = { button: button, value: false, type: hint.type, callback: hint.callback || (() => { }) };
+                        this.status_shortcuts[hint.key.toLowerCase()] = is;
+                        statusBar.append(button);
 
-                    button.mousedown(function () { self.handle_status_button_down(is, false); });
-                    button.mouseup(function () { self.handle_status_button_up(is, false); });
-                    button.mouseleave(function () { self.handle_status_button_up(is); });
+                        button.mousedown(function () { self.handle_status_button_down(is, false); });
+                        button.mouseup(function () { self.handle_status_button_up(is, false); });
+                        button.mouseleave(function () { self.handle_status_button_up(is); });
+                        i += 1;
+                    }
                 }
-                i += 1;
             }
         }
     }
