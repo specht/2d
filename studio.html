@@ -66,6 +66,16 @@
             border-radius: 4px;
         }
 
+        #color_menu {
+            /* max-height: 200px; */
+            overflow-y: scroll;
+            scrollbar-width: thin;
+        }
+
+        #color_menu::-webkit-scrollbar {
+            display: none;
+        }
+
         .button {
             display: inline-block;
             width: 32px;
@@ -225,6 +235,16 @@
         <div id='tool_menu' class='menu'></div>
         <select id='palettes_here'></select>
         <div id='color_menu' class='menu'></div>
+        <!--
+            Farben an Palette anpassen (mit und ohne Dither)
+            Sättigung / Helligkeit / Kontrast
+            Einfärben
+            Skalieren (mit Interpolation und ohne)
+            Rotieren
+            Pivot-Punkt anzeigen und verschieben
+            Hitbox anzeigen und verändern
+            Animation: Frames
+        -->
     </div>
     <div id='canvas'></div>
     <div id='status-bar'></div>
