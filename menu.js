@@ -140,8 +140,12 @@ class Menu {
                 } else if (typeof (hint) === 'object') {
                     if (hint.type === 'group') {
                         let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
-                        for (let key of hint.keys)
-                            button.append($(`<span class='key longkey'>${KEY_TR[key] || key}</span>`));
+                        for (let key of hint.keys) {
+                            let span = $(`<span class='key longkey'>${KEY_TR[key] || key}</span>`);
+                            if (key !== hint.keys[hint.keys.length - 1])
+                                span.css('margin-right', '3px');
+                            button.append(span);
+                        }
                         button.append(hint.label);
                         button.append($(`<span class='hint-divider'></span>`));
                         for (let shortcut of hint.shortcuts) {
