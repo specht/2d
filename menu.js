@@ -42,15 +42,21 @@ class Menu {
                 this.commands[key].group = item.group;
                 this.groups[item.group] ||= { keys: [], active: null };
                 this.groups[item.group].keys.push(key);
+            }
+            if (item.callback)
+                this.commands[key].callback = item.callback;
+            if (item.data)
+                this.commands[key].data = item.data;
+            let self = this;
+            button.click(function (e) {
+                self.handle_click($(e.target).closest('.button').data('key'));
+            })
+            if (item.group) {
                 if (!(item.group in seen_groups)) {
                     seen_groups[item.group] = true;
                     this.handle_click(key);
                 }
             }
-            let self = this;
-            button.click(function (e) {
-                self.handle_click($(e.target).closest('.button').data('key'));
-            })
         }
         let self = this;
         $(window).keydown(function (e) {
@@ -123,6 +129,8 @@ class Menu {
             }
             this.commands[key].button.addClass('active');
             this.groups[command.group].active = key;
+            if (command.callback)
+                command.callback(command);
         }
         if (command.group === 'tool') {
             this.status_buttons = {};

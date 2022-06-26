@@ -94,6 +94,12 @@
             height: 25px;
         }
 
+        .button-9 {
+            width: 16px;
+            height: 16px;
+            margin: 1.5px;
+        }
+
         .button.active {
             background-color: rgba(255, 255, 255, 0.15);
             border: 1px solid rgba(0, 0, 0, 0);
@@ -113,7 +119,7 @@
             display: inline-block;
             font-family: 'Roboto Mono', monospace;
             font-weight: bold;
-            padding: 0.2em 0.5em 0 0.5em;
+            padding: 0.1em 0.5em;
             height: 1.4em;
             text-align: center;
             background-color: #ddd;
@@ -220,6 +226,7 @@
     <script src="menu.js"></script>
     <script src="cling-colors.js"></script>
     <script src="palettes.js"></script>
+    <script src="tinycolor-min.js"></script>
 </head>
 
 <body>
@@ -233,8 +240,9 @@
     </div>
     <div id='menu_container'>
         <div id='tool_menu' class='menu'></div>
-        <select id='palettes_here'></select>
+        <select id='palettes_here' style="display: none;"></select>
         <div id='color_menu' class='menu'></div>
+        <div id='color_variations_menu' class='menu'></div>
         <!--
             Farben an Palette anpassen (mit und ohne Dither)
             Sättigung / Helligkeit / Kontrast
@@ -254,28 +262,96 @@
             $('#canvas').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
             $('#menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('#menu_container').width() - 25}px`);
         }
+        function setPenWidth(menu_item) {
+            canvas.pen_width = menu_item.data;
+            canvas.update_overlay_brush();
+        }
+        function setCurrentColor(color) {
+            if (color.length === 7)
+                color += 'ff';
+            canvas.current_color = parseInt(color.replace('#', ''), 16);
+            $('#color_variations_menu').empty();
+            let a = tinycolor(color).analogous(10);
+            for (var h = 0; h < 9; h++) {
+                var variation = a[h + 1];
+                var swatch = $("<span class='button button-9'>");
+                var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
+                swatch.css('background', b);
+                swatch.data('html_color', variation.toRgbString());
+                var rgb = variation.toRgb();
+                swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
+                $('#color_variations_menu').append(swatch);
+            }
+            $('#color_variations_menu').append('<br />');
+            for (var h = -4; h <= 4; h++) {
+                var variation = tinycolor(color);
+                if (h < 0)
+                    variation.darken(-h * 10);
+                else
+                    variation.lighten(h * 10);
+                var swatch = $("<span class='button button-9'>");
+                var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
+                swatch.css('background', b);
+                swatch.data('html_color', variation.toRgbString());
+                var rgb = variation.toRgb();
+                swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
+                $('#color_variations_menu').append(swatch);
+            }
+            $('#color_variations_menu').append('<br />');
+            for (var h = -4; h <= 4; h++) {
+                var variation = tinycolor(color);
+                if (h < 0)
+                    variation.desaturate(-h * 20);
+                else
+                    variation.saturate(h * 20);
+                var swatch = $("<span class='button button-9'>");
+                var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
+                swatch.css('background', b);
+                swatch.data('html_color', variation.toRgbString());
+                var rgb = variation.toRgb();
+                swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
+                $('#color_variations_menu').append(swatch);
+            }
+            $('#color_variations_menu').append('<br />');
+            for (var h = 1; h <= 9; h++) {
+                var variation = tinycolor(color);
+                variation.setAlpha(h / 9);
+                var swatch = $("<span class='button button-9'>");
+                var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
+                swatch.css('background', b);
+                swatch.data('html_color', variation.toRgbString());
+                var rgb = variation.toRgb();
+                swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
+                $('#color_variations_menu').append(swatch);
+            }
+
+        }
         function update_color_palette() {
             let i = parseInt($('#palettes_here').val());
             color_menu_items = [];
-            cling_colors = palettes[i].colors;
+            colors = palettes[i].colors;
             // let height = Math.floor(cling_colors.length / 5);
-            for (let i = 0; i < cling_colors.length + 1; i++) {
+            for (let i = 0; i < colors.length + 1; i++) {
                 let color = '';
                 let k = i;
                 // let x = i % 5;
                 // let y = Math.floor(i / 5);
                 // let k = x * height + y;
-                if (k < cling_colors.length) {
-                    let item = cling_colors[k];
+                let menu_item = null;
+                if (k < colors.length) {
+                    let item = colors[k];
                     color = item;
-                    color_menu_items.push({ group: 'color', command: color, color: color, size: 5 });
+                    menu_item = { group: 'color', data: color, command: color, color: color, size: 5 };
                 } else {
-                    color_menu_items.push({ group: 'color', command: '', size: 5, css: `background-image: url(transparent.png); background-repeat: repeat; background-color: #777;` });
+                    menu_item = { group: 'color', data: '#00000000', command: '', size: 5, css: `background-image: url(transparent.png); background-position: 5px 5px; background-repeat: repeat; background-color: #777;` };
                 }
+                menu_item.callback = function(item) {
+                    setCurrentColor(item.data);
+                };
+                color_menu_items.push(menu_item);
             }
             $('#color_menu').empty();
             color_menu = new Menu($('#color_menu'), color_menu_items);
-
         }
         let tool_menu_items = [
             { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen' },
@@ -322,11 +398,11 @@
             { command: 'flip-h', image: 'transform-flip-h', shortcut: 'V' },
             { command: 'flip-v', image: 'transform-flip-v', shortcut: 'B' },
             { type: 'divider' },
-            { group: 'penWidth', command: '1', image: 'pen-width-1', shortcut: '1' },
-            { group: 'penWidth', command: '2', image: 'pen-width-2', shortcut: '2' },
-            { group: 'penWidth', command: '3', image: 'pen-width-3', shortcut: '3' },
-            { group: 'penWidth', command: '4', image: 'pen-width-4', shortcut: '4' },
-            { group: 'penWidth', command: '5', image: 'pen-width-5', shortcut: '5' },
+            { group: 'penWidth', command: '1', image: 'pen-width-1', shortcut: '1', data: 1, callback: setPenWidth },
+            { group: 'penWidth', command: '2', image: 'pen-width-2', shortcut: '2', data: 2, callback: setPenWidth },
+            { group: 'penWidth', command: '3', image: 'pen-width-3', shortcut: '3', data: 3, callback: setPenWidth },
+            { group: 'penWidth', command: '4', image: 'pen-width-4', shortcut: '4', data: 4, callback: setPenWidth },
+            { group: 'penWidth', command: '5', image: 'pen-width-5', shortcut: '5', data: 5, callback: setPenWidth },
         ];
         let color_menu_items = [];
         for (let i = 0; i < palettes.length; i++) {
@@ -336,13 +412,15 @@
         $('#palettes_here').change(function (e) {
             update_color_palette();
         });
-        $('#palettes_here').val('3');
-        update_color_palette();
-        var menu = new Menu($('#tool_menu'), tool_menu_items);
+        $('#palettes_here').val('9');
 
         var canvas = new Canvas($('#canvas'), menu);
-        canvas.loadFromUrl('tree.png');
+        canvas.loadFromUrl('dustin.png');
         handleResize();
+
+        update_color_palette();
+        var menu = new Menu($('#tool_menu'), tool_menu_items);
+        canvas.menu = menu;
 
         $(window).resize(function () {
             handleResize();

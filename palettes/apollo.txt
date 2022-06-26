@@ -1,7 +1,7 @@
 ;paint.net Palette File
 ;Downloaded from Lospec.com/palette-list
 ;Palette Name: Apollo
-;Description: 
+;Description:
 ;Colors: 46
 FF172038
 FF253a5e

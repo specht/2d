@@ -1,0 +1,49 @@
+;paint.net Palette File
+;Downloaded from Lospec.com/palette-list
+;Palette Name: Cling
+;Description:
+;Colors: 46
+ffe617
+fad31c
+fdb717
+faaa21
+f1753f
+ed5724
+ef4538
+ea2830
+bc2326
+8c0c03
+e5185d
+f384ae
+fac6d2
+b296c7
+7b67ae
+5f3577
+c1d18a
+799155
+80bc42
+4aa03f
+16884a
+003f2e
+c3def1
+55beed
+31a8e0
+238acc
+0d60ae
+143b86
+001b4a
+7dcdc2
+00a8a8
+12959f
+094e54
+381e11
+c05c20
+bf9b6b
+e9d4a7
+e7e6e1
+cfd0d2
+8a8b8f
+778590
+474d4d
+050608
+ffffff
