@@ -158,8 +158,20 @@
             padding: 0;
             border-top: 1px solid rgba(255, 255, 255, 0.3);
             font-size: 14px;
-            overflow-x: hidden;
+            overflow-x: auto;
             white-space: nowrap;
+        }
+
+        #status-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Hide scrollbar for IE, Edge and Firefox */
+        #status-bar {
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
         }
 
         #status-bar b {

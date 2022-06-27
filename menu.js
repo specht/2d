@@ -138,8 +138,9 @@ class Menu {
             statusBar.empty();
             let hints = (command.hints || []).slice(0);
             if (command.label) hints.unshift(`<b>${command.label}</b>`);
-            hints.unshift({ key: 'Control+Z', label: 'Rückgängig', callback: function() { self.canvas.undo(); } });
-            hints.unshift({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) self.element.find('.tooltip').show(); else self.element.find('.tooltip').hide(); } });
+            hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) self.element.find('.tooltip').show(); else self.element.find('.tooltip').hide(); } });
+            hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function() { self.canvas.undo(); } });
+            hints.push({ key: 'Alt+Enter', label: 'Vollbild', callback: function() { document.documentElement.requestFullscreen(); } });
             let i = 0;
             for (let hint of hints) {
                 let is = i.toString();
