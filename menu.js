@@ -139,8 +139,12 @@ class Menu {
             let hints = (command.hints || []).slice(0);
             if (command.label) hints.unshift(`<b>${command.label}</b>`);
             hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) self.element.find('.tooltip').show(); else self.element.find('.tooltip').hide(); } });
-            hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function() { self.canvas.undo(); } });
-            hints.push({ key: 'Alt+Enter', label: 'Vollbild', callback: function() { document.documentElement.requestFullscreen(); } });
+            hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
+            hints.push({
+                key: 'Alt+Enter', label: 'Vollbild', callback: function () {
+                    if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen();
+                }
+            });
             let i = 0;
             for (let hint of hints) {
                 let is = i.toString();
@@ -166,18 +170,21 @@ class Menu {
                         statusBar.append(button);
                     } else {
                         let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
-                        let key_parts = hint.key.split('+');
-                        for (let i = 0; i < key_parts.length; i++) {
-                            let part = key_parts[i];
-                            let style = '';
-                            if (i > 0)
-                                style='margin-left: -0.5em;'
-                            button.append($(`<span class='key longkey' style='${style}'>${KEY_TR[part] || part}</span>`));
+                        if (hint.key) {
+                            let key_parts = hint.key.split('+');
+                            for (let i = 0; i < key_parts.length; i++) {
+                                let part = key_parts[i];
+                                let style = '';
+                                if (i > 0)
+                                    style = 'margin-left: -0.5em;'
+                                button.append($(`<span class='key longkey' style='${style}'>${KEY_TR[part] || part}</span>`));
+                            }
                         }
                         button.append(hint.label);
                         button.append($(`<span class='hint-divider'></span>`));
                         this.status_buttons[is] = { button: button, value: false, type: hint.type, callback: hint.callback || (() => { }) };
-                        this.status_shortcuts[hint.key.toLowerCase()] = is;
+                        if (hint.key)
+                            this.status_shortcuts[hint.key.toLowerCase()] = is;
                         statusBar.append(button);
 
                         button.mousedown(function () { self.handle_status_button_down(is, false); });
