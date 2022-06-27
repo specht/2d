@@ -29,6 +29,7 @@ class Canvas {
         this.square_tool = false;
         this.center_tool = false;
         this.undo_stack = [];
+        this.is_touch = false;
         $(this.element).css('overflow', 'hidden');
         $(this.element).css('cursor', 'crosshair');
         $(this.backdrop_color).css('background-color', `#777`);
@@ -81,9 +82,11 @@ class Canvas {
 
     get_touch_point(e) {
         if (e.clientX)
-            return { x: e.clientX, y: e.clientY };
-        else
-            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            return [e.clientX, e.clientY];
+        else {
+            this.is_touch = true;
+            return [e.touches[0].clientX, e.touches[0].clientY];
+        }
     }
 
     zoom_at_point(delta, cx, cy) {
@@ -116,6 +119,8 @@ class Canvas {
 
     handle_down(e) {
         let p = this.get_touch_point(e);
+        this.last_mouse_x = p[0] - this.element.position().left;
+        this.last_mouse_y = p[1] - this.element.position().top;
         this.mouse_down = true;
         this.mouse_down_point = this.get_sprite_point_from_last_mouse();
         if (this.menu) {
@@ -125,8 +130,8 @@ class Canvas {
             }
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = true;
-                this.moving_x = p.x;
-                this.moving_y = p.y;
+                this.moving_x = p[0];
+                this.moving_y = p[1];
             } else if (this.menu.get('tool') === 'tool/pen') {
                 this.perform_drawing_action();
             }
@@ -343,6 +348,7 @@ class Canvas {
     }
 
     handle_up(e) {
+        console.log('handle_up');
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = false;
@@ -414,37 +420,39 @@ class Canvas {
         let pattern = this.penPattern(this.pen_width);
         let s = this.get_sprite_point_from_last_mouse();
         this.clear(this.overlay_bitmap);
-        if (this.menu.get('tool') === 'tool/pen') {
-            if (this.mouse_in_canvas && this.show_pen) {
-                for (let p of pattern)
-                    this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, this.current_color));
-            }
-        } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
-            if (this.mouse_down) {
-                let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
-                let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
-                this.set_pixels(this.overlay_bitmap, mask, this.current_color);
-            } else {
-                for (let p of pattern)
-                    this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, this.current_color));
+        if (!(this.is_touch && !this.mouse_down)) {
+            if (this.menu.get('tool') === 'tool/pen') {
+                if (this.mouse_in_canvas && this.show_pen) {
+                    for (let p of pattern)
+                        this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, this.current_color));
+                }
+            } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
+                if (this.mouse_down) {
+                    let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
+                    let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
+                    this.set_pixels(this.overlay_bitmap, mask, this.current_color);
+                } else {
+                    for (let p of pattern)
+                        this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, this.current_color));
+                }
             }
         }
         this.update_overlay_outline();
     }
 
     handle_move(e) {
-        this.last_mouse_x = e.clientX - this.element.position().left;
-        this.last_mouse_y = e.clientY - this.element.position().top;
+        let p = this.get_touch_point(e);
+        this.last_mouse_x = p[0] - this.element.position().left;
+        this.last_mouse_y = p[1] - this.element.position().top;
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 if (this.moving) {
-                    let p = this.get_touch_point(e);
-                    let dx = p.x - this.moving_x;
-                    let dy = p.y - this.moving_y;
+                    let dx = p[0] - this.moving_x;
+                    let dy = p[1] - this.moving_y;
                     this.offset_x += dx;
                     this.offset_y += dy;
-                    this.moving_x = p.x;
-                    this.moving_y = p.y;
+                    this.moving_x = p[0];
+                    this.moving_y = p[1];
                     this.handleResize();
                 }
             } else {
