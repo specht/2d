@@ -90,8 +90,9 @@
         }
 
         .button-5 {
-            width: 25px;
-            height: 25px;
+            width: 22px;
+            height: 22px;
+            margin: 1.5px;
         }
 
         .button-9 {
@@ -220,6 +221,13 @@
             font-weight: bold;
             background-color: rgba(255, 255, 255, 0.2);
         }
+
+        input {
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 0, 0, 0.5);
+            background-color: rgba(255, 255, 255, 0.9);
+        }
     </style>
     <script src="jquery-3.6.0.min.js"></script>
     <script src="canvas.js"></script>
@@ -243,6 +251,10 @@
         <select id='palettes_here' style="display: none;"></select>
         <div id='color_menu' class='menu'></div>
         <div id='color_variations_menu' class='menu'></div>
+        <div id='current_color_menu' class='menu' style='text-align: right; background: linear-gradient(rgba(0, 0, 0, 0.9),rgba(0, 0, 0, 0.9)), url(transparent.png), #777;'>
+            <!-- <input type='text' style='width: 80px;' value='#ff88aa80'></input> -->
+            <button class='btn'>change</button>
+        </div>
         <!--
             Farben an Palette anpassen (mit und ohne Dither)
             Sättigung / Helligkeit / Kontrast
@@ -270,6 +282,9 @@
             if (color.length === 7)
                 color += 'ff';
             canvas.current_color = parseInt(color.replace('#', ''), 16);
+            // $('#current_color_menu input').val(`#${canvas.current_color.toString(16)}`);
+            let t = tinycolor(color);
+            $('#current_color_menu').css('background', `linear-gradient(${t.toRgbString()},${t.toRgbString()}), url(transparent.png), #777`);
             $('#color_variations_menu').empty();
             let a = tinycolor(color).analogous(10);
             for (var h = 0; h < 9; h++) {
@@ -326,17 +341,24 @@
             }
 
         }
+        function activateTool(item) {
+            if (item.key.substr(0, 5) === 'tool/') {
+                canvas.setShowPen(['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
+                    'tool/spray', 'tool/fill', 'tool/gradient', 'tool/fill-rect',
+                    'tool/fill-ellipse', 'tool/picker'].indexOf(item.key) >= 0);
+                if (['tool/picker'].indexOf(item.key) >= 0)
+                    $(canvas.overlay_bitmap).hide();
+                else
+                    $(canvas.overlay_bitmap).show();
+            }
+        }
         function update_color_palette() {
             let i = parseInt($('#palettes_here').val());
             color_menu_items = [];
             colors = palettes[i].colors;
-            // let height = Math.floor(cling_colors.length / 5);
             for (let i = 0; i < colors.length + 1; i++) {
                 let color = '';
                 let k = i;
-                // let x = i % 5;
-                // let y = Math.floor(i / 5);
-                // let k = x * height + y;
                 let menu_item = null;
                 if (k < colors.length) {
                     let item = colors[k];
@@ -345,7 +367,7 @@
                 } else {
                     menu_item = { group: 'color', data: '#00000000', command: '', size: 5, css: `background-image: url(transparent.png); background-position: 5px 5px; background-repeat: repeat; background-color: #777;` };
                 }
-                menu_item.callback = function(item) {
+                menu_item.callback = function (item) {
                     setCurrentColor(item.data);
                 };
                 color_menu_items.push(menu_item);
@@ -404,6 +426,11 @@
             { group: 'penWidth', command: '4', image: 'pen-width-4', shortcut: '4', data: 4, callback: setPenWidth },
             { group: 'penWidth', command: '5', image: 'pen-width-5', shortcut: '5', data: 5, callback: setPenWidth },
         ];
+        tool_menu_items = tool_menu_items.map(function (x) {
+            if (!x.callback)
+                x.callback = activateTool;
+            return x;
+        });
         let color_menu_items = [];
         for (let i = 0; i < palettes.length; i++) {
             let palette = palettes[i];

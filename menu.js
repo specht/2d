@@ -33,7 +33,7 @@ class Menu {
                 button.css('background-color', item.color);
             button.data('key', key);
             this.element.append(button);
-            this.commands[key] = { button: button, hints: item.hints, label: item.label };
+            this.commands[key] = { button: button, hints: item.hints, label: item.label, key: key };
             if (item.shortcut) {
                 button.append($('<div>').addClass('tooltip').addClass('key').text(item.shortcut));
                 this.shortcuts[item.shortcut.toLowerCase()] = key;
@@ -129,8 +129,6 @@ class Menu {
             }
             this.commands[key].button.addClass('active');
             this.groups[command.group].active = key;
-            if (command.callback)
-                command.callback(command);
         }
         if (command.group === 'tool') {
             this.status_buttons = {};
@@ -180,5 +178,7 @@ class Menu {
                 }
             }
         }
+        if (command.callback)
+            command.callback(command);
     }
 }

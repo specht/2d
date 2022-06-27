@@ -19,6 +19,8 @@ class Canvas {
         this.pen_width = 1;
         this.last_mouse_x = null;
         this.last_mouse_y = null;
+        this.mouse_in_canvas = false;
+        this.show_pen = false;
         $(this.element).css('overflow', 'hidden');
         $(this.element).css('cursor', 'crosshair');
         $(this.backdrop_color).css('background-color', `#777`);
@@ -62,16 +64,11 @@ class Canvas {
                 self.zoom_at_point(e.deltaY, cx, cy);
             }
         });
-        // $(this.element).mousedown((e) => self.handle_down(e));
-        // $(this.element).mouseup((e) => self.handle_up(e));
-        // $(this.element).mousemove((e) => self.handle_move(e));
+        $(this.element).on('mouseenter', (e) => self.handle_enter(e));
+        $(this.element).on('mouseleave', (e) => self.handle_leave(e));
         $(this.element).on('mousedown touchstart', (e) => self.handle_down(e));
         $(window).on('mouseup touchend', (e) => self.handle_up(e));
         $(window).on('mousemove touchmove', (e) => self.handle_move(e));
-        // $(this.element).on({ touchend: (e) => self.handle_up(e) });
-        // $(this.element).on({ touchmove: (e) => self.handle_move(e) });
-        // $(window).mousemove(function (e) {
-        // });
     }
 
     get_touch_point(e) {
@@ -89,6 +86,16 @@ class Canvas {
         this.offset_x = cx - sx * this.scale;
         this.offset_y = cy - sy * this.scale;
         this.handleResize();
+    }
+
+    handle_enter(e) {
+        this.mouse_in_canvas = true;
+        this.update_overlay_outline();
+    }
+
+    handle_leave(e) {
+        this.mouse_in_canvas = false;
+        this.update_overlay_outline();
     }
 
     handle_down(e) {
@@ -110,6 +117,11 @@ class Canvas {
         }
     }
 
+    setShowPen(flag) {
+        this.show_pen = flag;
+        this.update_overlay_brush();
+    }
+
     update_overlay_outline() {
         let overlay_context = this.overlay_bitmap.getContext('2d');
         let outline_context = this.overlay_bitmap_outline.getContext('2d');
@@ -118,6 +130,8 @@ class Canvas {
         let outline_width = this.overlay_bitmap_outline.width;
         let outline_height = this.overlay_bitmap_outline.height;
         outline_context.clearRect(0, 0, outline_width, outline_height);
+        if (!(this.mouse_in_canvas && this.show_pen))
+            return;
         let data = overlay_context.getImageData(0, 0, overlay_width, overlay_height).data;
         outline_context.beginPath();
         outline_context.strokeStyle = '#ffffff';
@@ -163,9 +177,11 @@ class Canvas {
         sx -= ((this.pen_width + 1) % 2) * 0.5;
         sy -= ((this.pen_width + 1) % 2) * 0.5;
         this.clear(this.overlay_bitmap);
-        let pattern = this.penPattern(this.pen_width);
-        for (let p of pattern)
-            this.set_pixel(this.overlay_bitmap, Math.floor(sx) + p[0], Math.floor(sy) + p[1], Math.max(1, this.current_color));
+        if (this.mouse_in_canvas && this.show_pen) {
+            let pattern = this.penPattern(this.pen_width);
+            for (let p of pattern)
+                this.set_pixel(this.overlay_bitmap, Math.floor(sx) + p[0], Math.floor(sy) + p[1], Math.max(1, this.current_color));
+        }
         this.update_overlay_outline();
     }
 
@@ -358,7 +374,6 @@ class Canvas {
         $(this.overlay_bitmap).css('height', `${this.bitmap.height * this.scale}px`);
         $(this.overlay_bitmap).css('left', `${this.offset_x}px`);
         $(this.overlay_bitmap).css('top', `${this.offset_y}px`);
-        // $(this.overlay_bitmap_outline).css('opacity', opacity);
 
         if (this.scrollable_x) {
             $(this.overlay_grid).css('left', `${this.offset_x % this.scale}px`);
