@@ -359,6 +359,7 @@
                     'tool/spray', 'tool/fill', 'tool/gradient', 'tool/fill-rect',
                     'tool/fill-ellipse', 'tool/picker'].indexOf(item.key) >= 0);
                 canvas.setSquareTool(false);
+                canvas.setCenterTool(false);
                 if (['tool/picker'].indexOf(item.key) >= 0)
                     $(canvas.overlay_bitmap).hide();
                 else
@@ -395,13 +396,13 @@
             {
                 group: 'tool', command: 'rect', image: 'draw-rectangle', shortcut: 'E', label: 'Rechteck zeichnen', hints: [
                     { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox', callback: function (x) { canvas.setSquareTool(x); } },
-                    { key: 'Shift', label: 'Zentrieren', type: 'checkbox' },
+                    { key: 'Shift', label: 'Zentrieren', type: 'checkbox', callback: function (x) { canvas.setCenterTool(x); } },
                 ]
             },
             {
                 group: 'tool', command: 'ellipse', image: 'draw-ellipse', shortcut: 'R', label: 'Ellipse zeichnen', hints: [
                     { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox', callback: function (x) { canvas.setSquareTool(x); } },
-                    { key: 'Shift', label: 'Zentrieren', type: 'checkbox' },
+                    { key: 'Shift', label: 'Zentrieren', type: 'checkbox', callback: function (x) { canvas.setCenterTool(x); } },
                 ]
             },
             {
@@ -419,13 +420,13 @@
             {
                 group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'D', label: 'Rechteck füllen', hints: [
                     { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox', callback: function (x) { canvas.setSquareTool(x); } },
-                    { key: 'Shift', label: 'Zentrieren', type: 'checkbox' },
+                    { key: 'Shift', label: 'Zentrieren', type: 'checkbox', callback: function (x) { canvas.setCenterTool(x); } },
                 ]
             },
             {
                 group: 'tool', command: 'fill-ellipse', image: 'fill-ellipse', shortcut: 'F', label: 'Ellipse füllen', hints: [
                     { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox', callback: function (x) { canvas.setSquareTool(x); } },
-                    { key: 'Shift', label: 'Zentrieren', type: 'checkbox' },
+                    { key: 'Shift', label: 'Zentrieren', type: 'checkbox', callback: function (x) { canvas.setCenterTool(x); } },
                 ]
             },
             {
@@ -479,9 +480,9 @@
         handleResize();
 
         update_color_palette();
-        var menu = new Menu($('#tool_menu'), tool_menu_items);
+        var menu = new Menu($('#tool_menu'), tool_menu_items, canvas);
         canvas.menu = menu;
-        menu.handle_click('tool/ellipse');
+        menu.handle_click('tool/pen');
         menu.handle_click('penWidth/1');
 
         $(window).resize(function () {

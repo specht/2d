@@ -7,8 +7,9 @@ const KEY_TR = {
     'ArrowDown': '▼'
 };
 class Menu {
-    constructor(element, info) {
+    constructor(element, info, canvas) {
         this.element = element;
+        this.canvas = canvas;
         let seen_groups = {};
         this.commands = {};
         this.shortcuts = {};
@@ -137,6 +138,7 @@ class Menu {
             statusBar.empty();
             let hints = (command.hints || []).slice(0);
             if (command.label) hints.unshift(`<b>${command.label}</b>`);
+            hints.unshift({ key: 'Control+Z', label: 'Rückgängig', callback: function() { self.canvas.undo(); } });
             hints.unshift({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) self.element.find('.tooltip').show(); else self.element.find('.tooltip').hide(); } });
             let i = 0;
             for (let hint of hints) {
@@ -163,7 +165,14 @@ class Menu {
                         statusBar.append(button);
                     } else {
                         let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
-                        button.append($(`<span class='key longkey'>${KEY_TR[hint.key] || hint.key}</span>`));
+                        let key_parts = hint.key.split('+');
+                        for (let i = 0; i < key_parts.length; i++) {
+                            let part = key_parts[i];
+                            let style = '';
+                            if (i > 0)
+                                style='margin-left: -0.5em;'
+                            button.append($(`<span class='key longkey' style='${style}'>${KEY_TR[part] || part}</span>`));
+                        }
                         button.append(hint.label);
                         button.append($(`<span class='hint-divider'></span>`));
                         this.status_buttons[is] = { button: button, value: false, type: hint.type, callback: hint.callback || (() => { }) };

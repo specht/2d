@@ -1,6 +1,8 @@
 const DEFAULT_WIDTH = 24;
 const DEFAULT_HEIGHT = 24;
 const TWO_POINT_TOOLS = ['tool/line', 'tool/rect', 'tool/ellipse', 'tool/fill-rect', 'tool/fill-ellipse'];
+const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse', 'tool/fill-rect', 'tool/fill-ellipse'];
+const MAX_UNDO_STACK_SIZE = 32;
 
 class Canvas {
     constructor(element) {
@@ -25,6 +27,8 @@ class Canvas {
         this.mouse_down = false;
         this.mouse_down_point = null;
         this.square_tool = false;
+        this.center_tool = false;
+        this.undo_stack = [];
         $(this.element).css('overflow', 'hidden');
         $(this.element).css('cursor', 'crosshair');
         $(this.backdrop_color).css('background-color', `#777`);
@@ -115,6 +119,10 @@ class Canvas {
         this.mouse_down = true;
         this.mouse_down_point = this.get_sprite_point_from_last_mouse();
         if (this.menu) {
+            if (UNDO_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
+                this.undo_stack.push(this.toUrl());
+                this.undo_stack = this.undo_stack.slice(0, MAX_UNDO_STACK_SIZE);
+            }
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = true;
                 this.moving_x = p.x;
@@ -162,16 +170,30 @@ class Canvas {
         return result;
     }
 
-    rectPattern(p0, p1) {
-        let x0 = p0[0];
-        let y0 = p0[1];
-        let x1 = p1[0];
-        let y1 = p1[1];
+    prepare_2_point_coordinates(p0, p1) {
+        let x0 = p0[0], y0 = p0[1], x1 = p1[0], y1 = p1[1];
+        if (x1 < x0) { let t = x0; x0 = x1; x1 = t; }
+        if (y1 < y0) { let t = y0; y0 = y1; y1 = t; }
         if (this.square_tool) {
             let s = Math.max(x1 - x0, y1 - y0);
             x1 = x0 + s;
             y1 = y0 + s;
         }
+        if (this.center_tool) {
+            let w2 = (x1 - x0);
+            let h2 = (y1 - y0);
+            let cx = p0[0];
+            let cy = p0[1];
+            x0 = cx - w2;
+            y0 = cy - h2;
+            x1 = cx + w2;
+            y1 = cy + h2;
+        }
+        return [x0, y0, x1, y1];
+    }
+
+    rectPattern(p0, p1) {
+        let [x0, y0, x1, y1] = this.prepare_2_point_coordinates(p0, p1)
         if (x0 > x1) { let t = x0; x0 = x1; x1 = t; }
         if (y0 > y1) { let t = y0; y0 = y1; y1 = t; }
         let result = [];
@@ -187,10 +209,7 @@ class Canvas {
     }
 
     fillRectPattern(p0, p1) {
-        let x0 = p0[0];
-        let y0 = p0[1];
-        let x1 = p1[0];
-        let y1 = p1[1];
+        let [x0, y0, x1, y1] = this.prepare_2_point_coordinates(p0, p1)
         if (this.square_tool) {
             let s = Math.max(x1 - x0, y1 - y0);
             x1 = x0 + s;
@@ -206,19 +225,13 @@ class Canvas {
     }
 
     ellipsePattern(p0, p1) {
-        let x0 = p0[0];
-        let y0 = p0[1];
-        let x1 = p1[0];
-        let y1 = p1[1];
-        if (this.square_tool) {
-            let s = Math.max(x1 - x0, y1 - y0);
-            x1 = x0 + s;
-            y1 = y0 + s;
-        }
-        let xm = x0;
-        let ym = y0;
-        let a = Math.abs(x1 - x0);
-        let b = Math.abs(y1 - y0);
+        let [x0, y0, x1, y1] = this.prepare_2_point_coordinates(p0, p1)
+        let sx = (x1 - x0) % 2;
+        let sy = (y1 - y0) % 2;
+        let a = Math.floor(Math.abs(x1 - x0) / 2);
+        let b = Math.floor(Math.abs(y1 - y0) / 2);
+        let xm = x0 + a;
+        let ym = y0 + b;
         if (a == 0)
             if (a < 1 || b < 1)
                 return this.linePattern([xm - a, ym - b], [xm + a, ym + b]);
@@ -231,35 +244,29 @@ class Canvas {
         let err = b2 - (2 * b - 1) * a2;
 
         do {
-            result.push([xm + dx, ym + dy]);
-            result.push([xm - dx, ym + dy]);
-            result.push([xm + dx, ym - dy]);
+            result.push([xm + dx + sx, ym + dy + sy]);
+            result.push([xm - dx, ym + dy + sy]);
+            result.push([xm + dx + sx, ym - dy]);
             result.push([xm - dx, ym - dy]);
             let e2 = 2 * err;
             if (e2 < (2 * dx + 1) * b2) { dx++; err += (2 * dx + 1) * b2; }
             if (e2 > -(2 * dy - 1) * a2) { dy--; err -= (2 * dy - 1) * a2; }
         } while (dy >= 0);
         while (dx++ < a) {
-            result.push([xm + dx, ym]);
+            result.push([xm + dx + sx, ym]);
             result.push([xm - dx, ym]);
         }
         return result;
     }
 
     fillEllipsePattern(p0, p1) {
-        let x0 = p0[0];
-        let y0 = p0[1];
-        let x1 = p1[0];
-        let y1 = p1[1];
-        if (this.square_tool) {
-            let s = Math.max(x1 - x0, y1 - y0);
-            x1 = x0 + s;
-            y1 = y0 + s;
-        }
-        let xm = x0;
-        let ym = y0;
-        let a = Math.abs(x1 - x0);
-        let b = Math.abs(y1 - y0);
+        let [x0, y0, x1, y1] = this.prepare_2_point_coordinates(p0, p1)
+        let sx = (x1 - x0) % 2;
+        let sy = (y1 - y0) % 2;
+        let a = Math.floor(Math.abs(x1 - x0) / 2);
+        let b = Math.floor(Math.abs(y1 - y0) / 2);
+        let xm = x0 + a;
+        let ym = y0 + b;
         if (a == 0)
             if (a < 1 || b < 1)
                 return this.linePattern([xm - a, ym - b], [xm + a, ym + b]);
@@ -272,14 +279,14 @@ class Canvas {
         let err = b2 - (2 * b - 1) * a2;
 
         do {
-            result.push([xm - dx, ym - dy, dx * 2 + 1]);
-            result.push([xm - dx, ym + dy, dx * 2 + 1]);
+            result.push([xm - dx, ym - dy, dx * 2 + 1 + sx]);
+            result.push([xm - dx, ym + dy + sy, dx * 2 + 1 + sx]);
             let e2 = 2 * err;
             if (e2 < (2 * dx + 1) * b2) { dx++; err += (2 * dx + 1) * b2; }
             if (e2 > -(2 * dy - 1) * a2) { dy--; err -= (2 * dy - 1) * a2; }
         } while (dy >= 0)
         while (dx++ < a) {
-            result.push([xm - dx, ym, dx * 2 + 1]);
+            result.push([xm - dx, ym, dx * 2 + 1 + sx]);
         }
         return result;
     }
@@ -449,6 +456,13 @@ class Canvas {
                 }
             }
         }
+    }
+
+    undo() {
+        if (this.undo_stack.length === 0)
+            return;
+        this.loadFromUrl(this.undo_stack[this.undo_stack.length - 1]);
+        this.undo_stack = this.undo_stack.slice(0, this.undo_stack.length - 1);
     }
 
     loadFromUrl(url) {
@@ -661,6 +675,11 @@ class Canvas {
 
     setSquareTool(flag) {
         this.square_tool = flag;
+        this.update_overlay_brush();
+    }
+
+    setCenterTool(flag) {
+        this.center_tool = flag;
         this.update_overlay_brush();
     }
 }
