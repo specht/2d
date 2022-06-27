@@ -1,7 +1,9 @@
 const DEFAULT_WIDTH = 24;
 const DEFAULT_HEIGHT = 24;
+const PEN_SHAPE_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse', 'tool/fill-rect', 'tool/fill-ellipse', 'tool/picker'];
 const TWO_POINT_TOOLS = ['tool/line', 'tool/rect', 'tool/ellipse', 'tool/fill-rect', 'tool/fill-ellipse'];
 const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse', 'tool/fill-rect', 'tool/fill-ellipse'];
+const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker'];
 const MAX_UNDO_STACK_SIZE = 32;
 
 class Canvas {
@@ -84,8 +86,10 @@ class Canvas {
         if (e.clientX)
             return [e.clientX, e.clientY];
         else {
-            this.is_touch = true;
-            return [e.touches[0].clientX, e.touches[0].clientY];
+            if (e.touches) {
+                this.is_touch = true;
+                return [e.touches[0].clientX, e.touches[0].clientY];
+            } else return [0, 0];
         }
     }
 
@@ -132,7 +136,7 @@ class Canvas {
                 this.moving = true;
                 this.moving_x = p[0];
                 this.moving_y = p[1];
-            } else if (this.menu.get('tool') === 'tool/pen') {
+            } else if (PERFORM_ON_MOUSE_DOWN_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 this.perform_drawing_action();
             }
         }
@@ -343,12 +347,31 @@ class Canvas {
                 let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
                 let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
                 this.set_pixels(this.bitmap, mask, this.current_color);
+            } else if (this.menu.get('tool') === 'tool/picker') {
+                this.mouse_down_point = s;
+                let pattern = this.penPattern(this.pen_width);
+                let color = [0, 0, 0, 0];
+                let count = 0;
+                for (let p of pattern) {
+                    let x = this.mouse_down_point[0] + p[0];
+                    let y = this.mouse_down_point[1] + p[1];
+                    if (x >= 0 && y >= 0 && x < this.bitmap.width && y < this.bitmap.height) {
+                        let pixel = this.get_pixel(this.bitmap, x, y);
+                        for (let i = 0; i < 4; i++)
+                            color[i] += pixel[i];
+                        count += 1;
+                    }
+                }
+                if (count > 0) {
+                    for (let i = 0; i < 4; i++)
+                        color[i] = Math.round(color[i] / count);
+                    setCurrentColor(tinycolor({ r: color[0], g: color[1], b: color[2], a: color[3] }).toHex8String());
+                }
             }
         }
     }
 
     handle_up(e) {
-        console.log('handle_up');
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = false;
@@ -430,11 +453,14 @@ class Canvas {
                 if (this.mouse_down) {
                     let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
                     let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
-                    this.set_pixels(this.overlay_bitmap, mask, this.current_color);
+                    this.set_pixels(this.overlay_bitmap, mask, Math.max(1, this.current_color));
                 } else {
                     for (let p of pattern)
                         this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, this.current_color));
                 }
+            } else if (PEN_SHAPE_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
+                for (let p of pattern)
+                    this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], 1);
             }
         }
         this.update_overlay_outline();
@@ -457,7 +483,7 @@ class Canvas {
                 }
             } else {
                 this.update_overlay_brush();
-                if (this.menu.get('tool') === 'tool/pen') {
+                if (PERFORM_ON_MOUSE_DOWN_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                     if (this.mouse_down) {
                         this.perform_drawing_action();
                     }
@@ -557,6 +583,12 @@ class Canvas {
         data.data[2] = (color >> 8) & 0xff;
         data.data[3] = color & 0xff;
         context.putImageData(data, x, y);
+    }
+
+    get_pixel(canvas, x, y) {
+        let context = canvas.getContext('2d');
+        let data = context.getImageData(x, y, 1, 1);
+        return [data.data[0], data.data[1], data.data[2], data.data[3]];
     }
 
     set_pixels(canvas, mask, color) {

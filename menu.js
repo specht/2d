@@ -141,7 +141,7 @@ class Menu {
             hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) self.element.find('.tooltip').show(); else self.element.find('.tooltip').hide(); } });
             hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
             hints.push({
-                key: 'Alt+Enter', label: 'Vollbild', callback: function () {
+                key: 'F11', label: 'Vollbild', callback: function () {
                     if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen();
                 }
             });

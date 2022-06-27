@@ -274,6 +274,7 @@
         <!-- <button class='btn'>change</button> -->
         <!-- </div> -->
         <!--
+            Color picker: select swatch or none
             Farben an Palette anpassen (mit und ohne Dither)
             Sättigung / Helligkeit / Kontrast
             Einfärben
@@ -321,7 +322,7 @@
                 if (h < 0)
                     variation.darken(-h * 10);
                 else
-                    variation.lighten(h * 10);
+                    variation.brighten(h * 10);
                 var swatch = $("<span class='button button-9'>");
                 var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
                 swatch.css('background', b);
@@ -373,9 +374,8 @@
                 canvas.setSquareTool(false);
                 canvas.setCenterTool(false);
                 if (['tool/picker'].indexOf(item.key) >= 0)
-                    $(canvas.overlay_bitmap).hide();
-                else
-                    $(canvas.overlay_bitmap).show();
+                    menu.handle_click('penWidth/1');
+                $(canvas.overlay_bitmap).show();
             }
         }
         function update_color_palette() {
