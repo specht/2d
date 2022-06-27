@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 
 <head>
@@ -81,24 +82,27 @@
             width: 32px;
             height: 32px;
             border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 2px;
+            border-radius: 3px;
             /* background-color: rgba(0,0,0,0.5); */
             background-repeat: no-repeat;
             background-position: 50% 50%;
             position: relative;
             margin: 2px;
+            margin-bottom: -2.5px;
         }
 
         .button-5 {
             width: 22px;
             height: 22px;
             margin: 1.5px;
+            margin-bottom: -2.5px;
         }
 
         .button-9 {
             width: 16px;
             height: 16px;
             margin: 1.5px;
+            margin-bottom: -2.5px;
         }
 
         .button.active {
@@ -110,10 +114,11 @@
 
         .button:hover {
             border: 1px solid #fff;
+            /* outline: 1px solid #fff; */
         }
 
         .button.active:hover {
-            border: 1px solid #555;
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
         .key {
@@ -251,10 +256,11 @@
         <select id='palettes_here' style="display: none;"></select>
         <div id='color_menu' class='menu'></div>
         <div id='color_variations_menu' class='menu'></div>
-        <div id='current_color_menu' class='menu' style='text-align: right; background: linear-gradient(rgba(0, 0, 0, 0.9),rgba(0, 0, 0, 0.9)), url(transparent.png), #777;'>
-            <!-- <input type='text' style='width: 80px;' value='#ff88aa80'></input> -->
-            <button class='btn'>change</button>
-        </div>
+        <!-- <div id='current_color_menu' class='menu' -->
+        <!-- style='text-align: right; background: linear-gradient(rgba(0, 0, 0, 0.9),rgba(0, 0, 0, 0.9)), url(transparent.png), #777;'> -->
+        <!-- <input type='text' style='width: 80px;' value='#ff88aa80'></input> -->
+        <!-- <button class='btn'>change</button> -->
+        <!-- </div> -->
         <!--
             Farben an Palette anpassen (mit und ohne Dither)
             Sättigung / Helligkeit / Kontrast
@@ -339,13 +345,20 @@
                 swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
                 $('#color_variations_menu').append(swatch);
             }
-
+            $('#color_variations_menu .button').click(function (e) {
+                let list_color = $(e.target).data('list_color');
+                canvas.current_color = (((((list_color[0] * 256) + list_color[1]) * 256) + list_color[2]) * 256) + list_color[3];
+                color_menu.element.find('.button').removeClass('active');
+                $('#color_variations_menu').find('.button').removeClass('active');
+                $(e.target).addClass('active');
+            });
         }
         function activateTool(item) {
             if (item.key.substr(0, 5) === 'tool/') {
                 canvas.setShowPen(['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
                     'tool/spray', 'tool/fill', 'tool/gradient', 'tool/fill-rect',
                     'tool/fill-ellipse', 'tool/picker'].indexOf(item.key) >= 0);
+                canvas.setSquareTool(false);
                 if (['tool/picker'].indexOf(item.key) >= 0)
                     $(canvas.overlay_bitmap).hide();
                 else
@@ -372,6 +385,7 @@
                 };
                 color_menu_items.push(menu_item);
             }
+            // color_menu_items.push({ image: 'palette' , size: 5, css: 'background-image-size: 16px 16px' });
             $('#color_menu').empty();
             color_menu = new Menu($('#color_menu'), color_menu_items);
         }
@@ -380,21 +394,40 @@
             { group: 'tool', command: 'line', image: 'draw-line', shortcut: 'W', label: 'Linie zeichnen' },
             {
                 group: 'tool', command: 'rect', image: 'draw-rectangle', shortcut: 'E', label: 'Rechteck zeichnen', hints: [
-                    { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox' },
+                    { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox', callback: function (x) { canvas.setSquareTool(x); } },
                     { key: 'Shift', label: 'Zentrieren', type: 'checkbox' },
                 ]
             },
             {
                 group: 'tool', command: 'ellipse', image: 'draw-ellipse', shortcut: 'R', label: 'Ellipse zeichnen', hints: [
-                    { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox' },
+                    { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox', callback: function (x) { canvas.setSquareTool(x); } },
                     { key: 'Shift', label: 'Zentrieren', type: 'checkbox' },
                 ]
             },
-            { group: 'tool', command: 'spray', image: 'spray-can', shortcut: 'T', label: 'Sprühdose' },
+            {
+                group: 'tool', command: 'spray', image: 'spray-can', shortcut: 'T', label: 'Sprühdose', hints: [
+                    { key: 'Shift', label: 'nur auf selber Farbe', type: 'checkbox' },
+                ]
+            },
             { group: 'tool', command: 'fill', image: 'color-fill', shortcut: 'A', label: 'Fläche füllen' },
-            { group: 'tool', command: 'gradient', image: 'color-gradient', shortcut: 'S', label: 'Farbverlauf' },
-            { group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'D', label: 'Rechteck füllen' },
-            { group: 'tool', command: 'fill-ellipse', image: 'fill-ellipse', shortcut: 'F', label: 'Ellipse füllen' },
+            {
+                group: 'tool', command: 'gradient', image: 'color-gradient', shortcut: 'S', label: 'Farbverlauf', hints: [
+                    { key: 'Control', label: 'kreisförmig', type: 'checkbox' },
+                    { key: 'Shift', label: 'Dithering verwenden', type: 'checkbox' },
+                ]
+            },
+            {
+                group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'D', label: 'Rechteck füllen', hints: [
+                    { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox', callback: function (x) { canvas.setSquareTool(x); } },
+                    { key: 'Shift', label: 'Zentrieren', type: 'checkbox' },
+                ]
+            },
+            {
+                group: 'tool', command: 'fill-ellipse', image: 'fill-ellipse', shortcut: 'F', label: 'Ellipse füllen', hints: [
+                    { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox', callback: function (x) { canvas.setSquareTool(x); } },
+                    { key: 'Shift', label: 'Zentrieren', type: 'checkbox' },
+                ]
+            },
             {
                 group: 'tool', command: 'pan', image: 'system-search', shortcut: 'G', label: 'Sichtbaren Ausschnitt ändern', hints: [
                     {
@@ -448,6 +481,8 @@
         update_color_palette();
         var menu = new Menu($('#tool_menu'), tool_menu_items);
         canvas.menu = menu;
+        menu.handle_click('tool/ellipse');
+        menu.handle_click('penWidth/1');
 
         $(window).resize(function () {
             handleResize();

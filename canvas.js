@@ -1,5 +1,6 @@
 const DEFAULT_WIDTH = 24;
 const DEFAULT_HEIGHT = 24;
+const TWO_POINT_TOOLS = ['tool/line', 'tool/rect', 'tool/ellipse', 'tool/fill-rect', 'tool/fill-ellipse'];
 
 class Canvas {
     constructor(element) {
@@ -21,6 +22,9 @@ class Canvas {
         this.last_mouse_y = null;
         this.mouse_in_canvas = false;
         this.show_pen = false;
+        this.mouse_down = false;
+        this.mouse_down_point = null;
+        this.square_tool = false;
         $(this.element).css('overflow', 'hidden');
         $(this.element).css('cursor', 'crosshair');
         $(this.backdrop_color).css('background-color', `#777`);
@@ -95,16 +99,238 @@ class Canvas {
 
     handle_leave(e) {
         this.mouse_in_canvas = false;
+        if (this.menu) {
+            // if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
+            // } else {
+            //     this.mouse_down = false;
+            // }
+        } else {
+            this.mouse_down = false;
+        }
         this.update_overlay_outline();
     }
 
     handle_down(e) {
         let p = this.get_touch_point(e);
+        this.mouse_down = true;
+        this.mouse_down_point = this.get_sprite_point_from_last_mouse();
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = true;
                 this.moving_x = p.x;
                 this.moving_y = p.y;
+            } else if (this.menu.get('tool') === 'tool/pen') {
+                this.perform_drawing_action();
+            }
+        }
+    }
+
+    get_sprite_point_from_last_mouse() {
+        let sx = (this.last_mouse_x - this.offset_x) / this.scale;
+        let sy = (this.last_mouse_y - this.offset_y) / this.scale;
+        sx -= ((this.pen_width + 1) % 2) * 0.5;
+        sy -= ((this.pen_width + 1) % 2) * 0.5;
+        return [Math.floor(sx), Math.floor(sy)];
+    }
+
+    linePattern(p0, p1) {
+        let result = [];
+        let x0 = p0[0];
+        let y0 = p0[1];
+        let x1 = p1[0];
+        let y1 = p1[1];
+        let dx = Math.abs(x1 - x0);
+        let dy = Math.abs(y1 - y0);
+        let sx = (x0 < x1) ? 1 : -1;
+        let sy = (y0 < y1) ? 1 : -1;
+        let err = dx - dy;
+
+        while (true) {
+            result.push([x0, y0]);
+            if (x0 == x1 && y0 == y1)
+                break;
+            let e2 = err * 2;
+            if (e2 > -dy) {
+                err -= dy;
+                x0 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+        return result;
+    }
+
+    rectPattern(p0, p1) {
+        let x0 = p0[0];
+        let y0 = p0[1];
+        let x1 = p1[0];
+        let y1 = p1[1];
+        if (this.square_tool) {
+            let s = Math.max(x1 - x0, y1 - y0);
+            x1 = x0 + s;
+            y1 = y0 + s;
+        }
+        if (x0 > x1) { let t = x0; x0 = x1; x1 = t; }
+        if (y0 > y1) { let t = y0; y0 = y1; y1 = t; }
+        let result = [];
+        for (let x = x0; x <= x1; x++) {
+            result.push([x, y0]);
+            result.push([x, y1]);
+        }
+        for (let y = y0 + 1; y < y1; y++) {
+            result.push([x0, y]);
+            result.push([x1, y]);
+        }
+        return result;
+    }
+
+    fillRectPattern(p0, p1) {
+        let x0 = p0[0];
+        let y0 = p0[1];
+        let x1 = p1[0];
+        let y1 = p1[1];
+        if (this.square_tool) {
+            let s = Math.max(x1 - x0, y1 - y0);
+            x1 = x0 + s;
+            y1 = y0 + s;
+        }
+        if (x0 > x1) { let t = x0; x0 = x1; x1 = t; }
+        if (y0 > y1) { let t = y0; y0 = y1; y1 = t; }
+        let result = [];
+        for (let y = y0; y <= y1; y++) {
+            result.push([x0, y, x1 - x0 + 1]);
+        }
+        return result;
+    }
+
+    ellipsePattern(p0, p1) {
+        let x0 = p0[0];
+        let y0 = p0[1];
+        let x1 = p1[0];
+        let y1 = p1[1];
+        if (this.square_tool) {
+            let s = Math.max(x1 - x0, y1 - y0);
+            x1 = x0 + s;
+            y1 = y0 + s;
+        }
+        let xm = x0;
+        let ym = y0;
+        let a = Math.abs(x1 - x0);
+        let b = Math.abs(y1 - y0);
+        if (a == 0)
+            if (a < 1 || b < 1)
+                return this.linePattern([xm - a, ym - b], [xm + a, ym + b]);
+
+        let result = [];
+        let dx = 0;
+        let dy = b;
+        let a2 = a * a;
+        let b2 = b * b;
+        let err = b2 - (2 * b - 1) * a2;
+
+        do {
+            result.push([xm + dx, ym + dy]);
+            result.push([xm - dx, ym + dy]);
+            result.push([xm + dx, ym - dy]);
+            result.push([xm - dx, ym - dy]);
+            let e2 = 2 * err;
+            if (e2 < (2 * dx + 1) * b2) { dx++; err += (2 * dx + 1) * b2; }
+            if (e2 > -(2 * dy - 1) * a2) { dy--; err -= (2 * dy - 1) * a2; }
+        } while (dy >= 0);
+        while (dx++ < a) {
+            result.push([xm + dx, ym]);
+            result.push([xm - dx, ym]);
+        }
+        return result;
+    }
+
+    fillEllipsePattern(p0, p1) {
+        let x0 = p0[0];
+        let y0 = p0[1];
+        let x1 = p1[0];
+        let y1 = p1[1];
+        if (this.square_tool) {
+            let s = Math.max(x1 - x0, y1 - y0);
+            x1 = x0 + s;
+            y1 = y0 + s;
+        }
+        let xm = x0;
+        let ym = y0;
+        let a = Math.abs(x1 - x0);
+        let b = Math.abs(y1 - y0);
+        if (a == 0)
+            if (a < 1 || b < 1)
+                return this.linePattern([xm - a, ym - b], [xm + a, ym + b]);
+
+        let result = [];
+        let dx = 0;
+        let dy = b;
+        let a2 = a * a;
+        let b2 = b * b;
+        let err = b2 - (2 * b - 1) * a2;
+
+        do {
+            result.push([xm - dx, ym - dy, dx * 2 + 1]);
+            result.push([xm - dx, ym + dy, dx * 2 + 1]);
+            let e2 = 2 * err;
+            if (e2 < (2 * dx + 1) * b2) { dx++; err += (2 * dx + 1) * b2; }
+            if (e2 > -(2 * dy - 1) * a2) { dy--; err -= (2 * dy - 1) * a2; }
+        } while (dy >= 0)
+        while (dx++ < a) {
+            result.push([xm - dx, ym, dx * 2 + 1]);
+        }
+        return result;
+    }
+
+    patternForTool(p0, p1, tool) {
+        if (tool === 'tool/line')
+            return this.linePattern(p0, p1);
+        else if (tool === 'tool/rect')
+            return this.rectPattern(p0, p1);
+        else if (tool === 'tool/fill-rect')
+            return this.fillRectPattern(p0, p1);
+        else if (tool === 'tool/ellipse')
+            return this.ellipsePattern(p0, p1);
+        else if (tool === 'tool/fill-ellipse')
+            return this.fillEllipsePattern(p0, p1);
+    }
+
+    mask_for_pen_and_pattern(pen_mask, shape_mask) {
+        let mask_hash = {};
+        for (let l of shape_mask) {
+            for (let p of pen_mask) {
+                if (l.length > 2) {
+                    for (let x = 0; x < l[2]; x++) {
+                        let mx = l[0] + p[0] + x;
+                        let my = l[1] + p[1];
+                        mask_hash[`${mx}|${my}`] = [mx, my];
+                    }
+                } else {
+                    let mx = l[0] + p[0];
+                    let my = l[1] + p[1];
+                    mask_hash[`${mx}|${my}`] = [mx, my];
+                }
+            }
+        }
+        return Object.values(mask_hash);
+    }
+
+
+    perform_drawing_action() {
+        let s = this.get_sprite_point_from_last_mouse();
+        let pattern = this.penPattern(this.pen_width);
+        if (this.menu) {
+            if (this.menu.get('tool') === 'tool/pen') {
+                let line_pattern = this.linePattern(this.mouse_down_point, s);
+                this.mouse_down_point = s;
+                let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
+                this.set_pixels(this.bitmap, mask, this.current_color);
+            } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
+                let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
+                let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
+                this.set_pixels(this.bitmap, mask, this.current_color);
             }
         }
     }
@@ -113,8 +339,14 @@ class Canvas {
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = false;
+            } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
+                if (this.mouse_down)
+                    this.perform_drawing_action();
             }
         }
+        this.mouse_down = false;
+        this.mouse_down_point = null;
+        this.update_overlay_brush();
     }
 
     setShowPen(flag) {
@@ -130,7 +362,7 @@ class Canvas {
         let outline_width = this.overlay_bitmap_outline.width;
         let outline_height = this.overlay_bitmap_outline.height;
         outline_context.clearRect(0, 0, outline_width, outline_height);
-        if (!(this.mouse_in_canvas && this.show_pen))
+        if (!((this.mouse_down || this.mouse_in_canvas) && this.show_pen))
             return;
         let data = overlay_context.getImageData(0, 0, overlay_width, overlay_height).data;
         outline_context.beginPath();
@@ -172,20 +404,30 @@ class Canvas {
     update_overlay_brush() {
         if (this.last_mouse_x === null || this.last_mouse_y === null)
             return;
-        let sx = (this.last_mouse_x - this.offset_x) / this.scale;
-        let sy = (this.last_mouse_y - this.offset_y) / this.scale;
-        sx -= ((this.pen_width + 1) % 2) * 0.5;
-        sy -= ((this.pen_width + 1) % 2) * 0.5;
+        let pattern = this.penPattern(this.pen_width);
+        let s = this.get_sprite_point_from_last_mouse();
         this.clear(this.overlay_bitmap);
-        if (this.mouse_in_canvas && this.show_pen) {
-            let pattern = this.penPattern(this.pen_width);
-            for (let p of pattern)
-                this.set_pixel(this.overlay_bitmap, Math.floor(sx) + p[0], Math.floor(sy) + p[1], Math.max(1, this.current_color));
+        if (this.menu.get('tool') === 'tool/pen') {
+            if (this.mouse_in_canvas && this.show_pen) {
+                for (let p of pattern)
+                    this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, this.current_color));
+            }
+        } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
+            if (this.mouse_down) {
+                let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
+                let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
+                this.set_pixels(this.overlay_bitmap, mask, this.current_color);
+            } else {
+                for (let p of pattern)
+                    this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, this.current_color));
+            }
         }
         this.update_overlay_outline();
     }
 
     handle_move(e) {
+        this.last_mouse_x = e.clientX - this.element.position().left;
+        this.last_mouse_y = e.clientY - this.element.position().top;
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 if (this.moving) {
@@ -199,11 +441,12 @@ class Canvas {
                     this.handleResize();
                 }
             } else {
-                let cx = e.clientX - this.element.position().left;
-                let cy = e.clientY - this.element.position().top;
-                this.last_mouse_x = cx;
-                this.last_mouse_y = cy;
                 this.update_overlay_brush();
+                if (this.menu.get('tool') === 'tool/pen') {
+                    if (this.mouse_down) {
+                        this.perform_drawing_action();
+                    }
+                }
             }
         }
     }
@@ -292,6 +535,23 @@ class Canvas {
         data.data[2] = (color >> 8) & 0xff;
         data.data[3] = color & 0xff;
         context.putImageData(data, x, y);
+    }
+
+    set_pixels(canvas, mask, color) {
+        let context = canvas.getContext('2d');
+        let data = context.getImageData(0, 0, canvas.width, canvas.height);
+        for (let p of mask) {
+            let x = p[0];
+            let y = p[1];
+            if (x >= 0 && y >= 0 && x < canvas.width && y < canvas.height) {
+                let offset = y * canvas.width * 4 + x * 4;
+                data.data[offset + 0] = (color >> 24) & 0xff;
+                data.data[offset + 1] = (color >> 16) & 0xff;
+                data.data[offset + 2] = (color >> 8) & 0xff;
+                data.data[offset + 3] = color & 0xff;
+            }
+        }
+        context.putImageData(data, 0, 0);
     }
 
     clear(canvas) {
@@ -397,5 +657,10 @@ class Canvas {
             $(this.backdrop_color).css('top', `${this.offset_y}px`);
             $(this.backdrop).css('top', `${this.offset_y}px`);
         }
+    }
+
+    setSquareTool(flag) {
+        this.square_tool = flag;
+        this.update_overlay_brush();
     }
 }
