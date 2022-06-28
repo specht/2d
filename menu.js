@@ -62,7 +62,6 @@ class Menu {
         let self = this;
         $(window).keydown(function (e) {
             let k = self.parseKeyEvent(e);
-            console.log(Object.keys(self.shortcuts), Object.keys(self.status_shortcuts));
             if (k in self.shortcuts) {
                 e.preventDefault();
                 e.stopPropagation();

@@ -1,9 +1,13 @@
 const DEFAULT_WIDTH = 24;
 const DEFAULT_HEIGHT = 24;
-const PEN_SHAPE_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse', 'tool/fill-rect', 'tool/fill-ellipse', 'tool/picker'];
-const TWO_POINT_TOOLS = ['tool/line', 'tool/rect', 'tool/ellipse', 'tool/fill-rect', 'tool/fill-ellipse'];
-const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse', 'tool/fill-rect', 'tool/fill-ellipse'];
-const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker'];
+const PEN_SHAPE_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
+    'tool/fill-rect', 'tool/fill-ellipse', 'tool/picker', 'tool/spray', 'tool/fill'];
+const TWO_POINT_TOOLS = ['tool/line', 'tool/rect', 'tool/ellipse',
+    'tool/fill-rect', 'tool/fill-ellipse'];
+const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
+    'tool/fill-rect', 'tool/fill-ellipse', 'tool/spray'];
+const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 'tool/fill'];
+const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker'];
 const MAX_UNDO_STACK_SIZE = 32;
 
 class Canvas {
@@ -28,10 +32,14 @@ class Canvas {
         this.show_pen = false;
         this.mouse_down = false;
         this.mouse_down_point = null;
-        this.square_tool = false;
-        this.center_tool = false;
+        this.modifier_ctrl = false;
+        this.modifier_alt = false;
+        this.modifier_shift = false;
         this.undo_stack = [];
         this.is_touch = false;
+        this.periodic_ticker_handle = null;
+        this.spray_pixels = null;
+        this.spray_pixels_per_shot = 1;
         $(this.element).css('overflow', 'hidden');
         $(this.element).css('cursor', 'crosshair');
         $(this.backdrop_color).css('background-color', `#777`);
@@ -183,12 +191,12 @@ class Canvas {
         let x0 = p0[0], y0 = p0[1], x1 = p1[0], y1 = p1[1];
         if (x1 < x0) { let t = x0; x0 = x1; x1 = t; }
         if (y1 < y0) { let t = y0; y0 = y1; y1 = t; }
-        if (this.square_tool) {
+        if (this.modifier_ctrl) {
             let s = Math.max(x1 - x0, y1 - y0);
             x1 = x0 + s;
             y1 = y0 + s;
         }
-        if (this.center_tool) {
+        if (this.modifier_shift) {
             let w2 = (x1 - x0);
             let h2 = (y1 - y0);
             let cx = p0[0];
@@ -219,7 +227,7 @@ class Canvas {
 
     fillRectPattern(p0, p1) {
         let [x0, y0, x1, y1] = this.prepare_2_point_coordinates(p0, p1)
-        if (this.square_tool) {
+        if (this.modifier_ctrl) {
             let s = Math.max(x1 - x0, y1 - y0);
             x1 = x0 + s;
             y1 = y0 + s;
@@ -365,7 +373,89 @@ class Canvas {
                 if (count > 0) {
                     for (let i = 0; i < 4; i++)
                         color[i] = Math.round(color[i] / count);
-                    setCurrentColor(tinycolor({ r: color[0], g: color[1], b: color[2], a: color[3] / 255}).toHex8String());
+                    setCurrentColor(tinycolor({ r: color[0], g: color[1], b: color[2], a: color[3] / 255 }).toHex8String());
+                }
+            } else if (this.menu.get('tool') === 'tool/spray') {
+                this.stop_ticker();
+                this.mouse_down_point = s;
+                this.mouse_down_color = this.get_pixel(this.bitmap, this.mouse_down_point[0], this.mouse_down_point[1]);
+                this.spray_pixels = this.determine_spray_pixels();
+                this.spray_pixels_per_shot = Math.max(1, Math.floor(this.bitmap.width * this.bitmap.height / 50 / 5));
+                this.start_ticker(20);
+            }
+        }
+    }
+
+    determine_spray_pixels() {
+        let result = [];
+        if (this.modifier_shift) {
+            let context = this.bitmap.getContext('2d');
+            let data = context.getImageData(0, 0, this.bitmap.width, this.bitmap.height);
+            for (let y = 0; y < this.bitmap.height; y++) {
+                for (let x = 0; x < this.bitmap.width; x++) {
+                    let o = y * this.bitmap.width * 4 + x * 4;
+                    let color = [data.data[o + 0], data.data[o + 1], data.data[o + 2], data.data[o + 3]];
+                    if (color.join('/') === this.mouse_down_color.join('/'))
+                        // if (color.join('/') === self.mouse_down_color.join('/'))
+                        // self.set_pixel(self.bitmap, x + p[0], y + p[1], draw_color);
+                        result.push([x, y]);
+                }
+            }
+
+
+        } else {
+            for (let y = 0; y < this.bitmap.height; y++) {
+                for (let x = 0; x < this.bitmap.width; x++) {
+                    result.push([x, y]);
+                }
+            }
+        }
+        return result;
+    }
+
+    start_ticker(frequency) {
+        this.stop_ticker();
+        this.periodic_ticker_handle = setInterval(this.ticker_callback, frequency, this);
+    }
+
+    stop_ticker() {
+        if (this.periodic_ticker_handle !== null) {
+            clearInterval(this.periodic_ticker_handle);
+            this.periodic_ticker_handle = null;
+        }
+    }
+
+    ticker_callback(self) {
+        if (self.menu) {
+            if (self.menu.get('tool') === 'tool/spray') {
+                for (let i = 0; i < self.spray_pixels_per_shot; i++) {
+                    if (self.spray_pixels.length === 0)
+                        return;
+                    let offset = Math.floor(Math.random() * (self.spray_pixels.length));
+                    let x = self.spray_pixels[offset][0];
+                    let y = self.spray_pixels[offset][1];
+                    self.spray_pixels[offset] = self.spray_pixels[self.spray_pixels.length - 1];
+                    self.spray_pixels = self.spray_pixels.slice(0, self.spray_pixels.length - 1);
+                    let pattern = self.penPattern(self.pen_width);
+                    for (let p of pattern) {
+                        let draw_color = self.current_color;
+                        if (self.modifier_ctrl) {
+                            let c = tinycolor('#' + draw_color.toString(16));
+                            if (Math.random() < 0.5)
+                                c = c.brighten(Math.random() * 10);
+                            else
+                                c = c.darken(Math.random() * 10);
+                            draw_color = parseInt(c.toHex8(), 16);
+                        }
+                        if (self.modifier_shift) {
+                            let color = self.get_pixel(self.bitmap, x + p[0], y + p[1]);
+                            if (color.join('/') === self.mouse_down_color.join('/'))
+                                self.set_pixel(self.bitmap, x + p[0], y + p[1], draw_color);
+
+                        } else {
+                            self.set_pixel(self.bitmap, x + p[0], y + p[1], draw_color);
+                        }
+                    }
                 }
             }
         }
@@ -383,6 +473,7 @@ class Canvas {
         this.mouse_down = false;
         this.mouse_down_point = null;
         this.update_overlay_brush();
+        this.stop_ticker();
     }
 
     setShowPen(flag) {
@@ -483,7 +574,7 @@ class Canvas {
                 }
             } else {
                 this.update_overlay_brush();
-                if (PERFORM_ON_MOUSE_DOWN_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
+                if (PERFORM_ON_MOUSE_MOVE_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                     if (this.mouse_down) {
                         this.perform_drawing_action();
                     }
@@ -713,13 +804,18 @@ class Canvas {
         }
     }
 
-    setSquareTool(flag) {
-        this.square_tool = flag;
+    setModifierCtrl(flag) {
+        this.modifier_ctrl = flag;
         this.update_overlay_brush();
     }
 
-    setCenterTool(flag) {
-        this.center_tool = flag;
+    setModifierAlt(flag) {
+        this.modifier_alt = flag;
+        this.update_overlay_brush();
+    }
+
+    setModifierShift(flag) {
+        this.modifier_shift = flag;
         this.update_overlay_brush();
     }
 }
