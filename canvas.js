@@ -382,7 +382,38 @@ class Canvas {
                 this.spray_pixels = this.determine_spray_pixels();
                 this.spray_pixels_per_shot = Math.max(1, Math.floor(this.bitmap.width * this.bitmap.height / 50 / 5));
                 this.start_ticker(20);
+            } else if (this.menu.get('tool') === 'tool/fill') {
+                this.mouse_down_point = s;
+                this.mouse_down_color = this.get_pixel(this.bitmap, this.mouse_down_point[0], this.mouse_down_point[1]);
+                let context = this.bitmap.getContext('2d');
+                this.flood_fill_data = context.getImageData(0, 0, this.bitmap.width, this.bitmap.height);
+                this.flood_fill_seen_pixels = {};
+                this._flood_fill(this.mouse_down_point, this.mouse_down_color);
+                context.putImageData(this.flood_fill_data, 0, 0);
+                this.flood_fill_seen_pixels = null;
+                this.flood_fill_data = null;
             }
+        }
+    }
+
+    _flood_fill(p, color) {
+        let offset = p[1] * this.bitmap.width + p[0];
+        if (this.flood_fill_seen_pixels[offset])
+            return;
+        this.flood_fill_seen_pixels[offset] = true;
+        offset *= 4;
+        let probe = [];
+        for (let i = 0; i < 4; i++)
+            probe.push(this.flood_fill_data.data[offset + i]);
+        if (probe.join('/') === this.mouse_down_color.join('/')) {
+            this.flood_fill_data.data[offset + 0] = (this.current_color >> 24) & 0xff;
+            this.flood_fill_data.data[offset + 1] = (this.current_color >> 16) & 0xff;
+            this.flood_fill_data.data[offset + 2] = (this.current_color >> 8) & 0xff;
+            this.flood_fill_data.data[offset + 3] = this.current_color & 0xff;
+            if (p[0] > 0) this._flood_fill([p[0] - 1, p[1]], color);
+            if (p[1] > 0) this._flood_fill([p[0], p[1] - 1], color);
+            if (p[0] < this.bitmap.width - 1) this._flood_fill([p[0] + 1, p[1]], color);
+            if (p[1] < this.bitmap.height - 1) this._flood_fill([p[0], p[1] + 1], color);
         }
     }
 
