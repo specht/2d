@@ -37,7 +37,7 @@ class Menu {
             this.commands[key] = { button: button, hints: item.hints, label: item.label, key: key };
             if (item.shortcut) {
                 button.append($('<div>').addClass('tooltip').addClass('key').text(item.shortcut));
-                this.shortcuts[item.shortcut.toLowerCase()] = key;
+                this.shortcuts[item.shortcut] = key;
             }
             if (item.group) {
                 this.commands[key].group = item.group;
@@ -61,7 +61,8 @@ class Menu {
         }
         let self = this;
         $(window).keydown(function (e) {
-            let k = e.key.toLowerCase();
+            let k = self.parseKeyEvent(e);
+            console.log(Object.keys(self.shortcuts), Object.keys(self.status_shortcuts));
             if (k in self.shortcuts) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -77,7 +78,7 @@ class Menu {
             }
         })
         $(window).keyup(function (e) {
-            let k = e.key.toLowerCase();
+            let k = self.parseKeyEvent(e);
             if (k in self.status_shortcuts) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -85,6 +86,22 @@ class Menu {
                 return;
             }
         })
+    }
+
+    parseKeyEvent(e) {
+        let parts = [];
+        if (['Control', 'Alt', 'Shift'].indexOf(e.key) >= 0) {
+            return e.key;
+        } else {
+            if (e.ctrlKey) parts.push('Control');
+            if (e.altKey) parts.push('Alt');
+            if (e.shiftKey) parts.push('Shift');
+            let k = e.key;
+            if (k.length === 1)
+                k = k.toUpperCase();
+            parts.push(k);
+            return parts.join('+');
+        }
     }
 
     get(group) {
@@ -164,7 +181,7 @@ class Menu {
                         for (let shortcut of hint.shortcuts) {
                             let is = i.toString();
                             this.status_buttons[is] = { button: button, value: false, callback: shortcut.callback || (() => { }) };
-                            this.status_shortcuts[shortcut.key.toLowerCase()] = is;
+                            this.status_shortcuts[shortcut.key] = is;
                             i += 1;
                         }
                         statusBar.append(button);
@@ -184,7 +201,7 @@ class Menu {
                         button.append($(`<span class='hint-divider'></span>`));
                         this.status_buttons[is] = { button: button, value: false, type: hint.type, callback: hint.callback || (() => { }) };
                         if (hint.key)
-                            this.status_shortcuts[hint.key.toLowerCase()] = is;
+                            this.status_shortcuts[hint.key] = is;
                         statusBar.append(button);
 
                         button.mousedown(function () { self.handle_status_button_down(is, false); });

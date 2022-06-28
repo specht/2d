@@ -112,15 +112,6 @@
             border-radius: 4px;
         }
 
-        .button:hover {
-            border: 1px solid #fff;
-            /* outline: 1px solid #fff; */
-        }
-
-        .button.active:hover {
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
         .key {
             display: inline-block;
             font-family: 'Roboto Mono', monospace;
@@ -193,11 +184,6 @@
             transition: background-color 200ms;
         }
 
-        .status-bar-button:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-            transition: none;
-        }
-
         .status-bar-button.active {
             background-color: rgba(255, 255, 255, 0.3);
             color: #fff;
@@ -229,8 +215,25 @@
             /* border-right: 1px solid rgba(255, 255, 255, 0.3); */
         }
 
-        .main-nav-item:hover {
-            background-color: rgba(255, 255, 255, 0.1);
+        @media (hover: hover) {
+            .main-nav-item:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .button:hover {
+                border: 1px solid #fff;
+                /* outline: 1px solid #fff; */
+            }
+
+            .button.active:hover {
+                border: 1px solid rgba(255, 255, 255, 0.3);
+            }
+
+            .status-bar-button:hover {
+                background-color: rgba(255, 255, 255, 0.2);
+                transition: none;
+            }
+
         }
 
         .main-nav-item.active {

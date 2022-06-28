@@ -365,7 +365,7 @@ class Canvas {
                 if (count > 0) {
                     for (let i = 0; i < 4; i++)
                         color[i] = Math.round(color[i] / count);
-                    setCurrentColor(tinycolor({ r: color[0], g: color[1], b: color[2], a: color[3] }).toHex8String());
+                    setCurrentColor(tinycolor({ r: color[0], g: color[1], b: color[2], a: color[3] / 255}).toHex8String());
                 }
             }
         }
