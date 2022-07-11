@@ -3,9 +3,9 @@ const DEFAULT_HEIGHT = 24;
 const PEN_SHAPE_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
     'tool/fill-rect', 'tool/fill-ellipse', 'tool/picker', 'tool/spray', 'tool/fill'];
 const TWO_POINT_TOOLS = ['tool/line', 'tool/rect', 'tool/ellipse',
-    'tool/fill-rect', 'tool/fill-ellipse'];
+    'tool/fill-rect', 'tool/fill-ellipse', 'tool/gradient'];
 const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
-    'tool/fill-rect', 'tool/fill-ellipse', 'tool/spray'];
+    'tool/fill-rect', 'tool/fill-ellipse', 'tool/spray', 'tool/fill', 'tool/gradient'];
 const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 'tool/fill'];
 const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker'];
 const MAX_UNDO_STACK_SIZE = 32;
@@ -351,6 +351,11 @@ class Canvas {
                 this.mouse_down_point = s;
                 let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
                 this.set_pixels(this.bitmap, mask, this.current_color);
+            } else if (this.menu.get('tool') === 'tool/gradient') {
+                this.mouse_down_point = s;
+                this.mouse_down_color = this.get_pixel(this.bitmap, this.mouse_down_point[0], this.mouse_down_point[1]);
+                this.spray_pixels = this.determine_spray_pixels();
+                console.log(this.spray_pixels);
             } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
                 let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
@@ -573,9 +578,13 @@ class Canvas {
                 }
             } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 if (this.mouse_down) {
-                    let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
-                    let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
-                    this.set_pixels(this.overlay_bitmap, mask, Math.max(1, this.current_color));
+                    if (this.menu.get('tool') === 'tool/gradient') {
+
+                    } else {
+                        let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
+                        let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
+                        this.set_pixels(this.overlay_bitmap, mask, Math.max(1, this.current_color));
+                    }
                 } else {
                     for (let p of pattern)
                         this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, this.current_color));
