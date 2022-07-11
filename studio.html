@@ -20,6 +20,7 @@
             background-size: cover;
             font-family: 'Roboto', sans-serif;
             user-select: none;
+            overscroll-behavior: none;
         }
 
         #canvas {
@@ -491,7 +492,7 @@
         $('#palettes_here').val('9');
 
         var canvas = new Canvas($('#canvas'), menu);
-        // canvas.loadFromUrl('tree.png');
+        canvas.loadFromUrl('dustin.png');
         handleResize();
 
         update_color_palette();
