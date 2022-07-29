@@ -5,4 +5,3 @@ data/
 logs/
 docker/nginx/default.conf
 docker/ruby/Gemfile
-src/ruby/credentials.template.rb
