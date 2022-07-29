@@ -37,6 +37,8 @@ class Canvas {
         this.modifier_shift = false;
         this.undo_stack = [];
         this.is_touch = false;
+        this.is_double_touch = false;
+        this.double_touch_points = null;
         this.periodic_ticker_handle = null;
         this.spray_pixels = null;
         this.spray_pixels_per_shot = 1;
@@ -130,6 +132,15 @@ class Canvas {
     }
 
     handle_down(e) {
+        if ((e.touches || []).length === 2) {
+            this.is_double_touch = true;
+            this.double_touch_points = [
+                [e.touches[0].clientX, e.touches[0].clientY],
+                [e.touches[1].clientX, e.touches[1].clientY]
+            ];
+        } else {
+            this.is_double_touch = false;
+        }
         let p = this.get_touch_point(e);
         this.last_mouse_x = p[0] - this.element.position().left;
         this.last_mouse_y = p[1] - this.element.position().top;
@@ -589,6 +600,14 @@ class Canvas {
     }
 
     handle_move(e) {
+        if (this.is_double_touch) {
+            let this_touch_points = [
+                [e.touches[0].clientX, e.touches[0].clientY],
+                [e.touches[1].clientX, e.touches[1].clientY]
+            ];
+            console.log('zooming!');
+            return;
+        }
         let p = this.get_touch_point(e);
         this.last_mouse_x = p[0] - this.element.position().left;
         this.last_mouse_y = p[1] - this.element.position().top;
