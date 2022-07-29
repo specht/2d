@@ -1,0 +1,48 @@
+title: Demo Game
+sprites:
+  - label: Dustin
+    states:
+      - label: Idle
+        frames:
+          - tag: l4w4ant
+  - label: Erica
+    states:
+      - label: Idle
+        frames:
+          - tag: khmsph2
+  - label: Steve
+    states:
+      - label: Idle
+        frames:
+          - tag: 2qekln5
+  - label: Robin
+    states:
+      - label: Idle
+        frames:
+          - tag: h36ng9y
+  - label: Boden
+    states:
+      - frames:
+          - tag: 3tx83ed
+  - label: Rasen
+    states:
+      - frames:
+          - tag: 9o1i6mu
+  - states:
+      - frames:
+          - tag: h62u5d3
+  - states:
+      - frames:
+          - tag: nlte1w6
+  - label: Baum
+    states:
+      - frames:
+          - tag: i0ftqmw
+  - label: Gebüsch
+    states:
+      - frames:
+          - tag: p4xfjnn
+  - label: Himmel
+    states:
+      - frames:
+          - tag: 7qjg585

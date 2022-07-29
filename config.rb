@@ -11,7 +11,6 @@ NEO4J_DATA_PATH = File::join(DATA_PATH, 'neo4j')
 NEO4J_LOGS_PATH = File::join(LOGS_PATH, 'neo4j')
 RAW_FILES_PATH = File::join(DATA_PATH, 'raw')
 GEN_FILES_PATH = File::join(DATA_PATH, 'gen')
-ISBN_PATH = File::join(GEN_FILES_PATH, 'isbn')
 
 docker_compose = {
     :version => '3',
@@ -162,7 +161,8 @@ FileUtils::mkpath(LOGS_PATH)
 FileUtils::cp('src/ruby/Gemfile', 'docker/ruby/')
 FileUtils::mkpath(File::join(RAW_FILES_PATH, 'uploads'))
 FileUtils::mkpath(GEN_FILES_PATH)
-FileUtils::mkpath(ISBN_PATH)
+FileUtils::mkpath(File.join(GEN_FILES_PATH, 'png'))
+FileUtils::mkpath(File.join(GEN_FILES_PATH, 'games'))
 FileUtils::mkpath(NEO4J_DATA_PATH)
 FileUtils::mkpath(NEO4J_LOGS_PATH)
 

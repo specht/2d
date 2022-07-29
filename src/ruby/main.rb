@@ -189,6 +189,8 @@ class SetupDatabase
 #                     neo4j_query("CREATE CONSTRAINT ON (n:Book) ASSERT n.stem IS UNIQUE")
 #                     neo4j_query("CREATE INDEX ON :Book(isbn)")
                 end
+                test_game = YAML::load(File.read('/static/test-game.yaml'))
+                File.open('/gen/games/test-game.json', 'w') { |f| f.write test_game.to_json }
                 debug "Setup finished."
                 break
             rescue

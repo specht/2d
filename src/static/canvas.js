@@ -91,6 +91,9 @@ class Canvas {
         $(window).on('mouseup touchend', (e) => self.handle_up(e));
         $(window).on('mousemove touchmove', (e) => self.handle_move(e));
         this.sprite = null;
+        this.state_index = null;
+        this.frame_index = null;
+        this.connected_img = [];
     }
 
     get_touch_point(e) {
@@ -893,6 +896,10 @@ class Canvas {
             this.undo_stack.push(url);
             this.refresh_undo_stack();
         }
+        for (let img of this.connected_img) {
+
+            $(img).attr('src', url);
+        };
     }
 
     refresh_undo_stack() {
@@ -910,12 +917,26 @@ class Canvas {
         div.scrollLeft(999999);
     }
 
-    attachSprite(sprite) {
+    attachSprite(sprite, state_index, frame_index, connected_img) {
+        if (typeof(connected_img) === 'undefined') connected_img = [];
+        this.detachSprite();
         this.sprite = sprite;
-        this.loadFromUrl(sprite.src, true);
+        this.state_index = state_index;
+        this.frame_index = frame_index;
+        this.connected_img = connected_img;
+        this.loadFromUrl(sprite.states[state_index].frames[frame_index].src, true);
+        this.undo_stack = sprite.undo_stack || [];
+        this.refresh_undo_stack();
     }
 
-    detachSprite(sprite) {
+    detachSprite() {
+        if (this.sprite != null) {
+            this.sprite.states[this.state_index].frames[this.frame_index].src = this.toUrl();
+            this.sprite.undo_stack = this.undo_stack;
+        }
         this.sprite = null;
+        this.state_index = null;
+        this.frame_index = null;
+        this.connected_img = [];
     }
 }

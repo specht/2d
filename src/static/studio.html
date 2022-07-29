@@ -50,10 +50,13 @@
         }
 
         #undo_stack img {
+            width: 48px;
             height: 48px;
+            object-fit: contain;
             image-rendering: pixelated;
             margin: 0 2px;
             border: 1px solid transparent;
+            cursor: pointer;
         }
 
         #undo_stack img:hover {
@@ -82,7 +85,38 @@
             position: absolute;
             top: 50px;
             left: 0px;
-            width: 202px;
+            width: 212px;
+        }
+
+        #right_menu_container img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+            image-rendering: pixelated;
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+
+        #right_menu_container img:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #right_menu_container img.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        #right_menu_container h3 {
+            color: #fff;
+            font-size: 90%;
+            margin: 0 0 0.5em 0;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 4px 0;
+            background-color: rgba(255, 255, 255, 0.05);
+            font-weight: normal;
         }
 
         .menu {
@@ -298,6 +332,8 @@
     <script src="jquery-3.6.0.min.js"></script>
     <script src="canvas.js"></script>
     <script src="sprite.js"></script>
+    <script src="frame.js"></script>
+    <script src="game.js"></script>
     <script src="menu.js"></script>
     <script src="cling-colors.js"></script>
     <script src="palettes.js"></script>
@@ -334,9 +370,12 @@
         <div id='undo_stack'></div>
         <div id='canvas'></div>
         <div id='right_menu_container'>
-            <div class='menu'>
-                
-            </div>
+            <h3>Sprites</h3>
+            <div class="menu menu_sprites"></div>
+            <h3>Zustände</h3>
+            <div class="menu menu_states"></div>
+            <!-- <h3>Frames</h3> -->
+            <!-- <div class="menu menu_frames"></div> -->
             <!--
                 Color picker: select swatch or none
                 Farben an Palette anpassen (mit und ohne Dither)
@@ -359,6 +398,9 @@
             $('#undo_stack').css('width', `${$('#canvas').width()}px`);
             $('#menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('#menu_container').width() - 25}px`);
             $('#right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
+            $('#right_menu_container .menu_sprites').css('height', `${$('#canvas').height() * 0.3 - 25}px`);
+            $('#right_menu_container .menu_states').css('height', `${$('#canvas').height() * 0.7 - 25}px`);
+            // $('#right_menu_container .menu_frames').css('height', `${$('#canvas').height() * 0.2 - 25}px`);
         }
         function setPenWidth(menu_item) {
             canvas.pen_width = menu_item.data;
@@ -561,10 +603,16 @@
         var menu = new Menu($('#tool_menu'), tool_menu_items, canvas);
         canvas.menu = menu;
 
-        var sprite = new Sprite();
-        sprite.loadFromUrl('dustin.png', function() {
-            canvas.attachSprite(sprite);
-        });
+        var game = new Game('test-game.json');
+
+        // var sprite = new Sprite();
+        // sprite.loadFromUrl('dustin.png', function() {
+        //     game.sprites.push(sprite);
+        //     canvas.attachSprite(sprite);
+        // });
+        // sprite.loadFromUrl('tree.png', function() {
+        //     game.sprites.push(sprite);
+        // });
         // menu.handle_click('tool/gradient');
         // menu.handle_click('penWidth/1');
 
