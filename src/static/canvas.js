@@ -90,6 +90,7 @@ class Canvas {
         $(this.element).on('mousedown touchstart', (e) => self.handle_down(e));
         $(window).on('mouseup touchend', (e) => self.handle_up(e));
         $(window).on('mousemove touchmove', (e) => self.handle_move(e));
+        this.sprite = null;
     }
 
     get_touch_point(e) {
@@ -147,10 +148,6 @@ class Canvas {
         this.mouse_down = true;
         this.mouse_down_point = this.get_sprite_point_from_last_mouse();
         if (this.menu) {
-            if (UNDO_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
-                this.undo_stack.push(this.toUrl());
-                this.undo_stack = this.undo_stack.slice(0, MAX_UNDO_STACK_SIZE);
-            }
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = true;
                 this.moving_x = p[0];
@@ -516,6 +513,11 @@ class Canvas {
                 if (this.mouse_down)
                     this.perform_drawing_action();
             }
+            if (this.mouse_down) {
+                if (UNDO_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
+                    this.append_to_undo_stack();
+                }
+            }
         }
         this.mouse_down = false;
         this.mouse_down_point = null;
@@ -647,9 +649,12 @@ class Canvas {
             return;
         this.loadFromUrl(this.undo_stack[this.undo_stack.length - 1]);
         this.undo_stack = this.undo_stack.slice(0, this.undo_stack.length - 1);
+        this.refresh_undo_stack();
     }
 
-    loadFromUrl(url) {
+    loadFromUrl(url, add_to_undo_stack) {
+        if (typeof (add_to_undo_stack) === 'undefined')
+            add_to_undo_stack = false;
         let drawing = new Image();
         let context = this.bitmap.getContext('2d');
         let self = this;
@@ -664,6 +669,8 @@ class Canvas {
             $(self.overlay_bitmap).css('width', `${self.bitmap.width * self.scale}px`);
             $(self.overlay_bitmap).css('height', `${self.bitmap.height * self.scale}px`);
             self.autoFit();
+            if (add_to_undo_stack)
+                self.append_to_undo_stack();
         };
         drawing.src = url;
     }
@@ -777,7 +784,8 @@ class Canvas {
 
     handleResize() {
         let height = window.innerHeight;
-        this.size = Math.max(100, height - 110);
+        let undo_height = 48;
+        this.size = Math.max(100, height - 110 - undo_height);
         this.fix_scale();
         this.scrollable_x = (this.bitmap.width * this.scale > this.size);
         this.scrollable_y = (this.bitmap.height * this.scale > this.size);
@@ -876,5 +884,38 @@ class Canvas {
     setModifierShift(flag) {
         this.modifier_shift = flag;
         this.update_overlay_brush();
+    }
+
+    append_to_undo_stack() {
+        let url = this.toUrl();
+        if (this.undo_stack.length === 0 || url != this.undo_stack[this.undo_stack.length - 1]) {
+            if (this.undo_stack.length >= MAX_UNDO_STACK_SIZE) this.undo_stack = this.undo_stack.slice(1);
+            this.undo_stack.push(url);
+            this.refresh_undo_stack();
+        }
+    }
+
+    refresh_undo_stack() {
+        let div = $('#undo_stack');
+        div.empty();
+        let self = this;
+        for (let src of this.undo_stack) {
+            let image = $('<img>').attr('src', src);
+            image.click(function (e) {
+                let src = $(e.target).attr('src');
+                self.loadFromUrl(src, true);
+            });
+            div.append(image);
+        }
+        div.scrollLeft(999999);
+    }
+
+    attachSprite(sprite) {
+        this.sprite = sprite;
+        this.loadFromUrl(sprite.src, true);
+    }
+
+    detachSprite(sprite) {
+        this.sprite = null;
     }
 }

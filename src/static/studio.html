@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 
 <head>
@@ -25,9 +25,45 @@
             overscroll-behavior: none;
         }
 
-        #canvas {
+        #undo_stack {
             left: 200px;
             top: 50px;
+            height: 50px;
+            border-radius: 8px;
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
+            text-align: right;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+        }
+
+        #undo_stack::-webkit-scrollbar {
+            display: none;
+        }
+
+        #undo_stack {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        #undo_stack img {
+            height: 48px;
+            image-rendering: pixelated;
+            margin: 0 2px;
+            border: 1px solid transparent;
+        }
+
+        #undo_stack img:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        #canvas {
+            left: 200px;
+            top: 110px;
             border-radius: 8px;
             position: absolute;
             background-color: rgba(0, 0, 0, 0.5);
@@ -36,6 +72,13 @@
         }
 
         #menu_container {
+            position: absolute;
+            top: 50px;
+            left: 0px;
+            width: 202px;
+        }
+
+        #right_menu_container {
             position: absolute;
             top: 50px;
             left: 0px;
@@ -254,6 +297,7 @@
     </style>
     <script src="jquery-3.6.0.min.js"></script>
     <script src="canvas.js"></script>
+    <script src="sprite.js"></script>
     <script src="menu.js"></script>
     <script src="cling-colors.js"></script>
     <script src="palettes.js"></script>
@@ -269,35 +313,52 @@
         <div class='main-nav-item'>Spielen</div>
         <div class='main-nav-item'>Hilfe</div>
     </div>
-    <div id='menu_container'>
-        <div id='tool_menu' class='menu'></div>
-        <select id='palettes_here' style="display: none;"></select>
-        <div id='color_menu' class='menu'></div>
-        <div id='color_variations_menu' class='menu'></div>
-        <!-- <div id='current_color_menu' class='menu' -->
-        <!-- style='text-align: right; background: linear-gradient(rgba(0, 0, 0, 0.9),rgba(0, 0, 0, 0.9)), url(transparent.png), #777;'> -->
-        <!-- <input type='text' style='width: 80px;' value='#ff88aa80'></input> -->
-        <!-- <button class='btn'>change</button> -->
-        <!-- </div> -->
-        <!--
-            Color picker: select swatch or none
-            Farben an Palette anpassen (mit und ohne Dither)
-            Sättigung / Helligkeit / Kontrast
-            Einfärben
-            Skalieren (mit Interpolation und ohne)
-            Rotieren
-            Pivot-Punkt anzeigen und verschieben
-            Hitbox anzeigen und verändern
-            Animation: Frames
-        -->
+    <div id='main_div_sprite'>
+        <div id='menu_container'>
+            <div id='tool_menu' class='menu'></div>
+            <select id='palettes_here' style="display: none;"></select>
+            <div id='color_menu' class='menu'></div>
+            <div id='color_variations_menu' class='menu'></div>
+            <!--
+                Color picker: select swatch or none
+                Farben an Palette anpassen (mit und ohne Dither)
+                Sättigung / Helligkeit / Kontrast
+                Einfärben
+                Skalieren (mit Interpolation und ohne)
+                Rotieren
+                Pivot-Punkt anzeigen und verschieben
+                Hitbox anzeigen und verändern
+                Animation: Frames
+            -->
+        </div>
+        <div id='undo_stack'></div>
+        <div id='canvas'></div>
+        <div id='right_menu_container'>
+            <div class='menu'>
+                
+            </div>
+            <!--
+                Color picker: select swatch or none
+                Farben an Palette anpassen (mit und ohne Dither)
+                Sättigung / Helligkeit / Kontrast
+                Einfärben
+                Skalieren (mit Interpolation und ohne)
+                Rotieren
+                Pivot-Punkt anzeigen und verschieben
+                Hitbox anzeigen und verändern
+                Animation: Frames
+            -->
+        </div>
     </div>
-    <div id='canvas'></div>
     <div id='status-bar'></div>
     <script>
         function handleResize() {
             canvas.handleResize();
             $('#canvas').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
+            $('#undo_stack').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
+            $('#undo_stack').css('width', `${$('#canvas').width()}px`);
             $('#menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('#menu_container').width() - 25}px`);
+            $('#right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
         }
         function setPenWidth(menu_item) {
             canvas.pen_width = menu_item.data;
@@ -494,12 +555,16 @@
         $('#palettes_here').val('9');
 
         var canvas = new Canvas($('#canvas'), menu);
-        canvas.loadFromUrl('dustin.png');
         handleResize();
 
         update_color_palette();
         var menu = new Menu($('#tool_menu'), tool_menu_items, canvas);
         canvas.menu = menu;
+
+        var sprite = new Sprite();
+        sprite.loadFromUrl('dustin.png', function() {
+            canvas.attachSprite(sprite);
+        });
         // menu.handle_click('tool/gradient');
         // menu.handle_click('penWidth/1');
 
