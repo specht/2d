@@ -154,7 +154,7 @@ for (let y = -1; y == -1; y++) {
 	sheet.add_sprite_to_scene(scene, 'soil', 9*24, y * 24);
 	sheet.add_sprite_to_scene(scene, 'soil', -9*24, y * 24);
 }
-	
+
 // let material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
 // points = [];
 // points.push(new THREE.Vector3(0, 10, 2));
@@ -272,4 +272,3 @@ window.addEventListener('blur', function(e) {
 });
 
 render();
- 
