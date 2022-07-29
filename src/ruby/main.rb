@@ -325,7 +325,7 @@ class Main < Sinatra::Base
         path = request.env['REQUEST_PATH']
         assert(path[0] == '/')
         path = path[1, path.size - 1]
-        path = 'index' if path.empty?
+        path = 'studio' if path.empty?
         path = path.split('/').first
         if path.include?('..') || (path[0] == '/')
             status 404

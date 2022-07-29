@@ -534,6 +534,7 @@ class Canvas {
     }
 
     update_overlay_outline() {
+        // return;
         let overlay_context = this.overlay_bitmap.getContext('2d');
         let outline_context = this.overlay_bitmap_outline.getContext('2d');
         let overlay_width = this.overlay_bitmap.width;
@@ -547,6 +548,7 @@ class Canvas {
         outline_context.beginPath();
         outline_context.strokeStyle = '#ffffff';
         outline_context.lineWidth = 1;
+        // TODO: This code is really slow on a large sprite
         for (let y = 0; y < overlay_height; y++) {
             for (let x = 0; x < overlay_width; x++) {
                 let offset = (y * overlay_width + x) * 4;

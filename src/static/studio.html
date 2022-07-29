@@ -237,12 +237,9 @@
             display: none;
         }
 
-        /* Hide scrollbar for IE, Edge and Firefox */
         #status-bar {
             -ms-overflow-style: none;
-            /* IE and Edge */
             scrollbar-width: none;
-            /* Firefox */
         }
 
         #status-bar b {
@@ -328,6 +325,18 @@
             border: 1px solid rgba(0, 0, 0, 0.5);
             background-color: rgba(255, 255, 255, 0.9);
         }
+
+        .menu {
+            overflow-y: auto;
+        }
+        .menu::-webkit-scrollbar {
+            display: none;
+        }
+
+        .menu {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
     <script src="jquery-3.6.0.min.js"></script>
     <script src="canvas.js"></script>
@@ -372,6 +381,8 @@
         <div id='right_menu_container'>
             <h3>Sprites</h3>
             <div class="menu menu_sprites"></div>
+            <h3>Eigenschaften</h3>
+            <div class="menu menu_properties"></div>
             <h3>Zustände</h3>
             <div class="menu menu_states"></div>
             <!-- <h3>Frames</h3> -->
@@ -398,8 +409,9 @@
             $('#undo_stack').css('width', `${$('#canvas').width()}px`);
             $('#menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('#menu_container').width() - 25}px`);
             $('#right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
-            $('#right_menu_container .menu_sprites').css('height', `${$('#canvas').height() * 0.3 - 25}px`);
-            $('#right_menu_container .menu_states').css('height', `${$('#canvas').height() * 0.7 - 25}px`);
+            $('#right_menu_container .menu_sprites').css('height', `${$('#canvas').height() * 0.3 - 33}px`);
+            $('#right_menu_container .menu_properties').css('height', `${$('#canvas').height() * 0.2 - 33}px`);
+            $('#right_menu_container .menu_states').css('height', `${$('#canvas').height() * 0.5 - 33}px`);
             // $('#right_menu_container .menu_frames').css('height', `${$('#canvas').height() * 0.2 - 25}px`);
         }
         function setPenWidth(menu_item) {
