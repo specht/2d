@@ -325,7 +325,7 @@ class Main < Sinatra::Base
         tag = data[:tag]
         assert(!tag.include?('.'))
         assert(!tag.include?('/'))
-        if DEVELOPMENT && tag == 'test-game'
+        if tag == 'test-game'
             test_game = YAML::load(File.read('/static/test-game.yaml'))
             File.open('/gen/games/test-game.json', 'w') { |f| f.write test_game.to_json }
         end
