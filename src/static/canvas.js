@@ -929,6 +929,18 @@ class Canvas {
         this.loadFromUrl(sprite.states[state_index].frames[frame_index].src, true);
         this.undo_stack = sprite.undo_stack || [];
         this.refresh_undo_stack();
+        $('#ti_sprite_label').val(sprite.label);
+        $('#bu_sprite_gravity').attr('data-state', sprite.gravity ? 'true' : 'false');
+        $('#bu_sprite_movable').attr('data-state', sprite.movable ? 'true' : 'false');
+        $('#menu_states').empty();
+        for (let state of sprite.states) {
+            let state_div = $(`<div class='state-header'>`);
+            state_div.text(state.label);
+            let fi = Math.floor(state.frames.length / 2);
+            let img = $('<img>').attr('src', state.frames[fi].src);
+            state_div.append(img);
+            $('#menu_states').append(state_div);
+        }
     }
 
     detachSprite() {

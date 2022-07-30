@@ -74,21 +74,23 @@
             box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
         }
 
-        #menu_container {
+        .menu_container {
             position: absolute;
             top: 50px;
             left: 0px;
             width: 202px;
+            max-height: calc(100vh - 90px);
+            overflow-y: auto;
         }
 
-        #right_menu_container {
+        .right_menu_container {
             position: absolute;
             top: 50px;
             left: 0px;
             width: 212px;
         }
 
-        #right_menu_container img {
+        .right_menu_container img {
             width: 48px;
             height: 48px;
             object-fit: contain;
@@ -97,17 +99,17 @@
             cursor: pointer;
         }
 
-        #right_menu_container img:hover {
+        .right_menu_container img:hover {
             background-color: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        #right_menu_container img.active {
+        .right_menu_container img.active {
             background-color: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
-        #right_menu_container h3 {
+        .menu h3 {
             color: #fff;
             font-size: 90%;
             margin: 0 0 0.5em 0;
@@ -117,6 +119,10 @@
             padding: 4px 0;
             background-color: rgba(255, 255, 255, 0.05);
             font-weight: normal;
+            margin-top: -5px;
+            border-top: none;
+            margin-left: -5px;
+            margin-right: -5px;
         }
 
         .menu {
@@ -135,7 +141,7 @@
             border-top: 1px solid rgba(255, 255, 255, 0.4);
         }
 
-        #menu_container select {
+        .menu_container select {
             width: 100%;
             display: block;
             margin-bottom: 5px;
@@ -319,26 +325,74 @@
             background-color: rgba(255, 255, 255, 0.2);
         }
 
-        input {
-            padding: 4px 8px;
-            border-radius: 4px;
-            border: 1px solid rgba(0, 0, 0, 0.5);
-            background-color: rgba(255, 255, 255, 0.9);
-        }
-
-        .menu {
+        .menu-body {
             overflow-y: auto;
         }
-        .menu::-webkit-scrollbar {
+        .menu-body::-webkit-scrollbar {
             display: none;
         }
 
-        .menu {
+        .menu-body {
             -ms-overflow-style: none;
             scrollbar-width: none;
+            /* border: 1px solid green; */
+        }
+
+        .menu-body input[type="text"] {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: block;
+            width: calc(100% - 20px);
+            margin: 1px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .menu-body input[type="text"]:focus {
+            background-color: rgba(255, 255, 255, 0.1);
+            outline: none;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+        }
+        button.btn-checkbox {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            color: rgba(255, 255, 255, 0.8);
+            margin: 1px;
+            padding: 4px 8px;
+        }
+        button.btn-checkbox::before {
+            content: '✘  ';
+        }
+        button.btn-checkbox[data-state='true']::before {
+            content: '✔  ';
+        }
+        button.btn-checkbox[data-state='true'] {
+            background-color: #16884a;
+        }
+
+        .state-header {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            color: rgba(255, 255, 255, 0.8);
+            margin: 1px;
+            padding: 8px 0 0 32px;
+            position: relative;
+            min-height: 24px;
+            font-size: 90%;
+        }
+        .state-header img {
+            position: absolute;
+            left: 3px;
+            top: 3px;
+            /* border: 1px solid rgba(255, 255, 255, 0.1); */
+            width: 24px;
+            height: 24px;
         }
     </style>
     <script src="jquery-3.6.0.min.js"></script>
+    <script src="api.js"></script>
     <script src="canvas.js"></script>
     <script src="sprite.js"></script>
     <script src="frame.js"></script>
@@ -359,11 +413,20 @@
         <div class='main-nav-item'>Hilfe</div>
     </div>
     <div id='main_div_sprite'>
-        <div id='menu_container'>
-            <div id='tool_menu' class='menu'></div>
+        <div class='menu_container'>
+            <div class='menu'>
+                <h3>Werkzeuge</h3>
+                <div id='tool_menu' class="menu-body"></div>
+            </div>
             <select id='palettes_here' style="display: none;"></select>
-            <div id='color_menu' class='menu'></div>
-            <div id='color_variations_menu' class='menu'></div>
+            <div class='menu'>
+                <h3>Palette</h3>
+                <div id='color_menu' class="menu-body"></div>
+            </div>
+            <div class='menu'>
+                <h3>Farbvariationen</h3>
+                <div id='color_variations_menu' class="menu-body"></div>
+            </div>
             <!--
                 Color picker: select swatch or none
                 Farben an Palette anpassen (mit und ohne Dither)
@@ -378,13 +441,24 @@
         </div>
         <div id='undo_stack'></div>
         <div id='canvas'></div>
-        <div id='right_menu_container'>
-            <h3>Sprites</h3>
-            <div class="menu menu_sprites"></div>
-            <h3>Eigenschaften</h3>
-            <div class="menu menu_properties"></div>
-            <h3>Zustände</h3>
-            <div class="menu menu_states"></div>
+        <div class='menu_container right_menu_container'>
+            <!-- <h3>Sprites</h3> -->
+            <div class="menu">
+                <h3>Sprites</h3>
+                <div id="menu_sprites" class="menu-body"></div>
+            </div>
+            <div class="menu">
+                <h3>Eigenschaften</h3>
+                <div id="menu_properties" class="menu-body">
+                    <input id='ti_sprite_label' type="text" placeholder="Name"/>
+                    <button id='bu_sprite_gravity' class='btn-checkbox'>Gravitation</button>
+                    <button id='bu_sprite_movable' class='btn-checkbox'>Beweglich</button>
+                </div>
+            </div>
+            <div class="menu">
+                <h3>Zustände</h3>
+                <div id="menu_states" class="menu-body"></div>
+            </div>
             <!-- <h3>Frames</h3> -->
             <!-- <div class="menu menu_frames"></div> -->
             <!--
@@ -407,11 +481,11 @@
             $('#canvas').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
             $('#undo_stack').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
             $('#undo_stack').css('width', `${$('#canvas').width()}px`);
-            $('#menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('#menu_container').width() - 25}px`);
-            $('#right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
-            $('#right_menu_container .menu_sprites').css('height', `${$('#canvas').height() * 0.3 - 33}px`);
-            $('#right_menu_container .menu_properties').css('height', `${$('#canvas').height() * 0.2 - 33}px`);
-            $('#right_menu_container .menu_states').css('height', `${$('#canvas').height() * 0.5 - 33}px`);
+            $('.menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('.menu_container').width() - 25}px`);
+            $('.right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
+            $('#menu_sprites').css('height', `${$('#canvas').height() * 0.3 - 33}px`);
+            $('#menu_properties').css('height', `${$('#canvas').height() * 0.2 - 33}px`);
+            $('#menu_states').css('height', `${$('#canvas').height() * 0.5 - 33}px`);
             // $('#right_menu_container .menu_frames').css('height', `${$('#canvas').height() * 0.2 - 25}px`);
         }
         function setPenWidth(menu_item) {
@@ -615,7 +689,9 @@
         var menu = new Menu($('#tool_menu'), tool_menu_items, canvas);
         canvas.menu = menu;
 
-        var game = new Game('test-game.json');
+        // var game = new Game('test-game.json');
+        var game = new Game();
+        game.load('test-game');
 
         // var sprite = new Sprite();
         // sprite.loadFromUrl('dustin.png', function() {
@@ -627,6 +703,11 @@
         // });
         // menu.handle_click('tool/gradient');
         // menu.handle_click('penWidth/1');
+
+        $('.btn-checkbox').click(function(e) {
+            let state = $(e.target).attr('data-state') === 'true';
+            $(e.target).attr('data-state', !state);
+        })
 
         $(window).resize(function () {
             handleResize();

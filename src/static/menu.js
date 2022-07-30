@@ -61,6 +61,7 @@ class Menu {
         }
         let self = this;
         $(window).keydown(function (e) {
+            if ($(e.target).is('input')) return;
             let k = self.parseKeyEvent(e);
             if (k in self.shortcuts) {
                 e.preventDefault();

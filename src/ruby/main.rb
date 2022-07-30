@@ -189,8 +189,6 @@ class SetupDatabase
 #                     neo4j_query("CREATE CONSTRAINT ON (n:Book) ASSERT n.stem IS UNIQUE")
 #                     neo4j_query("CREATE INDEX ON :Book(isbn)")
                 end
-                test_game = YAML::load(File.read('/static/test-game.yaml'))
-                File.open('/gen/games/test-game.json', 'w') { |f| f.write test_game.to_json }
                 debug "Setup finished."
                 break
             rescue
@@ -289,7 +287,7 @@ class Main < Sinatra::Base
         @latest_request_body_parsed = nil
     end
 
-    after "/jwt/*" do
+    after "/api/*" do
         if @respond_content
             response.body = @respond_content
             response.headers["Content-Type"] = @respond_mimetype
@@ -319,6 +317,31 @@ class Main < Sinatra::Base
 
     post "/api/ping" do
         respond(:pong => "yay")
+    end
+
+    post "/api/load_game" do
+        data = parse_request_data(:required_keys => [:tag])
+        debug data.to_yaml
+        tag = data[:tag]
+        assert(!tag.include?('.'))
+        assert(!tag.include?('/'))
+        if DEVELOPMENT && tag == 'test-game'
+            test_game = YAML::load(File.read('/static/test-game.yaml'))
+            File.open('/gen/games/test-game.json', 'w') { |f| f.write test_game.to_json }
+        end
+        game = JSON.parse(File.read("/gen/games/#{tag}.json"))
+        game['sprites'].map! do |sprite|
+            sprite['states'].map! do |state|
+                state['frames'].map! do |frame|
+                    base64 = Base64::strict_encode64(File.read("/gen/png/#{frame['tag']}.png"))
+                    frame['src'] = "data:image/png;base64,#{base64}"
+                    frame
+                end
+                state
+            end
+            sprite
+        end
+        respond(:game => game)
     end
 
     get '/*' do

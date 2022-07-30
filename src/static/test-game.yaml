@@ -1,6 +1,8 @@
 title: Demo Game
 sprites:
   - label: Dustin
+    gravity: true
+    movable: true
     states:
       - label: Idle
         frames:
