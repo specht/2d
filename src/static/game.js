@@ -16,6 +16,7 @@ class Game {
                 canvas.setGame(data);
                 let first_png = true;
                 let sprite_div = $(`#menu_sprites`);
+                sprite_div.empty();
                 for (let si = 0; si < data.sprites.length; si++) {
                     let sprite_info = data.sprites[si];
                     let sprite = new Sprite();
@@ -47,6 +48,33 @@ class Game {
                         }
                     }
                 }
+            }
+        });
+    }
+
+    save() {
+        let data ={};
+        data.title = this.data.title;
+        data.sprites = [];
+        for (let sprite of this.data.sprites) {
+            let states = [];
+            for (let state of sprite.states) {
+                let frames = [];
+                for (let frame of state.frames) {
+                    frames.push(frame);
+                }
+                let state_data = {frames: frames};
+                if (state.label) state_data.label = state.label;
+                if (typeof(state.gravity) !== 'undefined') state_data.gravity = state.gravity;
+                if (typeof(state.movable) !== 'undefined') state_data.gravity = state.movable;
+                states.push(state_data);
+            }
+            data.sprites.push({states: states});
+        }
+        console.log(data);
+        api_call('/api/save_game', { game: data }, function (data) {
+            if (data.success) {
+                console.log(data);
             }
         });
     }

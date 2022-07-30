@@ -367,7 +367,7 @@
             padding: 0.7em 2em;
             margin: 0;
             cursor: pointer;
-            width: 80px;
+            width: 100px;
             /* border-right: 1px solid rgba(255, 255, 255, 0.3); */
         }
 
@@ -436,10 +436,12 @@
             cursor: pointer;
         }
         button.btn-checkbox::before {
-            content: '✘  ';
+            content: '✘';
+            width: 1.3em;
+            display: inline-block;
         }
         button.btn-checkbox[data-state='true']::before {
-            content: '✔  ';
+            content: '✔';
         }
         button.btn-checkbox[data-state='true'] {
             background-color: #16884a;
@@ -496,11 +498,13 @@
         <div id='mi_sprites' class='main-nav-item active'>Sprites</div>
         <div id='mi_levels' class='main-nav-item'>Level</div>
         <div id='mi_code' class='main-nav-item'>Code</div>
-        <div id='mi_settings' class='main-nav-item'>Einstellungen</div>
-        <div id='mi_play' class='main-nav-item'>Spielen</div>
+        <!-- <div id='mi_settings' class='main-nav-item'>Einstellungen</div> -->
+        <!-- <div id='mi_play' class='main-nav-item'>Spielen</div> -->
         <div id='mi_help' class='main-nav-item'>Hilfe</div>
     </div>
-    <div id='main_div_game' class="main_div">
+    <div id='main_div_game' class="main_div" style="margin-top: 40px;">
+        <button id="bu_save_game">Spiel speichern</button>
+        <div id="saved_games_here"></div>
     </div>
     <div id='main_div_sprites' class="main_div">
         <div class='menu_container'>
@@ -785,7 +789,8 @@
 
         // var game = new Game('test-game.json');
         var game = new Game();
-        game.load('test-game');
+        // game.load('test-game');
+        // game.load('s8uc8qy');
 
         // var sprite = new Sprite();
         // sprite.loadFromUrl('dustin.png', function() {
@@ -803,6 +808,9 @@
             $(e.target).attr('data-state', !state);
         })
 
+        $('.main_div').hide();
+        $('#main_div_sprites').show();
+
         $('.main-nav-item').click(function(e) {
             let key = $(e.target).attr('id').replace('mi_', '');
             $('.main-nav-item').removeClass('active');
@@ -810,6 +818,26 @@
             $('.main_div').hide();
             $(`#main_div_${key}`).show();
         })
+
+        $('#bu_save_game').click(function(e) {
+            game.save();
+        });
+
+        api_call('/api/get_games', {}, function (data) {
+            if (data.success) {
+                for (let tag of data.tags) {
+                    let div = $('<div>').text(tag).data('tag', tag);
+                    div.css('color', '#fff');
+                    div.click(function(e) {
+                        console.log(tag);
+                        canvas.detachSprite();
+                        game.load(tag);
+                        $('#mi_sprites').click();
+                    });
+                    $('#saved_games_here').append(div);
+                }
+            }
+        });
 
         $(window).resize(function () {
             handleResize();

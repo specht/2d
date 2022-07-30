@@ -1,4 +1,5 @@
 require "base64"
+require "date"
 require "digest"
 require "json"
 require "neo4j_ruby_driver"
@@ -333,6 +334,7 @@ class Main < Sinatra::Base
         game['sprites'].map! do |sprite|
             sprite['states'].map! do |state|
                 state['frames'].map! do |frame|
+                    debug frame.to_json
                     base64 = Base64::strict_encode64(File.read("/gen/png/#{frame['tag']}.png"))
                     frame['src'] = "data:image/png;base64,#{base64}"
                     frame
@@ -342,6 +344,53 @@ class Main < Sinatra::Base
             sprite
         end
         respond(:game => game)
+    end
+
+    post "/api/save_game" do
+        data = parse_request_data(:required_keys => [:game], :types => {:game => Hash}, :max_body_length => 1024 * 1024 * 20)
+        game = data[:game]
+        game['sprites'].map! do |sprite|
+            sprite['states'].map! do |state|
+                state['frames'].map! do |frame|
+                    png = Base64::strict_decode64(frame['src'].sub('data:image/png;base64,', ''))
+                    frame_sha1 = Digest::SHA1.hexdigest(png).to_i(16).to_s(36)[0, 7]
+                    path = "/gen/png/#{frame_sha1}.png"
+                    unless File.exists?(path)
+                        File.open(path, 'w') do |f|
+                            f.write png
+                        end
+                    end
+                    frame.delete('src')
+                    frame['tag'] = frame_sha1
+                    frame
+                end
+                state
+            end
+            sprite
+        end
+        game_json = game.to_json
+        tag = Digest::SHA1.hexdigest(game_json).to_i(16).to_s(36)[0, 7]
+        path = "/gen/games/#{tag}.json"
+        unless File.exists?(path)
+            File.open(path, 'w') do |f|
+                f.write game_json
+            end
+        end
+        neo4j_query(<<~END_OF_QUERY, {:tag => tag, :ts => Time.now.to_i})
+            MERGE (g:Game {tag: $tag})
+            SET g.ts_created = COALESCE(g.ts_created, $ts)
+            SET g.ts_updated = $ts;
+        END_OF_QUERY
+        respond(:tag => tag)
+    end
+
+    post '/api/get_games' do
+        tags = neo4j_query(<<~END_OF_QUERY).map { |x| x['tag'] }
+            MATCH (g:Game)
+            RETURN g.tag AS tag
+            ORDER BY g.ts_updated DESC;
+        END_OF_QUERY
+        respond(:tags => tags)
     end
 
     get '/*' do

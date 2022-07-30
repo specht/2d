@@ -529,6 +529,8 @@ class Canvas {
             if (this.mouse_down) {
                 if (UNDO_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                     this.append_to_undo_stack();
+                    this.game.sprites[this.sprite_index].undo_stack = this.undo_stack;
+                    this.game.sprites[this.sprite_index].states[this.state_index].frames[this.frame_index].src = this.toUrl();
                 }
             }
         }
@@ -997,10 +999,9 @@ class Canvas {
     }
 
     detachSprite() {
-        if (this.sprite_index != null) {
+        if (this.sprite_index !== null && this.state_index !== null && this.frame_index !== null) {
             this.game.sprites[this.sprite_index].undo_stack = this.undo_stack;
             this.game.sprites[this.sprite_index].states[this.state_index].frames[this.frame_index].src = this.toUrl();
-            // this.sprite.undo_stack = this.undo_stack;
         }
         this.sprite = null;
         this.state_index = null;
