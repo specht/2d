@@ -7,6 +7,10 @@ sprites:
       - label: Idle
         frames:
           - tag: l4w4ant
+          - tag: l4w4ant2
+      - label: Dead
+        frames:
+          - tag: l4w4ant3
   - label: Erica
     states:
       - label: Idle

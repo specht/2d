@@ -22,6 +22,7 @@
             background-color: #000;
             font-family: 'Roboto', sans-serif;
             user-select: none;
+            -moz-user-drag: none;
             overscroll-behavior: none;
         }
 
@@ -74,6 +75,69 @@
             box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
         }
 
+        #frame_list {
+            left: 200px;
+            top: 50px;
+            height: 50px;
+            border-radius: 8px;
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
+            text-align: left;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+        }
+
+        #frame_list::-webkit-scrollbar {
+            display: none;
+        }
+
+        #frame_list {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        #frame_list img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+            image-rendering: pixelated;
+            margin: 0 2px;
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+
+        #frame_list img.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        #frame_list img:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        #frame_list .add-frame {
+            display: inline-block;
+            width: 48px;
+            /* height: 48px; */
+            margin: 0 2px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            color: #fff;
+            position: absolute;
+            top: 0;
+            text-align: center;
+            padding: 14.5px 0;
+        }
+
+        #frame_list .add-frame:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
         .menu_container {
             position: absolute;
             top: 50px;
@@ -81,6 +145,15 @@
             width: 202px;
             max-height: calc(100vh - 90px);
             overflow-y: auto;
+        }
+
+        .menu_container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .menu_container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
 
         .right_menu_container {
@@ -294,7 +367,7 @@
             padding: 0.7em 2em;
             margin: 0;
             cursor: pointer;
-            width: 100px;
+            width: 80px;
             /* border-right: 1px solid rgba(255, 255, 255, 0.3); */
         }
 
@@ -360,6 +433,7 @@
             color: rgba(255, 255, 255, 0.8);
             margin: 1px;
             padding: 4px 8px;
+            cursor: pointer;
         }
         button.btn-checkbox::before {
             content: '✘  ';
@@ -380,7 +454,20 @@
             padding: 8px 0 0 32px;
             position: relative;
             min-height: 24px;
-            font-size: 90%;
+            font-size: 85%;
+            cursor: pointer;
+        }
+        .state-header.no-img {
+            padding: 8px 0 0 8px;
+            text-align: center;
+        }
+        .state-header:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+        .state-header.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
         .state-header img {
             position: absolute;
@@ -405,14 +492,17 @@
 
 <body>
     <div id='main-nav'>
-        <div class='main-nav-item active'>Sprites</div>
-        <div class='main-nav-item'>Level</div>
-        <div class='main-nav-item'>Code</div>
-        <div class='main-nav-item'>Einstellungen</div>
-        <div class='main-nav-item'>Spielen</div>
-        <div class='main-nav-item'>Hilfe</div>
+        <div id='mi_game' class='main-nav-item'>Spiel</div>
+        <div id='mi_sprites' class='main-nav-item active'>Sprites</div>
+        <div id='mi_levels' class='main-nav-item'>Level</div>
+        <div id='mi_code' class='main-nav-item'>Code</div>
+        <div id='mi_settings' class='main-nav-item'>Einstellungen</div>
+        <div id='mi_play' class='main-nav-item'>Spielen</div>
+        <div id='mi_help' class='main-nav-item'>Hilfe</div>
     </div>
-    <div id='main_div_sprite'>
+    <div id='main_div_game' class="main_div">
+    </div>
+    <div id='main_div_sprites' class="main_div">
         <div class='menu_container'>
             <div class='menu'>
                 <h3>Werkzeuge</h3>
@@ -441,6 +531,7 @@
         </div>
         <div id='undo_stack'></div>
         <div id='canvas'></div>
+        <div id='frame_list'></div>
         <div class='menu_container right_menu_container'>
             <!-- <h3>Sprites</h3> -->
             <div class="menu">
@@ -473,14 +564,17 @@
                 Animation: Frames
             -->
         </div>
+        <div id='status-bar'></div>
     </div>
-    <div id='status-bar'></div>
     <script>
         function handleResize() {
             canvas.handleResize();
             $('#canvas').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
             $('#undo_stack').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
             $('#undo_stack').css('width', `${$('#canvas').width()}px`);
+            $('#frame_list').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
+            $('#frame_list').css('top', `${$('#canvas').height() + 120}px`);
+            $('#frame_list').css('width', `${$('#canvas').width()}px`);
             $('.menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('.menu_container').width() - 25}px`);
             $('.right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
             $('#menu_sprites').css('height', `${$('#canvas').height() * 0.3 - 33}px`);
@@ -707,6 +801,14 @@
         $('.btn-checkbox').click(function(e) {
             let state = $(e.target).attr('data-state') === 'true';
             $(e.target).attr('data-state', !state);
+        })
+
+        $('.main-nav-item').click(function(e) {
+            let key = $(e.target).attr('id').replace('mi_', '');
+            $('.main-nav-item').removeClass('active');
+            $(`#mi_${key}`).addClass('active');
+            $('.main_div').hide();
+            $(`#main_div_${key}`).show();
         })
 
         $(window).resize(function () {

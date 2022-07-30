@@ -159,7 +159,15 @@ class Menu {
             // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
             hints.push({
                 key: 'F11', label: 'Vollbild', callback: function () {
-                    if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen();
+                    if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+            });
+            hints.push({
+                key: 'ArrowLeft', label: 'Vorheriger Frame', callback: function () {
+                    canvas.switchToFrameDelta(-1);
+                }
+            });
+                hints.push({key: 'ArrowRight', label: 'Nächster Frame', callback: function () {
+                    canvas.switchToFrameDelta(1);
                 }
             });
             let i = 0;

@@ -10,6 +10,15 @@ const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 't
 const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker'];
 const MAX_UNDO_STACK_SIZE = 32;
 
+function createDataUrlForImageSize(width, height) {
+    let canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    let context = canvas.getContext('2d');
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/png');
+}
+
 class Canvas {
     constructor(element) {
         this.element = element;
@@ -90,7 +99,8 @@ class Canvas {
         $(this.element).on('mousedown touchstart', (e) => self.handle_down(e));
         $(window).on('mouseup touchend', (e) => self.handle_up(e));
         $(window).on('mousemove touchmove', (e) => self.handle_move(e));
-        this.sprite = null;
+        this.game = null;
+        this.sprite_index = null;
         this.state_index = null;
         this.frame_index = null;
         this.connected_img = [];
@@ -790,7 +800,7 @@ class Canvas {
     handleResize() {
         let height = window.innerHeight;
         let undo_height = 48;
-        this.size = Math.max(100, height - 110 - undo_height);
+        this.size = Math.max(100, height - 110 - 60 - undo_height);
         this.fix_scale();
         this.scrollable_x = (this.bitmap.width * this.scale > this.size);
         this.scrollable_y = (this.bitmap.height * this.scale > this.size);
@@ -919,10 +929,16 @@ class Canvas {
         div.scrollLeft(999999);
     }
 
-    attachSprite(sprite, state_index, frame_index, connected_img) {
-        if (typeof(connected_img) === 'undefined') connected_img = [];
+    setGame(game) {
+        this.game = game;
+    }
+
+    attachSprite(sprite_index, state_index, frame_index, connected_img) {
+        if (typeof (connected_img) === 'undefined') connected_img = [];
+        let sprite = this.game.sprites[sprite_index];
+        let self = this;
         this.detachSprite();
-        this.sprite = sprite;
+        this.sprite_index = sprite_index;
         this.state_index = state_index;
         this.frame_index = frame_index;
         this.connected_img = connected_img;
@@ -933,24 +949,68 @@ class Canvas {
         $('#bu_sprite_gravity').attr('data-state', sprite.gravity ? 'true' : 'false');
         $('#bu_sprite_movable').attr('data-state', sprite.movable ? 'true' : 'false');
         $('#menu_states').empty();
-        for (let state of sprite.states) {
+        for (let si = 0; si < sprite.states.length; si++) {
+            let state = sprite.states[si];
             let state_div = $(`<div class='state-header'>`);
             state_div.text(state.label);
-            let fi = Math.floor(state.frames.length / 2);
+            let fi = Math.floor(state.frames.length / 2 - 0.5);
             let img = $('<img>').attr('src', state.frames[fi].src);
             state_div.append(img);
             $('#menu_states').append(state_div);
+            if (si === state_index) {
+                state_div.addClass('active');
+                if (fi == frame_index)
+                    this.connected_img.push(img);
+            }
+            state_div.click(function (e) {
+                self.attachSprite(sprite_index, si, 0, []);
+            });
         }
+        let state_div = $(`<div class='state-header no-img'>`);
+        state_div.text("+");
+        $('#menu_states').append(state_div);
+        state_div.click(function (e) {
+            sprite.states.push({ frames: [{ src: createDataUrlForImageSize(24, 24) }] });
+            self.attachSprite(sprite_index, sprite.states.length - 1, 0, []);
+        });
+        $('#frame_list').empty();
+        for (let fi = 0; fi < sprite.states[state_index].frames.length; fi++) {
+            let frame = sprite.states[state_index].frames[fi];
+            let img = $('<img>').attr('src', sprite.states[state_index].frames[fi].src);
+            if (fi === frame_index) {
+                this.connected_img.push(img);
+                img.addClass('active');
+            }
+            img.click(function (e) {
+                self.attachSprite(sprite_index, state_index, fi, []);
+            });
+            $('#frame_list').append(img);
+        }
+        let bu_add_frame = $('<div>').addClass('add-frame').text('+');
+        bu_add_frame.click(function (e) {
+            let frame = new Frame();
+            frame.src = createDataUrlForImageSize(24, 24);
+            self.game.sprites[self.sprite_index].states[self.state_index].frames.push(frame);
+            self.attachSprite(self.sprite_index, self.state_index, sprite.states[self.state_index].frames.length - 1, []);
+        });
+        $('#frame_list').append(bu_add_frame);
     }
 
     detachSprite() {
-        if (this.sprite != null) {
-            this.sprite.states[this.state_index].frames[this.frame_index].src = this.toUrl();
-            this.sprite.undo_stack = this.undo_stack;
+        if (this.sprite_index != null) {
+            this.game.sprites[this.sprite_index].undo_stack = this.undo_stack;
+            this.game.sprites[this.sprite_index].states[this.state_index].frames[this.frame_index].src = this.toUrl();
+            // this.sprite.undo_stack = this.undo_stack;
         }
         this.sprite = null;
         this.state_index = null;
         this.frame_index = null;
         this.connected_img = [];
+    }
+
+    switchToFrameDelta(delta) {
+        let frames = this.game.sprites[this.sprite_index].states[this.state_index].frames;
+        let fi = (this.frame_index + delta + frames.length) % frames.length;
+        this.attachSprite(this.sprite_index, this.state_index, fi, []);
     }
 }

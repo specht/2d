@@ -8,11 +8,12 @@ class Game {
         console.log(`Loading game: ${tag}`);
         let self = this;
 
-        api_call('/api/load_game', {tag: tag}, function(data) {
+        api_call('/api/load_game', { tag: tag }, function (data) {
             if (data.success) {
                 console.log(data);
                 data = data.game;
                 self.data = data;
+                canvas.setGame(data);
                 let first_png = true;
                 let sprite_div = $(`#menu_sprites`);
                 for (let si = 0; si < data.sprites.length; si++) {
@@ -25,24 +26,28 @@ class Game {
                             let tag = frame_info.tag;
                             let frame = new Frame();
                             frame.src = frame_info.src;
-                            let img = $('<img>').attr('src', frame_info.src);
-                            sprite_div.append(img);
+                            let img = null;
+                            if (sti == 0 && fi === 0) {
+                                img = $('<img>').attr('src', frame_info.src);
+                                sprite_div.append(img);
+                            }
                             self.data.sprites[si].states[sti].frames[fi] = frame;
                             if (first_png) {
                                 img.addClass('active');
-                                console.log(self.data.sprites[si]);
-                                canvas.attachSprite(self.data.sprites[si], sti, fi, [img]);
+                                canvas.attachSprite(si, sti, fi, [img]);
                                 first_png = false;
                             }
-                            img.click(function(e) {
-                                sprite_div.find('img').removeClass('active');
-                                canvas.attachSprite(self.data.sprites[si], sti, fi, [img]);
-                                img.addClass('active');
-                            });
+                            if (img != null) {
+                                img.click(function (e) {
+                                    sprite_div.find('img').removeClass('active');
+                                    canvas.attachSprite(si, sti, fi, [img]);
+                                    img.addClass('active');
+                                });
+                            }
                         }
                     }
                 }
-                 }
+            }
         });
     }
 }
