@@ -13,6 +13,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,400;0,500;0,700;1,400;1,700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap"
         rel="stylesheet">
+    <link href="fork-awesome/fork-awesome.min.css" rel="stylesheet">
     <style>
         body {
             margin: 0;
@@ -24,6 +25,8 @@
             user-select: none;
             -moz-user-drag: none;
             overscroll-behavior: none;
+            color: #fff;
+            font-size: 13px;
         }
 
         #undo_stack {
@@ -203,7 +206,7 @@
 
         .menu h3 {
             color: #fff;
-            font-size: 90%;
+            font-size: 15px;
             margin: 0 0 0.5em 0;
             text-align: center;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -239,7 +242,6 @@
             margin-bottom: 5px;
             background-color: rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            font-size: 90%;
             padding: 0.5em 0.2em;
             color: #fff;
             border-radius: 4px;
@@ -295,7 +297,7 @@
             font-family: 'Roboto Mono', monospace;
             font-weight: bold;
             padding: 0.1em 0.5em;
-            height: 1.4em;
+            /* height: 1.4em; */
             text-align: center;
             background-color: #ddd;
             border-radius: 0.2em;
@@ -311,8 +313,8 @@
 
         .tooltip {
             position: absolute;
-            top: 18px;
-            left: 18px;
+            top: 12px;
+            left: 12px;
             display: none;
             z-index: 100;
         }
@@ -326,7 +328,7 @@
             color: #aaa;
             padding: 0;
             border-top: 1px solid rgba(255, 255, 255, 0.3);
-            font-size: 14px;
+            font-size: 15px;
             overflow-x: auto;
             white-space: nowrap;
         }
@@ -352,6 +354,8 @@
             cursor: pointer;
             background-color: rgba(0, 0, 0, 0.5);
             border-right: 1px solid rgba(255, 255, 255, 0.3);
+            /* background-color: red; */
+            /* min-height: 2.5em; */
         }
 
         .status-bar-button {
@@ -374,10 +378,9 @@
             color: #aaa;
             padding: 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-            font-size: 14px;
+            font-size: 15px;
             overflow-x: auto;
             white-space: nowrap;
-            /* font-size: 110%; */
             text-align: center;
         }
 
@@ -486,12 +489,12 @@
             padding: 8px 0 0 32px;
             position: relative;
             min-height: 24px;
-            font-size: 85%;
             cursor: pointer;
         }
         .state-header.no-img {
             padding: 8px 0 0 8px;
             text-align: center;
+            border: 1px solid transparent;
         }
         .state-header:hover {
             background-color: rgba(255, 255, 255, 0.05);
@@ -509,9 +512,42 @@
             width: 24px;
             height: 24px;
         }
+
+        .editable-text {
+            display: block;
+            border: 1px solid red;
+            padding: 5px 0;
+        }
+
+        .editable-text .bu {
+            float: right;
+        }
+
+        /* .menu-body input[type="text"] {
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: block;
+            width: calc(100% - 20px);
+            margin: 1px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .menu-body input[type="text"]:focus {
+            background-color: rgba(255, 255, 255, 0.1);
+            outline: none;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+        } */
+        @media (max-height: 600px) {
+            /* #undo_stack img {
+                width: 24px;
+                height: 24px;
+            } */
+        }
     </style>
     <script src="jquery-3.6.0.min.js"></script>
     <script src="api.js"></script>
+    <script src="widgets.js"></script>
     <script src="canvas.js"></script>
     <script src="game.js"></script>
     <script src="menu.js"></script>
@@ -569,14 +605,14 @@
                 <h3>Sprites</h3>
                 <div id="menu_sprites" class="menu-body"></div>
             </div>
-            <div class="menu">
-                <h3>Eigenschaften</h3>
-                <div id="menu_properties" class="menu-body">
-                    <input id='ti_sprite_label' type="text" placeholder="Name"/>
+            <!-- <div class="menu"> -->
+                <!-- <h3>Eigenschaften</h3> -->
+                <!-- <div id="menu_properties" class="menu-body"> -->
+                    <!-- <input id='ti_sprite_label' type="text" placeholder="Name"/>
                     <button id='bu_sprite_gravity' class='btn-checkbox'>Gravitation</button>
-                    <button id='bu_sprite_movable' class='btn-checkbox'>Beweglich</button>
-                </div>
-            </div>
+                    <button id='bu_sprite_movable' class='btn-checkbox'>Beweglich</button> -->
+                <!-- </div> -->
+            <!-- </div> -->
             <div class="menu">
                 <h3>Zustände</h3>
                 <div id="menu_states" class="menu-body"></div>
@@ -776,7 +812,7 @@
                     { key: ' ', label: 'Automatisch anpassen', callback: () => canvas.autoFit() },
                     `Zoome mit dem Mausrad und klicke, um den sichtbaren Ausschnitt zu verschieben`]
             },
-            { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Y', label: 'Farbe auswählen' },
+            { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Z', label: 'Farbe auswählen' },
             { group: 'tool', command: 'move', image: 'transform-move', shortcut: 'X', label: 'Sprite verschieben' },
             // { command: 'rotate-left', image: 'transform-rotate-left' },
             { command: 'rotate-right', image: 'transform-rotate-right', shortcut: 'C' },
@@ -847,7 +883,6 @@
         });
 
         var game = new Game();
-        game.reset();
 
         api_call('/api/get_games', {}, function (data) {
             if (data.success) {

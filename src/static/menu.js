@@ -62,6 +62,7 @@ class Menu {
         let self = this;
         $(window).keydown(function (e) {
             if ($(e.target).is('input')) return;
+            // console.log(e.code);
             let k = self.parseKeyEvent(e);
             if (k in self.shortcuts) {
                 e.preventDefault();
@@ -96,9 +97,11 @@ class Menu {
             if (e.ctrlKey) parts.push('Control');
             if (e.altKey) parts.push('Alt');
             if (e.shiftKey) parts.push('Shift');
-            let k = e.key;
-            if (k.length === 1)
-                k = k.toUpperCase();
+            let k = e.code;
+            if (k.substr(0, 3) === 'Key')
+                k = k.substr(3);
+            if (k.substr(0, 5) === 'Digit')
+                k = k.substr(5);
             parts.push(k);
             return parts.join('+');
         }
@@ -155,6 +158,10 @@ class Menu {
             statusBar.empty();
             let hints = (command.hints || []).slice(0);
             if (command.label) hints.unshift(`<b>${command.label}</b>`);
+            hints.unshift({ label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () { 
+                console.log('yay');
+             } });
+
             hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) self.element.find('.tooltip').show(); else self.element.find('.tooltip').hide(); } });
             // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
             hints.push({
@@ -164,6 +171,7 @@ class Menu {
             });
             hints.push({
                 key: 'Control+S', label: 'Spiel speichern', callback: function () {
+                    game.save();
                 }
                     // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
             });

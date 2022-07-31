@@ -368,6 +368,8 @@ class Main < Sinatra::Base
             end
             sprite
         end
+        parent = game['parent']
+        game.delete('parent')
         game_json = game.to_json
         tag = Digest::SHA1.hexdigest(game_json).to_i(16).to_s(36)[0, 7]
         path = "/gen/games/#{tag}.json"
@@ -381,6 +383,14 @@ class Main < Sinatra::Base
             SET g.ts_created = COALESCE(g.ts_created, $ts)
             SET g.ts_updated = $ts;
         END_OF_QUERY
+        if parent && parent != tag
+            neo4j_query(<<~END_OF_QUERY, {:tag => tag, :parent => parent})
+                MATCH (g:Game {tag: $tag})
+                MATCH (p:Game {tag: $parent})
+                WHERE p.ts_created < g.ts_created
+                CREATE (g)-[:PARENT]->(p);
+            END_OF_QUERY
+        end
         respond(:tag => tag)
     end
 

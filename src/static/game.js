@@ -1,17 +1,24 @@
 class Game {
     constructor() {
         this.data = null;
-        // this.loadFromPath(path);
+        this.reset();
     }
 
     reset() {
-        this.data = {sprites:[
-            {states: [
-                {frames: [
-                    {src: createDataUrlForImageSize(24, 24)}
-                ]}
-            ]}
-        ]};
+        this.data = {
+            parent: null,
+            sprites: [
+                {
+                    states: [
+                        {
+                            frames: [
+                                { src: createDataUrlForImageSize(24, 24), width: 24, height: 24 }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
         this._load();
     }
 
@@ -28,7 +35,8 @@ class Game {
     }
 
     save() {
-        let data ={};
+        let data = {};
+        data.parent = this.data.parent;
         data.title = this.data.title;
         data.sprites = [];
         for (let sprite of this.data.sprites) {
@@ -38,17 +46,21 @@ class Game {
                 for (let frame of state.frames) {
                     frames.push(frame);
                 }
-                let state_data = {frames: frames};
+                let state_data = { frames: frames };
                 if (state.label) state_data.label = state.label;
-                if (typeof(state.gravity) !== 'undefined') state_data.gravity = state.gravity;
-                if (typeof(state.movable) !== 'undefined') state_data.gravity = state.movable;
+                if (typeof (state.gravity) !== 'undefined') state_data.gravity = state.gravity;
+                if (typeof (state.movable) !== 'undefined') state_data.gravity = state.movable;
                 states.push(state_data);
             }
-            data.sprites.push({states: states});
+            data.sprites.push({ states: states });
         }
         console.log(data);
+        let self = this;
         api_call('/api/save_game', { game: data }, function (data) {
             if (data.success) {
+                if (data.tag !== self.data.parent) {
+                    self.data.parent = data.tag;
+                }
                 console.log(data);
             }
         });
@@ -69,6 +81,8 @@ class Game {
                     let tag = frame_info.tag;
                     let frame = {};
                     frame.src = frame_info.src;
+                    frame.width = frame_info.width;
+                    frame.height = frame_info.height;
                     let img = null;
                     if (sti == 0 && fi === 0) {
                         img = $('<img>').attr('src', frame_info.src);

@@ -41,6 +41,7 @@ class Canvas {
         this.show_pen = false;
         this.mouse_down = false;
         this.mouse_down_point = null;
+        this.mouse_down_button = null;
         this.modifier_ctrl = false;
         this.modifier_alt = false;
         this.modifier_shift = false;
@@ -104,6 +105,10 @@ class Canvas {
         this.state_index = null;
         this.frame_index = null;
         this.connected_img = [];
+        // prevent context menu on canvas when right clicking
+        this.element.on('contextmenu', function(e) {
+            return false;
+        });
     }
 
     get_touch_point(e) {
@@ -160,6 +165,7 @@ class Canvas {
         this.last_mouse_y = p[1] - this.element.position().top;
         this.mouse_down = true;
         this.mouse_down_point = this.get_sprite_point_from_last_mouse();
+        this.mouse_down_button = e.button;
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = true;
@@ -366,12 +372,13 @@ class Canvas {
     perform_drawing_action() {
         let s = this.get_sprite_point_from_last_mouse();
         let pattern = this.penPattern(this.pen_width);
+        let use_color = (this.mouse_down_button == 2) ? 0x00000000 : this.current_color;
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pen') {
                 let line_pattern = this.linePattern(this.mouse_down_point, s);
                 this.mouse_down_point = s;
                 let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
-                this.set_pixels(this.bitmap, mask, this.current_color);
+                this.set_pixels(this.bitmap, mask, use_color);
             } else if (this.menu.get('tool') === 'tool/gradient') {
                 this.mouse_down_point = s;
                 this.mouse_down_color = this.get_pixel(this.bitmap, this.mouse_down_point[0], this.mouse_down_point[1]);
@@ -380,7 +387,7 @@ class Canvas {
             } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
                 let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
-                this.set_pixels(this.bitmap, mask, this.current_color);
+                this.set_pixels(this.bitmap, mask, use_color);
             } else if (this.menu.get('tool') === 'tool/picker') {
                 this.mouse_down_point = s;
                 let pattern = this.penPattern(this.pen_width);
@@ -426,16 +433,17 @@ class Canvas {
         let offset = p[1] * this.bitmap.width + p[0];
         if (this.flood_fill_seen_pixels[offset])
             return;
+        let use_color = (this.mouse_down_button == 2) ? 0x00000000 : this.current_color;
         this.flood_fill_seen_pixels[offset] = true;
         offset *= 4;
         let probe = [];
         for (let i = 0; i < 4; i++)
             probe.push(this.flood_fill_data.data[offset + i]);
         if (probe.join('/') === this.mouse_down_color.join('/')) {
-            this.flood_fill_data.data[offset + 0] = (this.current_color >> 24) & 0xff;
-            this.flood_fill_data.data[offset + 1] = (this.current_color >> 16) & 0xff;
-            this.flood_fill_data.data[offset + 2] = (this.current_color >> 8) & 0xff;
-            this.flood_fill_data.data[offset + 3] = this.current_color & 0xff;
+            this.flood_fill_data.data[offset + 0] = (use_color >> 24) & 0xff;
+            this.flood_fill_data.data[offset + 1] = (use_color >> 16) & 0xff;
+            this.flood_fill_data.data[offset + 2] = (use_color >> 8) & 0xff;
+            this.flood_fill_data.data[offset + 3] = use_color & 0xff;
             if (p[0] > 0) this._flood_fill([p[0] - 1, p[1]], color);
             if (p[1] > 0) this._flood_fill([p[0], p[1] - 1], color);
             if (p[0] < this.bitmap.width - 1) this._flood_fill([p[0] + 1, p[1]], color);
@@ -536,6 +544,7 @@ class Canvas {
         }
         this.mouse_down = false;
         this.mouse_down_point = null;
+        this.mouse_down_button = null;
         this.update_overlay_brush();
         this.stop_ticker();
     }
@@ -597,6 +606,7 @@ class Canvas {
     update_overlay_brush() {
         if (this.last_mouse_x === null || this.last_mouse_y === null)
             return;
+        let use_color = (this.mouse_down_button == 2) ? 0x00000000 : this.current_color;
         let pattern = this.penPattern(this.pen_width);
         let s = this.get_sprite_point_from_last_mouse();
         this.clear(this.overlay_bitmap);
@@ -604,7 +614,7 @@ class Canvas {
             if (this.menu.get('tool') === 'tool/pen') {
                 if (this.mouse_in_canvas && this.show_pen) {
                     for (let p of pattern)
-                        this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, this.current_color));
+                        this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, use_color));
                 }
             } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 if (this.mouse_down) {
@@ -613,11 +623,11 @@ class Canvas {
                     } else {
                         let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
                         let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
-                        this.set_pixels(this.overlay_bitmap, mask, Math.max(1, this.current_color));
+                        this.set_pixels(this.overlay_bitmap, mask, Math.max(1, use_color));
                     }
                 } else {
                     for (let p of pattern)
-                        this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, this.current_color));
+                        this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, use_color));
                 }
             } else if (PEN_SHAPE_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 for (let p of pattern)
@@ -1005,6 +1015,10 @@ class Canvas {
             self.attachSprite(self.sprite_index, self.state_index, sprite.states[self.state_index].frames.length - 1, []);
         });
         $('#frame_list').append(bu_add_frame);
+
+        $('#menu_properties').empty();
+        // let ti_name = new EditableText({placeholder: '(kein Name)'});
+        // $('#menu_properties').append(ti_name.element);
     }
 
     detachSprite() {
