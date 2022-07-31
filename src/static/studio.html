@@ -119,6 +119,25 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
+        #menu_sprites .add-frame {
+            display: inline-block;
+            width: 48px;
+            /* height: 48px; */
+            margin: 0 2px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            color: #fff;
+            position: absolute;
+            top: 34px;
+            text-align: center;
+            padding: 14.5px 0;
+        }
+
+        #menu_sprites .add-frame:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
         #frame_list .add-frame {
             display: inline-block;
             width: 48px;
@@ -356,11 +375,21 @@
             padding: 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.3);
             font-size: 14px;
-            overflow-x: hidden;
+            overflow-x: auto;
             white-space: nowrap;
             /* font-size: 110%; */
             text-align: center;
         }
+
+        #main-nav::-webkit-scrollbar {
+            display: none;
+        }
+
+        #main-nav {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
 
         .main-nav-item {
             display: inline-block;
@@ -401,6 +430,7 @@
         .menu-body {
             overflow-y: auto;
         }
+
         .menu-body::-webkit-scrollbar {
             display: none;
         }
@@ -483,8 +513,6 @@
     <script src="jquery-3.6.0.min.js"></script>
     <script src="api.js"></script>
     <script src="canvas.js"></script>
-    <script src="sprite.js"></script>
-    <script src="frame.js"></script>
     <script src="game.js"></script>
     <script src="menu.js"></script>
     <script src="cling-colors.js"></script>
@@ -494,12 +522,11 @@
 
 <body>
     <div id='main-nav'>
-        <div id='mi_game' class='main-nav-item'>Spiel</div>
         <div id='mi_sprites' class='main-nav-item active'>Sprites</div>
         <div id='mi_levels' class='main-nav-item'>Level</div>
         <div id='mi_code' class='main-nav-item'>Code</div>
-        <!-- <div id='mi_settings' class='main-nav-item'>Einstellungen</div> -->
-        <!-- <div id='mi_play' class='main-nav-item'>Spielen</div> -->
+        <div id='mi_settings' class='main-nav-item'>Einstellungen</div>
+        <div id='mi_play' class='main-nav-item'>Spielen</div>
         <div id='mi_help' class='main-nav-item'>Hilfe</div>
     </div>
     <div id='main_div_game' class="main_div" style="margin-top: 40px;">
@@ -581,9 +608,6 @@
             $('#frame_list').css('width', `${$('#canvas').width()}px`);
             $('.menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('.menu_container').width() - 25}px`);
             $('.right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
-            $('#menu_sprites').css('height', `${$('#canvas').height() * 0.3 - 33}px`);
-            $('#menu_properties').css('height', `${$('#canvas').height() * 0.2 - 33}px`);
-            $('#menu_states').css('height', `${$('#canvas').height() * 0.5 - 33}px`);
             // $('#right_menu_container .menu_frames').css('height', `${$('#canvas').height() * 0.2 - 25}px`);
         }
         function setPenWidth(menu_item) {
@@ -788,7 +812,6 @@
         canvas.menu = menu;
 
         // var game = new Game('test-game.json');
-        var game = new Game();
         // game.load('test-game');
         // game.load('s8uc8qy');
 
@@ -822,6 +845,9 @@
         $('#bu_save_game').click(function(e) {
             game.save();
         });
+
+        var game = new Game();
+        game.reset();
 
         api_call('/api/get_games', {}, function (data) {
             if (data.success) {

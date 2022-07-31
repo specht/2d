@@ -4,50 +4,25 @@ class Game {
         // this.loadFromPath(path);
     }
 
+    reset() {
+        this.data = {sprites:[
+            {states: [
+                {frames: [
+                    {src: createDataUrlForImageSize(24, 24)}
+                ]}
+            ]}
+        ]};
+        this._load();
+    }
+
     load(tag) {
         console.log(`Loading game: ${tag}`);
         let self = this;
 
         api_call('/api/load_game', { tag: tag }, function (data) {
             if (data.success) {
-                console.log(data);
-                data = data.game;
-                self.data = data;
-                canvas.setGame(data);
-                let first_png = true;
-                let sprite_div = $(`#menu_sprites`);
-                sprite_div.empty();
-                for (let si = 0; si < data.sprites.length; si++) {
-                    let sprite_info = data.sprites[si];
-                    let sprite = new Sprite();
-                    for (let sti = 0; sti < sprite_info.states.length; sti++) {
-                        let state_info = sprite_info.states[sti];
-                        for (let fi = 0; fi < state_info.frames.length; fi++) {
-                            let frame_info = state_info.frames[fi];
-                            let tag = frame_info.tag;
-                            let frame = new Frame();
-                            frame.src = frame_info.src;
-                            let img = null;
-                            if (sti == 0 && fi === 0) {
-                                img = $('<img>').attr('src', frame_info.src);
-                                sprite_div.append(img);
-                            }
-                            self.data.sprites[si].states[sti].frames[fi] = frame;
-                            if (first_png) {
-                                img.addClass('active');
-                                canvas.attachSprite(si, sti, fi, [img]);
-                                first_png = false;
-                            }
-                            if (img != null) {
-                                img.click(function (e) {
-                                    sprite_div.find('img').removeClass('active');
-                                    canvas.attachSprite(si, sti, fi, [img]);
-                                    img.addClass('active');
-                                });
-                            }
-                        }
-                    }
-                }
+                self.data = data.game;
+                this._load();
             }
         });
     }
@@ -77,5 +52,43 @@ class Game {
                 console.log(data);
             }
         });
+    }
+
+    _load() {
+        canvas.setGame(this.data);
+        let first_png = true;
+        let sprite_div = $(`#menu_sprites`);
+        sprite_div.empty();
+        let self = this;
+        for (let si = 0; si < this.data.sprites.length; si++) {
+            let sprite_info = this.data.sprites[si];
+            for (let sti = 0; sti < sprite_info.states.length; sti++) {
+                let state_info = sprite_info.states[sti];
+                for (let fi = 0; fi < state_info.frames.length; fi++) {
+                    let frame_info = state_info.frames[fi];
+                    let tag = frame_info.tag;
+                    let frame = {};
+                    frame.src = frame_info.src;
+                    let img = null;
+                    if (sti == 0 && fi === 0) {
+                        img = $('<img>').attr('src', frame_info.src);
+                        sprite_div.append(img);
+                    }
+                    this.data.sprites[si].states[sti].frames[fi] = frame;
+                    if (first_png) {
+                        img.addClass('active');
+                        canvas.attachSprite(si, sti, fi, [img]);
+                        first_png = false;
+                    }
+                    if (img != null) {
+                        img.click(function (e) {
+                            sprite_div.find('img').removeClass('active');
+                            canvas.attachSprite(si, sti, fi, [img]);
+                            img.addClass('active');
+                        });
+                    }
+                }
+            }
+        }
     }
 }

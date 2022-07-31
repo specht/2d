@@ -988,9 +988,18 @@ class Canvas {
             });
             $('#frame_list').append(img);
         }
+
+        let bu_add_sprite = $('<div>').addClass('add-frame').text('+');
+        bu_add_sprite.click(function (e) {
+            self.game.sprites.push({states: [{frames: [{src: createDataUrlForImageSize(24, 24)}]}]});
+            bu_add_sprite
+            self.attachSprite(self.game.sprites.length - 1, 0, 0, []);
+        });
+        $('#menu_sprites').append(bu_add_sprite);
+
         let bu_add_frame = $('<div>').addClass('add-frame').text('+');
         bu_add_frame.click(function (e) {
-            let frame = new Frame();
+            let frame = {};
             frame.src = createDataUrlForImageSize(24, 24);
             self.game.sprites[self.sprite_index].states[self.state_index].frames.push(frame);
             self.attachSprite(self.sprite_index, self.state_index, sprite.states[self.state_index].frames.length - 1, []);
