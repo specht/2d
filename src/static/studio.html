@@ -833,20 +833,20 @@
             },
             {
                 group: 'tool', command: 'pan', image: 'system-search', shortcut: 'G', label: 'Sichtbaren Ausschnitt ändern', hints: [
-                    {
-                        type: 'group', keys: ['Pfeiltasten'], label: 'Verschieben', shortcuts: [
-                            { key: 'ArrowLeft', label: 'Links', callback: () => canvas.panLeft() },
-                            { key: 'ArrowRight', label: 'Rechts', callback: () => canvas.panRight() },
-                            { key: 'ArrowUp', label: 'Hoch', callback: () => canvas.panUp() },
-                            { key: 'ArrowDown', label: 'Runter', callback: () => canvas.panDown() }]
-                    },
-                    {
-                        type: 'group', keys: ['+', '-'], label: 'Zoom', shortcuts: [
-                            { key: '+', callback: () => canvas.zoomIn() },
-                            { key: '-', callback: () => canvas.zoomOut() },
-                        ]
-                    },
-                    { key: ' ', label: 'Automatisch anpassen', callback: () => canvas.autoFit() },
+                    // {
+                    //     type: 'group', keys: ['Pfeiltasten'], label: 'Verschieben', shortcuts: [
+                    //         { key: 'ArrowLeft', label: 'Links', callback: () => canvas.panLeft() },
+                    //         { key: 'ArrowRight', label: 'Rechts', callback: () => canvas.panRight() },
+                    //         { key: 'ArrowUp', label: 'Hoch', callback: () => canvas.panUp() },
+                    //         { key: 'ArrowDown', label: 'Runter', callback: () => canvas.panDown() }]
+                    // },
+                    // {
+                    //     type: 'group', keys: ['+', '-'], label: 'Zoom', shortcuts: [
+                    //         { key: '+', callback: () => canvas.zoomIn() },
+                    //         { key: '-', callback: () => canvas.zoomOut() },
+                    //     ]
+                    // },
+                    { key: 'Space', label: 'Automatisch anpassen', callback: () => canvas.autoFit() },
                     `Zoome mit dem Mausrad und klicke, um den sichtbaren Ausschnitt zu verschieben`]
             },
             { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Z', label: 'Farbe auswählen' },
@@ -909,7 +909,7 @@
 
         var game = new Game();
         // game.load('s76l9s7');
-        // game.load('klxsryd');
+        game.load('bpvf7tr');
 
         api_call('/api/get_games', {}, function (data) {
             if (data.success) {
@@ -926,6 +926,50 @@
                 }
             }
         });
+
+        document.onpaste = function(pasteEvent) {
+            var item = pasteEvent.clipboardData.items[0];
+            if (item.type && item.type.indexOf("image") === 0) {
+                var blob = item.getAsFile();
+                var reader = new FileReader();
+                reader.onload = (event) => {
+                    let image = new Image();
+                    image.src = event.target.result;
+                    image.decode().then(() => {
+                        let si = canvas.sprite_index;
+                        let sti = canvas.state_index;
+                        let fi = canvas.frame_index;
+                        let sw = 48;
+                        let sh = 48;
+                        // let sw = 32;
+                        // let sh = 32;
+                        let c = document.createElement('canvas');
+                        c.width = sw;
+                        c.height = sh;
+                        let ctx = c.getContext('2d');
+                        let i = 0;
+                        for (let y = 0; y < Math.floor(image.height / sh); y++) {
+                            for (let x = 0; x < Math.floor(image.width / sw); x++) {
+                                if (i >= 40 && i < 50) {
+                                    ctx.clearRect(0, 0, sw, sh);
+                                    ctx.drawImage(image, x * sw, y * sh, sw, sh, 0, 0, sw, sh);
+                                    let src = c.toDataURL('image/png');
+                                    if (i === 0) {
+                                        game.data.sprites[si].states[sti].frames[fi] = {src: src, width: sw, height: sh};
+                                    } else {
+                                        game.data.sprites[canvas.sprite_index].states[canvas.state_index].frames.push({src: src, width: sw, height: sh});
+                                    }
+                                }
+                                i += 1;
+                            }
+                        }
+                        canvas.detachSprite();
+                        canvas.attachSprite(si, sti, fi);
+                    });
+                };
+                reader.readAsDataURL(blob);
+            }
+        };
 
         // setInterval(function() {
         //     console.log(canvas.sprite_index, canvas.state_index, canvas.frame_index);

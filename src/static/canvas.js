@@ -1092,8 +1092,8 @@ class Canvas {
     }
 
     switchToFrameDelta(delta) {
-        // let frames = this.game.data.sprites[this.sprite_index].states[this.state_index].frames;
-        // let fi = (this.frame_index + delta + frames.length) % frames.length;
-        // this.attachSprite(this.sprite_index, this.state_index, fi, []);
+        let frames = this.game.data.sprites[this.sprite_index].states[this.state_index].frames;
+        let fi = (this.frame_index + delta + frames.length) % frames.length;
+        this.attachSprite(this.sprite_index, this.state_index, fi);
     }
 }

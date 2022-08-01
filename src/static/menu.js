@@ -1,5 +1,5 @@
 const KEY_TR = {
-    ' ': '␣',
+    'Space': '␣',
     'Control': 'Strg',
     'ArrowLeft': '◄',
     'ArrowRight': '►',
