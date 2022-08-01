@@ -66,6 +66,7 @@ class DragAndDropWidget {
             self.options.onclick(element.children().eq(0)[0], element.index());
         });
         drag_handle.on('mousedown touchstart', function (e) {
+            e.stopPropagation();
             let item = $(e.target).closest('._dnd_item').children()[0];
             let div = $(item.closest('._dnd_item'));
             self.mouse_down_element = div;

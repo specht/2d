@@ -182,19 +182,25 @@ class Menu {
                     if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen();
                 }
             });
-            // hints.push({
-            //     key: 'ArrowLeft', label: 'Vorheriger Frame', callback: function () {
-            //         canvas.switchToFrameDelta(-1);
-            //     }
-            // });
-            // hints.push({
-            //     key: 'ArrowRight', label: 'Nächster Frame', callback: function () {
-            //         canvas.switchToFrameDelta(1);
-            //     }
-            // });
             hints.push(
                 {
-                    type: 'group', keys: [`<i style='font-size: 90%;' class='fa fa-chevron-left'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-right'></i>`], label: 'Frame vor/zurück', shortcuts: [
+                    type: 'group', keys: [`Bild <i class='fa fa-arrow-up'></i>`, `Bild <i class='fa fa-arrow-down'></i>`], label: 'Sprite wechseln', shortcuts: [
+                        { key: 'PageUp', label: 'Zurück', callback: () => canvas.switchToSpriteDelta(-1) },
+                        { key: 'PageDown', label: 'Vor', callback: () => canvas.switchToSpriteDelta(+1) },
+                    ]
+                },
+            );
+            hints.push(
+                {
+                    type: 'group', keys: [`<i style='font-size: 90%;' class='fa fa-chevron-up'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-down'></i>`], label: 'Zustand wechseln', shortcuts: [
+                        { key: 'ArrowUp', label: 'Hoch', callback: () => canvas.switchToStateDelta(-1) },
+                        { key: 'ArrowDown', label: 'Runter', callback: () => canvas.switchToStateDelta(+1) },
+                    ]
+                },
+            );
+            hints.push(
+                {
+                    type: 'group', keys: [`<i style='font-size: 90%;' class='fa fa-chevron-left'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-right'></i>`], label: 'Frame wechseln', shortcuts: [
                         { key: 'ArrowLeft', label: 'Links', callback: () => canvas.switchToFrameDelta(-1) },
                         { key: 'ArrowRight', label: 'Rechts', callback: () => canvas.switchToFrameDelta(+1) },
                         { key: 'Home', label: 'Pos1', callback: () => canvas.switchToFirstFrame() },

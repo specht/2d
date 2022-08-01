@@ -672,12 +672,12 @@
         </div>
         <div id='undo_stack'></div>
         <div id='canvas'></div>
-        <div id='menu_frames'></div>
+        <div id='menu_frames' class="scroll_helper scroll_helper_horizontal"></div>
         <div class='menu_container right_menu_container'>
             <!-- <h3>Sprites</h3> -->
             <div class="menu">
                 <h3>Sprites</h3>
-                <div id="menu_sprites" class="menu-body"></div>
+                <div id="menu_sprites" class="menu-body scroll_helper scroll_helper_vertical"></div>
             </div>
             <!-- <div class="menu"> -->
                 <!-- <h3>Eigenschaften</h3> -->
@@ -689,7 +689,7 @@
             <!-- </div> -->
             <div class="menu">
                 <h3>Zustände</h3>
-                <div id="menu_states" class="menu-body"></div>
+                <div id="menu_states" class="menu-body scroll_helper scroll_helper_vertical"></div>
             </div>
             <!-- <h3>Frames</h3> -->
             <!-- <div class="menu menu_frames"></div> -->
@@ -705,7 +705,7 @@
                 Animation: Frames
             -->
         </div>
-        <div id='status-bar'></div>
+        <div id='status-bar' class='__disabled__scroll_helper scroll_helper_horizontal'></div>
     </div>
     <div id='trash'>
         <i class="fa fa-trash"></i>
@@ -951,7 +951,7 @@
 
         var game = new Game();
         // game.load('s76l9s7');
-        game.load('6fhatpd');
+        game.load('skkmhwy');
 
         api_call('/api/get_games', {}, function (data) {
             if (data.success) {
@@ -969,53 +969,91 @@
             }
         });
 
-        document.onpaste = function(pasteEvent) {
-            var item = pasteEvent.clipboardData.items[0];
-            if (item.type && item.type.indexOf("image") === 0) {
-                var blob = item.getAsFile();
-                var reader = new FileReader();
-                reader.onload = (event) => {
-                    let image = new Image();
-                    image.src = event.target.result;
-                    image.decode().then(() => {
-                        let si = canvas.sprite_index;
-                        let sti = canvas.state_index;
-                        let fi = canvas.frame_index;
-                        let sw = 48;
-                        let sh = 48;
-                        // let sw = 32;
-                        // let sh = 32;
-                        let c = document.createElement('canvas');
-                        c.width = sw;
-                        c.height = sh;
-                        let ctx = c.getContext('2d');
-                        let i = 0;
-                        for (let y = 0; y < Math.floor(image.height / sh); y++) {
-                            for (let x = 0; x < Math.floor(image.width / sw); x++) {
-                                if (i >= 40 && i < 50) {
-                                    ctx.clearRect(0, 0, sw, sh);
-                                    ctx.drawImage(image, x * sw, y * sh, sw, sh, 0, 0, sw, sh);
-                                    let src = c.toDataURL('image/png');
-                                    if (i === 0) {
-                                        game.data.sprites[si].states[sti].frames[fi] = {src: src, width: sw, height: sh};
-                                    } else {
-                                        game.data.sprites[canvas.sprite_index].states[canvas.state_index].frames.push({src: src, width: sw, height: sh});
-                                    }
-                                }
-                                i += 1;
-                            }
-                        }
-                        canvas.detachSprite();
-                        canvas.attachSprite(si, sti, fi);
-                    });
+        // document.onpaste = function(pasteEvent) {
+        //     var item = pasteEvent.clipboardData.items[0];
+        //     if (item.type && item.type.indexOf("image") === 0) {
+        //         var blob = item.getAsFile();
+        //         var reader = new FileReader();
+        //         reader.onload = (event) => {
+        //             let image = new Image();
+        //             image.src = event.target.result;
+        //             image.decode().then(() => {
+        //                 let si = canvas.sprite_index;
+        //                 let sti = canvas.state_index;
+        //                 let fi = canvas.frame_index;
+        //                 // let sw = 48;
+        //                 // let sh = 48;
+        //                 // let sw = 32;
+        //                 // let sh = 32;
+        //                 let sw = image.width;
+        //                 let sh = image.height;
+        //                 let c = document.createElement('canvas');
+        //                 c.width = sw;
+        //                 c.height = sh;
+        //                 let ctx = c.getContext('2d');
+        //                 let i = 0;
+        //                 for (let y = 0; y < Math.floor(image.height / sh); y++) {
+        //                     for (let x = 0; x < Math.floor(image.width / sw); x++) {
+        //                         // if (i >= 40 && i < 50) {
+        //                             ctx.clearRect(0, 0, sw, sh);
+        //                             ctx.drawImage(image, x * sw, y * sh, sw, sh, 0, 0, sw, sh);
+        //                             let src = c.toDataURL('image/png');
+        //                             if (i === 0) {
+        //                                 game.data.sprites[si].states[sti].frames[fi] = {src: src, width: sw, height: sh};
+        //                             } else {
+        //                                 game.data.sprites[canvas.sprite_index].states[canvas.state_index].frames.push({src: src, width: sw, height: sh});
+        //                             }
+        //                         // }
+        //                         i += 1;
+        //                     }
+        //                 }
+        //                 canvas.detachSprite();
+        //                 canvas.attachSprite(si, sti, fi);
+        //             });
+        //         };
+        //         reader.readAsDataURL(blob);
+        //     }
+        // };
+
+        $(document).on('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        $(document).on('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            for (let file of e.originalEvent.dataTransfer.files) {
+                let reader = new FileReader();
+                reader.onload = function (event) {
+                    canvas.insertFrame(event.target.result);
                 };
-                reader.readAsDataURL(blob);
+                reader.readAsDataURL(file);
             }
-        };
+        });
 
         // setInterval(function() {
         //     console.log(canvas.sprite_index, canvas.state_index, canvas.frame_index);
         // }, 500);
+
+        for (let div of $('.scroll_helper')) {
+            $(div).on('mousedown.scrollhelper', function(e) {
+                e.stopPropagation();
+                $(div).data('mouse_x', e.clientX);
+                $(div).data('mouse_y', e.clientY);
+                $(div).data('scroll_x', $(div).scrollLeft());
+                $(div).data('scroll_y', $(div).scrollTop());
+                $('html').on('mousemove.scrollhelper', function(e) {
+                    if ($(div).hasClass('scroll_helper_horizontal'))
+                        $(div).scrollLeft($(div).data('scroll_x') + $(div).data('mouse_x') - e.clientX);
+                    if ($(div).hasClass('scroll_helper_vertical'))
+                        $(div).scrollTop($(div).data('scroll_y') + $(div).data('mouse_y') - e.clientY);
+                });
+                $('html').on('mouseup.scrollhelper', function(e) {
+                    $('html').off('mousemove.scrollhelper');
+                    $('html').off('mouseup.scrollhelper');
+                });
+            });
+        }
 
         $(window).resize(function () {
             handleResize();

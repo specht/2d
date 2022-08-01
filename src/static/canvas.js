@@ -1030,8 +1030,9 @@ class Canvas {
                         self.attachSprite(self.sprite_index, self.state_index, index);
                     },
                     gen_new_item: () => {
-                        let width = 24;
-                        let height = 24;
+                        let selected_frame = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[self.frame_index];
+                        let width = selected_frame.width;
+                        let height = selected_frame.height;
                         let src = createDataUrlForImageSize(width, height);
                         let frame = { src: src, width: width, height: height };
                         self.game.data.sprites[self.sprite_index].states[self.state_index].frames.push(frame);
@@ -1049,36 +1050,6 @@ class Canvas {
                     }
                 });
             }
-
-
-
-            // $('#frame_list').empty();
-            // for (let fi = 0; fi < sprite.states[state_index].frames.length; fi++) {
-            //     let frame = sprite.states[state_index].frames[fi];
-            //     let img = $('<img>').attr('src', sprite.states[state_index].frames[fi].src);
-            //     if (fi === frame_index) {
-            //         // self.connected_img.push(img);
-            //         img.addClass('active');
-            //     }
-            //     img.click(function (e) {
-            //         self.attachSprite(sprite_index, state_index, fi, []);
-            //     });
-            //     $('#frame_list').append(img);
-            // }
-
-            // let bu_add_frame = $('<div>').addClass('add-frame').text('+');
-            // bu_add_frame.click(function (e) {
-            //     let frame = {};
-            //     frame.src = createDataUrlForImageSize(24, 24);
-            //     self.game.data.sprites[self.sprite_index].states[self.state_index].frames.push(frame);
-            //     self.attachSprite(self.sprite_index, self.state_index, sprite.states[self.state_index].frames.length - 1, []);
-            // });
-            // $('#frame_list').append(bu_add_frame);
-
-            $('#menu_properties').empty();
-            // let ti_name = new EditableText({placeholder: '(kein Name)'});
-            // $('#menu_properties').append(ti_name.element);
-
         });
     }
 
@@ -1092,10 +1063,39 @@ class Canvas {
         this.frame_index = null;
     }
 
+    switchToSprite(si) {
+        let sprite_div = $('#menu_sprites').find('._dnd_item').eq(si);
+        sprite_div.click();
+        // adjust scoll position of container
+        // state_div.parent().scrollLeft(frame_div.position().left + frame_div.parent().scrollLeft() - Math.floor(frame_div.parent().width() / 2) + Math.floor(frame_div.width() / 2));
+    }
+
+    switchToSpriteDelta(delta) {
+        let si = $('#menu_sprites').find('._dnd_item.active').index();
+        let sc = this.game.data.sprites.length;
+        si = (si + delta + sc) % sc;
+        this.switchToSprite(si);
+    }
+
+    switchToState(sti) {
+        let state_div = $('#menu_states').find('._dnd_item').eq(sti);
+        state_div.click();
+        // adjust scoll position of container
+        // state_div.parent().scrollLeft(frame_div.position().left + frame_div.parent().scrollLeft() - Math.floor(frame_div.parent().width() / 2) + Math.floor(frame_div.width() / 2));
+    }
+
+    switchToStateDelta(delta) {
+        let sti = $('#menu_states').find('._dnd_item.active').index();
+        let stc = this.game.data.sprites[this.sprite_index].states.length;
+        sti = (sti + delta + stc) % stc;
+        this.switchToState(sti);
+    }
+
     switchToFrame(fi) {
         let frame_div = $('#menu_frames').find('._dnd_item').eq(fi);
         frame_div.click();
-        frame_div.parent().scrollLeft(frame_div.position().left - Math.floor(frame_div.parent().width() / 2) + Math.floor(frame_div.width() / 2));
+        // adjust scoll position of container
+        frame_div.parent().scrollLeft(frame_div.position().left + frame_div.parent().scrollLeft() - Math.floor(frame_div.parent().width() / 2) + Math.floor(frame_div.width() / 2));
     }
 
     switchToFrameDelta(delta) {
@@ -1111,5 +1111,19 @@ class Canvas {
 
     switchToLastFrame() {
         this.switchToFrame(this.game.data.sprites[this.sprite_index].states[this.state_index].frames.length - 1);
+    }
+
+    insertFrame(src) {
+        let image = new Image();
+        image.src = src;
+        image.decode().then(() => {
+            let width = image.width;
+            let height = image.height;
+            let si = this.sprite_index;
+            let sti = this.state_index;
+            this.game.data.sprites[si].states[sti].frames.push({width: width, height: height, src: src});
+            this.detachSprite();
+            this.attachSprite(si, sti, this.game.data.sprites[si].states[sti].frames.length - 1);
+    });
     }
 }
