@@ -474,5 +474,5 @@ document.addEventListener("DOMContentLoaded", function (event) {
         handleResize();
     });
 
-    load_game();
+    // load_game();
 });
