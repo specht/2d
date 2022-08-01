@@ -182,7 +182,8 @@ class DragAndDropWidget {
                 this.options.on_swap_items(swap_later[0], swap_later[1]);
             if (select_item_at_end != null)
                 this.options.onclick(this.options.container.children().eq(select_item_at_end).children().eq(0)[0], select_item_at_end);
-
+            if (delete_at_end !== null || swap_later !== null)
+                this.options.game.refresh_frames_on_screen();
         }
         body.data('_dnd_moving', false);
         body.off('mousemove._dnd touchmove._dnd');

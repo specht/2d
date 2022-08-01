@@ -85,6 +85,7 @@ class Game {
         }
 
         new DragAndDropWidget({
+            game: this,
             container: $('#menu_sprites'),
             trash: $('#trash'),
             items: this.data.sprites,
@@ -123,11 +124,18 @@ class Game {
 
     refresh_frames_on_screen() {
         for (let si = 0; si < this.data.sprites.length; si++) {
-            $('#menu_sprites ._dnd_item img').eq(si).attr('src', this.data.sprites[si].states[0].frames[0].src);
+            let fi = Math.floor(this.data.sprites[si].states[0].frames.length / 2 - 0.5);
+            $('#menu_sprites ._dnd_item img').eq(si).attr('src', this.data.sprites[si].states[0].frames[fi].src);
         }
         if (canvas.sprite_index !== null) {
             for (let sti = 0; sti < this.data.sprites[canvas.sprite_index].states.length; sti++) {
-                $('#menu_states ._dnd_item img').eq(sti).attr('src', this.data.sprites[canvas.sprite_index].states[sti].frames[0].src);
+                let fi = Math.floor(this.data.sprites[canvas.sprite_index].states[sti].frames.length / 2 - 0.5);
+                $('#menu_states ._dnd_item img').eq(sti).attr('src', this.data.sprites[canvas.sprite_index].states[sti].frames[fi].src);
+            }
+            if (canvas.state_index !== null) {
+                for (let fi = 0; fi < this.data.sprites[canvas.sprite_index].states[canvas.state_index].frames.length; fi++) {
+                    $('#menu_frames ._dnd_item img').eq(fi).attr('src', this.data.sprites[canvas.sprite_index].states[canvas.state_index].frames[fi].src);
+                }
             }
         }
     }

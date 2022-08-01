@@ -79,10 +79,10 @@
             box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
         }
 
-        #frame_list {
+        #menu_frames {
             left: 200px;
             top: 50px;
-            height: 50px;
+            height: 52px;
             border-radius: 8px;
             position: absolute;
             background-color: rgba(0, 0, 0, 0.5);
@@ -94,52 +94,13 @@
             white-space: nowrap;
         }
 
-        #frame_list::-webkit-scrollbar {
+        #menu_frames::-webkit-scrollbar {
             display: none;
         }
 
-        #frame_list {
+        #menu-frames {
             -ms-overflow-style: none;
             scrollbar-width: none;
-        }
-
-        #frame_list img {
-            width: 48px;
-            height: 48px;
-            object-fit: contain;
-            image-rendering: pixelated;
-            margin: 0 2px;
-            border: 1px solid transparent;
-            cursor: pointer;
-        }
-
-        #frame_list img.active {
-            background-color: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-        }
-
-        #frame_list img:hover {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        #frame_list .add-frame {
-            display: inline-block;
-            width: 48px;
-            /* height: 48px; */
-            margin: 0 2px;
-            border: 1px solid transparent;
-            cursor: pointer;
-            color: #fff;
-            position: absolute;
-            top: 0;
-            text-align: center;
-            padding: 14.5px 0;
-        }
-
-        #frame_list .add-frame:hover {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
         .menu_container {
@@ -194,25 +155,19 @@
             top: 3px;
             left: 3px;
         }
-        /* .right_menu_container img {
+
+        .menu_frame_item {
             width: 48px;
             height: 48px;
-            object-fit: contain;
+        }
+
+        .menu_frame_item img {
+            width: 48px;
+            height: 48px;
             image-rendering: pixelated;
-            border: 1px solid transparent;
-            cursor: pointer;
+            object-fit: contain;
         }
 
-        .right_menu_container img:hover {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .right_menu_container img.active {
-            background-color: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
- */
         .menu h3 {
             color: #fff;
             font-size: 15px;
@@ -608,7 +563,7 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 100%;
             background-color: rgba(0, 0, 0, 0.5);
-            transition: opacity 300ms, transform 300ms, color 300ms;
+            transition: opacity 300ms, transform 300ms, color 300ms, box-shadow 300ms;
             opacity: 0;
             transform: scale(0);
             color: rgba(255, 255, 255, 0.5);
@@ -621,6 +576,7 @@
             color: rgba(255, 255, 255, 1.0);
             background-color: rgba(0, 0, 0, 0.9);
             transform: scale(1.1);
+            box-shadow: 0 0 20px #f00;
         }
     </style>
     <script src="jquery-3.6.0.min.js"></script>
@@ -676,7 +632,7 @@
         </div>
         <div id='undo_stack'></div>
         <div id='canvas'></div>
-        <div id='frame_list'></div>
+        <div id='menu_frames'></div>
         <div class='menu_container right_menu_container'>
             <!-- <h3>Sprites</h3> -->
             <div class="menu">
@@ -720,9 +676,9 @@
             $('#canvas').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
             $('#undo_stack').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
             $('#undo_stack').css('width', `${$('#canvas').width()}px`);
-            $('#frame_list').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
-            $('#frame_list').css('top', `${$('#canvas').height() + 120}px`);
-            $('#frame_list').css('width', `${$('#canvas').width()}px`);
+            $('#menu_frames').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
+            $('#menu_frames').css('top', `${$('#canvas').height() + 120}px`);
+            $('#menu_frames').css('width', `${$('#canvas').width()}px`);
             $('.menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('.menu_container').width() - 25}px`);
             $('.right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
             // $('#right_menu_container .menu_frames').css('height', `${$('#canvas').height() * 0.2 - 25}px`);
@@ -972,7 +928,7 @@
         });
 
         // setInterval(function() {
-        //     console.log(canvas.sprite_index, canvas.state_index);
+        //     console.log(canvas.sprite_index, canvas.state_index, canvas.frame_index);
         // }, 500);
 
         $(window).resize(function () {

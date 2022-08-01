@@ -963,6 +963,7 @@ class Canvas {
         this.sprite_index = sprite_index;
         this.state_index = state_index;
         this.frame_index = frame_index;
+
         this.loadFromUrl(sprite.states[state_index].frames[frame_index].src, true, function () {
             // self.undo_stack = sprite.undo_stack || [];
             self.refresh_undo_stack();
@@ -975,6 +976,7 @@ class Canvas {
             if (sprite_changed) {
                 // console.log('sprite_changed!');
                 new DragAndDropWidget({
+                    game: self.game,
                     container: $('#menu_states'),
                     trash: $('#trash'),
                     items: sprite.states,
@@ -1003,12 +1005,45 @@ class Canvas {
                     delete_item: (index) => {
                         self.game.data.sprites[self.sprite_index].states.splice(index, 1);
                         // canvas.detachSprite();
-                        self.game.refresh_frames_on_screen();
                     },
                     on_swap_items: (a, b) => {
                         let temp = self.game.data.sprites[self.sprite_index].states[a];
                         self.game.data.sprites[self.sprite_index].states[a] = self.game.data.sprites[self.sprite_index].states[b];
                         self.game.data.sprites[self.sprite_index].states[b] = temp;
+                    }
+                });
+            }
+            if (sprite_changed || state_changed) {
+                new DragAndDropWidget({
+                    game: self.game,
+                    container: $('#menu_frames'),
+                    trash: $('#trash'),
+                    items: sprite.states[self.state_index].frames,
+                    item_class: 'menu_frame_item',
+                    gen_item: (frame) => {
+                        return $('<img>').attr('src', frame.src);
+                    },
+                    onclick: (e, index) => {
+                        $(e).closest('.menu_frame_item').parent().parent().find('.menu_frame_item').removeClass('active');
+                        $(e).parent().addClass('active');
+                        self.attachSprite(self.sprite_index, self.state_index, index);
+                    },
+                    gen_new_item: () => {
+                        let width = 24;
+                        let height = 24;
+                        let src = createDataUrlForImageSize(width, height);
+                        let frame = { src: src, width: width, height: height };
+                        self.game.data.sprites[self.sprite_index].states[self.state_index].frames.push(frame);
+                        return frame;
+                    },
+                    delete_item: (index) => {
+                        self.game.data.sprites[self.sprite_index].states[self.state_index].frames.splice(index, 1);
+                        self.game.refresh_frames_on_screen();
+                    },
+                    on_swap_items: (a, b) => {
+                        let temp = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[a];
+                        self.game.data.sprites[self.sprite_index].states[self.state_index].frames[a] = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[b];
+                        self.game.data.sprites[self.sprite_index].states[self.state_index].frames[b] = temp;
                         self.game.refresh_frames_on_screen();
                     }
                 });
@@ -1016,54 +1051,28 @@ class Canvas {
 
 
 
-            // $('#menu_states').empty();
-            // for (let si = 0; si < sprite.states.length; si++) {
-            //     let state = sprite.states[si];
-            //     let state_div = $(`<div class='state-header'>`);
-            //     state_div.text(state.label);
-            //     let fi = Math.floor(state.frames.length / 2 - 0.5);
-            //     let img = $('<img>').attr('src', state.frames[fi].src);
-            //     state_div.append(img);
-            //     $('#menu_states').append(state_div);
-            //     if (si === state_index) {
-            //         state_div.addClass('active');
-            //         if (fi == frame_index)
-            //             self.connected_img.push(img);
+            // $('#frame_list').empty();
+            // for (let fi = 0; fi < sprite.states[state_index].frames.length; fi++) {
+            //     let frame = sprite.states[state_index].frames[fi];
+            //     let img = $('<img>').attr('src', sprite.states[state_index].frames[fi].src);
+            //     if (fi === frame_index) {
+            //         // self.connected_img.push(img);
+            //         img.addClass('active');
             //     }
-            //     state_div.click(function (e) {
-            //         self.attachSprite(sprite_index, si, 0, []);
+            //     img.click(function (e) {
+            //         self.attachSprite(sprite_index, state_index, fi, []);
             //     });
+            //     $('#frame_list').append(img);
             // }
-            // let state_div = $(`<div class='state-header no-img'>`);
-            // state_div.text("+");
-            // $('#menu_states').append(state_div);
-            // state_div.click(function (e) {
-            //     sprite.states.push({ frames: [{ src: createDataUrlForImageSize(24, 24) }] });
-            //     self.attachSprite(sprite_index, sprite.states.length - 1, 0, []);
+
+            // let bu_add_frame = $('<div>').addClass('add-frame').text('+');
+            // bu_add_frame.click(function (e) {
+            //     let frame = {};
+            //     frame.src = createDataUrlForImageSize(24, 24);
+            //     self.game.data.sprites[self.sprite_index].states[self.state_index].frames.push(frame);
+            //     self.attachSprite(self.sprite_index, self.state_index, sprite.states[self.state_index].frames.length - 1, []);
             // });
-
-            $('#frame_list').empty();
-            for (let fi = 0; fi < sprite.states[state_index].frames.length; fi++) {
-                let frame = sprite.states[state_index].frames[fi];
-                let img = $('<img>').attr('src', sprite.states[state_index].frames[fi].src);
-                if (fi === frame_index) {
-                    // self.connected_img.push(img);
-                    img.addClass('active');
-                }
-                img.click(function (e) {
-                    self.attachSprite(sprite_index, state_index, fi, []);
-                });
-                $('#frame_list').append(img);
-            }
-
-            let bu_add_frame = $('<div>').addClass('add-frame').text('+');
-            bu_add_frame.click(function (e) {
-                let frame = {};
-                frame.src = createDataUrlForImageSize(24, 24);
-                self.game.data.sprites[self.sprite_index].states[self.state_index].frames.push(frame);
-                self.attachSprite(self.sprite_index, self.state_index, sprite.states[self.state_index].frames.length - 1, []);
-            });
-            $('#frame_list').append(bu_add_frame);
+            // $('#frame_list').append(bu_add_frame);
 
             $('#menu_properties').empty();
             // let ti_name = new EditableText({placeholder: '(kein Name)'});
