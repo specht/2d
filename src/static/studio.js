@@ -433,12 +433,35 @@ document.addEventListener("DOMContentLoaded", function (event) {
     $(document).on('drop', function (e) {
         e.preventDefault();
         e.stopPropagation();
+        let total = e.originalEvent.dataTransfer.files.length;
+        let index = 0;
+        let count = 0;
+        let temp = {};
+        let si = canvas.sprite_index;
+        let sti = canvas.state_index;
         for (let file of e.originalEvent.dataTransfer.files) {
-            let reader = new FileReader();
-            reader.onload = function (event) {
-                canvas.insertFrame(event.target.result);
-            };
-            reader.readAsDataURL(file);
+            console.log(file);
+            (function(index) {
+                let reader = new FileReader();
+                reader.onload = function (event) {
+                    temp[index] = event.target.result;
+                    count += 1;
+                    if (count === total) {
+                        let src_list = [];
+                        for (let i = 0; i < total; i++)
+                            src_list.push(temp[i]);
+                        canvas.insertFrames(si, sti, src_list);
+                        // canvas.detachSprite();
+                        // for (let i = 0; i < total; i++)
+                        //     canvas.insertFrame(si, sti, temp[i], (i === total - 1) ? () => {
+                        //         console.log('heya');
+                        //         canvas.attachSprite(si, sti, game.data.sprites[si].states[sti].frames.length - 1);
+                        //     } : () => {});
+                    }
+                };
+                reader.readAsDataURL(file);
+            })(index);
+            index += 1;
         }
     });
 

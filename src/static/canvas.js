@@ -953,7 +953,7 @@ class Canvas {
     }
 
     attachSprite(sprite_index, state_index, frame_index) {
-        // console.log(`attachSprite: ${sprite_index} (${this.sprite_index}), state: ${state_index} (${this.state_index}), frame: ${frame_index} (${this.frame_index})`);
+        console.log(`attachSprite: ${sprite_index} (${this.sprite_index}), state: ${state_index} (${this.state_index}), frame: ${frame_index} (${this.frame_index})`);
         if (this.sprite_index === sprite_index && this.state_index === state_index && this.frame_index === frame_index)
             return;
         let sprite = this.game.data.sprites[sprite_index];
@@ -1113,17 +1113,74 @@ class Canvas {
         this.switchToFrame(this.game.data.sprites[this.sprite_index].states[this.state_index].frames.length - 1);
     }
 
-    insertFrame(src) {
-        let image = new Image();
-        image.src = src;
-        image.decode().then(() => {
-            let width = image.width;
-            let height = image.height;
-            let si = this.sprite_index;
-            let sti = this.state_index;
-            this.game.data.sprites[si].states[sti].frames.push({width: width, height: height, src: src});
-            this.detachSprite();
-            this.attachSprite(si, sti, this.game.data.sprites[si].states[sti].frames.length - 1);
-    });
+    grow_image(image, width, height) {
+        let canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        let context = canvas.getContext('2d');
+        context.drawImage(image, Math.floor((width - image.width) / 2), height - image.height);
+        return canvas.toDataURL('image/png');
+    }
+
+    async insertFrames(si, sti, src_list) {
+        let max_width = 0;
+        let max_height = 0;
+        let existing_frames = [];
+        for (let frame of this.game.data.sprites[si].states[sti].frames) {
+            let image = new Image();
+            image.src = frame.src;
+            await image.decode();
+            existing_frames.push(image);
+            if (image.width > max_width) max_width = image.width;
+            if (image.height > max_height) max_height = image.height;
+        }
+        let images = [];
+        for (let src of src_list) {
+            let image = new Image();
+            image.src = src;
+            await image.decode();
+            images.push(image);
+            if (image.width > max_width) max_width = image.width;
+            if (image.height > max_height) max_height = image.height;
+        }
+
+        // grow existing frames
+        for (let i = 0; i < this.game.data.sprites[si].states[sti].frames.length; i++) {
+            let src = this.grow_image(existing_frames[i], max_width, max_height);
+            this.game.data.sprites[si].states[sti].frames[i] = {
+                width: max_width,
+                height: max_height,
+                src: src
+            };
+        }
+        // grow new frames
+        for (let image of images) {
+            let src = this.grow_image(image, max_width, max_height);
+            this.game.data.sprites[si].states[sti].frames.push({
+                width: max_width,
+                height: max_height,
+                src: src
+            });
+        }
+
+
+
+    //     let image = new Image();
+    //     image.src = src;
+    //     image.decode().then(() => {
+    //         let width = image.width;
+    //         let height = image.height;
+    //         for (let i = 0; i < this.game.data.sprites[si].states[sti].frames.length; i++) {
+    //             let frame = this.game.data.sprites[si].states[sti].frames[i];
+    //             if (frame.width < max_width || frame.height < max_height) {
+    //                 // grow the frame
+    //                 this.game.data.sprites[si].states[sti].frames[i].src = this.grow_image_src(frame.src, max_width, max_height);
+    //                 this.game.data.sprites[si].states[sti].frames[i].width = max_width;
+    //                 this.game.data.sprites[si].states[sti].frames[i].height = max_height;
+    //             }
+    //         }
+    //         this.game.data.sprites[si].states[sti].frames.push({width: width, height: height, src: src});
+    //         callback();
+    //    });
     }
 }
