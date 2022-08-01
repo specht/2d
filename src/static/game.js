@@ -28,7 +28,9 @@ class Game {
 
         api_call('/api/load_game', { tag: tag }, function (data) {
             if (data.success) {
+                console.log(data);
                 self.data = data.game;
+                self.data.parent = tag;
                 self._load();
             }
         });
@@ -61,8 +63,10 @@ class Game {
                 if (data.tag !== self.data.parent) {
                     self.data.parent = data.tag;
                 }
-                console.log(data);
-                window.location.href = `/?${data.tag}`;
+                $('#save_notification img').attr('src', `noto/${data.icon}.png`);
+                $('#save_notification').addClass('showing');
+                setTimeout(() => { $('#save_notification').removeClass('showing'); }, 3000);
+                // window.location.href = `/?${data.tag}`;
             }
         });
     }
@@ -94,7 +98,7 @@ class Game {
             onclick: (e, index) => {
                 $(e).closest('.menu_sprite_item').parent().parent().find('.menu_sprite_item').removeClass('active');
                 $(e).parent().addClass('active');
-                canvas.attachSprite(index, 0, 0, {sprites: $(e).closest('.menu_sprite_item').parent().parent().find('.menu_sprite_item')});
+                canvas.attachSprite(index, 0, 0, { sprites: $(e).closest('.menu_sprite_item').parent().parent().find('.menu_sprite_item') });
             },
             gen_item: (item) => {
                 let img = $('<img>');
@@ -104,7 +108,7 @@ class Game {
             gen_new_item: () => {
                 let width = 24; let height = 24;
                 let src = createDataUrlForImageSize(width, height);
-                let sprite = {states: [{frames: [{ src: src, width: width, height: height }]}]};
+                let sprite = { states: [{ frames: [{ src: src, width: width, height: height }] }] };
                 self.data.sprites.push(sprite);
                 return sprite;
             },

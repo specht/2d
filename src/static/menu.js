@@ -168,6 +168,7 @@ class Menu {
             // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
             hints.push({
                 key: 'Control+O', label: 'Spiel laden', callback: function () {
+                    load_game();
                 }
                 // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
             });

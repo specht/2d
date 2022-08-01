@@ -13,6 +13,11 @@ require "./credentials.rb"
 $VERBOSE = warn_level
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 
+# ANIMALS = %w(🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐸 🐒 🐧 🐦 🦆 🦅 🦉 🦇 🐴 🦄 🐝 🦋 🐌 🐞 🪲 🦗 🐢 🐍 🦎 🐙 🦀 🐠 🐬 🐋 🐊 🐅 🦓 🐘 🐪 🦒 🦘 🐄 🐖 🐑 🐐 🐕 🐈‍⬛ 🐓 🦚 🦜 🦢 🦩 🐇 🐁 🦔)
+ANIMALS = %w(s1cfi07 rqaux7w q6xbd0g pxly0tu on87yoe n0vdqui lm78e76 lclapq1 l3lawv5 l2ozijf l2d1t8l l0v66o3 kp11rle k2ram59 jzp6ovu
+             jq70giy irath30 hj6vqa0 gdbl86r ga56q6n g54ebrx g8ceaya ffg1kv8 f4jizb6 e2z9poi aob22o8 ako2wyi a7oqxgh a2r8to1 114g99w
+             49v6ivw 9g4gu5z 7zl61mu 7hmau5i 6iwskal 4r9nct2 4nyev3o 4j8mqjo)
+
 def debug(message, index = 0)
     index = 0
     begin
@@ -320,9 +325,12 @@ class Main < Sinatra::Base
         respond(:pong => "yay")
     end
 
+    def icon_for_tag(tag)
+        ANIMALS[tag.to_i(36) % ANIMALS.size]
+    end
+
     post "/api/load_game" do
         data = parse_request_data(:required_keys => [:tag])
-        debug data.to_yaml
         tag = data[:tag]
         assert(!tag.include?('.'))
         assert(!tag.include?('/'))
@@ -334,7 +342,7 @@ class Main < Sinatra::Base
         game['sprites'].map! do |sprite|
             sprite['states'].map! do |state|
                 state['frames'].map! do |frame|
-                    debug frame.to_json
+                    # debug frame.to_json
                     base64 = Base64::strict_encode64(File.read("/gen/png/#{frame['tag']}.png"))
                     frame['src'] = "data:image/png;base64,#{base64}"
                     frame
@@ -349,11 +357,21 @@ class Main < Sinatra::Base
     post "/api/save_game" do
         data = parse_request_data(:required_keys => [:game], :types => {:game => Hash}, :max_body_length => 1024 * 1024 * 20)
         game = data[:game]
+        size = 0
+        sprite_count = 0
+        state_count = 0
+        frame_count = 0
+        unique_frames = Set.new()
         game['sprites'].map! do |sprite|
+            sprite_count += 1
             sprite['states'].map! do |state|
+                state_count += 1
                 state['frames'].map! do |frame|
+                    frame_count += 1
                     png = Base64::strict_decode64(frame['src'].sub('data:image/png;base64,', ''))
+                    size += png.size
                     frame_sha1 = Digest::SHA1.hexdigest(png).to_i(16).to_s(36)[0, 7]
+                    unique_frames << frame_sha1
                     path = "/gen/png/#{frame_sha1}.png"
                     unless File.exists?(path)
                         File.open(path, 'w') do |f|
@@ -368,9 +386,11 @@ class Main < Sinatra::Base
             end
             sprite
         end
+        unique_frame_count = unique_frames.size
         parent = game['parent']
         game.delete('parent')
         game_json = game.to_json
+        size += game_json.size
         tag = Digest::SHA1.hexdigest(game_json).to_i(16).to_s(36)[0, 7]
         path = "/gen/games/#{tag}.json"
         unless File.exists?(path)
@@ -378,11 +398,30 @@ class Main < Sinatra::Base
                 f.write game_json
             end
         end
-        neo4j_query(<<~END_OF_QUERY, {:tag => tag, :ts => Time.now.to_i})
+        neo4j_query(<<~END_OF_QUERY, {:tag => tag, :ts => Time.now.to_i, :size => size, :sprite_count => sprite_count, :state_count => state_count, :frame_count => frame_count, :unique_frame_count => unique_frame_count})
             MERGE (g:Game {tag: $tag})
             SET g.ts_created = COALESCE(g.ts_created, $ts)
-            SET g.ts_updated = $ts;
+            SET g.ts_updated = $ts
+            SET g.size = $size
+            SET g.sprite_count = $sprite_count
+            SET g.state_count = $state_count
+            SET g.frame_count = $frame_count
+            SET g.unique_frame_count = $unique_frame_count;
         END_OF_QUERY
+        if game['title']
+            neo4j_query(<<~END_OF_QUERY, {:content => game['title'], :tag => tag, :ts => Time.now.to_i})
+                MATCH (g:Game {tag: $tag})
+                MERGE (s:String {content: $content})
+                CREATE (g)-[:TITLE]->(s);
+            END_OF_QUERY
+        end
+        if game['author']
+            neo4j_query(<<~END_OF_QUERY, {:content => game['author'], :tag => tag, :ts => Time.now.to_i})
+                MATCH (g:Game {tag: $tag})
+                MERGE (s:String {content: $content})
+                CREATE (g)-[:AUTHOR]->(s);
+            END_OF_QUERY
+        end
         if parent && parent != tag
             neo4j_query(<<~END_OF_QUERY, {:tag => tag, :parent => parent})
                 MATCH (g:Game {tag: $tag})
@@ -391,16 +430,42 @@ class Main < Sinatra::Base
                 CREATE (g)-[:PARENT]->(p);
             END_OF_QUERY
         end
-        respond(:tag => tag)
+        respond(:tag => tag, :icon => icon_for_tag(tag))
     end
 
     post '/api/get_games' do
-        tags = neo4j_query(<<~END_OF_QUERY).map { |x| x['tag'] }
+        nodes = neo4j_query(<<~END_OF_QUERY).map { |x| x['g'] }
             MATCH (g:Game)
-            RETURN g.tag AS tag
-            ORDER BY g.ts_updated DESC;
+            RETURN g
+            ORDER BY g.ts_created DESC;
         END_OF_QUERY
-        respond(:tags => tags)
+        nodes.map! do |node|
+            node[:icon] = icon_for_tag(node[:tag])
+            node
+        end
+        respond(:nodes => nodes)
+    end
+
+    post '/api/get_games_leaves' do
+        leaves = neo4j_query(<<~END_OF_QUERY).map { |x| {:tag => x['tag'], :ts => x['ts']} }
+            MATCH (g:Game)
+            WHERE NOT (:Game)-[:PARENT]->(g)
+            RETURN g.tag AS tag, g.ts_created AS ts
+            ORDER BY g.ts_created DESC;
+        END_OF_QUERY
+        respond(:nodes => leaves)
+    end
+
+    post '/api/get_games_lineage' do
+        data = parse_request_data(:required_keys => [:tag])
+        tag = data[:tag]
+        assert(!tag.include?('.'))
+        assert(!tag.include?('/'))
+        nodes = neo4j_query(<<~END_OF_QUERY, {:tag => tag}).map { |x| {:tag => x['tag'], :ts => x['ts']} }
+            MATCH (g:Game {tag: $tag})-[:PARENT*]->(p:Game)
+            RETURN p.tag AS tag, p.ts_created AS ts;
+        END_OF_QUERY
+        respond(:nodes => nodes)
     end
 
     get '/*' do
