@@ -1,5 +1,5 @@
 const KEY_TR = {
-    'Space': '␣',
+    'Space': 'Leertaste',
     'Control': 'Strg',
     'ArrowLeft': '◄',
     'ArrowRight': '►',
@@ -158,36 +158,51 @@ class Menu {
             statusBar.empty();
             let hints = (command.hints || []).slice(0);
             if (command.label) hints.unshift(`<b>${command.label}</b>`);
-            hints.unshift({ label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () { 
-                console.log('yay');
-             } });
+            hints.unshift({
+                label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () {
+                    console.log('yay');
+                }
+            });
 
             hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) self.element.find('.tooltip').show(); else self.element.find('.tooltip').hide(); } });
             // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
             hints.push({
                 key: 'Control+O', label: 'Spiel laden', callback: function () {
                 }
-                    // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+                // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
             });
             hints.push({
                 key: 'Control+S', label: 'Spiel speichern', callback: function () {
                     game.save();
                 }
-                    // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+                // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
             });
             hints.push({
                 key: 'F11', label: 'Vollbild', callback: function () {
-                    if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
-            });
-            hints.push({
-                key: 'ArrowLeft', label: 'Vorheriger Frame', callback: function () {
-                    canvas.switchToFrameDelta(-1);
+                    if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen();
                 }
             });
-                hints.push({key: 'ArrowRight', label: 'Nächster Frame', callback: function () {
-                    canvas.switchToFrameDelta(1);
-                }
-            });
+            // hints.push({
+            //     key: 'ArrowLeft', label: 'Vorheriger Frame', callback: function () {
+            //         canvas.switchToFrameDelta(-1);
+            //     }
+            // });
+            // hints.push({
+            //     key: 'ArrowRight', label: 'Nächster Frame', callback: function () {
+            //         canvas.switchToFrameDelta(1);
+            //     }
+            // });
+            hints.push(
+                {
+                    type: 'group', keys: [`<i style='font-size: 90%;' class='fa fa-chevron-left'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-right'></i>`], label: 'Frame vor/zurück', shortcuts: [
+                        { key: 'ArrowLeft', label: 'Links', callback: () => canvas.switchToFrameDelta(-1) },
+                        { key: 'ArrowRight', label: 'Rechts', callback: () => canvas.switchToFrameDelta(+1) },
+                        { key: 'Home', label: 'Pos1', callback: () => canvas.switchToFirstFrame() },
+                        { key: 'End', label: 'Ende', callback: () => canvas.switchToLastFrame() },
+                    ]
+                },
+            );
+
             let i = 0;
             for (let hint of hints) {
                 let is = i.toString();

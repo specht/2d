@@ -406,6 +406,7 @@ class Canvas {
                     for (let i = 0; i < 4; i++)
                         color[i] = Math.round(color[i] / count);
                     setCurrentColor(tinycolor({ r: color[0], g: color[1], b: color[2], a: color[3] / 255 }).toHex8String());
+                    window.menu.handle_click(window.revert_to_tool);
                 }
             } else if (this.menu.get('tool') === 'tool/spray') {
                 this.stop_ticker();
@@ -1091,9 +1092,24 @@ class Canvas {
         this.frame_index = null;
     }
 
+    switchToFrame(fi) {
+        let frame_div = $('#menu_frames').find('._dnd_item').eq(fi);
+        frame_div.click();
+        frame_div.parent().scrollLeft(frame_div.position().left - Math.floor(frame_div.parent().width() / 2) + Math.floor(frame_div.width() / 2));
+    }
+
     switchToFrameDelta(delta) {
-        let frames = this.game.data.sprites[this.sprite_index].states[this.state_index].frames;
-        let fi = (this.frame_index + delta + frames.length) % frames.length;
-        this.attachSprite(this.sprite_index, this.state_index, fi);
+        let fi = $('#menu_frames').find('._dnd_item.active').index();
+        let fc = this.game.data.sprites[this.sprite_index].states[this.state_index].frames.length;
+        fi = (fi + delta + fc) % fc;
+        this.switchToFrame(fi);
+    }
+
+    switchToFirstFrame() {
+        this.switchToFrame(0);
+    }
+
+    switchToLastFrame() {
+        this.switchToFrame(this.game.data.sprites[this.sprite_index].states[this.state_index].frames.length - 1);
     }
 }
