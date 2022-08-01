@@ -937,7 +937,7 @@ class Canvas {
             let image = $('<img>').attr('src', src);
             image.click(function (e) {
                 let src = $(e.target).attr('src');
-                self.loadFromUrl(src, true);
+                self.loadFromUrl(src, false);
             });
             div.append(image);
         }
@@ -983,10 +983,10 @@ class Canvas {
                     item_class: 'menu_state_item',
                     gen_item: (state) => {
                         let state_div = $(`<div>`);
-                        state_div.text(state.label);
                         let fi = Math.floor(state.frames.length / 2 - 0.5);
                         let img = $('<img>').attr('src', state.frames[fi].src);
                         state_div.append(img);
+                        state_div.append($(`<div class='state_label'>`).text(state.label));
                         return state_div;
                     },
                     onclick: (e, index) => {

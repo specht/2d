@@ -57,8 +57,15 @@ class DragAndDropWidget {
     _append_item(item) {
         let self = this;
         let item_div = $(`<div>`).addClass(this.options.item_class).addClass('_dnd_item');
+        item_div.on('contextmenu', () => false);
+        let drag_handle = $(`<div class='drag_handle'>`);
+        item_div.append(drag_handle);
         item_div.append(item.css('pointer-events', 'none'));
-        item_div.on('mousedown touchstart', function (e) {
+        item_div.click((e) => {
+            let element = $(e.target).closest('._dnd_item');
+            self.options.onclick(element.children().eq(0)[0], element.index());
+        });
+        drag_handle.on('mousedown touchstart', function (e) {
             let item = $(e.target).closest('._dnd_item').children()[0];
             let div = $(item.closest('._dnd_item'));
             self.mouse_down_element = div;
@@ -73,6 +80,7 @@ class DragAndDropWidget {
             body.data('_dnd_mouse_x', p[0]);
             body.data('_dnd_mouse_y', p[1]);
             self._install_drag_and_drop_handler();
+            self.container_scroll_position = [self.options.container.scrollLeft(), self.options.container.scrollTop()];
         });
         $(this.options.container).append(item_div);
     }
@@ -86,7 +94,12 @@ class DragAndDropWidget {
         let body = $('html');
         body.on('mousemove._dnd touchmove._dnd', function (e) {
             // e.preventDefault();
+            // console.log(self.options.container.scrollTop(), self.container_scroll_position[1]);
+            // self.options.container.scrollLeft(self.container_scroll_position[0]);
+            // self.options.container.scrollTop(self.container_scroll_position[1]);
             e.stopPropagation();
+            self.options.container[0].scrollLeft = self.container_scroll_position[0];
+            self.options.container[0].scrollTop = self.container_scroll_position[1];
             let body = $('html');
             if (body.data('_dnd_moving')) {
                 let div_x = body.data('_dnd_div_x');

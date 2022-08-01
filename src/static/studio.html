@@ -125,11 +125,11 @@
             position: absolute;
             top: 50px;
             left: 0px;
-            width: 220px;
+            width: 216px;
         }
 
         .menu_sprite_item {
-            width: 48px;
+            width: 64px;
             height: 48px;
         }
 
@@ -138,11 +138,23 @@
             height: 48px;
             image-rendering: pixelated;
             object-fit: contain;
+            margin-left: 16px;
+        }
+
+        .menu_sprite_item .drag_handle {
+            display: block;
+            width: 15px;
+            height: 48px;
+            position: absolute;
+            left: 0;
+            background-image: url(rough.png);
+            opacity: 0.3;
+            border-right: 1px solid rgba(0, 0, 0, 0.5);
         }
 
         .menu_state_item {
             display: block;
-            width: 205px;
+            width: 201px;
             height: 30px;
         }
 
@@ -156,8 +168,27 @@
             left: 3px;
         }
 
+        .menu_state_item .state_label {
+            display: inline-block;
+            position: absolute;
+            left: 32px;
+            top: 8px;
+        }
+
+        .menu_state_item .drag_handle {
+            display: block;
+            width: 15px;
+            height: 30px;
+            position: absolute;
+            right: 0;
+            background-image: url(rough.png);
+            opacity: 0.3;
+            border-left: 1px solid rgba(0, 0, 0, 0.5);
+
+        }
+
         .menu_frame_item {
-            width: 48px;
+            width: 64px;
             height: 48px;
         }
 
@@ -166,6 +197,18 @@
             height: 48px;
             image-rendering: pixelated;
             object-fit: contain;
+            margin-left: 16px;
+        }
+
+        .menu_frame_item .drag_handle {
+            display: block;
+            width: 15px;
+            height: 48px;
+            position: absolute;
+            left: 0;
+            background-image: url(rough.png);
+            opacity: 0.3;
+            border-right: 1px solid rgba(0, 0, 0, 0.5);
         }
 
         .menu h3 {
@@ -909,7 +952,7 @@
 
         var game = new Game();
         // game.load('s76l9s7');
-        game.load('bpvf7tr');
+        game.load('6fhatpd');
 
         api_call('/api/get_games', {}, function (data) {
             if (data.success) {
