@@ -27,6 +27,7 @@
             overscroll-behavior: none;
             color: #fff;
             font-size: 13px;
+            overflow: hidden;
         }
 
         #undo_stack {
@@ -35,7 +36,7 @@
             height: 50px;
             border-radius: 8px;
             position: absolute;
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
             text-align: right;
@@ -122,25 +123,6 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
-        #menu_sprites .add-frame {
-            display: inline-block;
-            width: 48px;
-            /* height: 48px; */
-            margin: 0 2px;
-            border: 1px solid transparent;
-            cursor: pointer;
-            color: #fff;
-            position: absolute;
-            top: 34px;
-            text-align: center;
-            padding: 14.5px 0;
-        }
-
-        #menu_sprites .add-frame:hover {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
         #frame_list .add-frame {
             display: inline-block;
             width: 48px;
@@ -182,10 +164,37 @@
             position: absolute;
             top: 50px;
             left: 0px;
-            width: 212px;
+            width: 220px;
         }
 
-        .right_menu_container img {
+        .menu_sprite_item {
+            width: 48px;
+            height: 48px;
+        }
+
+        .menu_sprite_item img {
+            width: 48px;
+            height: 48px;
+            image-rendering: pixelated;
+            object-fit: contain;
+        }
+
+        .menu_state_item {
+            display: block;
+            width: 205px;
+            height: 30px;
+        }
+
+        .menu_state_item img {
+            width: 24px;
+            height: 24px;
+            image-rendering: pixelated;
+            object-fit: contain;
+            position: relative;
+            top: 3px;
+            left: 3px;
+        }
+        /* .right_menu_container img {
             width: 48px;
             height: 48px;
             object-fit: contain;
@@ -203,7 +212,7 @@
             background-color: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
-
+ */
         .menu h3 {
             color: #fff;
             font-size: 15px;
@@ -222,11 +231,12 @@
 
         .menu {
             /* width: 152px; */
-            border: 1px solid #444;
+            border: 1px solid rgba(255, 255, 255, 0.2);
             background-color: rgba(0, 0, 0, 0.3);
             padding: 5px;
             border-radius: 10px;
             margin-bottom: 10px;
+            overflow: hidden;
         }
 
         .menu hr {
@@ -538,11 +548,79 @@
             outline: none;
             border: 1px solid rgba(255, 255, 255, 0.7);
         } */
+
+        .dndtest {
+            display: inline-block;
+            width: 46px;
+            height: 46px;
+        }
+        ._dnd_item {
+            display: inline-block;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background-color: rgba(255, 255, 255, 0.1);
+            margin: 1px;
+            vertical-align: middle;
+            position: relative;
+            top: 0px;
+            transition: transform 300ms;
+            cursor: pointer;
+        }
+        ._dnd_item:hover {
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        ._dnd_item.active {
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        ._dnd_item.add {
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            background-color: rgba(255, 255, 255, 0.05);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        ._dnd_item.add:hover {
+            border: 1px dashed rgba(255, 255, 255, 0.4);
+            color: rgba(255, 255, 255, 0.8);
+        }
+        ._dnd_item.placeholder {
+            /* border: 1px dashed rgba(255, 255, 255, 0.2); */
+            /* border-radius: 8px; */
+            opacity: 0;
+        }
+        ._dnd_item.drop_target {
+            /* top: -10px; */
+            transform: scale(0.8);
+        }
         @media (max-height: 600px) {
             /* #undo_stack img {
                 width: 24px;
                 height: 24px;
             } */
+        }
+        #trash {
+            position: absolute;
+            right: 10px;
+            bottom: 50px;
+            font-size: 24px;
+            padding: 15px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            transition: opacity 300ms, transform 300ms, color 300ms;
+            opacity: 0;
+            transform: scale(0);
+            color: rgba(255, 255, 255, 0.5);
+        }
+        #trash.showing {
+            opacity: 1;
+            transform: scale(1);
+        }
+        #trash.showing:hover {
+            color: rgba(255, 255, 255, 1.0);
+            background-color: rgba(0, 0, 0, 0.9);
+            transform: scale(1.1);
         }
     </style>
     <script src="jquery-3.6.0.min.js"></script>
@@ -632,6 +710,9 @@
             -->
         </div>
         <div id='status-bar'></div>
+    </div>
+    <div id='trash'>
+        <i class="fa fa-trash"></i>
     </div>
     <script>
         function handleResize() {
@@ -847,18 +928,6 @@
         var menu = new Menu($('#tool_menu'), tool_menu_items, canvas);
         canvas.menu = menu;
 
-        // var game = new Game('test-game.json');
-        // game.load('test-game');
-        // game.load('s8uc8qy');
-
-        // var sprite = new Sprite();
-        // sprite.loadFromUrl('dustin.png', function() {
-        //     game.sprites.push(sprite);
-        //     canvas.attachSprite(sprite);
-        // });
-        // sprite.loadFromUrl('tree.png', function() {
-        //     game.sprites.push(sprite);
-        // });
         // menu.handle_click('tool/gradient');
         // menu.handle_click('penWidth/1');
 
@@ -883,6 +952,8 @@
         });
 
         var game = new Game();
+        // game.load('s76l9s7');
+        game.load('klxsryd');
 
         api_call('/api/get_games', {}, function (data) {
             if (data.success) {
@@ -899,6 +970,10 @@
                 }
             }
         });
+
+        // setInterval(function() {
+        //     console.log(canvas.sprite_index, canvas.state_index);
+        // }, 500);
 
         $(window).resize(function () {
             handleResize();

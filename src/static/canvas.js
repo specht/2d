@@ -104,9 +104,8 @@ class Canvas {
         this.sprite_index = null;
         this.state_index = null;
         this.frame_index = null;
-        this.connected_img = [];
         // prevent context menu on canvas when right clicking
-        this.element.on('contextmenu', function(e) {
+        this.element.on('contextmenu', function (e) {
             return false;
         });
     }
@@ -536,9 +535,8 @@ class Canvas {
             }
             if (this.mouse_down) {
                 if (UNDO_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
+                    this.write_frame_to_game_data();
                     this.append_to_undo_stack();
-                    this.game.sprites[this.sprite_index].undo_stack = this.undo_stack;
-                    this.game.sprites[this.sprite_index].states[this.state_index].frames[this.frame_index].src = this.toUrl();
                 }
             }
         }
@@ -547,6 +545,11 @@ class Canvas {
         this.mouse_down_button = null;
         this.update_overlay_brush();
         this.stop_ticker();
+    }
+
+    write_frame_to_game_data() {
+        this.game.data.sprites[this.sprite_index].states[this.state_index].frames[this.frame_index].src = this.toUrl();
+        this.game.refresh_frames_on_screen();
     }
 
     setShowPen(flag) {
@@ -672,20 +675,21 @@ class Canvas {
     }
 
     undo() {
-        if (this.undo_stack.length === 0)
-            return;
-        this.loadFromUrl(this.undo_stack[this.undo_stack.length - 1]);
-        this.undo_stack = this.undo_stack.slice(0, this.undo_stack.length - 1);
-        this.refresh_undo_stack();
+        // if (this.undo_stack.length === 0)
+        //     return;
+        // this.loadFromUrl(this.undo_stack[this.undo_stack.length - 1]);
+        // this.undo_stack = this.undo_stack.slice(0, this.undo_stack.length - 1);
+        // this.refresh_undo_stack();
     }
 
-    loadFromUrl(url, add_to_undo_stack) {
+    loadFromUrl(url, add_to_undo_stack, callback) {
         if (typeof (add_to_undo_stack) === 'undefined')
             add_to_undo_stack = false;
         let drawing = new Image();
         let context = this.bitmap.getContext('2d');
         let self = this;
-        drawing.onload = function () {
+        drawing.src = url;
+        drawing.decode().then(() => {
             self.bitmap.width = drawing.width;
             self.bitmap.height = drawing.height;
             self.overlay_bitmap.width = drawing.width;
@@ -696,10 +700,12 @@ class Canvas {
             $(self.overlay_bitmap).css('width', `${self.bitmap.width * self.scale}px`);
             $(self.overlay_bitmap).css('height', `${self.bitmap.height * self.scale}px`);
             self.autoFit();
+            self.write_frame_to_game_data();
             if (add_to_undo_stack)
                 self.append_to_undo_stack();
-        };
-        drawing.src = url;
+            if (typeof (callback) !== 'undefined')
+                callback();
+        });
     }
 
     toUrl() {
@@ -920,10 +926,7 @@ class Canvas {
             this.undo_stack.push(url);
             this.refresh_undo_stack();
         }
-        for (let img of this.connected_img) {
-
-            $(img).attr('src', url);
-        };
+        this.game.refresh_frames_on_screen();
     }
 
     refresh_undo_stack() {
@@ -943,98 +946,145 @@ class Canvas {
 
     setGame(game) {
         this.game = game;
+        this.sprite_index = null;
+        this.state_index = null;
+        this.frame_index = null;
     }
 
-    attachSprite(sprite_index, state_index, frame_index, connected_img) {
-        if (typeof (connected_img) === 'undefined') connected_img = [];
-        let sprite = this.game.sprites[sprite_index];
+    attachSprite(sprite_index, state_index, frame_index) {
+        // console.log(`attachSprite: ${sprite_index} (${this.sprite_index}), state: ${state_index} (${this.state_index}), frame: ${frame_index} (${this.frame_index})`);
+        if (this.sprite_index === sprite_index && this.state_index === state_index && this.frame_index === frame_index)
+            return;
+        let sprite = this.game.data.sprites[sprite_index];
         let self = this;
+        let sprite_changed = (sprite_index !== this.sprite_index);
+        let state_changed = (state_index !== this.state_index);
         this.detachSprite();
         this.sprite_index = sprite_index;
         this.state_index = state_index;
         this.frame_index = frame_index;
-        this.connected_img = connected_img;
-        this.loadFromUrl(sprite.states[state_index].frames[frame_index].src, true);
-        this.undo_stack = sprite.undo_stack || [];
-        this.refresh_undo_stack();
-        $('#ti_sprite_label').val(sprite.label);
-        $('#bu_sprite_gravity').attr('data-state', sprite.gravity ? 'true' : 'false');
-        $('#bu_sprite_movable').attr('data-state', sprite.movable ? 'true' : 'false');
-        $('#menu_states').empty();
-        for (let si = 0; si < sprite.states.length; si++) {
-            let state = sprite.states[si];
-            let state_div = $(`<div class='state-header'>`);
-            state_div.text(state.label);
-            let fi = Math.floor(state.frames.length / 2 - 0.5);
-            let img = $('<img>').attr('src', state.frames[fi].src);
-            state_div.append(img);
-            $('#menu_states').append(state_div);
-            if (si === state_index) {
-                state_div.addClass('active');
-                if (fi == frame_index)
-                    this.connected_img.push(img);
+        this.loadFromUrl(sprite.states[state_index].frames[frame_index].src, true, function () {
+            // self.undo_stack = sprite.undo_stack || [];
+            self.refresh_undo_stack();
+            $('#ti_sprite_label').val(sprite.label);
+            $('#bu_sprite_gravity').attr('data-state', sprite.gravity ? 'true' : 'false');
+            $('#bu_sprite_movable').attr('data-state', sprite.movable ? 'true' : 'false');
+
+            // return;
+
+            if (sprite_changed) {
+                // console.log('sprite_changed!');
+                new DragAndDropWidget({
+                    container: $('#menu_states'),
+                    trash: $('#trash'),
+                    items: sprite.states,
+                    item_class: 'menu_state_item',
+                    gen_item: (state) => {
+                        let state_div = $(`<div>`);
+                        state_div.text(state.label);
+                        let fi = Math.floor(state.frames.length / 2 - 0.5);
+                        let img = $('<img>').attr('src', state.frames[fi].src);
+                        state_div.append(img);
+                        return state_div;
+                    },
+                    onclick: (e, index) => {
+                        $(e).closest('.menu_state_item').parent().parent().find('.menu_state_item').removeClass('active');
+                        $(e).parent().addClass('active');
+                        self.attachSprite(self.sprite_index, index, 0);
+                    },
+                    gen_new_item: () => {
+                        let width = 24;
+                        let height = 24;
+                        let src = createDataUrlForImageSize(width, height);
+                        let state = { frames: [{ src: src, width: width, height: height }] };
+                        self.game.data.sprites[self.sprite_index].states.push(state);
+                        return state;
+                    },
+                    delete_item: (index) => {
+                        self.game.data.sprites[self.sprite_index].states.splice(index, 1);
+                        // canvas.detachSprite();
+                        self.game.refresh_frames_on_screen();
+                    },
+                    on_swap_items: (a, b) => {
+                        let temp = self.game.data.sprites[self.sprite_index].states[a];
+                        self.game.data.sprites[self.sprite_index].states[a] = self.game.data.sprites[self.sprite_index].states[b];
+                        self.game.data.sprites[self.sprite_index].states[b] = temp;
+                        self.game.refresh_frames_on_screen();
+                    }
+                });
             }
-            state_div.click(function (e) {
-                self.attachSprite(sprite_index, si, 0, []);
-            });
-        }
-        let state_div = $(`<div class='state-header no-img'>`);
-        state_div.text("+");
-        $('#menu_states').append(state_div);
-        state_div.click(function (e) {
-            sprite.states.push({ frames: [{ src: createDataUrlForImageSize(24, 24) }] });
-            self.attachSprite(sprite_index, sprite.states.length - 1, 0, []);
-        });
-        $('#frame_list').empty();
-        for (let fi = 0; fi < sprite.states[state_index].frames.length; fi++) {
-            let frame = sprite.states[state_index].frames[fi];
-            let img = $('<img>').attr('src', sprite.states[state_index].frames[fi].src);
-            if (fi === frame_index) {
-                this.connected_img.push(img);
-                img.addClass('active');
+
+
+
+            // $('#menu_states').empty();
+            // for (let si = 0; si < sprite.states.length; si++) {
+            //     let state = sprite.states[si];
+            //     let state_div = $(`<div class='state-header'>`);
+            //     state_div.text(state.label);
+            //     let fi = Math.floor(state.frames.length / 2 - 0.5);
+            //     let img = $('<img>').attr('src', state.frames[fi].src);
+            //     state_div.append(img);
+            //     $('#menu_states').append(state_div);
+            //     if (si === state_index) {
+            //         state_div.addClass('active');
+            //         if (fi == frame_index)
+            //             self.connected_img.push(img);
+            //     }
+            //     state_div.click(function (e) {
+            //         self.attachSprite(sprite_index, si, 0, []);
+            //     });
+            // }
+            // let state_div = $(`<div class='state-header no-img'>`);
+            // state_div.text("+");
+            // $('#menu_states').append(state_div);
+            // state_div.click(function (e) {
+            //     sprite.states.push({ frames: [{ src: createDataUrlForImageSize(24, 24) }] });
+            //     self.attachSprite(sprite_index, sprite.states.length - 1, 0, []);
+            // });
+
+            $('#frame_list').empty();
+            for (let fi = 0; fi < sprite.states[state_index].frames.length; fi++) {
+                let frame = sprite.states[state_index].frames[fi];
+                let img = $('<img>').attr('src', sprite.states[state_index].frames[fi].src);
+                if (fi === frame_index) {
+                    // self.connected_img.push(img);
+                    img.addClass('active');
+                }
+                img.click(function (e) {
+                    self.attachSprite(sprite_index, state_index, fi, []);
+                });
+                $('#frame_list').append(img);
             }
-            img.click(function (e) {
-                self.attachSprite(sprite_index, state_index, fi, []);
+
+            let bu_add_frame = $('<div>').addClass('add-frame').text('+');
+            bu_add_frame.click(function (e) {
+                let frame = {};
+                frame.src = createDataUrlForImageSize(24, 24);
+                self.game.data.sprites[self.sprite_index].states[self.state_index].frames.push(frame);
+                self.attachSprite(self.sprite_index, self.state_index, sprite.states[self.state_index].frames.length - 1, []);
             });
-            $('#frame_list').append(img);
-        }
+            $('#frame_list').append(bu_add_frame);
 
-        let bu_add_sprite = $('<div>').addClass('add-frame').text('+');
-        bu_add_sprite.click(function (e) {
-            self.game.sprites.push({states: [{frames: [{src: createDataUrlForImageSize(24, 24)}]}]});
-            bu_add_sprite
-            self.attachSprite(self.game.sprites.length - 1, 0, 0, []);
+            $('#menu_properties').empty();
+            // let ti_name = new EditableText({placeholder: '(kein Name)'});
+            // $('#menu_properties').append(ti_name.element);
+
         });
-        $('#menu_sprites').append(bu_add_sprite);
-
-        let bu_add_frame = $('<div>').addClass('add-frame').text('+');
-        bu_add_frame.click(function (e) {
-            let frame = {};
-            frame.src = createDataUrlForImageSize(24, 24);
-            self.game.sprites[self.sprite_index].states[self.state_index].frames.push(frame);
-            self.attachSprite(self.sprite_index, self.state_index, sprite.states[self.state_index].frames.length - 1, []);
-        });
-        $('#frame_list').append(bu_add_frame);
-
-        $('#menu_properties').empty();
-        // let ti_name = new EditableText({placeholder: '(kein Name)'});
-        // $('#menu_properties').append(ti_name.element);
     }
 
     detachSprite() {
-        if (this.sprite_index !== null && this.state_index !== null && this.frame_index !== null) {
-            this.game.sprites[this.sprite_index].undo_stack = this.undo_stack;
-            this.game.sprites[this.sprite_index].states[this.state_index].frames[this.frame_index].src = this.toUrl();
+        if (this.sprite_index !== null && this.state_index !== null && this.frame_index !== null && this.sprite_index < this.game.data.sprites.length) {
+            // this.game.data.sprites[this.sprite_index].undo_stack = this.undo_stack;
+            // this.game.data.sprites[this.sprite_index].states[this.state_index].frames[this.frame_index].src = this.toUrl();
         }
-        this.sprite = null;
+        this.sprite_index = null;
         this.state_index = null;
         this.frame_index = null;
-        this.connected_img = [];
     }
 
     switchToFrameDelta(delta) {
-        let frames = this.game.sprites[this.sprite_index].states[this.state_index].frames;
-        let fi = (this.frame_index + delta + frames.length) % frames.length;
-        this.attachSprite(this.sprite_index, this.state_index, fi, []);
+        // let frames = this.game.data.sprites[this.sprite_index].states[this.state_index].frames;
+        // let fi = (this.frame_index + delta + frames.length) % frames.length;
+        // this.attachSprite(this.sprite_index, this.state_index, fi, []);
     }
 }
