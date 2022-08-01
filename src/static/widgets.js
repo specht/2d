@@ -36,6 +36,20 @@ class DragAndDropWidget {
             this.options.onclick(this.options.container.children().eq(0).children().eq(0), 0);
     }
 
+    get_touch_point(e) {
+        if (e.clientX)
+            return [e.clientX, e.clientY];
+        else {
+            if (e.touches && e.touches.length > 0) {
+                this.is_touch = true;
+                return [e.touches[0].clientX, e.touches[0].clientY];
+            } else if (e.changedTouches && e.changedTouches.length > 0) {
+                this.is_touch = true;
+                return [e.changedTouches[0].clientX, e.changedTouches[0].clientY];
+            } else return [0, 0];
+        }
+    }
+
     _move_add_div_to_end() {
         $(this.options.container).append(this.add_div);
     }
@@ -43,20 +57,21 @@ class DragAndDropWidget {
     _append_item(item) {
         let self = this;
         let item_div = $(`<div>`).addClass(this.options.item_class).addClass('_dnd_item');
-        item_div.append(item);
-        item_div.mousedown(function (e) {
+        item_div.append(item.css('pointer-events', 'none'));
+        item_div.on('mousedown touchstart', function (e) {
             let item = $(e.target).closest('._dnd_item').children()[0];
             let div = $(item.closest('._dnd_item'));
             self.mouse_down_element = div;
             let body = $('html');
-            let dx = e.clientX - $(div).offset().left;
-            let dy = e.clientY - $(div).offset().top;
+            let p = self.get_touch_point(e);
+            let dx = p[0] - $(div).offset().left;
+            let dy = p[1] - $(div).offset().top;
             body.data('_dnd_moving', true);
             body.data('_dnd_has_moved', false);
-            body.data('_dnd_div_x', e.clientX - dx - 1);
-            body.data('_dnd_div_y', e.clientY - dy - 1);
-            body.data('_dnd_mouse_x', e.clientX);
-            body.data('_dnd_mouse_y', e.clientY);
+            body.data('_dnd_div_x', p[0] - dx - 1);
+            body.data('_dnd_div_y', p[1] - dy - 1);
+            body.data('_dnd_mouse_x', p[0]);
+            body.data('_dnd_mouse_y', p[1]);
             self._install_drag_and_drop_handler();
         });
         $(this.options.container).append(item_div);
@@ -69,8 +84,8 @@ class DragAndDropWidget {
     _install_drag_and_drop_handler() {
         let self = this;
         let body = $('html');
-        body.on('mousemove._dnd', function (e) {
-            e.preventDefault();
+        body.on('mousemove._dnd touchmove._dnd', function (e) {
+            // e.preventDefault();
             e.stopPropagation();
             let body = $('html');
             if (body.data('_dnd_moving')) {
@@ -78,16 +93,17 @@ class DragAndDropWidget {
                 let div_y = body.data('_dnd_div_y');
                 let mouse_x = body.data('_dnd_mouse_x');
                 let mouse_y = body.data('_dnd_mouse_y');
-                let dx = e.clientX - mouse_x;
-                let dy = e.clientY - mouse_y;
+                let p = self.get_touch_point(e);
+                let dx = p[0] - mouse_x;
+                let dy = p[1] - mouse_y;
                 if ((dx * dx + dy * dy > 100) && (!body.data('_dnd_has_moved'))) {
                     let index = self.mouse_down_element.index();
                     self.drop_index = null;
                     self.placeholder.insertAfter(self.options.container.children().eq(index));
                     self.dragging_div.appendTo($('body'));
                     self.dragging_div.append(self.mouse_down_element);
-                    self.dragging_div.css('left', `${e.clientX - dx - 1}px`);
-                    self.dragging_div.css('top', `${e.clientY - dy - 1}px`);
+                    self.dragging_div.css('left', `${p[0] - dx - 1}px`);
+                    self.dragging_div.css('top', `${p[1] - dy - 1}px`);
                     body.data('_dnd_has_moved', true);
                     if (self.can_delete_item())
                         $(self.options.trash).addClass('showing');
@@ -96,7 +112,12 @@ class DragAndDropWidget {
                 self.dragging_div.css('top', `${div_y + dy}px`);
                 // find the element we're currently pointing at
                 if (body.data('_dnd_has_moved')) {
-                    let element = $(document.elementFromPoint(e.clientX, e.clientY));
+                    let element = $(document.elementFromPoint(p[0], p[1]));
+                    if (element.closest(self.options.trash).length > 0) {
+                        self.options.trash.addClass('hovering');
+                    } else {
+                        self.options.trash.removeClass('hovering');
+                    }
                     element = element.closest('._dnd_item');
                     let parent = element.parent();
                     if (element.length === 1 && parent[0] === self.options.container[0] && element.hasClass('_dnd_item') && !element.hasClass('placeholder') && !element.hasClass('add')) {
@@ -111,7 +132,7 @@ class DragAndDropWidget {
                 }
             }
         });
-        body.on('mouseup._dnd', function (e) {
+        body.on('mouseup._dnd touchend._dnd', function (e) {
             let body = $('html');
             if (body.data('_dnd_moving')) {
                 if (!body.data('_dnd_has_moved')) {
@@ -129,7 +150,8 @@ class DragAndDropWidget {
             let delete_at_end = null;
             let swap_later = null;
             let dragged_div = this.dragging_div.children().eq(0);
-            let element = $(document.elementFromPoint(e.clientX, e.clientY));
+            let p = this.get_touch_point(e);
+            let element = $(document.elementFromPoint(p[0], p[1]));
             if (this.can_delete_item() && $(element).closest($(this.options.trash)).length > 0) {
                 // item was dropped into the trash
                 delete_at_end = this.placeholder.index();
@@ -163,7 +185,7 @@ class DragAndDropWidget {
 
         }
         body.data('_dnd_moving', false);
-        body.off('mousemove._dnd');
-        body.off('mouseup._dnd');
+        body.off('mousemove._dnd touchmove._dnd');
+        body.off('mouseup._dnd touchend._dnd');
     }
 }

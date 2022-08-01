@@ -617,7 +617,7 @@
             opacity: 1;
             transform: scale(1);
         }
-        #trash.showing:hover {
+        #trash.showing.hovering {
             color: rgba(255, 255, 255, 1.0);
             background-color: rgba(0, 0, 0, 0.9);
             transform: scale(1.1);
@@ -953,7 +953,7 @@
 
         var game = new Game();
         // game.load('s76l9s7');
-        game.load('klxsryd');
+        // game.load('klxsryd');
 
         api_call('/api/get_games', {}, function (data) {
             if (data.success) {
