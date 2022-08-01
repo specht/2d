@@ -62,6 +62,7 @@ class Game {
                     self.data.parent = data.tag;
                 }
                 console.log(data);
+                window.location.href = `/?${data.tag}`;
             }
         });
     }

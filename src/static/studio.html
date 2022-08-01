@@ -951,7 +951,14 @@
 
         var game = new Game();
         // game.load('s76l9s7');
-        game.load('skkmhwy');
+        // game.load('skkmhwy');
+
+        document.addEventListener("DOMContentLoaded", function(event) {
+            let tag = window.location.search.replace('?', '');
+            if (tag.length === 7) {
+                game.load(tag);
+            }
+        });
 
         api_call('/api/get_games', {}, function (data) {
             if (data.success) {
