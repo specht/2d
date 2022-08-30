@@ -62,8 +62,8 @@ class Menu {
         let self = this;
         $(window).keydown(function (e) {
             if ($(e.target).is('input')) return;
-            // console.log(e.code);
             let k = self.parseKeyEvent(e);
+            // console.log(k);
             if (k in self.shortcuts) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -209,6 +209,16 @@ class Menu {
                     ]
                 },
             );
+            hints.push({
+                key: 'Alt+1', label: 'Sprites', callback: function () {
+                    $('#mi_sprites').click();
+                }
+            });
+            hints.push({
+                key: 'Alt+2', label: 'Level', callback: function () {
+                    $('#mi_level').click();
+                }
+            });
 
             let i = 0;
             for (let hint of hints) {

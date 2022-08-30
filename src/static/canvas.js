@@ -7,7 +7,7 @@ const TWO_POINT_TOOLS = ['tool/line', 'tool/rect', 'tool/ellipse',
 const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
     'tool/fill-rect', 'tool/fill-ellipse', 'tool/spray', 'tool/fill', 'tool/gradient'];
 const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 'tool/fill'];
-const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker'];
+const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker', 'tool/move'];
 const MAX_UNDO_STACK_SIZE = 32;
 
 function createDataUrlForImageSize(width, height) {
@@ -425,6 +425,28 @@ class Canvas {
                 context.putImageData(this.flood_fill_data, 0, 0);
                 this.flood_fill_seen_pixels = null;
                 this.flood_fill_data = null;
+            } else if (this.menu.get('tool') === 'tool/move') {
+                let dx = s[0] - this.mouse_down_point[0];
+                let dy = s[1] - this.mouse_down_point[1];
+                while (dx < 0) dx += this.bitmap.width;
+                while (dy < 0) dy += this.bitmap.height;
+                dx %= this.bitmap.width;
+                dy %= this.bitmap.height;
+                if (dx !== 0 || dy !== 0) {
+                    let temp = document.createElement('canvas');
+                    temp.width = this.bitmap.width;
+                    temp.height = this.bitmap.height;
+                    let context = temp.getContext('2d');
+                    context.drawImage(this.bitmap, 0, 0);
+                    context = this.bitmap.getContext('2d');
+                    context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
+                    // context.translate(dx, dy);
+                    context.drawImage(temp, dx, dy);
+                    context.drawImage(temp, dx - this.bitmap.width, dy);
+                    context.drawImage(temp, dx, dy - this.bitmap.height);
+                    context.drawImage(temp, dx - this.bitmap.width, dy - this.bitmap.height);
+                    this.mouse_down_point = s;
+                }
             }
         }
     }
@@ -744,6 +766,49 @@ class Canvas {
     panDown() {
         this.offset_y -= this.size * 0.1;
         this.handleResize();
+    }
+
+    flipHorizontal() {
+        let temp = document.createElement('canvas');
+        temp.width = this.bitmap.width;
+        temp.height = this.bitmap.height;
+        let context = temp.getContext('2d');
+        context.translate(this.bitmap.width, 0);
+        context.scale(-1, 1);
+        context.drawImage(this.bitmap, 0, 0);
+        context = this.bitmap.getContext('2d');
+        context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
+        context.drawImage(temp, 0, 0);
+        this.append_to_undo_stack();
+    }
+
+    flipVertical() {
+        let temp = document.createElement('canvas');
+        temp.width = this.bitmap.width;
+        temp.height = this.bitmap.height;
+        let context = temp.getContext('2d');
+        context.translate(0, this.bitmap.height);
+        context.scale(1, -1);
+        context.drawImage(this.bitmap, 0, 0);
+        context = this.bitmap.getContext('2d');
+        context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
+        context.drawImage(temp, 0, 0);
+        this.append_to_undo_stack();
+    }
+
+    rotate() {
+        let temp = document.createElement('canvas');
+        temp.width = this.bitmap.width;
+        temp.height = this.bitmap.height;
+        let context = temp.getContext('2d');
+        context.translate(this.bitmap.width / 2, this.bitmap.height / 2);
+        context.rotate(Math.PI / 2);
+        context.translate(-this.bitmap.width / 2, -this.bitmap.height / 2);
+        context.drawImage(this.bitmap, 0, 0);
+        context = this.bitmap.getContext('2d');
+        context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
+        context.drawImage(temp, 0, 0);
+        this.append_to_undo_stack();
     }
 
     penPattern(width) {
