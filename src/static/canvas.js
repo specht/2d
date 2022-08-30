@@ -446,6 +446,8 @@ class Canvas {
                     context.drawImage(temp, dx, dy - this.bitmap.height);
                     context.drawImage(temp, dx - this.bitmap.width, dy - this.bitmap.height);
                     this.mouse_down_point = s;
+                    // this.append_to_undo_stack();
+                    this.write_frame_to_game_data();
                 }
             }
         }
@@ -780,6 +782,7 @@ class Canvas {
         context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
         context.drawImage(temp, 0, 0);
         this.append_to_undo_stack();
+        this.write_frame_to_game_data();
     }
 
     flipVertical() {
@@ -794,6 +797,7 @@ class Canvas {
         context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
         context.drawImage(temp, 0, 0);
         this.append_to_undo_stack();
+        this.write_frame_to_game_data();
     }
 
     rotate() {
@@ -809,6 +813,7 @@ class Canvas {
         context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
         context.drawImage(temp, 0, 0);
         this.append_to_undo_stack();
+        this.write_frame_to_game_data();
     }
 
     penPattern(width) {
