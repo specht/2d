@@ -6,8 +6,8 @@ const TWO_POINT_TOOLS = ['tool/line', 'tool/rect', 'tool/ellipse',
     'tool/fill-rect', 'tool/fill-ellipse', 'tool/gradient'];
 const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
     'tool/fill-rect', 'tool/fill-ellipse', 'tool/spray', 'tool/fill', 'tool/gradient'];
-const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 'tool/fill'];
-const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker', 'tool/move'];
+const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient'];
+const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker', 'tool/move', 'tool/gradient'];
 const MAX_UNDO_STACK_SIZE = 32;
 
 function createDataUrlForImageSize(width, height) {
@@ -42,6 +42,7 @@ class Canvas {
         this.mouse_down = false;
         this.mouse_down_point = null;
         this.mouse_down_button = null;
+        this.mouse_down_pixels = null;
         this.modifier_ctrl = false;
         this.modifier_alt = false;
         this.modifier_shift = false;
@@ -165,6 +166,7 @@ class Canvas {
         this.mouse_down = true;
         this.mouse_down_point = this.get_sprite_point_from_last_mouse();
         this.mouse_down_button = e.button;
+        this.spray_pixels = null;
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = true;
@@ -379,10 +381,56 @@ class Canvas {
                 let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
                 this.set_pixels(this.bitmap, mask, use_color);
             } else if (this.menu.get('tool') === 'tool/gradient') {
-                this.mouse_down_point = s;
-                this.mouse_down_color = this.get_pixel(this.bitmap, this.mouse_down_point[0], this.mouse_down_point[1]);
-                this.spray_pixels = this.determine_spray_pixels();
-                console.log(this.spray_pixels);
+                if (this.spray_pixels === null) {
+                    this.mouse_down_point = s;
+                    this.mouse_down_color = this.get_pixel(this.bitmap, this.mouse_down_point[0], this.mouse_down_point[1]);
+                    this.spray_pixels = this.determine_spray_pixels();
+                    let context = this.bitmap.getContext('2d');
+                    this.mouse_down_pixels = context.getImageData(0, 0, this.bitmap.width, this.bitmap.height);
+                }
+                let mdx = s[0] - this.mouse_down_point[0];
+                let mdy = s[1] - this.mouse_down_point[1];
+                let ml = (mdx * mdx + mdy * mdy) ** 0.5;
+                if (!this.modifier_alt) {
+                    mdx /= ml;
+                    mdy /= ml;
+                }
+                if (ml < 0.0001) ml = 0.0001;
+                for (let p of this.spray_pixels) {
+                    let draw_color = this.current_color;
+                    let dx = p[0] - this.mouse_down_point[0];
+                    let dy = p[1] - this.mouse_down_point[1];
+                    let l = (dx * dx + dy * dy) ** 0.5;
+                    let alpha = l / ml;
+                    if (!this.modifier_alt) {
+                        alpha = (dx * mdx + dy * mdy) / ml;
+                    }
+                    if (alpha < 0.0) alpha = 0.0;
+                    if (alpha > 1.0) alpha = 1.0;
+                    let r = this.mouse_down_pixels.data[p[1] * this.bitmap.width * 4 + p[0] * 4 + 0];
+                    let g = this.mouse_down_pixels.data[p[1] * this.bitmap.width * 4 + p[0] * 4 + 1];
+                    let b = this.mouse_down_pixels.data[p[1] * this.bitmap.width * 4 + p[0] * 4 + 2];
+                    let a = this.mouse_down_pixels.data[p[1] * this.bitmap.width * 4 + p[0] * 4 + 3];
+                    r = r * (1.0 - alpha) + ((this.current_color >> 24) & 0xff) * alpha;
+                    g = g * (1.0 - alpha) + ((this.current_color >> 16) & 0xff) * alpha;
+                    b = b * (1.0 - alpha) + ((this.current_color >> 8) & 0xff) * alpha;
+                    a += Math.floor(alpha * 255);
+                    if (a > 255) a = 255;
+                    draw_color = ((r & 0xff) << 24) | ((g & 0xff) << 16) | ((b & 0xff) << 8) | (a & 0xff);
+                    if (this.modifier_ctrl) {
+                        let c = tinycolor({r: r, g: g, b: b, a: 1.0});
+                        if (Math.random() < 0.5)
+                            c = c.brighten(Math.random() * 10);
+                        else
+                            c = c.darken(Math.random() * 10);
+                        let rgb = c.toRgb();
+                        r = rgb.r;
+                        g = rgb.g;
+                        b = rgb.b;
+                        draw_color = ((r & 0xff) << 24) | ((g & 0xff) << 16) | ((b & 0xff) << 8) | (a & 0xff);
+                    }
+                    this.set_pixel(this.bitmap, p[0], p[1], draw_color);
+                }
             } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
                 let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
@@ -478,6 +526,12 @@ class Canvas {
     determine_spray_pixels() {
         let result = [];
         if (this.modifier_shift) {
+            for (let y = 0; y < this.bitmap.height; y++) {
+                for (let x = 0; x < this.bitmap.width; x++) {
+                    result.push([x, y]);
+                }
+            }
+        } else {
             let context = this.bitmap.getContext('2d');
             let data = context.getImageData(0, 0, this.bitmap.width, this.bitmap.height);
             for (let y = 0; y < this.bitmap.height; y++) {
@@ -488,14 +542,6 @@ class Canvas {
                         // if (color.join('/') === self.mouse_down_color.join('/'))
                         // self.set_pixel(self.bitmap, x + p[0], y + p[1], draw_color);
                         result.push([x, y]);
-                }
-            }
-
-
-        } else {
-            for (let y = 0; y < this.bitmap.height; y++) {
-                for (let x = 0; x < this.bitmap.width; x++) {
-                    result.push([x, y]);
                 }
             }
         }
@@ -537,12 +583,11 @@ class Canvas {
                             draw_color = parseInt(c.toHex8(), 16);
                         }
                         if (self.modifier_shift) {
+                            self.set_pixel(self.bitmap, x + p[0], y + p[1], draw_color);
+                        } else {
                             let color = self.get_pixel(self.bitmap, x + p[0], y + p[1]);
                             if (color.join('/') === self.mouse_down_color.join('/'))
                                 self.set_pixel(self.bitmap, x + p[0], y + p[1], draw_color);
-
-                        } else {
-                            self.set_pixel(self.bitmap, x + p[0], y + p[1], draw_color);
                         }
                     }
                 }
@@ -647,7 +692,6 @@ class Canvas {
             } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 if (this.mouse_down) {
                     if (this.menu.get('tool') === 'tool/gradient') {
-
                     } else {
                         let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
                         let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);

@@ -109,7 +109,7 @@ function activateTool(item) {
             'tool/fill-ellipse', 'tool/picker'].indexOf(item.key) >= 0);
         canvas.setModifierCtrl(false);
         canvas.setModifierShift(false);
-        if (['tool/picker', 'tool/spray', 'tool/fill'].indexOf(item.key) >= 0)
+        if (['tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient'].indexOf(item.key) >= 0)
             menu.handle_click('penWidth/1');
     }
 }
@@ -273,14 +273,15 @@ document.addEventListener("DOMContentLoaded", function (event) {
         {
             group: 'tool', command: 'spray', image: 'spray-can', shortcut: 'T', label: 'Sprühdose', hints: [
                 { key: 'Control', label: 'Helligkeit variieren', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
-                { key: 'Shift', label: 'nur auf selber Farbe', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
+                { key: 'Shift', label: 'auch auf anderen Farben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
             ]
         },
         { group: 'tool', command: 'fill', image: 'color-fill', shortcut: 'A', label: 'Fläche füllen' },
         {
             group: 'tool', command: 'gradient', image: 'color-gradient', shortcut: 'S', label: 'Farbverlauf', hints: [
-                { key: 'Control', label: 'kreisförmig', type: 'checkbox' },
-                { key: 'Shift', label: 'Dithering verwenden', type: 'checkbox' },
+                { key: 'Control', label: 'Helligkeit variiieren', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
+                { key: 'Alt', label: 'kreisförmig', type: 'checkbox', callback: function (x) { canvas.setModifierAlt(x); } },
+                { key: 'Shift', label: 'auch auf anderen Farben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
             ]
         },
         {
