@@ -220,6 +220,7 @@ class Main < Sinatra::Base
     end
 
     configure do
+        @@cache_buster = RandomTag.generate()
         self.collect_data() unless defined?(SKIP_COLLECT_DATA) && SKIP_COLLECT_DATA
         if ENV["SERVICE"] == "ruby" && (File.basename($0) == "thin" || File.basename($0) == "pry.rb")
             setup = SetupDatabase.new()

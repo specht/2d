@@ -499,4 +499,5 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
 
     // load_game();
+    game.load("byftrw3");
 });
