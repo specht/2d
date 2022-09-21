@@ -56,6 +56,10 @@ class Game {
             }
             data.sprites.push({ states: states });
         }
+        data.levels = [];
+        for (let level of (this.data.levels || [])) {
+            data.levels.push(level);
+        }
         console.log(data);
         let self = this;
         api_call('/api/save_game', { game: data }, function (data) {

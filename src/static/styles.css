@@ -62,6 +62,16 @@ body {
     box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
 }
 
+#level {
+    left: 200px;
+    top: 110px;
+    border-radius: 8px;
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
+}
+
 #menu_frames {
     left: 200px;
     top: 50px;
@@ -189,6 +199,34 @@ body {
     background-image: url(rough.png);
     opacity: 0.3;
     border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.menu_level_sprite_item {
+    display: inline-block;
+    width: 48px;
+    height: 48px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+}
+
+.menu_level_sprite_item:hover {
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background-color: rgba(255,255,255,0.1);
+}
+
+.menu_level_sprite_item.active {
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    background-color: rgba(255,255,255,0.2);
+
+}
+
+.menu_level_sprite_item img {
+    width: 48px;
+    height: 48px;
+    image-rendering: pixelated;
+    object-fit: contain;
 }
 
 .menu h3 {

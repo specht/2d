@@ -1,5 +1,6 @@
 var menu = null;
 var canvas = null;
+var level_editor = null;
 var game = null;
 
 function bytes_to_str(i) {
@@ -23,6 +24,14 @@ function handleResize() {
     $('.menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('.menu_container').width() - 25}px`);
     $('.right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
     // $('#right_menu_container .menu_frames').css('height', `${$('#canvas').height() * 0.2 - 25}px`);
+
+    $('#main_div_level .left_menu_container').css('left', '10px');
+    $('#main_div_level .left_menu_container').css('width', '174px');
+    $('#level').css('left', '195px');
+    $('#level').css('top', '50px');
+    $('#level').css('width', `${window.innerWidth - 400}px`);
+    $('#level').css('height', `${window.innerHeight - 100}px`);
+    if (level_editor != null) level_editor.handleResize();
 }
 
 function setPenWidth(menu_item) {
@@ -345,6 +354,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
     canvas = new Canvas($('#canvas'), menu);
     handleResize();
 
+    level_editor = new LevelEditor($('#level'));
+
     update_color_palette();
     menu = new Menu($('#tool_menu'), tool_menu_items, canvas);
     canvas.menu = menu;
@@ -362,6 +373,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
 
     $('.main-nav-item').click(function (e) {
         let key = $(e.target).attr('id').replace('mi_', '');
+        prepare_pane(key);
         $('.main-nav-item').removeClass('active');
         $(`#mi_${key}`).addClass('active');
         $('.main_div').hide();
@@ -432,6 +444,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
         e.stopPropagation();
     });
     $(document).on('drop', function (e) {
+        if (!$('#mi_sprites').hasClass('active')) return;
         e.preventDefault();
         e.stopPropagation();
         let total = e.originalEvent.dataTransfer.files.length;
@@ -498,6 +511,31 @@ document.addEventListener("DOMContentLoaded", function (event) {
         handleResize();
     });
 
-    // load_game();
-    game.load("byftrw3");
+    if (this.location.host.indexOf('localhost') === 0) {
+        game.load("fh5avv7");
+        setTimeout(function() {
+            $('#mi_level').click();
+        }, 250);
+    }
 });
+
+function prepare_pane(which) {
+    if (which === 'level') {
+        $('#menu_level_sprites').empty();
+        for (let si = 0; si < game.data.sprites.length; si++) {
+            let fi = Math.floor(game.data.sprites[si].states[0].frames.length / 2 - 0.5);
+            let sprite_button = $(`<div>`).addClass('menu_level_sprite_item').appendTo($('#menu_level_sprites'));
+            sprite_button.append($('<img>').attr('src', game.data.sprites[si].states[0].frames[fi].src));
+            sprite_button.data('sprite_index', si);
+            if (si === 0) sprite_button.addClass('active');
+        }
+        $('.menu_level_sprite_item').mousedown(function(e) {
+            e.preventDefault();
+            $('.menu_level_sprite_item').removeClass('active');
+            let button = $(e.target.closest('.menu_level_sprite_item'));
+            button.addClass('active');
+            level_editor.sprite_index = button.data('sprite_index');
+        });
+        level_editor.refresh();
+    }
+}

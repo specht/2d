@@ -21,14 +21,22 @@
     <script src="api.js?#{@@cache_buster}"></script>
     <script src="widgets.js?#{@@cache_buster}"></script>
     <script src="canvas.js?#{@@cache_buster}"></script>
+    <script src="level_editor.js?#{@@cache_buster}"></script>
     <script src="game.js?#{@@cache_buster}"></script>
     <script src="menu.js?#{@@cache_buster}"></script>
     <script src="cling-colors.js?#{@@cache_buster}"></script>
     <script src="palettes.js?#{@@cache_buster}"></script>
     <script src="tinycolor-min.js"></script>
     <script src="moment-with-locales.min.js"></script>
-    <script src="studio.js??#{@@cache_buster}"></script>
-</head>
+    <script src="studio.js?#{@@cache_buster}"></script>
+    <script src="three.min.js"></script>
+    <script type="x-shader/x-vertex" id="vertex-shader">
+      varying vec2 vuv; void main() { vuv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+    </script>
+    <script type="x-shader/x-fragment" id="fragment-shader">
+      uniform sampler2D texture1; varying vec2 vuv; void main() { gl_FragColor = texture2D(texture1, vuv); }
+    </script>
+  </head>
 
 <body>
     <div id='main-nav'>
@@ -74,25 +82,22 @@
         <div id='canvas'></div>
         <div id='menu_frames' class="scroll_helper scroll_helper_horizontal"></div>
         <div class='menu_container right_menu_container'>
-            <!-- <h3>Sprites</h3> -->
             <div class="menu">
                 <h3>Sprites</h3>
                 <div id="menu_sprites" class="menu-body scroll_helper scroll_helper_vertical"></div>
             </div>
-            <!-- <div class="menu"> -->
-                <!-- <h3>Eigenschaften</h3> -->
-                <!-- <div id="menu_properties" class="menu-body"> -->
-                    <!-- <input id='ti_sprite_label' type="text" placeholder="Name"/>
+            <!-- <div class="menu">
+                <h3>Eigenschaften</h3>
+                <div id="menu_properties" class="menu-body">
+                    <input id='ti_sprite_label' type="text" placeholder="Name"/>
                     <button id='bu_sprite_gravity' class='btn-checkbox'>Gravitation</button>
-                    <button id='bu_sprite_movable' class='btn-checkbox'>Beweglich</button> -->
-                <!-- </div> -->
-            <!-- </div> -->
+                    <button id='bu_sprite_movable' class='btn-checkbox'>Beweglich</button>
+                </div>
+            </div> -->
             <div class="menu">
                 <h3>Zustände</h3>
                 <div id="menu_states" class="menu-body scroll_helper scroll_helper_vertical"></div>
             </div>
-            <!-- <h3>Frames</h3> -->
-            <!-- <div class="menu menu_frames"></div> -->
             <!--
                 Color picker: select swatch or none
                 Farben an Palette anpassen (mit und ohne Dither)
@@ -105,6 +110,15 @@
                 Animation: Frames
             -->
         </div>
+    </div>
+    <div id='main_div_level' class="main_div">
+        <div class='menu_container left_menu_container'>
+            <div class="menu">
+                <h3>Sprites</h3>
+                <div id="menu_level_sprites" class="menu-body scroll_helper scroll_helper_vertical"></div>
+            </div>
+        </div>
+        <div id="level" style="overflow: hidden;"></div>
     </div>
     <div id='status-bar' class='__disabled__scroll_helper scroll_helper_horizontal'></div>
     <div id='trash'>

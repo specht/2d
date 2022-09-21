@@ -86,7 +86,7 @@ class SpriteSheet {
 		sprite.position.y = y;
 		let group = new THREE.Group();
 		group.add(sprite);
-		if (false) {
+		if (true) {
 			let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5 });
 			let points = [];
 			for (let p of (skin.hitbox || [])) {
@@ -121,7 +121,6 @@ class SpriteSheet {
 };
 
 var clock = new THREE.Clock(true);
-
 var scene = new THREE.Scene();
 var camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
 camera.position.x = 0;

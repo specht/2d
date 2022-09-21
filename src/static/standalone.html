@@ -18,23 +18,11 @@
   </style>
   <script src="three.min.js"></script>
   <script type="x-shader/x-vertex" id="vertex-shader">
-    varying vec2 vuv;
-
-    void main() {
-        vuv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-</script>
-
+    varying vec2 vuv; void main() { vuv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+  </script>
   <script type="x-shader/x-fragment" id="fragment-shader">
-  uniform sampler2D texture1;
-
-  varying vec2 vuv;
-
-  void main() {
-      gl_FragColor = texture2D(texture1, vuv);
-  }
-</script>
+    uniform sampler2D texture1; varying vec2 vuv; void main() { gl_FragColor = texture2D(texture1, vuv); }
+  </script>
 
 <body>
   <script src="app.js"></script>
