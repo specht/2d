@@ -1,80 +1,3 @@
-class SpriteSheet {
-    constructor(texture_loader, path, info) {
-        this.info = info;
-        this.spritesheet = texture_loader.load(path);
-        this.spritesheet.magFilter = THREE.NearestFilter;
-        this.material = new THREE.ShaderMaterial({
-            uniforms: {
-                texture1: { value: this.spritesheet },
-            },
-            transparent: true,
-            vertexShader: document.getElementById('vertex-shader').textContent,
-            fragmentShader: document.getElementById('fragment-shader').textContent
-        });
-    };
-
-    add_sprite_to_scene(scene, id, x, y) {
-        let skin = this.info.sprites[id];
-        if (!skin.pivot) skin.pivot = [skin.width / 2, skin.height];
-        if (!skin.hitbox) skin.hitbox = [[0, 0], [0, skin.height], [skin.width, skin.height], [skin.width, 0]];
-        let sx = skin.x;
-        let sy = skin.y;
-        let sw = skin.width;
-        let sh = skin.height;
-        x += sw/2;
-        y -= sh/2;
-        x -= (skin.pivot)[0];
-        y += (skin.pivot)[1];
-        let geometry = new THREE.PlaneGeometry(sw, sh, 1, 1);
-        let uvs = geometry.attributes.uv;
-        let p = 0.05;
-        let x0 = (sx + p) / this.info.width;
-        let x1 = (sx + sw - p) / this.info.width;
-        let y0 = (sy + p) / this.info.height;
-        let y1 = (sy + sh - p) / this.info.height;
-        uvs.setXY(0, x0, 1 - y0);
-        uvs.setXY(1, x1, 1 - y0);
-        uvs.setXY(2, x0, 1 - y1);
-        uvs.setXY(3, x1, 1 - y1);
-        let sprite = new THREE.Mesh(geometry, this.material);
-        sprite.position.x = x;
-        sprite.position.y = y;
-        let group = new THREE.Group();
-        group.add(sprite);
-        if (true) {
-            let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true, opacity: 0.3 });
-            let points = [];
-            for (let p of (skin.hitbox || [])) {
-                let px = p[0] - sw / 2 + x;
-                let py = sh - p[1] - sh / 2 + y;
-                points.push(new THREE.Vector3(px, py, 1));
-            }
-            let geometry = new THREE.BufferGeometry().setFromPoints(points);
-            let line = new THREE.LineLoop(geometry, material);
-            group.add(line);
-            // if (skin.pivot) {
-            //     let material = new THREE.LineBasicMaterial({ color: 0xff0000 });
-            //     points = [];
-            //     let px = skin.pivot[0] - sw / 2 + x;
-            //     let py = sh - skin.pivot[1] - sh / 2 + y;
-            //     points.push(new THREE.Vector3(px - 1, py - 1, 1));
-            //     points.push(new THREE.Vector3(px + 1, py + 1, 1));
-            //     geometry = new THREE.BufferGeometry().setFromPoints(points);
-            //     line = new THREE.Line(geometry, material);
-            //     group.add(line);
-            //     points = [];
-            //     points.push(new THREE.Vector3(px + 1, py - 1, 1));
-            //     points.push(new THREE.Vector3(px - 1, py + 1, 1));
-            //     geometry = new THREE.BufferGeometry().setFromPoints(points);
-            //     line = new THREE.Line(geometry, material);
-            //     group.add(line);
-            // }
-        }
-        scene.add(group);
-        return group;
-    }
-};
-
 class LevelEditor {
     constructor(element) {
         this.element = element;
@@ -97,6 +20,7 @@ class LevelEditor {
         this.height = $(this.element).height()
         this.visible_pixels = this.height / this.scale;
         this.mouse_down = false;
+        this.sprite_for_pos = {};
         $(this.element).append(this.renderer.domElement);
 
         this.texture_loader = new THREE.TextureLoader();
@@ -115,7 +39,7 @@ class LevelEditor {
 
         let self = this;
         $(this.element).mousemove(function(e) {
-            let p = self.ui_to_world(e.offsetX, e.offsetY);
+            let p = self.ui_to_world(e.offsetX, e.offsetY, true);
             if (self.cursor === null) {
                 self.cursor = self.sheets[level_editor.sprite_index].add_sprite_to_scene(self.scene, 'sprite', 0, 0);
             }
@@ -130,25 +54,45 @@ class LevelEditor {
                 self.cursor = null;
             }
         });
+        $(this.element).on('contextmenu', function(e) {
+            return false;
+        });
         $(this.element).mousedown(function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             self.mouse_down = true;
-            let p = self.ui_to_world(e.offsetX, e.offsetY);
-            self.add_sprite_to_level(p);
+            let p = self.ui_to_world(e.offsetX, e.offsetY, true);
+            if (e.button === 0)
+                self.add_sprite_to_level(p);
+            if (e.button === 2)
+                self.remove_sprite_from_level(p);
         });
         $(this.element).mouseup(function(e) {
             self.mouse_down = false;
         });
         $(this.element).on('mousewheel', function(e) {
             e.preventDefault();
-            let cx = e.clientX - self.element.position().left;
-            let cy = e.clientY - self.element.position().top;
-            self.zoom_at_point(e.originalEvent.deltaY, cx, cy);
+            let p = self.ui_to_world(e.originalEvent.offsetX, e.originalEvent.offsetY, false);
+            console.log(p);
+            self.zoom_at_point(e.originalEvent.deltaY, p[0], p[1]);
         });
     }
 
+    remove_sprite_from_level(p) {
+        let pos = `${p[0]}/${p[1]}`;
+        if (pos in this.sprite_for_pos) {
+            console.log(`removing at ${pos}`);
+            this.scene.remove(this.sprite_for_pos[pos]);
+            delete game.data.levels[this.level_index].layers[0].sprites[pos];
+            delete this.sprite_for_pos[pos];
+        }
+    }
+
     add_sprite_to_level(p) {
-        game.data.levels[this.level_index].push({i: this.sprite_index, x: 0, y: 0});
-        this.sheets[level_editor.sprite_index].add_sprite_to_scene(this.scene, 'sprite', 0, 0);
+        this.remove_sprite_from_level(p);
+        let pos = `${p[0]}/${p[1]}`;
+        game.data.levels[this.level_index].layers[0].sprites[pos] = this.sprite_index;
+        this.sprite_for_pos[pos] = this.sheets[level_editor.sprite_index].add_sprite_to_scene(this.scene, 'sprite', p[0], p[1]);
     }
 
     fix_scale() {
@@ -164,20 +108,22 @@ class LevelEditor {
     }
 
     zoom_at_point(delta, cx, cy) {
-        let sx = (cx - this.camera_x) / this.scale;
-        let sy = (cy - this.camera_y) / this.scale;
+        let sx = (cx - this.camera_x) * this.scale;
+        let sy = (cy - this.camera_y) * this.scale;
         this.visible_pixels *= (1 + delta * 0.001);
         this.fix_scale();
-        // this.camera_x = cx - sx * this.scale;
-        // this.camera_y = cy - sy * this.scale;
+        this.camera_x = cx - sx / this.scale;
+        this.camera_y = cy - sy / this.scale;
         // this.handleResize();
     }
 
-    ui_to_world(x, y) {
+    ui_to_world(x, y, snap) {
         let wx = (x - (this.width / 2)) / this.scale;
         let wy = -(y - (this.height / 2)) / this.scale;
-        wx = Math.floor(wx / 24) * 24;
-        wy = Math.floor(wy / 24) * 24;
+        if (snap) {
+            wx = Math.floor((wx + 12) / 24) * 24;
+            wy = Math.floor((wy) / 24) * 24;
+        }
         return [wx, wy];
     }
 
@@ -195,7 +141,6 @@ class LevelEditor {
         this.camera.bottom = (-this.height / 2 + this.camera_y) / this.scale;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(this.width, this.height);
-
         this.renderer.render(this.scene, this.camera);
     }
 
@@ -204,6 +149,7 @@ class LevelEditor {
         if (game === null) return;
 
         this.sheets = [];
+        this.sprite_for_pos = {};
 
         for (let si = 0; si < game.data.sprites.length; si++) {
             let fi = Math.floor(game.data.sprites[si].states[0].frames.length / 2 - 0.5);
@@ -214,12 +160,15 @@ class LevelEditor {
             this.sheets.push(sheet);
         }
 
-        for (let i = 0; i < (((game.data.levels || [])[this.level_index]) || []).length; i++) {
-            let tile = game.data.levels[this.level_index][i];
-            let sprite = this.sheets[tile.i].add_sprite_to_scene(this.scene, 'sprite', tile.x, tile.y);
-            // if (i === 0)
-                // this.scene.remove(sprite);
-                // sprite.position.y = -24;
+        // remove sprite from scene: this.scene.remove(sprite);
+        // move sprite in scene: sprite.position.y = -24;
+        for (let pos in game.data.levels[this.level_index].layers[0].sprites) {
+            let parts = pos.split('/');
+            let x = parseInt(parts[0]);
+            let y = parseInt(parts[1]);
+            let sprite_index = game.data.levels[this.level_index].layers[0].sprites[pos];
+            this.sprite_for_pos[pos] = this.sheets[sprite_index].add_sprite_to_scene(this.scene, 'sprite', x, y);
         }
     }
 }
+

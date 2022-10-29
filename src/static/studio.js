@@ -512,7 +512,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
 
     if (this.location.host.indexOf('localhost') === 0) {
-        game.load("fh5avv7");
+        game.load("mkristz");
         setTimeout(function() {
             $('#mi_level').click();
         }, 250);

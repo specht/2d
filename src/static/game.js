@@ -75,9 +75,19 @@ class Game {
         });
     }
 
+    fix_game_data() {
+        console.log(`Fixing game data / before:`, this.data);
+        if ((((((this.data.levels || [])[0] || {}).layers || [])[0] || {}).sprites || null) === null) {
+            this.data.levels = [ { layers: [ { sprites: {} } ] } ];
+        }
+        console.log(`Fixing game data / after:`, this.data);
+        console.log(Object.keys(this.data.levels[0].layers[0].sprites).length);
+    }
+
     _load() {
         canvas.setGame(this);
         let self = this;
+        this.fix_game_data();
         for (let si = 0; si < this.data.sprites.length; si++) {
             let sprite_info = this.data.sprites[si];
             for (let sti = 0; sti < sprite_info.states.length; sti++) {
