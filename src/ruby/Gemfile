@@ -1,6 +1,6 @@
 source 'https://rubygems.org'
 
-gem 'neo4j-ruby-driver'
+gem 'neo4j_bolt', '>=0.1.11'
 gem 'rerun'
 gem 'sinatra'
 gem 'sinatra-contrib'

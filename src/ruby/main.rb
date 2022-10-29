@@ -2,7 +2,7 @@ require "base64"
 require "date"
 require "digest"
 require "json"
-require "neo4j_ruby_driver"
+require "neo4j_bolt"
 require "sinatra/base"
 require "sinatra/cookies"
 
@@ -12,6 +12,9 @@ $VERBOSE = nil
 require "./credentials.rb"
 $VERBOSE = warn_level
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
+
+Neo4jBolt.bolt_host = 'neo4j'
+Neo4jBolt.bolt_port = 7687
 
 # ANIMALS = %w(🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐻‍❄️ 🐨 🐯 🦁 🐮 🐷 🐸 🐒 🐧 🐦 🦆 🦅 🦉 🦇 🐴 🦄 🐝 🦋 🐌 🐞 🪲 🦗 🐢 🐍 🦎 🐙 🦀 🐠 🐬 🐋 🐊 🐅 🦓 🐘 🐪 🦒 🦘 🐄 🐖 🐑 🐐 🐕 🐈‍⬛ 🐓 🦚 🦜 🦢 🦩 🐇 🐁 🦔)
 ANIMALS = %w(s1cfi07 rqaux7w q6xbd0g pxly0tu on87yoe n0vdqui lm78e76 lclapq1 l3lawv5 l2ozijf l2d1t8l l0v66o3 kp11rle k2ram59 jzp6ovu
@@ -48,118 +51,8 @@ def debug_error(message)
     STDERR.puts "#{DateTime.now.strftime("%H:%M:%S")} [ERROR] [#{ls}] #{message}"
 end
 
-module QtsNeo4j
-    class CypherError < StandardError
-        def initialize(code, message)
-            @code = code
-            @message = message
-        end
-
-        def to_s
-            "Cypher Error\n#{@code}\n#{@message}"
-        end
-    end
-
-    def transaction(&block)
-        @@neo4j_driver ||= Neo4j::Driver::GraphDatabase.driver("bolt://neo4j:7687")
-        if @has_bolt_session.nil?
-            begin
-                @has_bolt_session = true
-                @@neo4j_driver.session do |session|
-                    if @has_bolt_transaction.nil?
-                        begin
-                            session.write_transaction do |tx|
-                                @has_bolt_transaction = tx
-                                yield
-                            end
-                        ensure
-                            @has_bolt_transaction = nil
-                        end
-                    else
-                        yield
-                    end
-                end
-            rescue StandardError => e
-                debug("[NEO4J ERROR] #{e}")
-            ensure
-                @has_bolt_session = nil
-            end
-        else
-            yield
-        end
-    end
-
-    class ResultRow
-        def initialize(v)
-            @v = Hash[v.map { |k, v| [k.to_sym, v] }]
-        end
-
-        def props
-            @v
-        end
-    end
-
-    def wait_for_neo4j
-        delay = 1
-        10.times do
-            begin
-                neo4j_query("MATCH (n) RETURN n LIMIT 1;")
-                break
-            rescue
-                STDERR.puts $!
-                STDERR.puts "Retrying after #{delay} seconds..."
-                sleep delay
-                delay += 1
-            end
-        end
-    end
-
-    def parse_neo4j_result(x)
-        if x.is_a?(Neo4j::Driver::Types::Node) || x.is_a?(Neo4j::Driver::Types::Relationship)
-            v = x.properties
-            Hash[v.map { |k, v| [k.to_sym, v] }]
-        elsif x.is_a?(Array)
-            x.map { |y| parse_neo4j_result(y) }
-        else
-            x
-        end
-    end
-
-    def neo4j_query(query_str, options = {})
-        transaction do
-            temp_result = nil
-            temp_result = @has_bolt_transaction.run(query_str, options)
-
-            result = []
-            temp_result.each do |row|
-                item = {}
-                row.keys.each.with_index do |key, i|
-                    v = row.values[i]
-                    item[key.to_s] = parse_neo4j_result(v)
-                end
-                result << item
-            end
-            result
-        end
-    end
-
-    def neo4j_query_expect_one(query_str, options = {})
-        result = neo4j_query(query_str, options)
-        unless result.size == 1
-            if DEVELOPMENT
-                debug "-" * 40
-                debug query_str
-                debug options.to_json
-                debug "-" * 40
-            end
-            raise "Expected one result but got #{result.size}"
-        end
-        result.first
-    end
-end
-
 class Neo4jGlobal
-    include QtsNeo4j
+    include Neo4jBolt
 end
 
 $neo4j = Neo4jGlobal.new
@@ -181,7 +74,7 @@ class RandomTag
 end
 
 class SetupDatabase
-    include QtsNeo4j
+    include Neo4jBolt
 
     def setup(main)
         wait_for_neo4j
@@ -190,11 +83,6 @@ class SetupDatabase
             begin
                 neo4j_query("MATCH (n) RETURN n LIMIT 1;")
                 break unless ENV['SERVICE'] == 'ruby'
-                transaction do
-                    debug "Setting up constraints and indexes..."
-#                     neo4j_query("CREATE CONSTRAINT ON (n:Book) ASSERT n.stem IS UNIQUE")
-#                     neo4j_query("CREATE INDEX ON :Book(isbn)")
-                end
                 debug "Setup finished."
                 break
             rescue
@@ -208,7 +96,7 @@ class SetupDatabase
 end
 
 class Main < Sinatra::Base
-    include QtsNeo4j
+    include Neo4jBolt
     helpers Sinatra::Cookies
 
     configure do
@@ -467,6 +355,10 @@ class Main < Sinatra::Base
             RETURN p.tag AS tag, p.ts_created AS ts;
         END_OF_QUERY
         respond(:nodes => nodes)
+    end
+
+    after '*' do
+        cleanup_neo4j()
     end
 
     get '/*' do

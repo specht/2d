@@ -1,5 +1,4 @@
 FROM nginx:stable
-MAINTAINER Dr. Michael Specht <specht@gymnasiumsteglitz.de>
 
 COPY default.conf /etc/nginx/conf.d/
 
