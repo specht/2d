@@ -238,6 +238,7 @@ body {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding: 4px 0;
     background-color: rgba(255, 255, 255, 0.05);
+    /* background-color: rgba(0, 0, 0, 0.1); */
     font-weight: normal;
     margin-top: -5px;
     border-top: none;
@@ -757,3 +758,53 @@ table th {
 table tr.clickable_row:hover {
     background-color: rgba(255, 255, 255, 0.2);
 }
+
+.dropdown_menu div {
+    margin-left: 5px;
+}
+
+.dropdown_menu > div {
+    margin-left: -5px;
+}
+
+
+.dropdown_menu div.item {
+    color: #fff;
+    font-size: 15px;
+    padding: 5px;
+    cursor: pointer;
+    font-weight: normal;
+    position: relative;
+}
+
+.dropdown_menu div.item.has_submenu::after {
+    content: '➜';
+    font-weight: bold;
+    position: absolute;
+    color: #888;
+    right: 5px;
+    transition: all ease 200ms;
+}
+
+.dropdown_menu div.item.has_submenu {
+    color: #aaa;
+}
+.dropdown_menu div.item.has_submenu.open {
+    color: #fff;
+    font-weight: bold;
+}
+
+.dropdown_menu div.item.has_submenu.open::after {
+    transform: rotate(90deg);
+}
+
+.dropdown_menu div.item:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+hr {
+    border: none;
+    height: 1px;
+    border-top: 1px solid rgba(255, 255, 255, 0.4);
+}
+

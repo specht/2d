@@ -124,7 +124,8 @@ function activateTool(item) {
 }
 
 function update_color_palette() {
-    let i = parseInt($('#palettes_here').val());
+    // let i = parseInt($('#palettes_here').val());
+    let i = 9;
     color_menu_items = [];
     colors = palettes[i].colors;
     for (let i = 0; i < colors.length + 1; i++) {
@@ -151,7 +152,7 @@ function update_color_palette() {
 function show_modal(id) {
     $('.modal').hide();
     $(`#${id}`).show();
-    $('.modal-container').show();
+    $(`#${id}`).closest('.modal-container').show();
 }
 
 function close_modal() {
@@ -341,15 +342,36 @@ document.addEventListener("DOMContentLoaded", function (event) {
             x.callback = activateTool;
         return x;
     });
-    let color_menu_items = [];
     for (let i = 0; i < palettes.length; i++) {
         let palette = palettes[i];
-        $('#palettes_here').append($('<option>').text(palette.name).val(`${i}`));
+        let div = $('<div>');
+        div.append($(`<b>`).text(palette.name));
+        div.append($(`<span>`).text(` (${palette.colors.length} Farben)`));
+        if (palette.description) {
+            let description = $(`<span>`).css('color', '#aaa');
+            description.append(' – ');
+            description.append($(`<span>`).html(palette.description));
+            div.append(description);
+        }
+        let colors = $(`<div>`).css('margin-top', '5px');
+        for (let color of palette.colors) {
+            let swatch = $(`<div>`);
+            swatch.css('width', '2em');
+            swatch.css('height', '2em');
+            swatch.css('display', 'inline-block');
+            swatch.css('background-color', color);
+            colors.append(swatch);
+        }
+        div.append(colors);
+
+        div.append($(`<hr />`));
+
+        $('#palettes_here').append(div);
     }
-    $('#palettes_here').change(function (e) {
-        update_color_palette();
-    });
-    $('#palettes_here').val('9');
+    // $('#palettes_here').change(function (e) {
+    //     update_color_palette();
+    // });
+    // $('#palettes_here').val('9');
 
     canvas = new Canvas($('#canvas'), menu);
     handleResize();
@@ -383,6 +405,39 @@ document.addEventListener("DOMContentLoaded", function (event) {
     $('#bu_save_game').click(function (e) {
         game.save();
     });
+
+    setupDropdownMenu($('#functions_dropdown'), [
+        {
+            label: 'Sprite',
+            children: [
+                {
+                    label: 'Größe ändern'
+                },
+            ],
+        },
+        {
+            label: 'Farben',
+            children: [
+                {
+                    label: 'Farbpalette wählen',
+                    callback: () => {
+                        show_modal('modal_choose_palette');
+                    }
+                },
+                {
+                    label: 'Sprites an Palette anpassen',
+                    children: [
+                        {
+                            label: "nur aktuelles Sprite",
+                        },
+                        {
+                            label: 'alle Sprites',
+                        },
+                    ],
+                },
+            ],
+        },
+    ]);
 
     game = new Game();
     // game.load('s76l9s7');
@@ -512,10 +567,11 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
 
     if (this.location.host.indexOf('localhost') === 0) {
-        game.load("mkristz");
-        setTimeout(function() {
-            $('#mi_level').click();
-        }, 250);
+        show_modal('modal_choose_palette');
+        // game.load("mkristz");
+        // setTimeout(function() {
+        //     $('#mi_level').click();
+        // }, 250);
     }
 });
 
