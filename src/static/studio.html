@@ -31,8 +31,9 @@
     <script src="tinycolor-min.js"></script>
     <script src="moment-with-locales.min.js"></script>
     <script src="studio.js?#{@@cache_buster}"></script>
-    <script src="three.min.js"></script>
-    <script src="masonry.pkgd.min.js"></script>
+    <script src="three.min.js?#{@@cache_buster}"></script>
+    <script src="masonry.pkgd.min.js?#{@@cache_buster}"></script>
+    <script src="ditherjs.dist.js?#{@@cache_buster}"></script>
     <script type="x-shader/x-vertex" id="vertex-shader">
       varying vec2 vuv; void main() { vuv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
     </script>

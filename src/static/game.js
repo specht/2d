@@ -105,6 +105,9 @@ class Game {
         }
         if (this.data.palette) {
             update_color_palette_with_colors(this.data.palette);
+        } else {
+            window.selected_palette_index = 9;
+            update_color_palette();
         }
         // if (this.palette)
         // update_color_palette_with_colors()

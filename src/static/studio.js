@@ -3,6 +3,7 @@ var canvas = null;
 var level_editor = null;
 var game = null;
 var selected_palette_index = 9;
+var current_palette_rgb = [];
 
 function bytes_to_str(i) {
     if (i < 1024)
@@ -126,6 +127,7 @@ function activateTool(item) {
 
 function update_color_palette_with_colors(colors) {
     color_menu_items = [];
+    window.current_palette_rgb = [];
     for (let i = 0; i < colors.length + 1; i++) {
         let color = '';
         let k = i;
@@ -134,6 +136,11 @@ function update_color_palette_with_colors(colors) {
             let item = colors[k];
             color = item;
             menu_item = { group: 'color', data: color, command: color, color: color, size: 5 };
+            // console.log(color.substring(3, 5));
+            window.current_palette_rgb.push([
+                parseInt(color.substring(1, 3), 16),
+                parseInt(color.substring(3, 5), 16),
+                parseInt(color.substring(5, 7), 16)]);
         } else {
             menu_item = { group: 'color', data: '#00000000', command: '', size: 5, css: `background-image: url(transparent.png); background-position: 5px 5px; background-repeat: repeat; background-color: #777;` };
         }
@@ -450,6 +457,21 @@ document.addEventListener("DOMContentLoaded", function (event) {
                     children: [
                         {
                             label: "nur aktuelles Sprite",
+                            callback: () => {
+                                canvas.append_to_undo_stack();
+                                let dither = new DitherJS();
+                                let context = canvas.bitmap.getContext('2d');
+                                var imageData = context.getImageData(0, 0, canvas.bitmap.width, canvas.bitmap.height);
+                                // let algorithm = 'ordered';
+                                let algorithm = 'diffusion';
+                                // let algorithm = 'atkinson';
+
+                                dither.ditherImageData(imageData, {step: 1, algorithm: algorithm, palette: window.current_palette_rgb});
+                                context.putImageData(imageData, 0, 0);
+                                // dither.dither(canvas.bitmap);
+                                canvas.append_to_undo_stack();
+                                canvas.write_frame_to_game_data();
+                            }
                         },
                         {
                             label: 'alle Sprites',
