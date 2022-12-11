@@ -19,7 +19,10 @@ Dir['palettes/*.txt'].each do |path|
                     end
                 end
             else
-                entry[:colors] << '#' + line.sub('FF', '').strip
+                color = '#' + line.sub('FF', '').strip.downcase
+                if color =~ /#[0-9a-f]{6}/
+                    entry[:colors] << color
+                end
             end
         end
     end
@@ -30,6 +33,6 @@ palettes.sort! do |a, b|
     a[:name].downcase <=> b[:name].downcase
 end
 
-File.open('palettes.js', 'w') do |f|
+File.open('src/static/palettes.js', 'w') do |f|
     f.write "var palettes = #{palettes.to_json};"
 end

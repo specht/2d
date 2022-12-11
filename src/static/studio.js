@@ -2,6 +2,7 @@ var menu = null;
 var canvas = null;
 var level_editor = null;
 var game = null;
+var selected_palette_index = 9;
 
 function bytes_to_str(i) {
     if (i < 1024)
@@ -123,11 +124,8 @@ function activateTool(item) {
     }
 }
 
-function update_color_palette() {
-    // let i = parseInt($('#palettes_here').val());
-    let i = 9;
+function update_color_palette_with_colors(colors) {
     color_menu_items = [];
-    colors = palettes[i].colors;
     for (let i = 0; i < colors.length + 1; i++) {
         let color = '';
         let k = i;
@@ -149,9 +147,17 @@ function update_color_palette() {
     color_menu = new Menu($('#color_menu'), color_menu_items);
 }
 
+function update_color_palette() {
+    update_color_palette_with_colors(palettes[selected_palette_index].colors);
+}
+
 function show_modal(id) {
     $('.modal').hide();
-    $(`#${id}`).show();
+    let complete = null;
+    if (window[id + '_complete']) {
+        complete = window[id + '_complete'];
+    }
+    $(`#${id}`).show({duration: 0, complete: complete});
     $(`#${id}`).closest('.modal-container').show();
 }
 
@@ -263,6 +269,12 @@ function load_game() {
      └───2fbet5p
  */
 
+function modal_choose_palette_complete() {
+    console.log('heyy!');
+    window.modal_choose_palette_grid.masonry();
+    window.dispatchEvent(new Event('resize'));
+}
+
 document.addEventListener("DOMContentLoaded", function (event) {
     moment.locale('de');
     let tool_menu_items = [
@@ -344,30 +356,39 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
     for (let i = 0; i < palettes.length; i++) {
         let palette = palettes[i];
-        let div = $('<div>');
-        div.append($(`<b>`).text(palette.name));
-        div.append($(`<span>`).text(` (${palette.colors.length} Farben)`));
-        if (palette.description) {
-            let description = $(`<span>`).css('color', '#aaa');
-            description.append(' – ');
-            description.append($(`<span>`).html(palette.description));
-            div.append(description);
-        }
+        let div = $(`<div class='palette-swatches grid-item'>`);
+        let div2 = $(`<div>`)
+        div.append(div2)
+        div2.append($(`<h3>`).text(palette.name));
+        // div.append($(`<hr />`));
+        // div.append($(`<span>`).text(` (${palette.colors.length} Farben)`));
+        // if (palette.description) {
+        //     let description = $(`<span>`).css('color', '#aaa');
+        //     description.append(' – ');
+        //     description.append($(`<span>`).html(palette.description));
+        //     div.append(description);
+        // }
         let colors = $(`<div>`).css('margin-top', '5px');
         for (let color of palette.colors) {
-            let swatch = $(`<div>`);
-            swatch.css('width', '2em');
-            swatch.css('height', '2em');
-            swatch.css('display', 'inline-block');
+            let swatch = $(`<div class='swatch'>`);
             swatch.css('background-color', color);
             colors.append(swatch);
         }
-        div.append(colors);
-
-        div.append($(`<hr />`));
-
+        div2.append(colors);
+        div2.click(function(e) {
+            selected_palette_index = i;
+            update_color_palette();
+        });
         $('#palettes_here').append(div);
     }
+    window.modal_choose_palette_grid = $('#palettes_here').masonry({
+        itemSelector: '.grid-item',
+        transitionDuration: 0,
+        // columnWidth: 200,
+        gutter: 10,
+    });
+
+    // $('#palettes_here').masonry('layout');
     // $('#palettes_here').change(function (e) {
     //     update_color_palette();
     // });
@@ -567,7 +588,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
 
     if (this.location.host.indexOf('localhost') === 0) {
-        show_modal('modal_choose_palette');
+        // show_modal('modal_choose_palette');
         // game.load("mkristz");
         // setTimeout(function() {
         //     $('#mi_level').click();

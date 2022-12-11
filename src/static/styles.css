@@ -458,6 +458,7 @@ body {
 }
 
 .menu-body {
+    padding: 0 0 2px 0;
     overflow-y: auto;
 }
 
@@ -720,7 +721,7 @@ height: 24px;
     font-size: 15px;
     overflow-y: auto;
     position: relative;
-    max-height: 60vh;
+    max-height: 70vh;
 }
 
 #modal_load_game .modal-body td.mono {
@@ -759,15 +760,6 @@ table tr.clickable_row:hover {
     background-color: rgba(255, 255, 255, 0.2);
 }
 
-.dropdown_menu div {
-    margin-left: 5px;
-}
-
-.dropdown_menu > div {
-    margin-left: -5px;
-}
-
-
 .dropdown_menu div.item {
     color: #fff;
     font-size: 15px;
@@ -786,14 +778,6 @@ table tr.clickable_row:hover {
     transition: all ease 200ms;
 }
 
-.dropdown_menu div.item.has_submenu {
-    color: #aaa;
-}
-.dropdown_menu div.item.has_submenu.open {
-    color: #fff;
-    font-weight: bold;
-}
-
 .dropdown_menu div.item.has_submenu.open::after {
     transform: rotate(90deg);
 }
@@ -808,3 +792,36 @@ hr {
     border-top: 1px solid rgba(255, 255, 255, 0.4);
 }
 
+.palette-swatches {
+    width: 185px;
+    cursor: pointer;
+}
+
+
+.palette-swatches h3 {
+    padding: 5px 5px 10px 5px;
+}
+
+.palette-swatches > div {
+    border: 1px solid #444;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 5px;
+}
+
+.palette-swatches:hover > div {
+    border: 1px solid #fff;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+
+.palette-swatches div.swatch {
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    display: inline-block;
+    margin-right: 2px;
+    margin-bottom: -2px;
+}

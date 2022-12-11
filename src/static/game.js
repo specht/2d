@@ -60,6 +60,7 @@ class Game {
         for (let level of (this.data.levels || [])) {
             data.levels.push(level);
         }
+        data.palette = palettes[selected_palette_index].colors;
         console.log(data);
         let self = this;
         api_call('/api/save_game', { game: data }, function (data) {
@@ -102,6 +103,11 @@ class Game {
                 }
             }
         }
+        if (this.data.palette) {
+            update_color_palette_with_colors(this.data.palette);
+        }
+        // if (this.palette)
+        // update_color_palette_with_colors()
 
         new DragAndDropWidget({
             game: this,

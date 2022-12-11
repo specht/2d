@@ -3,16 +3,17 @@ class DropdownMenu {
         this.element = element;
         this.element.addClass('dropdown_menu');
         this.element.empty();
-        this.element.append(this.parse_children(info));
+        this.element.append(this.parse_children(info, 0));
     }
-    parse_children(children) {
+    parse_children(children, level) {
         let div = $(`<div>`);
         for (let entry of children) {
             let label = $(`<div class='item'>`).text(entry.label);
             div.append(label);
+            label.css('padding-left', `${(level + 1) * 5}px`);
             if (entry.children) {
                 label.addClass('has_submenu');
-                let submenu = this.parse_children(entry.children);
+                let submenu = this.parse_children(entry.children, level + 1);
                 submenu.addClass('dropdown_submenu');
                 submenu.css('display', 'none');
                 div.append(submenu);
