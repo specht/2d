@@ -209,6 +209,7 @@ function load_game() {
                 clickable_rows: true,
                 clickable_row_callback: (tag) => {
                     game.load(tag);
+                    close_modal();
                 }
             });
             // let table = $(`<table>`);
@@ -280,6 +281,12 @@ function modal_choose_palette_complete() {
     console.log('heyy!');
     window.modal_choose_palette_grid.masonry();
     window.dispatchEvent(new Event('resize'));
+}
+
+function modal_resize_canvas_complete() {
+    $('#ti_sprite_width').val(canvas.bitmap.width);
+    $('#ti_sprite_height').val(canvas.bitmap.height);
+    $('#ti_sprite_width').focus();
 }
 
 document.addEventListener("DOMContentLoaded", function (event) {
@@ -385,6 +392,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
         div2.click(function(e) {
             selected_palette_index = i;
             update_color_palette();
+            close_modal();
         });
         $('#palettes_here').append(div);
     }
@@ -439,7 +447,10 @@ document.addEventListener("DOMContentLoaded", function (event) {
             label: 'Sprite',
             children: [
                 {
-                    label: 'Größe ändern'
+                    label: 'Größe ändern',
+                    callback: () => {
+                        show_modal('modal_resize_canvas');
+                    },
                 },
             ],
         },
@@ -550,9 +561,9 @@ document.addEventListener("DOMContentLoaded", function (event) {
                     let sh = image.height;
                     let tw = sw;
                     let th = sh;
-                    while ((tw % 24) !== 0) tw += 1;
-                    while ((th % 24) !== 0) th += 1;
-                    console.log(tw, th);
+                    // while ((tw % 24) !== 0) tw += 1;
+                    // while ((th % 24) !== 0) th += 1;
+                    // console.log(tw, th);
                     let c = document.createElement('canvas');
                     c.width = tw;
                     c.height = th;
@@ -649,11 +660,18 @@ document.addEventListener("DOMContentLoaded", function (event) {
         close_modal();
     });
 
+    $('.modal').click(function (e) {
+        e.stopPropagation();
+    });
+
     $(window).resize(function () {
         handleResize();
     });
 
     if (this.location.host.indexOf('localhost') === 0) {
+        setTimeout(function() {
+            show_modal('modal_resize_canvas');
+        }, 250)
         // show_modal('modal_choose_palette');
         // game.load("mkristz");
         // setTimeout(function() {
