@@ -444,19 +444,36 @@ document.addEventListener("DOMContentLoaded", function (event) {
             ],
         },
         {
-            label: 'Farben',
+            label: 'Palette',
             children: [
                 {
-                    label: 'Farbpalette wählen',
+                    label: 'Palette wählen',
                     callback: () => {
                         show_modal('modal_choose_palette');
                     }
                 },
                 {
-                    label: 'Sprites an Palette anpassen',
+                    label: 'Sprite an Palette anpassen',
                     children: [
                         {
-                            label: "nur aktuelles Sprite",
+                            label: "Ordered Dithering",
+                            callback: () => {
+                                canvas.append_to_undo_stack();
+                                let dither = new DitherJS();
+                                let context = canvas.bitmap.getContext('2d');
+                                var imageData = context.getImageData(0, 0, canvas.bitmap.width, canvas.bitmap.height);
+                                let algorithm = 'ordered';
+                                // let algorithm = 'diffusion';
+                                // let algorithm = 'atkinson';
+
+                                dither.ditherImageData(imageData, {step: 1, algorithm: algorithm, palette: window.current_palette_rgb});
+                                context.putImageData(imageData, 0, 0);
+                                canvas.append_to_undo_stack();
+                                canvas.write_frame_to_game_data();
+                            }
+                        },
+                        {
+                            label: "Diffusion Dithering",
                             callback: () => {
                                 canvas.append_to_undo_stack();
                                 let dither = new DitherJS();
@@ -468,13 +485,26 @@ document.addEventListener("DOMContentLoaded", function (event) {
 
                                 dither.ditherImageData(imageData, {step: 1, algorithm: algorithm, palette: window.current_palette_rgb});
                                 context.putImageData(imageData, 0, 0);
-                                // dither.dither(canvas.bitmap);
                                 canvas.append_to_undo_stack();
                                 canvas.write_frame_to_game_data();
                             }
                         },
                         {
-                            label: 'alle Sprites',
+                            label: "Atkinson Dithering",
+                            callback: () => {
+                                canvas.append_to_undo_stack();
+                                let dither = new DitherJS();
+                                let context = canvas.bitmap.getContext('2d');
+                                var imageData = context.getImageData(0, 0, canvas.bitmap.width, canvas.bitmap.height);
+                                // let algorithm = 'ordered';
+                                // let algorithm = 'diffusion';
+                                let algorithm = 'atkinson';
+
+                                dither.ditherImageData(imageData, {step: 1, algorithm: algorithm, palette: window.current_palette_rgb});
+                                context.putImageData(imageData, 0, 0);
+                                canvas.append_to_undo_stack();
+                                canvas.write_frame_to_game_data();
+                            }
                         },
                     ],
                 },
@@ -491,51 +521,65 @@ document.addEventListener("DOMContentLoaded", function (event) {
         game.load(tag);
     }
 
-    // document.onpaste = function(pasteEvent) {
-    //     var item = pasteEvent.clipboardData.items[0];
-    //     if (item.type && item.type.indexOf("image") === 0) {
-    //         var blob = item.getAsFile();
-    //         var reader = new FileReader();
-    //         reader.onload = (event) => {
-    //             let image = new Image();
-    //             image.src = event.target.result;
-    //             image.decode().then(() => {
-    //                 let si = canvas.sprite_index;
-    //                 let sti = canvas.state_index;
-    //                 let fi = canvas.frame_index;
-    //                 // let sw = 48;
-    //                 // let sh = 48;
-    //                 // let sw = 32;
-    //                 // let sh = 32;
-    //                 let sw = image.width;
-    //                 let sh = image.height;
-    //                 let c = document.createElement('canvas');
-    //                 c.width = sw;
-    //                 c.height = sh;
-    //                 let ctx = c.getContext('2d');
-    //                 let i = 0;
-    //                 for (let y = 0; y < Math.floor(image.height / sh); y++) {
-    //                     for (let x = 0; x < Math.floor(image.width / sw); x++) {
-    //                         // if (i >= 40 && i < 50) {
-    //                             ctx.clearRect(0, 0, sw, sh);
-    //                             ctx.drawImage(image, x * sw, y * sh, sw, sh, 0, 0, sw, sh);
-    //                             let src = c.toDataURL('image/png');
-    //                             if (i === 0) {
-    //                                 game.data.sprites[si].states[sti].frames[fi] = {src: src, width: sw, height: sh};
-    //                             } else {
-    //                                 game.data.sprites[canvas.sprite_index].states[canvas.state_index].frames.push({src: src, width: sw, height: sh});
-    //                             }
-    //                         // }
-    //                         i += 1;
-    //                     }
-    //                 }
-    //                 canvas.detachSprite();
-    //                 canvas.attachSprite(si, sti, fi);
-    //             });
-    //         };
-    //         reader.readAsDataURL(blob);
-    //     }
-    // };
+    document.oncopy = function(copyEvent) {
+        // TODO: not working yet, maybe ask for permissions?
+        console.log('copying sprite to clipboard!');
+        let url = canvas.toUrl();
+        console.log(url);
+        copyEvent.clipboardData.setData('image/png', url);
+        copyEvent.preventDefault();
+    }
+
+    document.onpaste = function(pasteEvent) {
+        var item = pasteEvent.clipboardData.items[0];
+        if (item.type && item.type.indexOf("image") === 0) {
+            var blob = item.getAsFile();
+            var reader = new FileReader();
+            reader.onload = (event) => {
+                let image = new Image();
+                image.src = event.target.result;
+                image.decode().then(() => {
+                    let si = canvas.sprite_index;
+                    let sti = canvas.state_index;
+                    let fi = canvas.frame_index;
+                    // let sw = 48;
+                    // let sh = 48;
+                    // let sw = 32;
+                    // let sh = 32;
+                    let sw = image.width;
+                    let sh = image.height;
+                    let tw = sw;
+                    let th = sh;
+                    while ((tw % 24) !== 0) tw += 1;
+                    while ((th % 24) !== 0) th += 1;
+                    console.log(tw, th);
+                    let c = document.createElement('canvas');
+                    c.width = tw;
+                    c.height = th;
+                    let ctx = c.getContext('2d');
+                    let i = 0;
+                    for (let y = 0; y < Math.floor(image.height / sh); y++) {
+                        for (let x = 0; x < Math.floor(image.width / sw); x++) {
+                            // if (i >= 40 && i < 50) {
+                                ctx.clearRect(0, 0, tw, th);
+                                ctx.drawImage(image, x * sw, y * sh, sw, sh, 0, 0, sw, sh);
+                                let src = c.toDataURL('image/png');
+                                if (i === 0) {
+                                    game.data.sprites[si].states[sti].frames[fi] = {src: src, width: tw, height: th};
+                                } else {
+                                    game.data.sprites[canvas.sprite_index].states[canvas.state_index].frames.push({src: src, width: tw, height: th});
+                                }
+                            // }
+                            i += 1;
+                        }
+                    }
+                    canvas.detachSprite();
+                    canvas.attachSprite(si, sti, fi);
+                });
+            };
+            reader.readAsDataURL(blob);
+        }
+    };
 
     $(document).on('dragover', function (e) {
         e.preventDefault();
