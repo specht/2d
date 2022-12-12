@@ -277,18 +277,6 @@ function load_game() {
      └───2fbet5p
  */
 
-function modal_choose_palette_complete() {
-    console.log('heyy!');
-    window.modal_choose_palette_grid.masonry();
-    window.dispatchEvent(new Event('resize'));
-}
-
-function modal_resize_canvas_complete() {
-    $('#ti_sprite_width').val(canvas.bitmap.width);
-    $('#ti_sprite_height').val(canvas.bitmap.height);
-    $('#ti_sprite_width').focus();
-}
-
 document.addEventListener("DOMContentLoaded", function (event) {
     moment.locale('de');
     let tool_menu_items = [
@@ -368,40 +356,6 @@ document.addEventListener("DOMContentLoaded", function (event) {
             x.callback = activateTool;
         return x;
     });
-    for (let i = 0; i < palettes.length; i++) {
-        let palette = palettes[i];
-        let div = $(`<div class='palette-swatches grid-item'>`);
-        let div2 = $(`<div>`)
-        div.append(div2)
-        div2.append($(`<h3>`).text(palette.name));
-        // div.append($(`<hr />`));
-        // div.append($(`<span>`).text(` (${palette.colors.length} Farben)`));
-        // if (palette.description) {
-        //     let description = $(`<span>`).css('color', '#aaa');
-        //     description.append(' – ');
-        //     description.append($(`<span>`).html(palette.description));
-        //     div.append(description);
-        // }
-        let colors = $(`<div>`).css('margin-top', '5px');
-        for (let color of palette.colors) {
-            let swatch = $(`<div class='swatch'>`);
-            swatch.css('background-color', color);
-            colors.append(swatch);
-        }
-        div2.append(colors);
-        div2.click(function(e) {
-            selected_palette_index = i;
-            update_color_palette();
-            close_modal();
-        });
-        $('#palettes_here').append(div);
-    }
-    window.modal_choose_palette_grid = $('#palettes_here').masonry({
-        itemSelector: '.grid-item',
-        transitionDuration: 0,
-        // columnWidth: 200,
-        gutter: 10,
-    });
 
     // $('#palettes_here').masonry('layout');
     // $('#palettes_here').change(function (e) {
@@ -449,7 +403,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                 {
                     label: 'Größe ändern',
                     callback: () => {
-                        show_modal('modal_resize_canvas');
+                        window.resizeCanvasModal.show();
                     },
                 },
             ],
@@ -460,7 +414,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                 {
                     label: 'Palette wählen',
                     callback: () => {
-                        show_modal('modal_choose_palette');
+                        window.choosePaletteModal.show();
                     }
                 },
                 {
@@ -659,6 +613,9 @@ document.addEventListener("DOMContentLoaded", function (event) {
     $('.modal-container').click(function (e) {
         close_modal();
     });
+    $('.modal .bu-close').click(function (e) {
+        close_modal();
+    });
 
     $('.modal').click(function (e) {
         e.stopPropagation();
@@ -668,11 +625,196 @@ document.addEventListener("DOMContentLoaded", function (event) {
         handleResize();
     });
 
+    window.testModal = new ModalDialog({
+        title: 'Test Modal',
+        body: `
+        <p>
+        Hallo. Dies ist ein <span id='modal_test_span'>Test-Dialog</span>.
+        </p>
+        `,
+        onbody: () => {
+            $('#modal_test_span').text('>> TEST_DIALOG << ');
+        },
+        footer: [
+            {
+                type: 'button',
+                label: 'Abbrechen',
+                icon: 'fa-times',
+                callback: (self) => self.dismiss(),
+            },
+            {
+                type: 'button',
+                label: 'Fehler',
+                icon: 'fa-warning',
+                color: 'red',
+                callback: (self) => {
+                    self.showError("Es ist ein Fehler passiert!");
+                    // self.dismiss();
+                }
+            },
+            {
+                type: 'button',
+                label: 'OK',
+                icon: 'fa-check',
+                color: 'green',
+                callback: (self) => {
+                    // self.showError("Es ist ein Fehler passiert!");
+                    self.dismiss();
+                }
+            },
+        ]
+    });
+    // window.testModal.show();
+    window.resizeCanvasModal = new ModalDialog({
+        title: 'Größe ändern',
+        width: '40vw',
+        body: `
+        <p>Bitte gib die gewünschte Größe für das aktuelle Sprite an:</p>
+        <div style="text-align: center; font-size: 120%;">
+            <input id='ti_sprite_width' type='text' style='width: 3em; font-size: 100%;'/>
+            &times;
+            <input id='ti_sprite_height' type='text' style='width: 3em; font-size: 100%;'/>
+        </div>
+        `,
+        onshow: () => {
+            $('#ti_sprite_width').val(canvas.bitmap.width);
+            $('#ti_sprite_height').val(canvas.bitmap.height);
+            $('#ti_sprite_width').focus();
+        },
+        footer: [
+            {
+                type: 'button',
+                label: 'Abbrechen',
+                icon: 'fa-times',
+                callback: (self) => self.dismiss(),
+            },
+            {
+                type: 'button',
+                label: 'Größe ändern',
+                icon: 'fa-check',
+                color: 'green',
+                callback: async (self) => {
+                    let width = parseInt($('#ti_sprite_width').val());
+                    let height = parseInt($('#ti_sprite_height').val());
+                    if (width > 0 && width <= MAX_DIMENSION && height > 0 && height <= MAX_DIMENSION) {
+                        let old_sprite_index = canvas.sprite_index;
+                        let old_state_index = canvas.state_index;
+                        let old_frame_index = canvas.frame_index;
+                        for (let state_index = 0; state_index < game.data.sprites[old_sprite_index].states.length; state_index++) {
+                            for (let frame_index = 0; frame_index < game.data.sprites[old_sprite_index].states[state_index].frames.length; frame_index++) {
+                                console.log(`Resizing sprite ${old_sprite_index} / state ${state_index} / frame ${frame_index} to ${width}x${height}`);
+                                let image = await load_img_from_src(game.data.sprites[old_sprite_index].states[state_index].frames[frame_index].src);
+                                let c = document.createElement('canvas');
+                                c.width = width;
+                                c.height = height;
+                                let ctx = c.getContext('2d');
+                                ctx.clearRect(0, 0, width, height);
+                                ctx.drawImage(image, 0, 0);
+                                game.data.sprites[old_sprite_index].states[state_index].frames[frame_index] = {
+                                    width: width,
+                                    height: height,
+                                    src: c.toDataURL('image/png'),
+                                };
+                            }
+                        }
+                        game.refresh_frames_on_screen();
+                        canvas.detachSprite();
+                        canvas.attachSprite(old_sprite_index, old_state_index, old_frame_index);
+                        self.dismiss();
+                    } else {
+                        self.showError("Fehler: Ungültige Größe.")
+                    }
+                }
+            },
+        ]
+    });
+    window.choosePaletteModal = new ModalDialog({
+        title: 'Palette wählen',
+        vars: {
+            palette_index: -1,
+            div_for_palette_index: {},
+        },
+        width: '80vw',
+        body: `
+        <div id='palettes_here' class="grid"></div>
+        `,
+        onbody: (self) => {
+            for (let i = 0; i < palettes.length; i++) {
+                let palette = palettes[i];
+                let div = $(`<div class='palette-swatches grid-item'>`);
+                let div2 = $(`<div>`)
+                div.append(div2)
+                div2.append($(`<h3>`).text(palette.name));
+                let colors = $(`<div>`).css('margin-top', '5px');
+                for (let color of palette.colors) {
+                    let swatch = $(`<div class='swatch'>`);
+                    swatch.css('background-color', color);
+                    colors.append(swatch);
+                }
+                div2.append(colors);
+                div2.click(function(e) {
+                    $('#palettes_here .palette-swatches > div').removeClass('active');
+                    $(e.target).closest('.palette-swatches > div').addClass('active');
+                    self.palette_index = i;
+                });
+                self.div_for_palette_index[i] = div2;
+                $('#palettes_here').append(div);
+            }
+            window.modal_choose_palette_grid = $('#palettes_here').masonry({
+                itemSelector: '.grid-item',
+                transitionDuration: 0,
+                // columnWidth: 200,
+                gutter: 10,
+            });
+        },
+        onshow: (self) => {
+            self.palette_index = window.selected_palette_index;
+            $('#palettes_here .palette-swatches > div').removeClass('active');
+            self.div_for_palette_index[self.palette_index].addClass('active');
+            window.modal_choose_palette_grid.masonry();
+            window.dispatchEvent(new Event('resize'));
+        },
+        footer: [
+            {
+                type: 'button',
+                label: 'Abbrechen',
+                icon: 'fa-times',
+                callback: (self) => self.dismiss(),
+            },
+            {
+                type: 'button',
+                label: 'Palette wählen',
+                icon: 'fa-check',
+                color: 'green',
+                callback: async (self) => {
+                    window.selected_palette_index = self.palette_index;
+                    update_color_palette();
+                    self.dismiss();
+                }
+            },
+        ]
+    });
+    /*
+        <div class='modal-container' style="display: none;">
+        <div id='modal_choose_palette' class='modal'>
+            <h3>Farbpalette wählen</h3>
+            <div class='modal-body'>
+                <div id='palettes_here' class="grid"></div>
+            </div>
+            <div class='modal-footer' style="text-align: right;">
+                <button class="bu-close"><i class='fa fa-times'></i>&nbsp;&nbsp;Abbrechen</button>
+                <button class="green"><i class='fa fa-check'></i>&nbsp;&nbsp;Größe ändern</button>
+            </div>
+        </div>
+    </div>
+
+    */
+
     if (this.location.host.indexOf('localhost') === 0) {
-        setTimeout(function() {
-            show_modal('modal_resize_canvas');
-        }, 250)
-        // show_modal('modal_choose_palette');
+        // setTimeout(function() {
+        //     show_modal('modal_resize_canvas');
+            // show_modal('modal_choose_palette');
+        // }, 250);
         // game.load("mkristz");
         // setTimeout(function() {
         //     $('#mi_level').click();

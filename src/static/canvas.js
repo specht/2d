@@ -9,6 +9,7 @@ const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
 const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient'];
 const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker', 'tool/move', 'tool/gradient'];
 const MAX_UNDO_STACK_SIZE = 32;
+const MAX_DIMENSION = 128;
 
 function createDataUrlForImageSize(width, height) {
     let canvas = document.createElement('canvas');
@@ -1298,3 +1299,13 @@ class Canvas {
     //    });
     }
 }
+
+load_img_from_src = async (src) => {
+    return new Promise((resolve, reject) => {
+        let img = document.createElement('img');
+        img.onload = async () => {
+            resolve(img);
+        };
+        img.src = src;
+    });
+};
