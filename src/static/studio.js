@@ -406,6 +406,12 @@ document.addEventListener("DOMContentLoaded", function (event) {
                         window.resizeCanvasModal.show();
                     },
                 },
+                // {
+                //     label: 'Farbkorrektur',
+                //     callback: () => {
+                //         window.colorCorrectionModal.show();
+                //     },
+                // },
             ],
         },
         {
@@ -486,7 +492,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
         game.load(tag);
     }
 
-    document.oncopy = function(copyEvent) {
+    document.oncoplocy = function(copyEvent) {
         // TODO: not working yet, maybe ask for permissions?
         console.log('copying sprite to clipboard!');
         let url = canvas.toUrl();
@@ -515,6 +521,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
                     let sh = image.height;
                     let tw = sw;
                     let th = sh;
+                    if (tw > MAX_DIMENSION) tw = MAX_DIMENSION;
+                    if (th > MAX_DIMENSION) th = MAX_DIMENSION;
                     // while ((tw % 24) !== 0) tw += 1;
                     // while ((th % 24) !== 0) th += 1;
                     // console.log(tw, th);
@@ -625,46 +633,6 @@ document.addEventListener("DOMContentLoaded", function (event) {
         handleResize();
     });
 
-    window.testModal = new ModalDialog({
-        title: 'Test Modal',
-        body: `
-        <p>
-        Hallo. Dies ist ein <span id='modal_test_span'>Test-Dialog</span>.
-        </p>
-        `,
-        onbody: () => {
-            $('#modal_test_span').text('>> TEST_DIALOG << ');
-        },
-        footer: [
-            {
-                type: 'button',
-                label: 'Abbrechen',
-                icon: 'fa-times',
-                callback: (self) => self.dismiss(),
-            },
-            {
-                type: 'button',
-                label: 'Fehler',
-                icon: 'fa-warning',
-                color: 'red',
-                callback: (self) => {
-                    self.showError("Es ist ein Fehler passiert!");
-                    // self.dismiss();
-                }
-            },
-            {
-                type: 'button',
-                label: 'OK',
-                icon: 'fa-check',
-                color: 'green',
-                callback: (self) => {
-                    // self.showError("Es ist ein Fehler passiert!");
-                    self.dismiss();
-                }
-            },
-        ]
-    });
-    // window.testModal.show();
     window.resizeCanvasModal = new ModalDialog({
         title: 'Größe ändern',
         width: '40vw',
@@ -728,6 +696,32 @@ document.addEventListener("DOMContentLoaded", function (event) {
             },
         ]
     });
+
+    window.colorCorrectionModal = new ModalDialog({
+        title: 'Farbkorrektur',
+        width: '40vw',
+        body: `
+        `,
+        onshow: () => {
+        },
+        footer: [
+            {
+                type: 'button',
+                label: 'Abbrechen',
+                icon: 'fa-times',
+                callback: (self) => self.dismiss(),
+            },
+            {
+                type: 'button',
+                label: 'Übernehmen',
+                icon: 'fa-check',
+                color: 'green',
+                callback: async (self) => {
+                }
+            },
+        ]
+    });
+
     window.choosePaletteModal = new ModalDialog({
         title: 'Palette wählen',
         vars: {

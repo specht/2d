@@ -9,7 +9,9 @@ const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
 const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient'];
 const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker', 'tool/move', 'tool/gradient'];
 const MAX_UNDO_STACK_SIZE = 32;
-const MAX_DIMENSION = 128;
+const MAX_DIMENSION = 256;
+const MIN_ZOOM = 2;
+const MAX_ZOOM = 64;
 
 function createDataUrlForImageSize(width, height) {
     let canvas = document.createElement('canvas');
@@ -921,12 +923,12 @@ class Canvas {
 
     fix_scale() {
         this.scale = this.size / this.visible_pixels;
-        if (this.scale < 3) {
-            this.scale = 3;
+        if (this.scale < MIN_ZOOM) {
+            this.scale = MIN_ZOOM;
             this.visible_pixels = this.size / this.scale;
         }
-        if (this.scale > 64) {
-            this.scale = 64;
+        if (this.scale > MAX_ZOOM) {
+            this.scale = MAX_ZOOM;
             this.visible_pixels = this.size / this.scale;
         }
     }
@@ -1037,11 +1039,11 @@ class Canvas {
 
     append_to_undo_stack() {
         let url = this.toUrl();
-        if (this.undo_stack.length === 0 || url != this.undo_stack[this.undo_stack.length - 1]) {
+        // if (this.undo_stack.length === 0) || url != this.undo_stack[this.undo_stack.length - 1]) {
             if (this.undo_stack.length >= MAX_UNDO_STACK_SIZE) this.undo_stack = this.undo_stack.slice(1);
             this.undo_stack.push(url);
             this.refresh_undo_stack();
-        }
+        // }
         this.game.refresh_frames_on_screen();
     }
 

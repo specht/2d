@@ -121,8 +121,8 @@ class LevelEditor {
         let wx = (x - (this.width / 2)) / this.scale;
         let wy = -(y - (this.height / 2)) / this.scale;
         if (snap) {
-            wx = Math.floor((wx + 12) / 24) * 24;
-            wy = Math.floor((wy) / 24) * 24;
+            wx = Math.floor((wx + 12) / 8) * 8;
+            wy = Math.floor((wy) / 8) * 8;
         }
         return [wx, wy];
     }

@@ -827,8 +827,8 @@ table tr.clickable_row:hover {
 }
 
 .dropdown_menu div.item.has_submenu::after {
-    content: '➜';
-    font-weight: bold;
+    font: normal normal normal 14px/1 ForkAwesome;
+    content: "\f105";
     position: absolute;
     color: #888;
     right: 5px;
