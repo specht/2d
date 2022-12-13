@@ -1125,9 +1125,18 @@ class Canvas {
                         // canvas.detachSprite();
                     },
                     on_swap_items: (a, b) => {
-                        let temp = self.game.data.sprites[self.sprite_index].states[a];
-                        self.game.data.sprites[self.sprite_index].states[a] = self.game.data.sprites[self.sprite_index].states[b];
-                        self.game.data.sprites[self.sprite_index].states[b] = temp;
+                        if (a > b) {
+                            let temp = self.game.data.sprites[self.sprite_index].states[b];
+                            for (let i = b; i < a; i++)
+                            self.game.data.sprites[self.sprite_index].states[i] = self.game.data.sprites[self.sprite_index].states[i + 1];
+                            self.game.data.sprites[self.sprite_index].states[a] = temp;
+                        } else if (a < b) {
+                            let temp = self.game.data.sprites[self.sprite_index].states[b];
+                            for (let i = b; i > a; i--)
+                            self.game.data.sprites[self.sprite_index].states[i] = self.game.data.sprites[self.sprite_index].states[i - 1];
+                            self.game.data.sprites[self.sprite_index].states[a] = temp;
+                        }
+                        self.game.refresh_frames_on_screen();
                     }
                 });
             }
@@ -1160,9 +1169,17 @@ class Canvas {
                         self.game.refresh_frames_on_screen();
                     },
                     on_swap_items: (a, b) => {
-                        let temp = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[a];
-                        self.game.data.sprites[self.sprite_index].states[self.state_index].frames[a] = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[b];
-                        self.game.data.sprites[self.sprite_index].states[self.state_index].frames[b] = temp;
+                        if (a > b) {
+                            let temp = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[b];
+                            for (let i = b; i < a; i++)
+                            self.game.data.sprites[self.sprite_index].states[self.state_index].frames[i] = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[i + 1];
+                            self.game.data.sprites[self.sprite_index].states[self.state_index].frames[a] = temp;
+                        } else if (a < b) {
+                            let temp = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[b];
+                            for (let i = b; i > a; i--)
+                            self.game.data.sprites[self.sprite_index].states[self.state_index].frames[i] = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[i - 1];
+                            self.game.data.sprites[self.sprite_index].states[self.state_index].frames[a] = temp;
+                        }
                         self.game.refresh_frames_on_screen();
                     }
                 });

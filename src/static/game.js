@@ -141,10 +141,17 @@ class Game {
                 this.refresh_frames_on_screen();
             },
             on_swap_items: (a, b) => {
-                console.log('swap', a, b);
-                let temp = self.data.sprites[a];
-                self.data.sprites[a] = self.data.sprites[b];
-                self.data.sprites[b] = temp;
+                if (a > b) {
+                    let temp = self.data.sprites[b];
+                    for (let i = b; i < a; i++)
+                        self.data.sprites[i] = self.data.sprites[i + 1];
+                    self.data.sprites[a] = temp;
+                } else if (a < b) {
+                    let temp = self.data.sprites[b];
+                    for (let i = b; i > a; i--)
+                        self.data.sprites[i] = self.data.sprites[i - 1];
+                    self.data.sprites[a] = temp;
+                }
                 this.refresh_frames_on_screen();
             }
         });
