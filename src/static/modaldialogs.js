@@ -1,3 +1,4 @@
+var backdrop_click_handler_initialized = false;
 class ModalDialog {
     constructor(options) {
         let self = this;
@@ -42,6 +43,16 @@ class ModalDialog {
         }
         if (options.onbody) {
             options.onbody(this);
+        }
+        this.dialog.mousedown(function(e) {
+            e.stopPropagation();
+        });
+        if (!backdrop_click_handler_initialized) {
+            backdrop_click_handler_initialized = true;
+            self.parent.mousedown(function(e) {
+                self.parent.fadeOut();
+                self.parent.find('.modal').hide();
+            })
         }
     }
 
