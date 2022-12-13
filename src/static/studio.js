@@ -164,7 +164,7 @@ function show_modal(id) {
     if (window[id + '_complete']) {
         complete = window[id + '_complete'];
     }
-    $(`#${id}`).show({duration: 0, complete: complete});
+    $(`#${id}`).show({ duration: 0, complete: complete });
     $(`#${id}`).closest('.modal-container').show();
 }
 
@@ -437,7 +437,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                 // let algorithm = 'diffusion';
                                 // let algorithm = 'atkinson';
 
-                                dither.ditherImageData(imageData, {step: 1, algorithm: algorithm, palette: window.current_palette_rgb});
+                                dither.ditherImageData(imageData, { step: 1, algorithm: algorithm, palette: window.current_palette_rgb });
                                 context.putImageData(imageData, 0, 0);
                                 canvas.append_to_undo_stack();
                                 canvas.write_frame_to_game_data();
@@ -454,7 +454,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                 let algorithm = 'diffusion';
                                 // let algorithm = 'atkinson';
 
-                                dither.ditherImageData(imageData, {step: 1, algorithm: algorithm, palette: window.current_palette_rgb});
+                                dither.ditherImageData(imageData, { step: 1, algorithm: algorithm, palette: window.current_palette_rgb });
                                 context.putImageData(imageData, 0, 0);
                                 canvas.append_to_undo_stack();
                                 canvas.write_frame_to_game_data();
@@ -471,7 +471,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                 // let algorithm = 'diffusion';
                                 let algorithm = 'atkinson';
 
-                                dither.ditherImageData(imageData, {step: 1, algorithm: algorithm, palette: window.current_palette_rgb});
+                                dither.ditherImageData(imageData, { step: 1, algorithm: algorithm, palette: window.current_palette_rgb });
                                 context.putImageData(imageData, 0, 0);
                                 canvas.append_to_undo_stack();
                                 canvas.write_frame_to_game_data();
@@ -492,7 +492,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
         game.load(tag);
     }
 
-    document.oncopy = function(copyEvent) {
+    document.oncopy = function (copyEvent) {
         // TODO: not working yet, maybe ask for permissions?
         console.log('copying sprite to clipboard!');
         let url = canvas.toUrl();
@@ -501,58 +501,70 @@ document.addEventListener("DOMContentLoaded", function (event) {
         copyEvent.preventDefault();
     }
 
-    document.onpaste = function(pasteEvent) {
-        var item = pasteEvent.clipboardData.items[0];
-        console.log(item);
-        if (item.type && item.type.indexOf("image") === 0) {
-            var blob = item.getAsFile();
-            var reader = new FileReader();
-            reader.onload = (event) => {
-                let image = new Image();
-                image.src = event.target.result;
-                image.decode().then(() => {
-                    let si = canvas.sprite_index;
-                    let sti = canvas.state_index;
-                    let fi = canvas.frame_index;
-                    // let sw = 48;
-                    // let sh = 48;
-                    // let sw = 32;
-                    // let sh = 32;
-                    let sw = image.width;
-                    let sh = image.height;
-                    let tw = sw;
-                    let th = sh;
-                    if (tw > MAX_DIMENSION) tw = MAX_DIMENSION;
-                    if (th > MAX_DIMENSION) th = MAX_DIMENSION;
-                    // while ((tw % 24) !== 0) tw += 1;
-                    // while ((th % 24) !== 0) th += 1;
-                    // console.log(tw, th);
-                    let c = document.createElement('canvas');
-                    c.width = tw;
-                    c.height = th;
-                    let ctx = c.getContext('2d');
-                    let i = 0;
-                    for (let y = 0; y < Math.floor(image.height / sh); y++) {
-                        for (let x = 0; x < Math.floor(image.width / sw); x++) {
-                            // if (i >= 40 && i < 50) {
-                                ctx.clearRect(0, 0, tw, th);
-                                ctx.drawImage(image, x * sw, y * sh, sw, sh, 0, 0, sw, sh);
-                                let src = c.toDataURL('image/png');
-                                if (i === 0) {
-                                    game.data.sprites[si].states[sti].frames[fi] = {src: src, width: tw, height: th};
-                                } else {
-                                    game.data.sprites[canvas.sprite_index].states[canvas.state_index].frames.push({src: src, width: tw, height: th});
+    async function getClipboardContents() {
+        try {
+            const clipboardItems = await navigator.clipboard.read();
+            for (const item of clipboardItems) {
+                for (const type of item.types) {
+                    const blob = await item.getType(type);
+                    console.log(type);
+                    if (type.indexOf("image") === 0) {
+                        var reader = new FileReader();
+                        reader.onload = (event) => {
+                            let image = new Image();
+                            image.src = event.target.result;
+                            image.decode().then(() => {
+                                let si = canvas.sprite_index;
+                                let sti = canvas.state_index;
+                                let fi = canvas.frame_index;
+                                // let sw = 48;
+                                // let sh = 48;
+                                // let sw = 32;
+                                // let sh = 32;
+                                let sw = image.width;
+                                let sh = image.height;
+                                let tw = sw;
+                                let th = sh;
+                                if (tw > MAX_DIMENSION) tw = MAX_DIMENSION;
+                                if (th > MAX_DIMENSION) th = MAX_DIMENSION;
+                                // while ((tw % 24) !== 0) tw += 1;
+                                // while ((th % 24) !== 0) th += 1;
+                                // console.log(tw, th);
+                                let c = document.createElement('canvas');
+                                c.width = tw;
+                                c.height = th;
+                                let ctx = c.getContext('2d');
+                                let i = 0;
+                                for (let y = 0; y < Math.floor(image.height / sh); y++) {
+                                    for (let x = 0; x < Math.floor(image.width / sw); x++) {
+                                        // if (i >= 40 && i < 50) {
+                                        ctx.clearRect(0, 0, tw, th);
+                                        ctx.drawImage(image, x * sw, y * sh, sw, sh, 0, 0, sw, sh);
+                                        let src = c.toDataURL('image/png');
+                                        if (i === 0) {
+                                            game.data.sprites[si].states[sti].frames[fi] = { src: src, width: tw, height: th };
+                                        } else {
+                                            game.data.sprites[canvas.sprite_index].states[canvas.state_index].frames.push({ src: src, width: tw, height: th });
+                                        }
+                                        // }
+                                        i += 1;
+                                    }
                                 }
-                            // }
-                            i += 1;
-                        }
+                                canvas.detachSprite();
+                                canvas.attachSprite(si, sti, fi);
+                            });
+                        };
+                        reader.readAsDataURL(blob);
                     }
-                    canvas.detachSprite();
-                    canvas.attachSprite(si, sti, fi);
-                });
-            };
-            reader.readAsDataURL(blob);
+                }
+            }
+        } catch (err) {
+            console.error(err.name, err.message);
         }
+    }
+
+    document.onpaste = function (pasteEvent) {
+        getClipboardContents();
     };
 
     $(document).on('dragover', function (e) {
@@ -571,7 +583,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
         let sti = canvas.state_index;
         for (let file of e.originalEvent.dataTransfer.files) {
             console.log(file);
-            (function(index) {
+            (function (index) {
                 let reader = new FileReader();
                 reader.onload = function (event) {
                     temp[index] = event.target.result;
@@ -747,7 +759,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                     colors.append(swatch);
                 }
                 div2.append(colors);
-                div2.click(function(e) {
+                div2.click(function (e) {
                     $('#palettes_here .palette-swatches > div').removeClass('active');
                     $(e.target).closest('.palette-swatches > div').addClass('active');
                     self.palette_index = i;
@@ -808,7 +820,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
     if (this.location.host.indexOf('localhost') === 0) {
         // setTimeout(function() {
         //     show_modal('modal_resize_canvas');
-            // show_modal('modal_choose_palette');
+        // show_modal('modal_choose_palette');
         // }, 250);
         // game.load("mkristz");
         // setTimeout(function() {
@@ -827,7 +839,7 @@ function prepare_pane(which) {
             sprite_button.data('sprite_index', si);
             if (si === 0) sprite_button.addClass('active');
         }
-        $('.menu_level_sprite_item').mousedown(function(e) {
+        $('.menu_level_sprite_item').mousedown(function (e) {
             e.preventDefault();
             $('.menu_level_sprite_item').removeClass('active');
             let button = $(e.target.closest('.menu_level_sprite_item'));
