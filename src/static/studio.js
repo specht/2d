@@ -492,7 +492,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
         game.load(tag);
     }
 
-    document.oncoplocy = function(copyEvent) {
+    document.oncopy = function(copyEvent) {
         // TODO: not working yet, maybe ask for permissions?
         console.log('copying sprite to clipboard!');
         let url = canvas.toUrl();
@@ -503,6 +503,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
 
     document.onpaste = function(pasteEvent) {
         var item = pasteEvent.clipboardData.items[0];
+        console.log(item);
         if (item.type && item.type.indexOf("image") === 0) {
             var blob = item.getAsFile();
             var reader = new FileReader();
