@@ -1,5 +1,6 @@
 class LevelEditor {
     constructor(element) {
+        let self = this;
         this.element = element;
         this.clock = new THREE.Clock(true);
         this.scene = new THREE.Scene();
@@ -37,7 +38,6 @@ class LevelEditor {
 
         this.render();
 
-        let self = this;
         $(this.element).mousemove(function(e) {
             let p = self.ui_to_world(e.offsetX, e.offsetY, true);
             if (self.cursor === null) {
@@ -68,16 +68,63 @@ class LevelEditor {
                 self.add_sprite_to_level(p);
             if (e.button === 2)
                 self.remove_sprite_from_level(p);
-        });
+                self.render();
+            });
         $(this.element).mouseup(function(e) {
             self.mouse_down = false;
+            self.render();
         });
         $(this.element).on('mousewheel', function(e) {
             e.preventDefault();
             let p = self.ui_to_world(e.originalEvent.offsetX, e.originalEvent.offsetY, false);
             console.log(p);
             self.zoom_at_point(e.originalEvent.deltaY, p[0], p[1]);
+            self.render();
         });
+
+        new DragAndDropWidget({
+            game: self.game,
+            container: $('#menu_layers'),
+            trash: $('#trash'),
+            items: [],
+            item_class: 'menu_state_item',
+            gen_item: (state) => {
+                // let state_div = $(`<div>`);
+                // let fi = Math.floor(state.frames.length / 2 - 0.5);
+                // let img = $('<img>').attr('src', state.frames[fi].src);
+                // state_div.append(img);
+                // state_div.append($(`<div class='state_label'>`).text(state.label));
+                // return state_div;
+            },
+            onclick: (e, index) => {
+                // $(e).closest('.menu_state_item').parent().parent().find('.menu_state_item').removeClass('active');
+                // $(e).parent().addClass('active');
+                // self.attachSprite(self.sprite_index, index, 0);
+            },
+            gen_new_item: () => {
+                // let layer = { sprites: [] };
+                // game.data.levels[0].layers.push(layer);
+                // return layer;
+            },
+            delete_item: (index) => {
+                // self.game.data.sprites[self.sprite_index].states.splice(index, 1);
+            },
+            on_swap_items: (a, b) => {
+                // if (a > b) {
+                //     let temp = self.game.data.sprites[self.sprite_index].states[b];
+                //     for (let i = b; i < a; i++)
+                //     self.game.data.sprites[self.sprite_index].states[i] = self.game.data.sprites[self.sprite_index].states[i + 1];
+                //     self.game.data.sprites[self.sprite_index].states[a] = temp;
+                // } else if (a < b) {
+                //     let temp = self.game.data.sprites[self.sprite_index].states[b];
+                //     for (let i = b; i > a; i--)
+                //     self.game.data.sprites[self.sprite_index].states[i] = self.game.data.sprites[self.sprite_index].states[i - 1];
+                //     self.game.data.sprites[self.sprite_index].states[a] = temp;
+                // }
+                // self.game.refresh_frames_on_screen();
+            }
+        });
+
     }
 
     remove_sprite_from_level(p) {
@@ -157,7 +204,7 @@ class LevelEditor {
             let fi = Math.floor(game.data.sprites[si].states[0].frames.length / 2 - 0.5);
             let frame = game.data.sprites[si].states[0].frames[fi];
             let src = frame.src;
-            let info = {width: frame.width, height: frame.height, sprites: { sprite: { x: 0, y: 0, width: frame.width, height: frame.height}}};
+            let info = {width: game.data.sprites[si].width, height: game.data.sprites[si].height, sprites: { sprite: { x: 0, y: 0, width: game.data.sprites[si].width, height: game.data.sprites[si].height}}};
             let sheet = new SpriteSheet(this.texture_loader, frame.src, info);
             this.sheets.push(sheet);
         }

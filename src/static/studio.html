@@ -36,6 +36,7 @@
     <script src="masonry.pkgd.min.js?#{@@cache_buster}"></script>
     <script src="ditherjs.dist.js?#{@@cache_buster}"></script>
     <script src="interval_tree.js?#{@@cache_buster}"></script>
+    <script src="avl.js?#{@@cache_buster}"></script>
     <script type="x-shader/x-vertex" id="vertex-shader">
       varying vec2 vuv; void main() { vuv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
     </script>
@@ -121,13 +122,22 @@
         </div>
     </div>
     <div id='main_div_level' class="main_div">
-        <div class='menu_container left_menu_container'>
+        <div class='menu_container full_left_menu_container'>
+            <div class="menu">
+                <h3>Werkzeuge</h3>
+            </div>
+        </div>
+        <div id="level" style="overflow: hidden;"></div>
+        <div class='menu_container full_right_menu_container'>
             <div class="menu">
                 <h3>Sprites</h3>
                 <div id="menu_level_sprites" class="menu-body scroll_helper scroll_helper_vertical"></div>
             </div>
+            <div class="menu">
+                <h3>Layer</h3>
+                <div id="menu_layers" class="menu-body scroll_helper scroll_helper_vertical"></div>
+            </div>
         </div>
-        <div id="level" style="overflow: hidden;"></div>
     </div>
     <div id='status-bar' class='__disabled__scroll_helper scroll_helper_horizontal'></div>
     <div id='trash'>

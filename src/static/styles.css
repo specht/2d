@@ -121,6 +121,20 @@ body {
     width: 216px;
 }
 
+.full_right_menu_container {
+    position: absolute;
+    top: 50px;
+    left: 0px;
+    width: 216px;
+}
+
+.full_left_menu_container {
+    position: absolute;
+    top: 50px;
+    left: 0px;
+    width: 202px;
+}
+
 .menu_sprite_item {
     width: 64px;
     height: 48px;

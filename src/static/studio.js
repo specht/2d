@@ -25,13 +25,15 @@ function handleResize() {
     $('#menu_frames').css('width', `${$('#canvas').width()}px`);
     $('.menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('.menu_container').width() - 25}px`);
     $('.right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
+    $('.full_right_menu_container').css('left', `${window.innerWidth - 236}px`);
+    $('.full_left_menu_container').css('left', `20px`);
     // $('#right_menu_container .menu_frames').css('height', `${$('#canvas').height() * 0.2 - 25}px`);
 
     $('#main_div_level .left_menu_container').css('left', '10px');
     $('#main_div_level .left_menu_container').css('width', '174px');
-    $('#level').css('left', '195px');
+    $('#level').css('left', '240px');
     $('#level').css('top', '50px');
-    $('#level').css('width', `${window.innerWidth - 400}px`);
+    $('#level').css('width', `${window.innerWidth - 496}px`);
     $('#level').css('height', `${window.innerHeight - 100}px`);
     if (level_editor != null) level_editor.handleResize();
 }
@@ -63,10 +65,27 @@ function setCurrentColor(color) {
     $('#color_variations_menu').append('<br />');
     for (var h = -4; h <= 4; h++) {
         var variation = tinycolor(color);
+        // -40 -30 -20 -10 0 10 20 30 40
         if (h < 0)
-            variation.darken(-h * 10);
+            variation.darken(Math.pow(Math.abs(h / 4.0), 1.0) * 40);
         else
-            variation.brighten(h * 10);
+            variation.brighten(Math.pow(Math.abs(h / 4.0), 1.0) * 40);
+        var swatch = $("<span class='button button-9'>");
+        var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
+        swatch.css('background', b);
+        swatch.data('html_color', variation.toRgbString());
+        var rgb = variation.toRgb();
+        swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
+        $('#color_variations_menu').append(swatch);
+    }
+    $('#color_variations_menu').append('<br />');
+    for (var h = -4; h <= 4; h++) {
+        var variation = tinycolor(color);
+        // -40 -30 -20 -10 0 10 20 30 40
+        if (h < 0)
+            variation.darken(Math.pow(Math.abs(h / 4.0), 2.0) * 20);
+        else
+            variation.brighten(Math.pow(Math.abs(h / 4.0), 2.0) * 20);
         var swatch = $("<span class='button button-9'>");
         var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
         swatch.css('background', b);
