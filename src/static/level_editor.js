@@ -47,12 +47,14 @@ class LevelEditor {
             self.cursor.position.y = p[1];
             if (self.mouse_down)
                 self.add_sprite_to_level(p);
+            self.render();
         });
         $(this.element).mouseleave(function(e) {
             if (self.cursor !== null) {
                 self.scene.remove(self.cursor);
                 self.cursor = null;
             }
+            self.render();
         });
         $(this.element).on('contextmenu', function(e) {
             return false;
@@ -134,7 +136,7 @@ class LevelEditor {
     }
 
     render() {
-        requestAnimationFrame((t) => this.render());
+        // requestAnimationFrame((t) => this.render());
         this.camera.left = (-this.width / 2 + this.camera_x) / this.scale;
         this.camera.right = (this.width / 2 + this.camera_x) / this.scale;
         this.camera.top = (this.height / 2 + this.camera_y) / this.scale;

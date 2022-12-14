@@ -847,5 +847,6 @@ function prepare_pane(which) {
             level_editor.sprite_index = button.data('sprite_index');
         });
         level_editor.refresh();
+        level_editor.render();
     }
 }
