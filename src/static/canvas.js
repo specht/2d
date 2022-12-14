@@ -1113,10 +1113,10 @@ class Canvas {
                         self.attachSprite(self.sprite_index, index, 0);
                     },
                     gen_new_item: () => {
-                        let width = 24;
-                        let height = 24;
+                        let width = self.game.data.sprites[self.sprite_index].width;
+                        let height = self.game.data.sprites[self.sprite_index].height;
                         let src = createDataUrlForImageSize(width, height);
-                        let state = { frames: [{ src: src, width: width, height: height }] };
+                        let state = { frames: [{ src: src }] };
                         self.game.data.sprites[self.sprite_index].states.push(state);
                         return state;
                     },
@@ -1156,9 +1156,8 @@ class Canvas {
                         self.attachSprite(self.sprite_index, self.state_index, index);
                     },
                     gen_new_item: () => {
-                        let selected_frame = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[self.frame_index];
-                        let width = selected_frame.width;
-                        let height = selected_frame.height;
+                        let width = self.game.data.sprites[self.sprite_index].width;
+                        let height = self.game.data.sprites[self.sprite_index].height;
                         let src = createDataUrlForImageSize(width, height);
                         let frame = { src: src, width: width, height: height };
                         self.game.data.sprites[self.sprite_index].states[self.state_index].frames.push(frame);

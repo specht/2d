@@ -681,6 +681,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
                         let old_sprite_index = canvas.sprite_index;
                         let old_state_index = canvas.state_index;
                         let old_frame_index = canvas.frame_index;
+                        game.data.sprites[old_sprite_index].width = width;
+                        game.data.sprites[old_sprite_index].height = height;
                         for (let state_index = 0; state_index < game.data.sprites[old_sprite_index].states.length; state_index++) {
                             for (let frame_index = 0; frame_index < game.data.sprites[old_sprite_index].states[state_index].frames.length; frame_index++) {
                                 console.log(`Resizing sprite ${old_sprite_index} / state ${state_index} / frame ${frame_index} to ${width}x${height}`);
@@ -691,11 +693,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                 let ctx = c.getContext('2d');
                                 ctx.clearRect(0, 0, width, height);
                                 ctx.drawImage(image, 0, 0);
-                                game.data.sprites[old_sprite_index].states[state_index].frames[frame_index] = {
-                                    width: width,
-                                    height: height,
-                                    src: c.toDataURL('image/png'),
-                                };
+                                game.data.sprites[old_sprite_index].states[state_index].frames[frame_index].src = c.toDataURL('image/png');
                             }
                         }
                         game.refresh_frames_on_screen();

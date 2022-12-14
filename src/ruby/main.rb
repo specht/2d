@@ -228,8 +228,8 @@ class Main < Sinatra::Base
             File.open('/gen/games/test-game.json', 'w') { |f| f.write test_game.to_json }
         end
         game = JSON.parse(File.read("/gen/games/#{tag}.json"))
-        STDERR.puts File.read("/gen/games/#{tag}.json")
-        STDERR.puts game.to_yaml
+        # STDERR.puts File.read("/gen/games/#{tag}.json")
+        # STDERR.puts game.to_yaml
         game['sprites'].map! do |sprite|
             sprite['states'].map! do |state|
                 state['frames'].map! do |frame|

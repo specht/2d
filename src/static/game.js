@@ -9,10 +9,12 @@ class Game {
             parent: null,
             sprites: [
                 {
+                    width: 24,
+                    height: 24,
                     states: [
                         {
                             frames: [
-                                { src: createDataUrlForImageSize(24, 24), width: 24, height: 24 }
+                                { src: createDataUrlForImageSize(DEFAULT_WIDTH, DEFAULT_HEIGHT) }
                             ]
                         }
                     ]
