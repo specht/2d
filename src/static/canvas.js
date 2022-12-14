@@ -12,6 +12,7 @@ const MAX_UNDO_STACK_SIZE = 32;
 const MAX_DIMENSION = 256;
 const MIN_ZOOM = 2;
 const MAX_ZOOM = 64;
+var last_frameskip_timestamp = 0;
 
 function createDataUrlForImageSize(width, height) {
     let canvas = document.createElement('canvas');
@@ -1232,6 +1233,10 @@ class Canvas {
     }
 
     switchToFrameDelta(delta) {
+        let now = window.performance.now();
+        let diff = now - last_frameskip_timestamp;
+        if (diff < 125) return;
+        last_frameskip_timestamp = now;
         let fi = $('#menu_frames').find('._dnd_item.active').index();
         let fc = this.game.data.sprites[this.sprite_index].states[this.state_index].frames.length;
         fi = (fi + delta + fc) % fc;

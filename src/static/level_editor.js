@@ -2,6 +2,8 @@ class LevelEditor {
     constructor(element) {
         let self = this;
         this.element = element;
+        this.level_index = 0;
+        this.layer_index = 0;
         this.clock = new THREE.Clock(true);
         this.scene = new THREE.Scene();
         this.camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
@@ -13,7 +15,6 @@ class LevelEditor {
         this.camera_x = 0.0;
         this.camera_y = 0.0;
         this.scale = 3.0;
-        this.level_index = 0;
         this.sheets = [];
         this.cursor = null;
         this.sprite_index = 0;
@@ -86,28 +87,25 @@ class LevelEditor {
             game: self.game,
             container: $('#menu_layers'),
             trash: $('#trash'),
-            items: [],
-            item_class: 'menu_state_item',
+            items: game.data.levels[self.level_index].layers,
+            item_class: 'menu_layer_item',
             gen_item: (state) => {
-                // let state_div = $(`<div>`);
-                // let fi = Math.floor(state.frames.length / 2 - 0.5);
-                // let img = $('<img>').attr('src', state.frames[fi].src);
-                // state_div.append(img);
-                // state_div.append($(`<div class='state_label'>`).text(state.label));
-                // return state_div;
+                let layer_div = $(`<div>`);
+                // layer_div.append($(`<div class='state_label'>`).text(state.label));
+                return layer_div;
             },
             onclick: (e, index) => {
-                // $(e).closest('.menu_state_item').parent().parent().find('.menu_state_item').removeClass('active');
-                // $(e).parent().addClass('active');
-                // self.attachSprite(self.sprite_index, index, 0);
+                $(e).closest('.menu_layer_item').parent().parent().find('.menu_layer_item').removeClass('active');
+                $(e).parent().addClass('active');
+                this.layer_index = index;
             },
             gen_new_item: () => {
-                // let layer = { sprites: [] };
-                // game.data.levels[0].layers.push(layer);
-                // return layer;
+                let layer = { sprites: [] };
+                game.data.levels[self.level_index].layers.push(layer);
+                return layer;
             },
             delete_item: (index) => {
-                // self.game.data.sprites[self.sprite_index].states.splice(index, 1);
+                game.data.levels[self.level_index].layers.splice(index, 1);
             },
             on_swap_items: (a, b) => {
                 // if (a > b) {

@@ -385,8 +385,6 @@ document.addEventListener("DOMContentLoaded", function (event) {
     canvas = new Canvas($('#canvas'), menu);
     handleResize();
 
-    level_editor = new LevelEditor($('#level'));
-
     update_color_palette();
     menu = new Menu($('#tool_menu'), tool_menu_items, canvas);
     canvas.menu = menu;
@@ -505,6 +503,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
     game = new Game();
     // game.load('s76l9s7');
     // game.load('skkmhwy');
+
+    level_editor = new LevelEditor($('#level'));
 
     let tag = window.location.search.replace('?', '');
     if (tag.length === 7) {

@@ -192,6 +192,23 @@ body {
     border-left: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.menu_layer_item {
+    display: block;
+    width: 201px;
+    height: 30px;
+}
+
+.menu_layer_item .drag_handle {
+    display: block;
+    width: 15px;
+    height: 30px;
+    position: absolute;
+    right: 0;
+    background-image: url(rough.png);
+    opacity: 0.3;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .menu_frame_item {
     width: 64px;
     height: 48px;

@@ -79,6 +79,7 @@ class Menu {
             }
         })
         $(window).keyup(function (e) {
+            last_frameskip_timestamp = 0;
             let k = self.parseKeyEvent(e);
             if (k in self.status_shortcuts) {
                 e.preventDefault();
