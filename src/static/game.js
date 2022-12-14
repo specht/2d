@@ -83,6 +83,18 @@ class Game {
         if ((((((this.data.levels || [])[0] || {}).layers || [])[0] || {}).sprites || null) === null) {
             this.data.levels = [ { layers: [ { sprites: {} } ] } ];
         }
+        for (let si = 0; si < this.data.sprites.length; si++) {
+            if (typeof(this.data.sprites[si].width) === 'undefined') {
+                this.data.sprites[si].width = this.data.sprites[si].states[0].frames[0].width;
+                this.data.sprites[si].height = this.data.sprites[si].states[0].frames[0].height;
+                for (let sti = 0; sti < this.data.sprites[si].states.length; sti++) {
+                    for (let fi = 0; fi < this.data.sprites[si].states[sti].frames.length; fi++) {
+                        delete this.data.sprites[si].states[sti].frames[fi].width;
+                        delete this.data.sprites[si].states[sti].frames[fi].height;
+                    }
+                }
+            }
+        }
         console.log(`Fixing game data / after:`, this.data);
         console.log(Object.keys(this.data.levels[0].layers[0].sprites).length);
     }
