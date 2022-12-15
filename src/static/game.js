@@ -9,8 +9,8 @@ class Game {
             parent: null,
             sprites: [
                 {
-                    width: 24,
-                    height: 24,
+                    width: DEFAULT_WIDTH,
+                    height: DEFAULT_HEIGHT,
                     states: [
                         {
                             frames: [
@@ -79,7 +79,7 @@ class Game {
     }
 
     fix_game_data() {
-        console.log(`Fixing game data / before:`, this.data);
+        // console.log(`Fixing game data / before:`, JSON.stringify(this.data));
         if ((((((this.data.levels || [])[0] || {}).layers || [])[0] || {}).sprites || null) === null) {
             this.data.levels = [ { layers: [ { sprites: {} } ] } ];
         }
@@ -95,8 +95,7 @@ class Game {
                 }
             }
         }
-        console.log(`Fixing game data / after:`, this.data);
-        console.log(Object.keys(this.data.levels[0].layers[0].sprites).length);
+        // console.log(`Fixing game data / after:`, JSON.stringify(this.data));
     }
 
     _load() {
@@ -111,12 +110,11 @@ class Game {
                     let frame_info = state_info.frames[fi];
                     let frame = {};
                     frame.src = frame_info.src;
-                    frame.width = frame_info.width;
-                    frame.height = frame_info.height;
                     this.data.sprites[si].states[sti].frames[fi] = frame;
                 }
             }
         }
+        // console.log('init -->', JSON.stringify(Object.keys(this.data.sprites[0].states[0].frames[0])));
         if (this.data.palette) {
             update_color_palette_with_colors(this.data.palette);
         } else {
@@ -133,9 +131,10 @@ class Game {
             items: this.data.sprites,
             item_class: 'menu_sprite_item',
             onclick: (e, index) => {
-                $(e).closest('.menu_sprite_item').parent().parent().find('.menu_sprite_item').removeClass('active');
-                $(e).parent().addClass('active');
-                canvas.attachSprite(index, 0, 0, { sprites: $(e).closest('.menu_sprite_item').parent().parent().find('.menu_sprite_item') });
+                canvas.attachSprite(index, 0, 0, function() {
+                    $(e).closest('.menu_sprite_item').parent().parent().find('.menu_sprite_item').removeClass('active');
+                    $(e).parent().addClass('active');
+                });
             },
             gen_item: (item) => {
                 let img = $('<img>');
@@ -143,9 +142,9 @@ class Game {
                 return img;
             },
             gen_new_item: () => {
-                let width = 24; let height = 24;
+                let width = DEFAULT_WIDTH; let height = DEFAULT_HEIGHT;
                 let src = createDataUrlForImageSize(width, height);
-                let sprite = { states: [{ frames: [{ src: src, width: width, height: height }] }] };
+                let sprite = { width: width, height: height, states: [{ frames: [{ src: src }] }] };
                 self.data.sprites.push(sprite);
                 return sprite;
             },

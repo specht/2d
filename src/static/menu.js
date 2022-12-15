@@ -161,7 +161,6 @@ class Menu {
             if (command.label) hints.unshift(`<b>${command.label}</b>`);
             hints.unshift({
                 label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () {
-                    console.log('yay');
                 }
             });
 

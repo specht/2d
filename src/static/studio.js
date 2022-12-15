@@ -501,6 +501,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
     ]);
 
     game = new Game();
+
     // game.load('s76l9s7');
     // game.load('skkmhwy');
 
@@ -521,6 +522,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
     }
 
     async function getClipboardContents() {
+        // TODO: handle width and height correctly
+        return;
         try {
             const clipboardItems = await navigator.clipboard.read();
             for (const item of clipboardItems) {

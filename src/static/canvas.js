@@ -1070,15 +1070,19 @@ class Canvas {
         this.frame_index = null;
     }
 
-    attachSprite(sprite_index, state_index, frame_index) {
+    attachSprite(sprite_index, state_index, frame_index, callback) {
         console.log(`attachSprite: ${sprite_index} (${this.sprite_index}), state: ${state_index} (${this.state_index}), frame: ${frame_index} (${this.frame_index})`);
-        if (this.sprite_index === sprite_index && this.state_index === state_index && this.frame_index === frame_index)
+
+        if (this.sprite_index === sprite_index && this.state_index === state_index && this.frame_index === frame_index) {
+            callback();
             return;
+        }
         let sprite = this.game.data.sprites[sprite_index];
         let self = this;
         let sprite_changed = (sprite_index !== this.sprite_index);
         let state_changed = (state_index !== this.state_index);
         this.detachSprite();
+
         this.sprite_index = sprite_index;
         this.state_index = state_index;
         this.frame_index = frame_index;
@@ -1109,9 +1113,10 @@ class Canvas {
                         return state_div;
                     },
                     onclick: (e, index) => {
-                        $(e).closest('.menu_state_item').parent().parent().find('.menu_state_item').removeClass('active');
-                        $(e).parent().addClass('active');
-                        self.attachSprite(self.sprite_index, index, 0);
+                        self.attachSprite(self.sprite_index, index, 0, function() {
+                            $(e).closest('.menu_state_item').parent().parent().find('.menu_state_item').removeClass('active');
+                            $(e).parent().addClass('active');
+                        });
                     },
                     gen_new_item: () => {
                         let width = self.game.data.sprites[self.sprite_index].width;
@@ -1152,15 +1157,16 @@ class Canvas {
                         return $('<img>').attr('src', frame.src);
                     },
                     onclick: (e, index) => {
-                        $(e).closest('.menu_frame_item').parent().parent().find('.menu_frame_item').removeClass('active');
-                        $(e).parent().addClass('active');
-                        self.attachSprite(self.sprite_index, self.state_index, index);
+                        self.attachSprite(self.sprite_index, self.state_index, index, function() {
+                            $(e).closest('.menu_frame_item').parent().parent().find('.menu_frame_item').removeClass('active');
+                            $(e).parent().addClass('active');
+                        });
                     },
                     gen_new_item: () => {
                         let width = self.game.data.sprites[self.sprite_index].width;
                         let height = self.game.data.sprites[self.sprite_index].height;
                         let src = createDataUrlForImageSize(width, height);
-                        let frame = { src: src, width: width, height: height };
+                        let frame = { src: src };
                         self.game.data.sprites[self.sprite_index].states[self.state_index].frames.push(frame);
                         return frame;
                     },
@@ -1184,6 +1190,7 @@ class Canvas {
                     }
                 });
             }
+            callback();
         });
     }
 
