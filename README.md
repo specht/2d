@@ -17,3 +17,9 @@ levels:
        - [sprite_index, x, y]
        - ...
 ```
+
+Level Editor:
+
+Pan & zoom
+Set sprite
+Select sprites and delete

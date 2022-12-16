@@ -168,8 +168,8 @@ class LevelEditor {
         let wx = (x - (this.width / 2)) / this.scale;
         let wy = -(y - (this.height / 2)) / this.scale;
         if (snap) {
-            wx = Math.floor((wx + 12) / 8) * 8;
-            wy = Math.floor((wy) / 8) * 8;
+            wx = Math.floor((wx + 12) / 24) * 24;
+            wy = Math.floor((wy) / 24) * 24;
         }
         return [wx, wy];
     }
@@ -192,6 +192,7 @@ class LevelEditor {
     }
 
     refresh() {
+        // remove all elements in the scene
         this.scene.remove.apply(this.scene, this.scene.children);
         if (game === null) return;
 

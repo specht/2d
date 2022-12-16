@@ -51,7 +51,7 @@ class SpriteSheet {
             }
             let geometry = new THREE.BufferGeometry().setFromPoints(points);
             let line = new THREE.LineLoop(geometry, material);
-            group.add(line);
+            // group.add(line);
             // if (skin.pivot) {
             //     let material = new THREE.LineBasicMaterial({ color: 0xff0000 });
             //     points = [];
