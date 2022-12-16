@@ -539,9 +539,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                 let si = canvas.sprite_index;
                                 let sti = canvas.state_index;
                                 let fi = canvas.frame_index;
-                                if (this.game.data.sprites.length === 1 &&
-                                    this.game.data.sprites[0].states.length === 1 &&
-                                    this.game.data.sprites[0].states[0].frames.length === 1)
+                                if (this.game.data.sprites[si].states.length === 1 &&
+                                    this.game.data.sprites[si].states[0].frames.length === 1)
                                 {
                                     console.log(`got image: ${image.width}x${image.height}`);
                                     let sw = image.width;
