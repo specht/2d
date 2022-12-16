@@ -539,6 +539,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                 let si = canvas.sprite_index;
                                 let sti = canvas.state_index;
                                 let fi = canvas.frame_index;
+                                console.log(si, sti, fi);
                                 if (this.game.data.sprites[si].states.length === 1 &&
                                     this.game.data.sprites[si].states[0].frames.length === 1)
                                 {
@@ -564,7 +565,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                             ctx.drawImage(image, x * sw, y * sh, sw, sh, 0, 0, sw, sh);
                                             let src = c.toDataURL('image/png');
                                             if (i === 0) {
-                                                game.data.sprites[si].states[sti].frames[fi] = { src: src, width: tw, height: th };
+                                                game.data.sprites[si].states[sti].frames[fi] = { src: src };
                                                 game.data.sprites[si].width = sw;
                                                 game.data.sprites[si].height = sh;
                                             }
