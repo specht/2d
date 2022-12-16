@@ -523,7 +523,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
 
     async function getClipboardContents() {
         // TODO: handle width and height correctly
-        return;
+        // return;
         try {
             const clipboardItems = await navigator.clipboard.read();
             for (const item of clipboardItems) {
@@ -539,41 +539,43 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                 let si = canvas.sprite_index;
                                 let sti = canvas.state_index;
                                 let fi = canvas.frame_index;
-                                // let sw = 48;
-                                // let sh = 48;
-                                // let sw = 32;
-                                // let sh = 32;
-                                let sw = image.width;
-                                let sh = image.height;
-                                let tw = sw;
-                                let th = sh;
-                                if (tw > MAX_DIMENSION) tw = MAX_DIMENSION;
-                                if (th > MAX_DIMENSION) th = MAX_DIMENSION;
-                                // while ((tw % 24) !== 0) tw += 1;
-                                // while ((th % 24) !== 0) th += 1;
-                                // console.log(tw, th);
-                                let c = document.createElement('canvas');
-                                c.width = tw;
-                                c.height = th;
-                                let ctx = c.getContext('2d');
-                                let i = 0;
-                                for (let y = 0; y < Math.floor(image.height / sh); y++) {
-                                    for (let x = 0; x < Math.floor(image.width / sw); x++) {
-                                        // if (i >= 40 && i < 50) {
-                                        ctx.clearRect(0, 0, tw, th);
-                                        ctx.drawImage(image, x * sw, y * sh, sw, sh, 0, 0, sw, sh);
-                                        let src = c.toDataURL('image/png');
-                                        if (i === 0) {
-                                            game.data.sprites[si].states[sti].frames[fi] = { src: src, width: tw, height: th };
-                                        } else {
-                                            game.data.sprites[canvas.sprite_index].states[canvas.state_index].frames.push({ src: src, width: tw, height: th });
+                                if (this.game.data.sprites.length === 1 &&
+                                    this.game.data.sprites[0].states.length === 1 &&
+                                    this.game.data.sprites[0].states[0].frames.length === 1)
+                                {
+                                    console.log(`got image: ${image.width}x${image.height}`);
+                                    let sw = image.width;
+                                    let sh = image.height;
+                                    let tw = sw;
+                                    let th = sh;
+                                    if (tw > MAX_DIMENSION) tw = MAX_DIMENSION;
+                                    if (th > MAX_DIMENSION) th = MAX_DIMENSION;
+                                    // while ((tw % 24) !== 0) tw += 1;
+                                    // while ((th % 24) !== 0) th += 1;
+                                    // console.log(tw, th);
+                                    let c = document.createElement('canvas');
+                                    c.width = tw;
+                                    c.height = th;
+                                    let ctx = c.getContext('2d');
+                                    let i = 0;
+                                    for (let y = 0; y < Math.floor(image.height / sh); y++) {
+                                        for (let x = 0; x < Math.floor(image.width / sw); x++) {
+                                            // if (i >= 40 && i < 50) {
+                                            ctx.clearRect(0, 0, tw, th);
+                                            ctx.drawImage(image, x * sw, y * sh, sw, sh, 0, 0, sw, sh);
+                                            let src = c.toDataURL('image/png');
+                                            if (i === 0) {
+                                                game.data.sprites[si].states[sti].frames[fi] = { src: src, width: tw, height: th };
+                                                game.data.sprites[si].width = sw;
+                                                game.data.sprites[si].height = sh;
+                                            }
+                                            // }
+                                            i += 1;
                                         }
-                                        // }
-                                        i += 1;
                                     }
+                                    canvas.detachSprite();
+                                    canvas.attachSprite(si, sti, fi, function() {});
                                 }
-                                canvas.detachSprite();
-                                canvas.attachSprite(si, sti, fi);
                             });
                         };
                         reader.readAsDataURL(blob);
