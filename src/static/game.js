@@ -56,7 +56,7 @@ class Game {
                 if (typeof (state.movable) !== 'undefined') state_data.gravity = state.movable;
                 states.push(state_data);
             }
-            data.sprites.push({ states: states });
+            data.sprites.push({ states: states, width: sprite.width, height: sprite.height });
         }
         data.levels = [];
         for (let level of (this.data.levels || [])) {
@@ -79,7 +79,7 @@ class Game {
     }
 
     fix_game_data() {
-        // console.log(`Fixing game data / before:`, JSON.stringify(this.data));
+        console.log(`Fixing game data / before:`, JSON.stringify(this.data));
         if ((((((this.data.levels || [])[0] || {}).layers || [])[0] || {}).sprites || null) === null) {
             this.data.levels = [ { layers: [ { sprites: {} } ] } ];
         }
@@ -95,7 +95,7 @@ class Game {
                 }
             }
         }
-        // console.log(`Fixing game data / after:`, JSON.stringify(this.data));
+        console.log(`Fixing game data / after:`, JSON.stringify(this.data));
     }
 
     _load() {
@@ -114,7 +114,7 @@ class Game {
                 }
             }
         }
-        // console.log('init -->', JSON.stringify(Object.keys(this.data.sprites[0].states[0].frames[0])));
+        console.log('init -->', JSON.stringify(this.data.sprites[0]));
         if (this.data.palette) {
             update_color_palette_with_colors(this.data.palette);
         } else {

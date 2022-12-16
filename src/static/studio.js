@@ -697,31 +697,35 @@ document.addEventListener("DOMContentLoaded", function (event) {
                 icon: 'fa-check',
                 color: 'green',
                 callback: async (self) => {
-                    let width = parseInt($('#ti_sprite_width').val());
-                    let height = parseInt($('#ti_sprite_height').val());
-                    if (width > 0 && width <= MAX_DIMENSION && height > 0 && height <= MAX_DIMENSION) {
+                    let new_width = parseInt($('#ti_sprite_width').val());
+                    let new_height = parseInt($('#ti_sprite_height').val());
+                    if (new_width > 0 && new_width <= MAX_DIMENSION && new_height > 0 && new_height <= MAX_DIMENSION) {
                         let old_sprite_index = canvas.sprite_index;
                         let old_state_index = canvas.state_index;
                         let old_frame_index = canvas.frame_index;
-                        game.data.sprites[old_sprite_index].width = width;
-                        game.data.sprites[old_sprite_index].height = height;
+                        let old_width = game.data.sprites[old_sprite_index].width;
+                        let old_height = game.data.sprites[old_sprite_index].height;
+                        game.data.sprites[old_sprite_index].width = new_width;
+                        game.data.sprites[old_sprite_index].height = new_height;
                         for (let state_index = 0; state_index < game.data.sprites[old_sprite_index].states.length; state_index++) {
                             for (let frame_index = 0; frame_index < game.data.sprites[old_sprite_index].states[state_index].frames.length; frame_index++) {
-                                console.log(`Resizing sprite ${old_sprite_index} / state ${state_index} / frame ${frame_index} to ${width}x${height}`);
+                                console.log(`Resizing sprite ${old_sprite_index} / state ${state_index} / frame ${frame_index} to ${new_width}x${new_height}`);
                                 let image = await load_img_from_src(game.data.sprites[old_sprite_index].states[state_index].frames[frame_index].src);
                                 let c = document.createElement('canvas');
-                                c.width = width;
-                                c.height = height;
+                                c.width = new_width;
+                                c.height = new_height;
                                 let ctx = c.getContext('2d');
-                                ctx.clearRect(0, 0, width, height);
+                                ctx.clearRect(0, 0, new_width, new_height);
+                                ctx.translate(Math.floor((new_width - old_width) / 2), new_height - old_height);
                                 ctx.drawImage(image, 0, 0);
                                 game.data.sprites[old_sprite_index].states[state_index].frames[frame_index].src = c.toDataURL('image/png');
                             }
                         }
                         game.refresh_frames_on_screen();
                         canvas.detachSprite();
-                        canvas.attachSprite(old_sprite_index, old_state_index, old_frame_index);
-                        self.dismiss();
+                        canvas.attachSprite(old_sprite_index, old_state_index, old_frame_index, function() {
+                            self.dismiss();
+                        });
                     } else {
                         self.showError("Fehler: Ungültige Größe.")
                     }

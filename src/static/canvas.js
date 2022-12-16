@@ -1040,11 +1040,12 @@ class Canvas {
 
     append_to_undo_stack() {
         let url = this.toUrl();
-        // if (this.undo_stack.length === 0) || url != this.undo_stack[this.undo_stack.length - 1]) {
-            if (this.undo_stack.length >= MAX_UNDO_STACK_SIZE) this.undo_stack = this.undo_stack.slice(1);
-            this.undo_stack.push(url);
-            this.refresh_undo_stack();
-        // }
+        if (this.undo_stack.length >= MAX_UNDO_STACK_SIZE) this.undo_stack = this.undo_stack.slice(1);
+        this.undo_stack.push({
+            width: this.game.data.sprites[this.sprite_index].width,
+            height: this.game.data.sprites[this.sprite_index].height,
+            url: url});
+        this.refresh_undo_stack();
         this.game.refresh_frames_on_screen();
     }
 
@@ -1052,11 +1053,16 @@ class Canvas {
         let div = $('#undo_stack');
         div.empty();
         let self = this;
-        for (let src of this.undo_stack) {
-            let image = $('<img>').attr('src', src);
+        for (let entry of this.undo_stack) {
+            let image = $('<img>').attr('src', entry.url);
             image.click(function (e) {
-                let src = $(e.target).attr('src');
-                self.loadFromUrl(src, false);
+                if (entry.width === self.game.data.sprites[self.sprite_index].width &&
+                    entry.height === self.game.data.sprites[self.sprite_index].height) {
+                    let src = $(e.target).attr('src');
+                    self.loadFromUrl(src, false);
+                } else {
+                    console.log('nope');
+                }
             });
             div.append(image);
         }
