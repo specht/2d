@@ -1,6 +1,10 @@
 class Game {
     constructor() {
         this.data = null;
+        this.level_editor = null;
+        this.texture_loader = new THREE.TextureLoader();
+        this.geometry_for_sprite = [];
+        this.material_for_sprite = [];
         this.reset();
     }
 
@@ -79,7 +83,7 @@ class Game {
     }
 
     fix_game_data() {
-        console.log(`Fixing game data / before:`, JSON.stringify(this.data));
+        // console.log(`Fixing game data / before:`, JSON.stringify(this.data));
         if ((((((this.data.levels || [])[0] || {}).layers || [])[0] || {}).sprites || null) === null) {
             this.data.levels = [ { layers: [ { sprites: {} } ] } ];
         }
@@ -95,7 +99,31 @@ class Game {
                 }
             }
         }
-        console.log(`Fixing game data / after:`, JSON.stringify(this.data));
+        // console.log(`Fixing game data / after:`, JSON.stringify(this.data));
+    }
+
+    update_material_for_sprite(si) {
+        if (this.material_for_sprite[si]) {
+            let fi = Math.floor(this.data.sprites[si].states[0].frames.length / 2 - 0.5);
+            let frame = this.data.sprites[si].states[0].frames[fi];
+            let texture = this.texture_loader.load(frame.src);
+            texture.magFilter = THREE.NearestFilter;
+            this.material_for_sprite[si].uniforms.texture1.value = texture;
+        }
+    }
+
+    create_geometry_and_material_for_sprite(si) {
+        this.geometry_for_sprite[si] = new THREE.PlaneGeometry(this.data.sprites[si].width, this.data.sprites[si].height, 1, 1);
+        this.material_for_sprite[si] = new THREE.ShaderMaterial({
+            uniforms: {
+                texture1: { value: null },
+            },
+            transparent: true,
+            vertexShader: document.getElementById('vertex-shader').textContent,
+            fragmentShader: document.getElementById('fragment-shader').textContent,
+            side: THREE.DoubleSide,
+        });
+        this.update_material_for_sprite(si);
     }
 
     _load() {
@@ -113,8 +141,10 @@ class Game {
                     this.data.sprites[si].states[sti].frames[fi] = frame;
                 }
             }
+            this.create_geometry_and_material_for_sprite(si);
+            this.update_material_for_sprite(si);
         }
-        console.log('init -->', JSON.stringify(this.data.sprites[0]));
+        // console.log('init -->', JSON.stringify(this.data.sprites[0]));
         if (this.data.palette) {
             update_color_palette_with_colors(this.data.palette);
         } else {
@@ -146,6 +176,7 @@ class Game {
                 let src = createDataUrlForImageSize(width, height);
                 let sprite = { width: width, height: height, states: [{ frames: [{ src: src }] }] };
                 self.data.sprites.push(sprite);
+                self.create_geometry_and_material_for_sprite(self.data.sprites.length - 1);
                 return sprite;
             },
             delete_item: (index) => {
@@ -168,6 +199,8 @@ class Game {
                 this.refresh_frames_on_screen();
             }
         });
+
+        this.level_editor = new LevelEditor($('#level'), this);
     }
 
     refresh_frames_on_screen() {

@@ -1,6 +1,5 @@
 var menu = null;
 var canvas = null;
-var level_editor = null;
 var game = null;
 var selected_palette_index = 9;
 var current_palette_rgb = [];
@@ -35,7 +34,7 @@ function handleResize() {
     $('#level').css('top', '50px');
     $('#level').css('width', `${window.innerWidth - 496}px`);
     $('#level').css('height', `${window.innerHeight - 100}px`);
-    if (level_editor != null) level_editor.handleResize();
+    if (game != null && game.level_editor != null) game.level_editor.handleResize();
 }
 
 function setPenWidth(menu_item) {
@@ -505,8 +504,6 @@ document.addEventListener("DOMContentLoaded", function (event) {
     // game.load('s76l9s7');
     // game.load('skkmhwy');
 
-    level_editor = new LevelEditor($('#level'));
-
     let tag = window.location.search.replace('?', '');
     if (tag.length === 7) {
         game.load(tag);
@@ -859,6 +856,7 @@ function prepare_pane(which) {
     if (which === 'level') {
         $('#menu_level_sprites').empty();
         for (let si = 0; si < game.data.sprites.length; si++) {
+            game.update_material_for_sprite(si);
             let fi = Math.floor(game.data.sprites[si].states[0].frames.length / 2 - 0.5);
             let sprite_button = $(`<div>`).addClass('menu_level_sprite_item').appendTo($('#menu_level_sprites'));
             sprite_button.append($('<img>').attr('src', game.data.sprites[si].states[0].frames[fi].src));
@@ -870,9 +868,9 @@ function prepare_pane(which) {
             $('.menu_level_sprite_item').removeClass('active');
             let button = $(e.target.closest('.menu_level_sprite_item'));
             button.addClass('active');
-            level_editor.sprite_index = button.data('sprite_index');
+            game.level_editor.sprite_index = button.data('sprite_index');
         });
-        level_editor.refresh();
-        level_editor.render();
+        game.level_editor.refresh();
+        game.level_editor.render();
     }
 }

@@ -1077,7 +1077,7 @@ class Canvas {
     }
 
     attachSprite(sprite_index, state_index, frame_index, callback) {
-        console.log(`attachSprite: ${sprite_index} (${this.sprite_index}), state: ${state_index} (${this.state_index}), frame: ${frame_index} (${this.frame_index})`);
+        // console.log(`attachSprite: ${sprite_index} (${this.sprite_index}), state: ${state_index} (${this.state_index}), frame: ${frame_index} (${this.frame_index})`);
 
         if (this.sprite_index === sprite_index && this.state_index === state_index && this.frame_index === frame_index) {
             callback();

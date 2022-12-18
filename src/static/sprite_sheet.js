@@ -9,11 +9,12 @@ class SpriteSheet {
             },
             transparent: true,
             vertexShader: document.getElementById('vertex-shader').textContent,
-            fragmentShader: document.getElementById('fragment-shader').textContent
+            fragmentShader: document.getElementById('fragment-shader').textContent,
+            side: THREE.DoubleSide,
         });
     };
 
-    add_sprite_to_scene(scene, id, x, y) {
+    add_sprite_to_group(group, id, x, y) {
         let skin = this.info.sprites[id];
         if (!skin.pivot) skin.pivot = [skin.width / 2, skin.height];
         if (!skin.hitbox) skin.hitbox = [[0, 0], [0, skin.height], [skin.width, skin.height], [skin.width, 0]];
@@ -39,7 +40,7 @@ class SpriteSheet {
         let sprite = new THREE.Mesh(geometry, this.material);
         sprite.position.x = x;
         sprite.position.y = y;
-        let group = new THREE.Group();
+        // console.log(sprite);
         group.add(sprite);
         if (true) {
             let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true, opacity: 0.3 });
@@ -70,8 +71,6 @@ class SpriteSheet {
             //     group.add(line);
             // }
         }
-        scene.add(group);
-        return group;
     }
 };
 

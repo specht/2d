@@ -350,6 +350,17 @@ body {
     border-radius: 4px;
 }
 
+.toggle {
+    display: inline-block;
+    background-color: #222;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 0.3em 0.5em;
+    font-size: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
 .key {
     display: inline-block;
     font-family: 'Roboto Mono', monospace;
@@ -939,3 +950,6 @@ input {
     justify-content: center;
 }
 
+.main-nav-item {
+    position: relative;
+}

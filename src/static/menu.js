@@ -210,12 +210,12 @@ class Menu {
                 },
             );
             hints.push({
-                key: 'Alt+1', label: 'Sprites', callback: function () {
+                key: 'Alt+1', visible: false, label: 'Sprites', callback: function () {
                     $('#mi_sprites').click();
                 }
             });
             hints.push({
-                key: 'Alt+2', label: 'Level', callback: function () {
+                key: 'Alt+2', visible: false, label: 'Level', callback: function () {
                     $('#mi_level').click();
                 }
             });
@@ -242,7 +242,8 @@ class Menu {
                             this.status_shortcuts[shortcut.key] = is;
                             i += 1;
                         }
-                        statusBar.append(button);
+                        if (hint.visible !== false)
+                            statusBar.append(button);
                     } else {
                         let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
                         if (hint.key) {
@@ -260,7 +261,8 @@ class Menu {
                         this.status_buttons[is] = { button: button, value: false, type: hint.type, callback: hint.callback || (() => { }) };
                         if (hint.key)
                             this.status_shortcuts[hint.key] = is;
-                        statusBar.append(button);
+                        if (hint.visible !== false)
+                            statusBar.append(button);
 
                         button.mousedown(function () { self.handle_status_button_down(is, false); });
                         button.mouseup(function () { self.handle_status_button_up(is, false); });
