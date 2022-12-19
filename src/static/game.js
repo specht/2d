@@ -102,18 +102,10 @@ class Game {
         // console.log(`Fixing game data / after:`, JSON.stringify(this.data));
     }
 
-    update_material_for_sprite(si) {
-        if (this.material_for_sprite[si]) {
-            let fi = Math.floor(this.data.sprites[si].states[0].frames.length / 2 - 0.5);
-            let frame = this.data.sprites[si].states[0].frames[fi];
-            let texture = this.texture_loader.load(frame.src);
-            texture.magFilter = THREE.NearestFilter;
-            this.material_for_sprite[si].uniforms.texture1.value = texture;
-        }
-    }
-
     create_geometry_and_material_for_sprite(si) {
-        this.geometry_for_sprite[si] = new THREE.PlaneGeometry(this.data.sprites[si].width, this.data.sprites[si].height, 1, 1);
+        this.geometry_for_sprite[si] = new THREE.PlaneGeometry(1, 1, 1, 1);
+        let m = this.geometry_for_sprite[si].getAttribute('position');
+        console.log(m.itemSize, m.count);
         this.material_for_sprite[si] = new THREE.ShaderMaterial({
             uniforms: {
                 texture1: { value: null },
@@ -123,7 +115,27 @@ class Game {
             fragmentShader: document.getElementById('fragment-shader').textContent,
             side: THREE.DoubleSide,
         });
+        this.update_geometry_for_sprite(si);
         this.update_material_for_sprite(si);
+    }
+
+    update_geometry_for_sprite(si) {
+        if (this.geometry_for_sprite[si]) {
+            const m = new Float32Array([-0.5,  0.5, 0.0, 0.5,  0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0]);
+            this.geometry_for_sprite[si].setAttribute('position', new THREE.BufferAttribute(m, 3));
+            this.geometry_for_sprite[si].scale(this.data.sprites[si].width, this.data.sprites[si].height, 1.0);
+            this.geometry_for_sprite[si].translate(0, this.data.sprites[si].height / 2, 0.0);
+        }
+    }
+
+    update_material_for_sprite(si) {
+        if (this.material_for_sprite[si]) {
+            let fi = Math.floor(this.data.sprites[si].states[0].frames.length / 2 - 0.5);
+            let frame = this.data.sprites[si].states[0].frames[fi];
+            let texture = this.texture_loader.load(frame.src);
+            texture.magFilter = THREE.NearestFilter;
+            this.material_for_sprite[si].uniforms.texture1.value = texture;
+        }
     }
 
     _load() {

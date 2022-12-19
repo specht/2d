@@ -13,7 +13,6 @@ class LayerStruct {
 
     remove_sprite(p) {
         let pos = `${p[0]}/${p[1]}`;
-        
     }
 
     add_sprite(p, sprite_index) {
