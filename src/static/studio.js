@@ -723,6 +723,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                         game.refresh_frames_on_screen();
                         canvas.detachSprite();
                         canvas.attachSprite(old_sprite_index, old_state_index, old_frame_index, function() {
+                            game.update_geometry_for_sprite(old_sprite_index);
                             self.dismiss();
                         });
                     } else {

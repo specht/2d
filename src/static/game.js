@@ -121,7 +121,7 @@ class Game {
 
     update_geometry_for_sprite(si) {
         if (this.geometry_for_sprite[si]) {
-            const m = new Float32Array([-0.5,  0.5, 0.0, 0.5,  0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0]);
+            const m = new Float32Array([-0.5, 0.5, 0.0, 0.5, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0]);
             this.geometry_for_sprite[si].setAttribute('position', new THREE.BufferAttribute(m, 3));
             this.geometry_for_sprite[si].scale(this.data.sprites[si].width, this.data.sprites[si].height, 1.0);
             this.geometry_for_sprite[si].translate(0, this.data.sprites[si].height / 2, 0.0);
