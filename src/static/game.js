@@ -178,9 +178,9 @@ class Game {
                     $(e).parent().addClass('active');
                 });
             },
-            gen_item: (item) => {
+            gen_item: (sprite, index) => {
                 let img = $('<img>');
-                img.attr('src', item.states[0].frames[0].src);
+                img.attr('src', sprite.states[0].frames[0].src);
                 return img;
             },
             gen_new_item: () => {

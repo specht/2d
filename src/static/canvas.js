@@ -1110,7 +1110,7 @@ class Canvas {
                     trash: $('#trash'),
                     items: sprite.states,
                     item_class: 'menu_state_item',
-                    gen_item: (state) => {
+                    gen_item: (state, index) => {
                         let state_div = $(`<div>`);
                         let fi = Math.floor(state.frames.length / 2 - 0.5);
                         let img = $('<img>').attr('src', state.frames[fi].src);
@@ -1159,7 +1159,7 @@ class Canvas {
                     trash: $('#trash'),
                     items: sprite.states[self.state_index].frames,
                     item_class: 'menu_frame_item',
-                    gen_item: (frame) => {
+                    gen_item: (frame, index) => {
                         return $('<img>').attr('src', frame.src);
                     },
                     onclick: (e, index) => {

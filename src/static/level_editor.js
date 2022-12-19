@@ -6,6 +6,7 @@ class LayerStruct {
         this.level_editor = level_editor;
         this.group = new THREE.Group();
         this.sprite_for_pos = {};
+        this.mesh_for_pos = {};
     }
 
     apply_layer(layer) {
@@ -18,8 +19,21 @@ class LayerStruct {
     add_sprite(p, sprite_index) {
         let pos = `${p[0]}/${p[1]}`;
         if (this.sprite_for_pos[pos] !== sprite_index) {
-            this.remove_sprite(p);
-            this.level_editor.sheets[sprite_index].add_sprite_to_group(this.group, 'sprite', p[0], p[1]);
+            if (pos in this.sprite_for_pos) {
+                console.log(`before removing sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
+                this.group.remove(this.mesh_for_pos[pos]);
+                console.log(`after removing sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
+                delete this.sprite_for_pos[pos];
+                delete this.mesh_for_pos[pos];
+            }
+            console.log(`before adding sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
+            let mesh = new THREE.Mesh(this.level_editor.game.geometry_for_sprite[sprite_index], this.level_editor.game.material_for_sprite[sprite_index]);
+            mesh.position.x = p[0];
+            mesh.position.y = p[1];
+            this.group.add(mesh);
+            this.sprite_for_pos[pos] = sprite_index;
+            this.mesh_for_pos[pos] = mesh;
+            console.log(`after adding sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
             // add_sprite_to_scene(this.scene, 'sprite', p[0], p[1]);
         }
     }
@@ -75,13 +89,19 @@ class LevelEditor {
 
         this.render();
 
-        $(this.element).mousemove(function (e) {
+        $(this.element).mouseenter(function (e) {
             let p = self.ui_to_world(e.offsetX, e.offsetY, true);
             self.cursor_group.remove.apply(self.cursor_group, self.cursor_group.children);
             self.sheets[self.sprite_index].add_sprite_to_group(self.cursor_group, 'sprite', 0, 0);
             self.cursor_group.position.x = p[0];
             self.cursor_group.position.y = p[1];
             self.cursor_group.visible = true;
+            self.render();
+        });
+        $(this.element).mousemove(function (e) {
+            let p = self.ui_to_world(e.offsetX, e.offsetY, true);
+            self.cursor_group.position.x = p[0];
+            self.cursor_group.position.y = p[1];
             if (self.mouse_down)
                 self.add_sprite_to_level(p);
             self.render();
@@ -127,7 +147,7 @@ class LevelEditor {
             trash: $('#trash'),
             items: self.game.data.levels,
             item_class: 'menu_layer_item',
-            gen_item: (state) => {
+            gen_item: (level, index) => {
                 let level_div = $(`<div>`);
                 return level_div;
             },
@@ -139,7 +159,7 @@ class LevelEditor {
             gen_new_item: () => {
                 let level = {layers: [{ sprites: [] }]};
                 self.game.data.levels.push(level);
-                return levevl;
+                return level;
             },
             delete_item: (index) => {
                 self.game.data.levels.splice(index, 1);
@@ -166,11 +186,11 @@ class LevelEditor {
             trash: $('#trash'),
             items: self.game.data.levels[self.level_index].layers,
             item_class: 'menu_layer_item',
-            gen_item: (state) => {
+            gen_item: (layer, index) => {
                 let layer_div = $(`<div>`);
                 let button_show = $(`<div class='toggle'>`).append($(`<i class='fa fa-eye'>`));
                 layer_div.append(button_show);
-                layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('0 Sprites'));
+                layer_div.append($(`<span style='margin-left: 0.5em;'>`).text(`${((((self.game.levels || {})[self.level_index] || {}).layers || {})[self.layer_index] || []).length} Sprites`));
                 return layer_div;
             },
             onclick: (e, index) => {
@@ -217,13 +237,14 @@ class LevelEditor {
     }
 
     add_sprite_to_level(p) {
-        this.remove_sprite_from_level(p);
-        let pos = `${p[0]}/${p[1]}`;
-        let mesh = new THREE.Mesh(this.game.geometry_for_sprite[this.sprite_index], this.game.material_for_sprite[this.sprite_index]);
-        mesh.position.x = p[0];
-        mesh.position.y = p[1];
-        this.layer_structs[this.layer_index].group.add(mesh);
+        // this.remove_sprite_from_level(p);
+        // let pos = `${p[0]}/${p[1]}`;
+        // let mesh = new THREE.Mesh(this.game.geometry_for_sprite[this.sprite_index], this.game.material_for_sprite[this.sprite_index]);
+        // mesh.position.x = p[0];
+        // mesh.position.y = p[1];
+        // this.layer_structs[this.layer_index].group.add(mesh);
         // this.layer_structs[this.layer_index].add_sprite(p, this.sprite_index);
+        this.layer_structs[this.layer_index].add_sprite(p, this.sprite_index);
         this.render();
         // game.data.levels[this.level_index].layers[this.layer_index].sprites[pos] = this.sprite_index;
         // this.sprite_for_pos[pos] = this.sheets[this.sprite_index].add_sprite_to_scene(this.scene, 'sprite', p[0], p[1]);

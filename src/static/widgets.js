@@ -20,13 +20,14 @@ class DragAndDropWidget {
         this.placeholder = $(`<div>`).addClass(options.item_class).addClass('_dnd_item').addClass('placeholder');
         this.options = options;
         $(options.container).empty();
-        for (let item of options.items) {
-            this._append_item(options.gen_item(item));
+        for (let i = 0; i < options.items.length; i++) {
+            let item = options.items[i];
+            this._append_item(options.gen_item(item, i));
         }
         this.add_div = $(`<div>`).addClass(options.item_class).addClass('_dnd_item').addClass('add');
         this.add_div.append($(`<i class='fa fa-plus'></i>`));
         this.add_div.click(function (e) {
-            let item = self.options.gen_item(self.options.gen_new_item());
+            let item = self.options.gen_item(self.options.gen_new_item(), options.items.length);
             self._append_item(item);
             self._move_add_div_to_end();
             self.options.onclick(item, $(item).parent().index());
