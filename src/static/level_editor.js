@@ -7,6 +7,7 @@ class LayerStruct {
         this.group = new THREE.Group();
         this.sprite_for_pos = {};
         this.mesh_for_pos = {};
+        this.el_sprite_count = null;
     }
 
     apply_layer(layer) {
@@ -20,20 +21,23 @@ class LayerStruct {
         let pos = `${p[0]}/${p[1]}`;
         if (this.sprite_for_pos[pos] !== sprite_index) {
             if (pos in this.sprite_for_pos) {
-                console.log(`before removing sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
+                // console.log(`before removing sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
                 this.group.remove(this.mesh_for_pos[pos]);
-                console.log(`after removing sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
+                // console.log(`after removing sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
                 delete this.sprite_for_pos[pos];
                 delete this.mesh_for_pos[pos];
             }
-            console.log(`before adding sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
+            // console.log(`before adding sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
             let mesh = new THREE.Mesh(this.level_editor.game.geometry_for_sprite[sprite_index], this.level_editor.game.material_for_sprite[sprite_index]);
             mesh.position.x = p[0];
             mesh.position.y = p[1];
             this.group.add(mesh);
             this.sprite_for_pos[pos] = sprite_index;
             this.mesh_for_pos[pos] = mesh;
-            console.log(`after adding sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
+            console.log(this.el_sprite_count);
+            this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.push([sprite_index, p[0], p[1]]);
+            $(this.el_sprite_count).text(`${this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length}`);
+            // console.log(`after adding sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);
             // add_sprite_to_scene(this.scene, 'sprite', p[0], p[1]);
         }
     }
@@ -189,8 +193,16 @@ class LevelEditor {
             gen_item: (layer, index) => {
                 let layer_div = $(`<div>`);
                 let button_show = $(`<div class='toggle'>`).append($(`<i class='fa fa-eye'>`));
+                button_show.click(function(e) {
+                    console.log('yay');
+                    self.game.levels[self.level_index].layers[self.layer_index].properties ??= {};
+                    self.game.levels[self.level_index].layers[self.layer_index].properties.visible = !(self.game.levels[self.level_index].layers[self.layer_index].properties.visible ?? true);
+                });
                 layer_div.append(button_show);
-                layer_div.append($(`<span style='margin-left: 0.5em;'>`).text(`${((((self.game.levels || {})[self.level_index] || {}).layers || {})[self.layer_index] || []).length} Sprites`));
+                let sprite_count = $(`<span>`).text('0');
+                layer_div.append($(`<span style='margin-left: 0.5em;'>`).append(sprite_count).append($('<span>').text(' Sprites')));
+                console.log(self.layer_structs, index);
+                self.layer_structs[index].el_sprite_count = sprite_count;
                 return layer_div;
             },
             onclick: (e, index) => {
@@ -202,11 +214,13 @@ class LevelEditor {
                 let layer = { sprites: [] };
                 self.game.data.levels[self.level_index].layers.push(layer);
                 let layer_struct = new LayerStruct(self);
-                this.layer_structs.push(layer_struct);
+                self.layer_structs.push(layer_struct);
+                self.refresh();
                 return layer;
             },
             delete_item: (index) => {
                 self.game.data.levels[self.level_index].layers.splice(index, 1);
+                self.refresh();
             },
             on_swap_items: (a, b) => {
                 // if (a > b) {
@@ -221,6 +235,7 @@ class LevelEditor {
                 //     self.game.data.sprites[self.sprite_index].states[a] = temp;
                 // }
                 // self.game.refresh_frames_on_screen();
+                self.refresh();
             }
         });
 

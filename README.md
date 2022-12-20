@@ -28,6 +28,8 @@ levels:
       sprites:
        - [sprite_index, x, y]
        - ...
+      sprite_properties:
+       0: {...}
 ```
 
 ```

@@ -27,7 +27,8 @@ class DragAndDropWidget {
         this.add_div = $(`<div>`).addClass(options.item_class).addClass('_dnd_item').addClass('add');
         this.add_div.append($(`<i class='fa fa-plus'></i>`));
         this.add_div.click(function (e) {
-            let item = self.options.gen_item(self.options.gen_new_item(), options.items.length);
+            let index = options.items.length;
+            let item = self.options.gen_item(self.options.gen_new_item(), index);
             self._append_item(item);
             self._move_add_div_to_end();
             self.options.onclick(item, $(item).parent().index());

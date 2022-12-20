@@ -85,7 +85,7 @@ class Game {
     fix_game_data() {
         // console.log(`Fixing game data / before:`, JSON.stringify(this.data));
         if ((((((this.data.levels || [])[0] || {}).layers || [])[0] || {}).sprites || null) === null) {
-            this.data.levels = [ { layers: [ { sprites: {} } ] } ];
+            this.data.levels = [ { layers: [ { sprites: [] } ] } ];
         }
         for (let si = 0; si < this.data.sprites.length; si++) {
             if (typeof(this.data.sprites[si].width) === 'undefined') {

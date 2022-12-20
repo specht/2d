@@ -872,6 +872,8 @@ function prepare_pane(which) {
             game.level_editor.sprite_index = button.data('sprite_index');
         });
         game.level_editor.refresh();
-        game.level_editor.render();
+        setTimeout(function() {
+            game.level_editor.render();
+        }, 0);
     }
 }
