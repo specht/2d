@@ -9,22 +9,8 @@ class Game {
     }
 
     reset() {
-        this.data = {
-            parent: null,
-            sprites: [
-                {
-                    width: DEFAULT_WIDTH,
-                    height: DEFAULT_HEIGHT,
-                    states: [
-                        {
-                            frames: [
-                                { src: createDataUrlForImageSize(DEFAULT_WIDTH, DEFAULT_HEIGHT) }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        };
+        this.data = {};
+        this.fix_game_data();
         this._load();
     }
 
@@ -43,33 +29,9 @@ class Game {
     }
 
     save() {
-        let data = {};
-        data.parent = this.data.parent;
-        data.title = this.data.title;
-        data.sprites = [];
-        for (let sprite of this.data.sprites) {
-            let states = [];
-            for (let state of sprite.states) {
-                let frames = [];
-                for (let frame of state.frames) {
-                    frames.push(frame);
-                }
-                let state_data = { frames: frames };
-                if (state.label) state_data.label = state.label;
-                if (typeof (state.gravity) !== 'undefined') state_data.gravity = state.gravity;
-                if (typeof (state.movable) !== 'undefined') state_data.gravity = state.movable;
-                states.push(state_data);
-            }
-            data.sprites.push({ states: states, width: sprite.width, height: sprite.height });
-        }
-        data.levels = [];
-        for (let level of (this.data.levels || [])) {
-            data.levels.push(level);
-        }
-        data.palette = palettes[selected_palette_index].colors;
-        console.log(data);
+        this.data.palette = palettes[selected_palette_index].colors;
         let self = this;
-        api_call('/api/save_game', { game: data }, function (data) {
+        api_call('/api/save_game', { game: this.data }, function (data) {
             if (data.success) {
                 if (data.tag !== self.data.parent) {
                     self.data.parent = data.tag;
@@ -84,8 +46,61 @@ class Game {
 
     fix_game_data() {
         // console.log(`Fixing game data / before:`, JSON.stringify(this.data));
-        if ((((((this.data.levels || [])[0] || {}).layers || [])[0] || {}).sprites || null) === null) {
-            this.data.levels = [ { layers: [ { sprites: [] } ] } ];
+        this.data ??= {};
+        this.data.parent ??= null;
+        this.data.sprites ??= [];
+        if (this.data.sprites.length === 0) {
+            this.data.sprites.push({
+                width: DEFAULT_WIDTH,
+                height: DEFAULT_HEIGHT,
+                states: [],
+            });
+        }
+        for (let si = 0; si < this.data.sprites.length; si++) {
+            this.data.sprites[si].properties ??= {};
+            this.data.sprites[si].properties.name ??= '';
+            this.data.sprites[si].properties.classes ??= [];
+            this.data.sprites[si].properties.hitboxes ??= {};
+            // this.data.sprites[si].properties.hitboxes.collision ??= [];
+            // if (this.data.sprites[si].properties.hitboxes.collision.length === 0) {
+            //     this.data.sprites[si].properties.hitboxes.collision.push([
+            //         [0, 0], [0, DEFAULT_HEIGHT],
+            //         [DEFAULT_WIDTH, DEFAULT_HEIGHT], [DEFAULT_WIDTH, 0]]);
+            // }
+            this.data.sprites[si].states ??= [];
+            if (this.data.sprites[si].states.length === 0) {
+                this.data.sprites[si].states.push({});
+            }
+            for (let sti = 0; sti < this.data.sprites[si].states.length; sti++) {
+                this.data.sprites[si].states[sti].properties ??= {};
+                this.data.sprites[si].states[sti].properties.name ??= '';
+                this.data.sprites[si].states[sti].properties.hitboxes ??= {};
+                this.data.sprites[si].states[sti].properties.fps ??= 8;
+                this.data.sprites[si].states[sti].frames ??= [];
+                if (this.data.sprites[si].states[sti].frames.length === 0)
+                    this.data.sprites[si].states[sti].frames.push({});
+                for (let fi = 0; fi < this.data.sprites[si].states[sti].frames.length; fi++) {
+                    this.data.sprites[si].states[sti].frames[fi].properties ??= {};
+                    this.data.sprites[si].states[sti].frames[fi].properties.hitboxes ??= {};
+                    this.data.sprites[si].states[sti].frames[fi].src ??= createDataUrlForImageSize(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+                }
+            }
+        }
+        this.data.levels ??= [];
+        if (this.data.levels.length === 0)
+            this.data.levels.push({});
+        for (let li = 0; li < this.data.levels.length; li++) {
+            this.data.levels[li].properties ??= {};
+            this.data.levels[li].properties.name ??= '';
+            this.data.levels[li].layers ??= [];
+            if (this.data.levels[li].layers.length === 0)
+                this.data.levels[li].layers.push({});
+            for (let lyi = 0; lyi < this.data.levels[li].layers.length; lyi++) {
+                this.data.levels[li].layers[lyi].properties ??= {};
+                this.data.levels[li].layers[lyi].properties.visible ??= true;
+                this.data.levels[li].layers[lyi].sprites ??= [];
+                this.data.levels[li].layers[lyi].sprite_properties ??= {};
+            }
         }
         for (let si = 0; si < this.data.sprites.length; si++) {
             if (typeof(this.data.sprites[si].width) === 'undefined') {

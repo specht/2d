@@ -1,13 +1,13 @@
 ```
 sprites:
   - name: 'Sprite 1'
-    classes: []
     properties:
       deal_damage: 1
-    hitboxes:
-      collision: []
-      take_damage: []
-      deal_damage: []
+      classes: []
+      hitboxes:
+        collision: []
+        take_damage: []
+        deal_damage: []
     states:
     - name: 'Zustand 1'
       hitboxes: nil

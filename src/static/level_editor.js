@@ -5,12 +5,19 @@ class LayerStruct {
     constructor(level_editor) {
         this.level_editor = level_editor;
         this.group = new THREE.Group();
+        this.el_sprite_count = null;
         this.sprite_for_pos = {};
         this.mesh_for_pos = {};
-        this.el_sprite_count = null;
     }
 
     apply_layer(layer) {
+        this.group.remove.apply(this.group, this.group.children);
+        this.sprite_for_pos = {};
+        this.mesh_for_pos = {};
+        for (let sprite of layer.sprites) {
+            this.add_sprite([sprite[0], sprite[1]], sprite[2]);
+        }
+        // console.log(layer);
     }
 
     remove_sprite(p) {
