@@ -41,7 +41,6 @@ class LayerStruct {
             this.group.add(mesh);
             this.sprite_for_pos[pos] = sprite_index;
             this.mesh_for_pos[pos] = mesh;
-            console.log(this.el_sprite_count);
             this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.push([sprite_index, p[0], p[1]]);
             $(this.el_sprite_count).text(`${this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length}`);
             // console.log(`after adding sprite at ${p[0]}/${p[1]}, got ${this.group.children.length} sprites`);

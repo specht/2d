@@ -52,5 +52,8 @@ levels:
 Level Editor:
 
 Pan & zoom
-Set sprite
-Select sprites and delete
+Place sprite
+Fill rect with sprite
+Select placed sprites and delete
+Enable / disable grid
+Resize grid / move grid

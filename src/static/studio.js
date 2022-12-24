@@ -1,8 +1,10 @@
-var menu = null;
+var menus = {};
 var canvas = null;
 var game = null;
+var current_pane = 'sprites';
 var selected_palette_index = 9;
 var current_palette_rgb = [];
+var tool_menu_items = {};
 
 function bytes_to_str(i) {
     if (i < 1024)
@@ -139,7 +141,7 @@ function activateTool(item) {
         canvas.setModifierCtrl(false);
         canvas.setModifierShift(false);
         if (['tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient'].indexOf(item.key) >= 0)
-            menu.handle_click('penWidth/1');
+            menus.sprites.handle_click('penWidth/1');
     }
 }
 
@@ -169,7 +171,7 @@ function update_color_palette_with_colors(colors) {
     }
     // color_menu_items.push({ image: 'palette' , size: 5, css: 'background-image-size: 16px 16px' });
     $('#color_menu').empty();
-    color_menu = new Menu($('#color_menu'), color_menu_items);
+    color_menu = new Menu($('#color_menu'), 'sprites', color_menu_items);
 }
 
 function update_color_palette() {
@@ -297,7 +299,7 @@ function load_game() {
 
 document.addEventListener("DOMContentLoaded", function (event) {
     moment.locale('de');
-    let tool_menu_items = [
+    tool_menu_items.sprites = [
         { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen' },
         { group: 'tool', command: 'line', image: 'draw-line', shortcut: 'W', label: 'Linie zeichnen' },
         {
@@ -369,11 +371,18 @@ document.addEventListener("DOMContentLoaded", function (event) {
         { group: 'penWidth', command: '4', image: 'pen-width-4', shortcut: '4', data: 4, callback: setPenWidth },
         { group: 'penWidth', command: '5', image: 'pen-width-5', shortcut: '5', data: 5, callback: setPenWidth },
     ];
-    tool_menu_items = tool_menu_items.map(function (x) {
+    tool_menu_items.sprites = tool_menu_items.sprites.map(function (x) {
         if (!x.callback)
             x.callback = activateTool;
         return x;
     });
+
+    tool_menu_items.level = [
+        { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen', callback: function() {} },
+        { group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'W', label: 'Rechteck füllen', callback: function() {} },
+        { group: 'tool', command: 'select', image: 'select-rect', shortcut: 'E', label: 'Auswählen', callback: function() {} },
+    ];
+
 
     // $('#palettes_here').masonry('layout');
     // $('#palettes_here').change(function (e) {
@@ -381,12 +390,15 @@ document.addEventListener("DOMContentLoaded", function (event) {
     // });
     // $('#palettes_here').val('9');
 
-    canvas = new Canvas($('#canvas'), menu);
+    canvas = new Canvas($('#canvas'), null);
     handleResize();
 
     update_color_palette();
-    menu = new Menu($('#tool_menu'), tool_menu_items, canvas);
-    canvas.menu = menu;
+    // initialize all other menus
+    menus.level = new Menu($('#tool_menu_level'), 'level', tool_menu_items.level);
+    // initialize sprites menu last
+    menus.sprites = new Menu($('#tool_menu'), 'sprites', tool_menu_items.sprites, canvas);
+    canvas.menu = menus.sprites;
 
     // menu.handle_click('tool/gradient');
     // menu.handle_click('penWidth/1');
@@ -406,6 +418,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
         $(`#mi_${key}`).addClass('active');
         $('.main_div').hide();
         $(`#main_div_${key}`).show();
+        current_pane = key;
+        menus[key].refresh_status_bar();
     })
 
     $('#bu_save_game').click(function (e) {

@@ -1,5 +1,5 @@
 const KEY_TR = {
-    'Space': 'Leertaste',
+    'Space': 'Leer',
     'Control': 'Strg',
     'ArrowLeft': '◄',
     'ArrowRight': '►',
@@ -7,8 +7,9 @@ const KEY_TR = {
     'ArrowDown': '▼'
 };
 class Menu {
-    constructor(element, info, canvas) {
+    constructor(element, pane, info, canvas) {
         this.element = element;
+        this.pane = pane;
         this.canvas = canvas;
         let seen_groups = {};
         this.commands = {};
@@ -16,6 +17,7 @@ class Menu {
         this.groups = {};
         this.status_buttons = {};
         this.status_shortcuts = {};
+        this.active_key = null;
         for (let item of info) {
             if (item.type === 'divider') {
                 this.element.append($('<hr />'));
@@ -63,22 +65,29 @@ class Menu {
         $(window).keydown(function (e) {
             if ($(e.target).is('input')) return;
             let k = self.parseKeyEvent(e);
-            // console.log(k);
             if (k in self.shortcuts) {
-                e.preventDefault();
-                e.stopPropagation();
-                let key = self.shortcuts[k];
-                self.handle_click(key);
-                return;
+                if (self.shortcuts[k].global || self.pane === current_pane) {
+                    console.log(`Handling menu keydown: ${k}`, self.shortcuts[k]);
+                    e.preventDefault();
+                    e.stopPropagation();
+                    let key = self.shortcuts[k];
+                    self.handle_click(key);
+                    return;
+                }
             }
             if (k in self.status_shortcuts) {
-                e.preventDefault();
-                e.stopPropagation();
-                self.handle_status_button_down(self.status_shortcuts[k], true);
-                return;
+                if (self.status_shortcuts[k].global || self.pane === current_pane) {
+                    console.log(`Handling menu keydown: ${k}`, self.status_shortcuts[k]);
+                    e.preventDefault();
+                    e.stopPropagation();
+                    self.handle_status_button_down(self.status_shortcuts[k], true);
+                    return;
+                }
             }
         })
         $(window).keyup(function (e) {
+            last_spriteskip_timestamp = 0;
+            last_stateskip_timestamp = 0;
             last_frameskip_timestamp = 0;
             let k = self.parseKeyEvent(e);
             if (k in self.status_shortcuts) {
@@ -142,47 +151,43 @@ class Menu {
         }
     }
 
-    handle_click(key) {
+    refresh_status_bar() {
+        let active_command = null;
+        console.log('active_key', this.active_key);
+        if (this.active_key)
+            active_command = this.commands[this.active_key];
         let self = this;
-        let command = this.commands[key];
-        if (command.group) {
-            for (let other of this.groups[command.group].keys) {
-                this.commands[other].button.removeClass('active');
+        this.status_buttons = {};
+        this.status_shortcuts = {};
+        let statusBar = $('#status-bar');
+        statusBar.empty();
+        let hints = (active_command.hints || []).slice(0);
+        if (active_command.label) hints.unshift(`<b>${active_command.label}</b>`);
+        hints.unshift({
+            label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () {
             }
-            this.commands[key].button.addClass('active');
-            this.groups[command.group].active = key;
-        }
-        if (command.group === 'tool') {
-            this.status_buttons = {};
-            this.status_shortcuts = {};
-            let statusBar = $('#status-bar');
-            statusBar.empty();
-            let hints = (command.hints || []).slice(0);
-            if (command.label) hints.unshift(`<b>${command.label}</b>`);
-            hints.unshift({
-                label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () {
-                }
-            });
+        });
 
-            hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) self.element.find('.tooltip').show(); else self.element.find('.tooltip').hide(); } });
-            // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
-            hints.push({
-                key: 'Control+O', label: 'Spiel laden', callback: function () {
-                    load_game();
-                }
-                // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
-            });
-            hints.push({
-                key: 'Control+S', label: 'Spiel speichern', callback: function () {
-                    game.save();
-                }
-                // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
-            });
-            hints.push({
-                key: 'F11', label: 'Vollbild', callback: function () {
-                    if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen();
-                }
-            });
+        hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) self.element.find('.tooltip').show(); else self.element.find('.tooltip').hide(); } });
+        // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
+        hints.push({
+            key: 'Control+O', label: 'Spiel laden', callback: function () {
+                load_game();
+            }
+            // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+        });
+        hints.push({
+            key: 'Control+S', label: 'Spiel speichern', callback: function () {
+                game.save();
+            }
+            // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+        });
+        hints.push({
+            key: 'F11', label: 'Vollbild', callback: function () {
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen();
+            }
+        });
+        if (this.pane === 'sprites') {
             hints.push(
                 {
                     type: 'group', keys: [`Bild <i class='fa fa-arrow-up'></i>`, `Bild <i class='fa fa-arrow-down'></i>`], label: 'Sprite wechseln', shortcuts: [
@@ -209,68 +214,84 @@ class Menu {
                     ]
                 },
             );
-            hints.push({
-                key: 'Alt+1', visible: false, label: 'Sprites', callback: function () {
-                    $('#mi_sprites').click();
-                }
-            });
-            hints.push({
-                key: 'Alt+2', visible: false, label: 'Level', callback: function () {
-                    $('#mi_level').click();
-                }
-            });
+        }
+        hints.push({
+            key: 'Alt+1', visible: false, global: true, label: 'Sprites', callback: function () {
+                $('#mi_sprites').click();
+            }
+        });
+        hints.push({
+            key: 'Alt+2', visible: false, global: true, label: 'Level', callback: function () {
+                $('#mi_level').click();
+            }
+        });
 
-            let i = 0;
-            for (let hint of hints) {
-                let is = i.toString();
-                if (typeof (hint) == 'string') {
-                    statusBar.append($('<div>').addClass('status-bar-item').append(hint));
-                } else if (typeof (hint) === 'object') {
-                    if (hint.type === 'group') {
-                        let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
-                        for (let key of hint.keys) {
-                            let span = $(`<span class='key longkey'>${KEY_TR[key] || key}</span>`);
-                            if (key !== hint.keys[hint.keys.length - 1])
-                                span.css('margin-right', '3px');
-                            button.append(span);
-                        }
-                        button.append(hint.label);
-                        button.append($(`<span class='hint-divider'></span>`));
-                        for (let shortcut of hint.shortcuts) {
-                            let is = i.toString();
-                            this.status_buttons[is] = { button: button, value: false, callback: shortcut.callback || (() => { }) };
-                            this.status_shortcuts[shortcut.key] = is;
-                            i += 1;
-                        }
-                        if (hint.visible !== false)
-                            statusBar.append(button);
-                    } else {
-                        let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
-                        if (hint.key) {
-                            let key_parts = hint.key.split('+');
-                            for (let i = 0; i < key_parts.length; i++) {
-                                let part = key_parts[i];
-                                let style = '';
-                                if (i > 0)
-                                    style = 'margin-left: -0.5em;'
-                                button.append($(`<span class='key longkey' style='${style}'>${KEY_TR[part] || part}</span>`));
-                            }
-                        }
-                        button.append(hint.label);
-                        button.append($(`<span class='hint-divider'></span>`));
-                        this.status_buttons[is] = { button: button, value: false, type: hint.type, callback: hint.callback || (() => { }) };
-                        if (hint.key)
-                            this.status_shortcuts[hint.key] = is;
-                        if (hint.visible !== false)
-                            statusBar.append(button);
-
-                        button.mousedown(function () { self.handle_status_button_down(is, false); });
-                        button.mouseup(function () { self.handle_status_button_up(is, false); });
-                        button.mouseleave(function () { self.handle_status_button_up(is); });
+        let i = 0;
+        for (let hint of hints) {
+            let is = i.toString();
+            if (typeof (hint) == 'string') {
+                statusBar.append($('<div>').addClass('status-bar-item').append(hint));
+            } else if (typeof (hint) === 'object') {
+                if (hint.type === 'group') {
+                    let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
+                    for (let key of hint.keys) {
+                        let span = $(`<span class='key longkey'>${KEY_TR[key] || key}</span>`);
+                        if (key !== hint.keys[hint.keys.length - 1])
+                            span.css('margin-right', '3px');
+                        button.append(span);
+                    }
+                    button.append(hint.label);
+                    button.append($(`<span class='hint-divider'></span>`));
+                    for (let shortcut of hint.shortcuts) {
+                        let is = i.toString();
+                        this.status_buttons[is] = { button: button, value: false, callback: shortcut.callback || (() => { }) };
+                        this.status_shortcuts[shortcut.key] = is;
                         i += 1;
                     }
+                    if (hint.visible !== false)
+                        statusBar.append(button);
+                } else {
+                    let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
+                    if (hint.key) {
+                        let key_parts = hint.key.split('+');
+                        for (let i = 0; i < key_parts.length; i++) {
+                            let part = key_parts[i];
+                            let style = '';
+                            if (i > 0)
+                                style = 'margin-left: -0.5em;'
+                            button.append($(`<span class='key longkey' style='${style}'>${KEY_TR[part] || part}</span>`));
+                        }
+                    }
+                    button.append(hint.label);
+                    button.append($(`<span class='hint-divider'></span>`));
+                    this.status_buttons[is] = { button: button, value: false, type: hint.type, callback: hint.callback || (() => { }) };
+                    if (hint.key)
+                        this.status_shortcuts[hint.key] = is;
+                    if (hint.visible !== false)
+                        statusBar.append(button);
+
+                    button.mousedown(function () { self.handle_status_button_down(is, false); });
+                    button.mouseup(function () { self.handle_status_button_up(is, false); });
+                    button.mouseleave(function () { self.handle_status_button_up(is); });
+                    i += 1;
                 }
             }
+        }
+    }
+
+    handle_click(key) {
+        let self = this;
+        let command = this.commands[key];
+        if (command.group) {
+            for (let other of this.groups[command.group].keys) {
+                this.commands[other].button.removeClass('active');
+            }
+            this.commands[key].button.addClass('active');
+            this.groups[command.group].active = key;
+        }
+        if (command.group === 'tool') {
+            this.active_key = key;
+            this.refresh_status_bar();
         }
         if (command.callback)
             command.callback(command);

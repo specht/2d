@@ -57,16 +57,12 @@ class Game {
             });
         }
         for (let si = 0; si < this.data.sprites.length; si++) {
+            this.data.sprites[si].width ??= DEFAULT_WIDTH;
+            this.data.sprites[si].height ??= DEFAULT_HEIGHT;
             this.data.sprites[si].properties ??= {};
             this.data.sprites[si].properties.name ??= '';
             this.data.sprites[si].properties.classes ??= [];
             this.data.sprites[si].properties.hitboxes ??= {};
-            // this.data.sprites[si].properties.hitboxes.collision ??= [];
-            // if (this.data.sprites[si].properties.hitboxes.collision.length === 0) {
-            //     this.data.sprites[si].properties.hitboxes.collision.push([
-            //         [0, 0], [0, DEFAULT_HEIGHT],
-            //         [DEFAULT_WIDTH, DEFAULT_HEIGHT], [DEFAULT_WIDTH, 0]]);
-            // }
             this.data.sprites[si].states ??= [];
             if (this.data.sprites[si].states.length === 0) {
                 this.data.sprites[si].states.push({});
@@ -199,12 +195,10 @@ class Game {
                 return img;
             },
             gen_new_item: () => {
-                let width = DEFAULT_WIDTH; let height = DEFAULT_HEIGHT;
-                let src = createDataUrlForImageSize(width, height);
-                let sprite = { width: width, height: height, states: [{ frames: [{ src: src }] }] };
-                self.data.sprites.push(sprite);
+                self.data.sprites.push({});
+                self.fix_game_data();
                 self.create_geometry_and_material_for_sprite(self.data.sprites.length - 1);
-                return sprite;
+                return self.data.sprites[self.data.sprites.length - 1];
             },
             delete_item: (index) => {
                 canvas.detachSprite();

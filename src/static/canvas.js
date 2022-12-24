@@ -12,7 +12,10 @@ const MAX_UNDO_STACK_SIZE = 32;
 const MAX_DIMENSION = 256;
 const MIN_ZOOM = 2;
 const MAX_ZOOM = 64;
+var last_spriteskip_timestamp = 0;
+var last_stateskip_timestamp = 0;
 var last_frameskip_timestamp = 0;
+const SKIP_MIN_DELAY = 125;
 
 function createDataUrlForImageSize(width, height) {
     let canvas = document.createElement('canvas');
@@ -24,7 +27,7 @@ function createDataUrlForImageSize(width, height) {
 }
 
 class Canvas {
-    constructor(element) {
+    constructor(element, menu) {
         this.element = element;
         this.menu = menu;
         this.backdrop_color = document.createElement('canvas');
@@ -1125,12 +1128,9 @@ class Canvas {
                         });
                     },
                     gen_new_item: () => {
-                        let width = self.game.data.sprites[self.sprite_index].width;
-                        let height = self.game.data.sprites[self.sprite_index].height;
-                        let src = createDataUrlForImageSize(width, height);
-                        let state = { frames: [{ src: src }] };
-                        self.game.data.sprites[self.sprite_index].states.push(state);
-                        return state;
+                        self.game.data.sprites[self.sprite_index].states.push({});
+                        self.game.fix_game_data();
+                        return self.game.data.sprites[self.sprite_index].states[self.game.data.sprites[self.sprite_index].states.length - 1];
                     },
                     delete_item: (index) => {
                         self.game.data.sprites[self.sprite_index].states.splice(index, 1);
@@ -1169,12 +1169,9 @@ class Canvas {
                         });
                     },
                     gen_new_item: () => {
-                        let width = self.game.data.sprites[self.sprite_index].width;
-                        let height = self.game.data.sprites[self.sprite_index].height;
-                        let src = createDataUrlForImageSize(width, height);
-                        let frame = { src: src };
-                        self.game.data.sprites[self.sprite_index].states[self.state_index].frames.push(frame);
-                        return frame;
+                        self.game.data.sprites[self.sprite_index].states[self.state_index].frames.push({});
+                        self.game.fix_game_data();
+                        return self.game.data.sprites[self.sprite_index].states[self.state_index].frames[self.game.data.sprites[self.sprite_index].states[self.state_index].frames.length - 1];
                     },
                     delete_item: (index) => {
                         self.game.data.sprites[self.sprite_index].states[self.state_index].frames.splice(index, 1);
@@ -1218,6 +1215,10 @@ class Canvas {
     }
 
     switchToSpriteDelta(delta) {
+        let now = window.performance.now();
+        let diff = now - last_spriteskip_timestamp;
+        if (diff < SKIP_MIN_DELAY) return;
+        last_spriteskip_timestamp = now;
         let si = $('#menu_sprites').find('._dnd_item.active').index();
         let sc = this.game.data.sprites.length;
         si = (si + delta + sc) % sc;
@@ -1232,6 +1233,10 @@ class Canvas {
     }
 
     switchToStateDelta(delta) {
+        let now = window.performance.now();
+        let diff = now - last_stateskip_timestamp;
+        if (diff < SKIP_MIN_DELAY) return;
+        last_stateskip_timestamp = now;
         let sti = $('#menu_states').find('._dnd_item.active').index();
         let stc = this.game.data.sprites[this.sprite_index].states.length;
         sti = (sti + delta + stc) % stc;
@@ -1248,7 +1253,7 @@ class Canvas {
     switchToFrameDelta(delta) {
         let now = window.performance.now();
         let diff = now - last_frameskip_timestamp;
-        if (diff < 125) return;
+        if (diff < SKIP_MIN_DELAY) return;
         last_frameskip_timestamp = now;
         let fi = $('#menu_frames').find('._dnd_item.active').index();
         let fc = this.game.data.sprites[this.sprite_index].states[this.state_index].frames.length;
