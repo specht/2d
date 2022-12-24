@@ -201,9 +201,17 @@ class LevelEditor {
                 let layer_div = $(`<div>`);
                 let button_show = $(`<div class='toggle'>`).append($(`<i class='fa fa-eye'>`));
                 button_show.click(function(e) {
-                    console.log('yay');
-                    self.game.levels[self.level_index].layers[self.layer_index].properties ??= {};
-                    self.game.levels[self.level_index].layers[self.layer_index].properties.visible = !(self.game.levels[self.level_index].layers[self.layer_index].properties.visible ?? true);
+                    let button = $(e.target).closest('.toggle');
+                    self.game.data.levels[self.level_index].layers[self.layer_index].properties ??= {};
+                    self.game.data.levels[self.level_index].layers[self.layer_index].properties.visible = !self.game.data.levels[self.level_index].layers[self.layer_index].properties.visible;
+                    if (self.game.data.levels[self.level_index].layers[self.layer_index].properties.visible) {
+                        button.find('i').removeClass('fa-eye-slash').addClass('fa-eye');
+                    } else {
+                        button.find('i').removeClass('fa-eye').addClass('fa-eye-slash');
+                    }
+                    e.stopPropagation();
+                    self.refresh();
+                    self.render();
                 });
                 layer_div.append(button_show);
                 let sprite_count = $(`<span>`).text('0');
@@ -220,6 +228,7 @@ class LevelEditor {
             gen_new_item: () => {
                 let layer = { sprites: [] };
                 self.game.data.levels[self.level_index].layers.push(layer);
+                self.game.fix_game_data();
                 let layer_struct = new LayerStruct(self);
                 self.layer_structs.push(layer_struct);
                 self.refresh();
@@ -356,7 +365,7 @@ class LevelEditor {
     }
 
     refresh() {
-        // this.scene.remove.apply(this.scene, this.scene.children);
+        this.scene.remove.apply(this.scene, this.scene.children);
 
         this.refresh_grid();
         // // remove all elements in the scene
@@ -374,8 +383,13 @@ class LevelEditor {
             this.sheets.push(sheet);
         }
 
-        for (let struct of this.layer_structs)
-            this.scene.add(struct.group);
+        for (let li = 0; li < this.game.data.levels[this.level_index].layers.length; li++) {
+            if (this.game.data.levels[this.level_index].layers[li].properties.visible) {
+                if (li < this.layer_structs.length) {
+                    this.scene.add(this.layer_structs[li].group);
+                }
+            }
+        }
         this.scene.add(this.grid_group);
         this.scene.add(this.cursor_group);
 

@@ -62,7 +62,7 @@ class DragAndDropWidget {
         item_div.on('contextmenu', () => false);
         let drag_handle = $(`<div class='drag_handle'>`);
         item_div.append(drag_handle);
-        item_div.append(item.css('pointer-events', 'none'));
+        item_div.append(item);//.css('pointer-events', 'none'));
         item_div.click((e) => {
             let element = $(e.target).closest('._dnd_item');
             self.options.onclick(element.children().eq(0)[0], element.index());
