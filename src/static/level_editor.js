@@ -27,6 +27,8 @@ class LayerStruct {
             let sprite = layer.sprites[i];
             this.add_sprite([sprite[1], sprite[2]], sprite[0], i);
         }
+        if (this.el_sprite_count !== null)
+            $(this.el_sprite_count).text(`${layer.sprites.length}`);
         // console.log(layer);
     }
 
@@ -99,6 +101,7 @@ class LayerStruct {
     }
 
     select_rect(selection_group, x0, y0, x1, y1) {
+        console.log(x0, y0, x1, y1);
         let result_x = new Set();
         for (let i of this.interval_tree_x.search([x0, x1]))
             result_x.add(i);
@@ -161,9 +164,10 @@ class LevelEditor {
         this.camera_x = 0.0;
         this.camera_y = 0.0;
         this.scale = 3.0;
-        this.x0 = 0.0;
-        this.y0 = 0.0;
-        this.y1 = 1.0;
+        this.x0 = 0;
+        this.y0 = 0;
+        this.x1 = 0;
+        this.y1 = 0;
         this.sheets = [];
         this.cursor = null;
         this.selection = [];
@@ -202,7 +206,7 @@ class LevelEditor {
                 return level_div;
             },
             onclick: (e, index) => {
-                this.selection_group.remove.apply(this.selection_group, this.selection_group.children);
+                self.clear_selection();
                 $(e).closest('.menu_level_item').parent().parent().find('.menu_level_item').removeClass('active');
                 $(e).parent().addClass('active');
                 self.level_index = index;
@@ -250,7 +254,7 @@ class LevelEditor {
                         return layer_div;
                     },
                     onclick: (e, index) => {
-                        this.selection_group.remove.apply(this.selection_group, this.selection_group.children);
+                        self.clear_selection();
                         $(e).closest('.menu_layer_item').parent().parent().find('.menu_layer_item').removeClass('active');
                         $(e).parent().addClass('active');
                         self.layer_index = index;
@@ -430,7 +434,14 @@ class LevelEditor {
         //     }
         // }
         if (menus.level.active_key === 'tool/select') {
-            this.selection = this.layer_structs[this.layer_index].select_rect(this.selection_group, this.x0, this.y0, this.x1, this.y1);
+            let sx0 = this.x0;
+            let sy0 = this.y0;
+            let sx1 = this.x1;
+            let sy1 = this.y1;
+            console.log(this.x0, this.y0, this.x1, this.y1);
+            this.clear_selection();
+            console.log(this.x0, this.y0, this.x1, this.y1);
+            this.selection = this.layer_structs[this.layer_index].select_rect(this.selection_group, sx0, sy0, sx1, sy1);
             this.refresh();
             this.render();
         }
@@ -523,6 +534,30 @@ class LevelEditor {
             this.layer_structs[this.layer_index].add_sprite(p, this.sprite_index, null);
             this.render();
         }
+    }
+
+    clear_selection() {
+        this.selection = [];
+        this.selection_group.remove.apply(this.selection_group, this.selection_group.children);
+        this.refresh();
+        this.render();
+    }
+
+    delete_selection() {
+        let delete_these = new Set();
+        for (let i of this.selection)
+            delete_these.add(i);
+        let new_sprites = [];
+        for (let i = 0; i < this.game.data.levels[this.level_index].layers[this.layer_index].sprites.length; i++) {
+            if (!delete_these.has(i)) {
+                new_sprites.push(this.game.data.levels[this.level_index].layers[this.layer_index].sprites[i]);
+            }
+        }
+        this.game.data.levels[this.level_index].layers[this.layer_index].sprites = new_sprites;
+        this.layer_structs[this.layer_index].apply_layer(this.game.data.levels[this.level_index].layers[this.layer_index]);
+        this.clear_selection();
+        this.refresh();
+        this.render();
     }
 
     fix_scale() {

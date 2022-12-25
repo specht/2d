@@ -1,6 +1,7 @@
 const KEY_TR = {
     'Space': 'Leer',
     'Control': 'Strg',
+    'Delete': 'Entf',
     'ArrowLeft': '◄',
     'ArrowRight': '►',
     'ArrowUp': '▲',
@@ -65,6 +66,7 @@ class Menu {
         $(window).keydown(function (e) {
             if ($(e.target).is('input')) return;
             let k = self.parseKeyEvent(e);
+            console.log(k);
             if (k in self.shortcuts) {
                 if (self.shortcuts[k].global || self.pane === current_pane) {
                     // console.log(`Handling menu keydown: ${k}`, self.shortcuts[k]);
