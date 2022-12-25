@@ -564,7 +564,7 @@ class LevelEditor {
     }
 
     refresh() {
-        // this.scene.remove.apply(this.scene, this.scene.children);
+        this.scene.remove.apply(this.scene, this.scene.children);
 
         this.refresh_grid();
         // // remove all elements in the scene
