@@ -196,7 +196,7 @@ class LevelEditor {
                             }
                             e.stopPropagation();
                             self.refresh();
-                            self.render();
+                            // self.render();
                         });
                         layer_div.append(button_show);
                         let sprite_count = $(`<span>`).text(`${layer.sprites.length}`);
@@ -216,13 +216,13 @@ class LevelEditor {
                         let layer_struct = new LayerStruct(self);
                         self.layer_structs.push(layer_struct);
                         self.refresh();
-                        return self.game.data.levels[self.level_index].layers[self.game.data.levels[self.level_index].layers.length - 1];
+                        // return self.game.data.levels[self.level_index].layers[self.game.data.levels[self.level_index].layers.length - 1];
                     },
                     delete_item: (index) => {
                         self.game.data.levels[self.level_index].layers.splice(index, 1);
                         self.layer_structs.splice(index, 1);
                         self.refresh();
-                        self.render();
+                        // self.render();
                     },
                     on_swap_items: (a, b) => {
                         if (a > b) {
@@ -245,11 +245,11 @@ class LevelEditor {
                             self.layer_structs[a] = temps;
                         }
                         self.refresh();
-                        self.render();
+                        // self.render();
                     }
                 });
                 self.refresh();
-                self.render();
+                // self.render();
             },
             gen_new_item: () => {
                 self.game.data.levels.push({});
@@ -276,7 +276,7 @@ class LevelEditor {
         });
 
         this.refresh();
-        this.render();
+        // this.render();
 
         $(this.element).off();
 
@@ -303,9 +303,9 @@ class LevelEditor {
             return [e.clientX - dx, e.clientY - dy];
         else {
             if (e.touches) {
-                this.is_touch = true;
                 return [e.touches[0].clientX - dx, e.touches[0].clientY - dy];
-            } else return [0 - dx, 0 - dy];
+            }
+            return [0 - dx, 0 - dy];
         }
     }
 
@@ -333,9 +333,11 @@ class LevelEditor {
         e.stopPropagation();
         this.mouse_down = true;
         this.mouse_down_button = e.button;
-        this.mouse_down_position = this.ui_to_world(this.get_touch_point(e), true);
-        this.mouse_down_position_no_snap = this.ui_to_world(this.get_touch_point(e), false);
-        this.mouse_down_position_raw = this.get_touch_point(e);
+        let touch = this.get_touch_point(e);
+        this.mouse_down_position = this.ui_to_world(touch, true);
+        this.mouse_down_position_no_snap = this.ui_to_world(touch, false);
+        this.mouse_down_position_raw = touch;
+        if (e.touches) this.mouse_down_button = 0;
         if (menus.level.active_key === 'tool/pen') {
             if (e.button === 0) {
                 if (this.modifier_shift) {
@@ -358,24 +360,24 @@ class LevelEditor {
 
     handle_up(e) {
         this.mouse_down = false;
-        let p_no_snap = this.ui_to_world(this.get_touch_point(e), false);
-        if (menus.level.active_key === 'tool/fill-rect') {
-            let x0 = this.mouse_down_position_no_snap[0];
-            let y0 = this.mouse_down_position_no_snap[1];
-            let x1 = p_no_snap[0];
-            let y1 = p_no_snap[1];
-            if (x0 > x1) { let temp = x0; x0 = x1; x1 = temp; }
-            if (y0 > y1) { let temp = y0; y0 = y1; y1 = temp; }
-            x0 = Math.round(Math.floor(x0 / this.grid_width) * this.grid_width);
-            y0 = Math.round(Math.floor(y0 / this.grid_height) * this.grid_height);
-            x1 = Math.round(Math.ceil(x1 / this.grid_width) * this.grid_width);
-            y1 = Math.round(Math.ceil(y1 / this.grid_height) * this.grid_height);
-            for (let y = y0; y < y1; y += this.grid_height) {
-                for (let x = x0; x < x1; x += this.grid_width) {
-                    this.add_sprite_to_level([x, y]);
-                }
-            }
-        }
+        // let p_no_snap = this.ui_to_world(this.get_touch_point(e), false);
+        // if (menus.level.active_key === 'tool/fill-rect') {
+        //     let x0 = this.mouse_down_position_no_snap[0];
+        //     let y0 = this.mouse_down_position_no_snap[1];
+        //     let x1 = p_no_snap[0];
+        //     let y1 = p_no_snap[1];
+        //     if (x0 > x1) { let temp = x0; x0 = x1; x1 = temp; }
+        //     if (y0 > y1) { let temp = y0; y0 = y1; y1 = temp; }
+        //     x0 = Math.round(Math.floor(x0 / this.grid_width) * this.grid_width);
+        //     y0 = Math.round(Math.floor(y0 / this.grid_height) * this.grid_height);
+        //     x1 = Math.round(Math.ceil(x1 / this.grid_width) * this.grid_width);
+        //     y1 = Math.round(Math.ceil(y1 / this.grid_height) * this.grid_height);
+        //     for (let y = y0; y < y1; y += this.grid_height) {
+        //         for (let x = x0; x < x1; x += this.grid_width) {
+        //             this.add_sprite_to_level([x, y]);
+        //         }
+        //     }
+        // }
         this.rect_group.visible = false;
         this.render();
     }
@@ -417,6 +419,7 @@ class LevelEditor {
                 this.camera_x = this.old_camera_position[0] - (touch[0] - this.mouse_down_position_raw[0]) / this.scale;
                 this.camera_y = this.old_camera_position[1] + (touch[1] - this.mouse_down_position_raw[1]) / this.scale;
                 this.refresh();
+                // this.render();
             }
         }
 
@@ -432,7 +435,7 @@ class LevelEditor {
     setModifierShift(flag) {
         this.modifier_shift = flag;
         // this.refresh();
-        this.render();
+        // this.render();
     }
 
     prepare_rect_group(x0, y0, x1, y1) {
@@ -562,7 +565,7 @@ class LevelEditor {
     }
 
     refresh() {
-        this.scene.remove.apply(this.scene, this.scene.children);
+        // this.scene.remove.apply(this.scene, this.scene.children);
 
         this.refresh_grid();
         // // remove all elements in the scene
