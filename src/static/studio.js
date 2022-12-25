@@ -378,9 +378,10 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
 
     tool_menu_items.level = [
-        { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen', callback: function() {} },
-        { group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'W', label: 'Rechteck füllen', callback: function() {} },
-        { group: 'tool', command: 'select', image: 'select-rect', shortcut: 'E', label: 'Auswählen', callback: function() {} },
+        { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen' },
+        // { group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'W', label: 'Rechteck füllen' },
+        { group: 'tool', command: 'select', image: 'select-rect', shortcut: 'W', label: 'Auswählen' },
+        { group: 'tool', command: 'pan', image: 'move-hand', shortcut: 'E', label: 'Verschieben' },
     ];
 
 
@@ -839,21 +840,25 @@ document.addEventListener("DOMContentLoaded", function (event) {
             },
         ]
     });
-    /*
-        <div class='modal-container' style="display: none;">
-        <div id='modal_choose_palette' class='modal'>
-            <h3>Farbpalette wählen</h3>
-            <div class='modal-body'>
-                <div id='palettes_here' class="grid"></div>
-            </div>
-            <div class='modal-footer' style="text-align: right;">
-                <button class="bu-close"><i class='fa fa-times'></i>&nbsp;&nbsp;Abbrechen</button>
-                <button class="green"><i class='fa fa-check'></i>&nbsp;&nbsp;Größe ändern</button>
-            </div>
-        </div>
-    </div>
 
-    */
+    window.debugModal = new ModalDialog({
+        title: 'Debug',
+        width: '80vw',
+        body: `<div id='debug_here' style='white-space: pre; font-family: monospace; font-size: 90%;'></div>`,
+        onbody: (self) => {
+        },
+        onshow: (self) => {
+            $('#debug_here').text(JSON.stringify(game.data, null, 4));
+        },
+        footer: [
+            {
+                type: 'button',
+                label: 'Schließen',
+                icon: 'fa-times',
+                callback: (self) => self.dismiss(),
+            },
+        ]
+    });
 
     if (this.location.host.indexOf('localhost') === 0) {
         // setTimeout(function() {

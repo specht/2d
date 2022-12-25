@@ -192,6 +192,23 @@ body {
     border-left: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.menu_level_item {
+    display: block;
+    width: 201px;
+    height: 30px;
+}
+
+.menu_level_item .drag_handle {
+    display: block;
+    width: 15px;
+    height: 30px;
+    position: absolute;
+    right: 0;
+    background-image: url(rough.png);
+    opacity: 0.3;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .menu_layer_item {
     display: block;
     width: 201px;
@@ -359,6 +376,10 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 4px;
     cursor: pointer;
+}
+
+.toggle .fa-eye-slash {
+    opacity: 0.5;
 }
 
 .key {
@@ -632,7 +653,7 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     vertical-align: middle;
     position: relative;
     top: 0px;
-    transition: transform 300ms;
+    /* transition: border 300ms; */
     cursor: pointer;
 }
 
@@ -667,7 +688,9 @@ border: 1px solid rgba(255, 255, 255, 0.7);
 
 ._dnd_item.drop_target {
     /* top: -10px; */
-    transform: scale(0.8);
+    /* transform: scale(0.8); */
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 10px rgba(0,0,0,1);
 }
 
 @media (max-height: 600px) {

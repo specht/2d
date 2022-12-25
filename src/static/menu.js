@@ -67,7 +67,7 @@ class Menu {
             let k = self.parseKeyEvent(e);
             if (k in self.shortcuts) {
                 if (self.shortcuts[k].global || self.pane === current_pane) {
-                    console.log(`Handling menu keydown: ${k}`, self.shortcuts[k]);
+                    // console.log(`Handling menu keydown: ${k}`, self.shortcuts[k]);
                     e.preventDefault();
                     e.stopPropagation();
                     let key = self.shortcuts[k];
@@ -77,7 +77,7 @@ class Menu {
             }
             if (k in self.status_shortcuts) {
                 if (self.status_shortcuts[k].global || self.pane === current_pane) {
-                    console.log(`Handling menu keydown: ${k}`, self.status_shortcuts[k]);
+                    // console.log(`Handling menu keydown: ${k}`, self.status_shortcuts[k]);
                     e.preventDefault();
                     e.stopPropagation();
                     self.handle_status_button_down(self.status_shortcuts[k], true);
@@ -153,7 +153,7 @@ class Menu {
 
     refresh_status_bar() {
         let active_command = null;
-        console.log('active_key', this.active_key);
+        // console.log('active_key', this.active_key);
         if (this.active_key)
             active_command = this.commands[this.active_key];
         let self = this;
@@ -223,6 +223,12 @@ class Menu {
         hints.push({
             key: 'Alt+2', visible: false, global: true, label: 'Level', callback: function () {
                 $('#mi_level').click();
+            }
+        });
+        hints.push({
+            key: 'Shift+D', label: 'Debug', callback: function () {
+                console.log('debug!');
+                window.debugModal.show();
             }
         });
 
