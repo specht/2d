@@ -403,13 +403,17 @@ class LevelEditor {
     }
 
     remove_sprite_from_level(p) {
-        this.layer_structs[this.layer_index].remove_sprite(p, true);
-        this.render();
+        if (this.game.data.levels[this.level_index].layers[this.layer_index].properties.visible) {
+            this.layer_structs[this.layer_index].remove_sprite(p, true);
+            this.render();
+        }
     }
 
     add_sprite_to_level(p) {
-        this.layer_structs[this.layer_index].add_sprite(p, this.sprite_index, true);
-        this.render();
+        if (this.game.data.levels[this.level_index].layers[this.layer_index].properties.visible) {
+            this.layer_structs[this.layer_index].add_sprite(p, this.sprite_index, true);
+            this.render();
+        }
     }
 
     fix_scale() {
