@@ -255,6 +255,8 @@ class LevelEditor {
         this.refresh();
         this.render();
 
+        $(this.element).off();
+
         $(this.element).mouseenter(function (e) {
             let p = self.ui_to_world(e.offsetX, e.offsetY, true);
             self.cursor_group.remove.apply(self.cursor_group, self.cursor_group.children);
