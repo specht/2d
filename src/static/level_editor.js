@@ -187,7 +187,6 @@ class LevelEditor {
                             let button = $(e.target).closest('.toggle');
                             let item = button.closest('.menu_layer_item');
                             let layer_index = item.index();
-                            self.game.data.levels[self.level_index].layers[layer_index].properties ??= {};
                             self.game.data.levels[self.level_index].layers[layer_index].properties.visible = !self.game.data.levels[self.level_index].layers[layer_index].properties.visible;
                             if (self.game.data.levels[self.level_index].layers[layer_index].properties.visible) {
                                 button.find('i').removeClass('fa-eye-slash').addClass('fa-eye');
@@ -196,7 +195,7 @@ class LevelEditor {
                             }
                             e.stopPropagation();
                             self.refresh();
-                            // self.render();
+                            self.render();
                         });
                         layer_div.append(button_show);
                         let sprite_count = $(`<span>`).text(`${layer.sprites.length}`);
