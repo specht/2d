@@ -75,6 +75,7 @@ class LevelEditor {
         this.grid_height = 24;
         this.grid_x = 0;
         this.grid_y = 0;
+        this.modifier_shift = false;
         this.game = game;
         this.level_index = 0;
         this.layer_index = 0;
@@ -273,22 +274,40 @@ class LevelEditor {
             let p_no_snap = self.ui_to_world(e.offsetX, e.offsetY, false);
             if (menus.level.active_key === 'tool/pen') {
                 self.cursor_group.visible = true;
-                self.cursor_group.position.x = p[0];
-                self.cursor_group.position.y = p[1];
-                if (self.mouse_down && self.mouse_down_button === 0)
-                    self.add_sprite_to_level(p);
-                if (self.mouse_down && self.mouse_down_button === 2)
-                    self.remove_sprite_from_level(p);
+                if (self.modifier_shift) {
+                    self.cursor_group.position.x = p_no_snap[0];
+                    self.cursor_group.position.y = p_no_snap[1];
+                } else {
+                    self.cursor_group.position.x = p[0];
+                    self.cursor_group.position.y = p[1];
+                }
+                if (self.mouse_down) {
+                    if (self.mouse_down_button === 0) {
+                        if (self.modifier_shift) {
+                            self.add_sprite_to_level(p_no_snap);
+                        } else {
+                            self.add_sprite_to_level(p);
+                        }
+                    } else if (self.mouse_down_button === 2) {
+                        if (self.modifier_shift) {
+                            self.remove_sprite_from_level(p_no_snap);
+                        } else {
+                            self.remove_sprite_from_level(p);
+                        }
+                    }
+                }
             } else {
                 self.cursor_group.visible = false;
             }
             if (menus.level.active_key === 'tool/pan') {
+                // $(self.element).css('cursor', 'url(icons/move-hand.png) 11 4, auto');
                 if (self.mouse_down && self.mouse_down_button === 0) {
                     self.camera_x = self.old_camera_position[0] - (e.offsetX - self.mouse_down_position_raw[0]) / self.scale;
                     self.camera_y = self.old_camera_position[1] + (e.offsetY - self.mouse_down_position_raw[1]) / self.scale;
                     self.refresh();
                 }
             }
+
             if (menus.level.active_key === 'tool/fill-rect' || menus.level.active_key === 'tool/select') {
                 if (self.mouse_down) {
                     self.prepare_rect_group(self.mouse_down_position_no_snap[0], self.mouse_down_position_no_snap[1], p_no_snap[0], p_no_snap[1]);
@@ -315,10 +334,19 @@ class LevelEditor {
             self.mouse_down_position_no_snap = self.ui_to_world(e.offsetX, e.offsetY, false);
             self.mouse_down_position_raw = [e.offsetX, e.offsetY];
             if (menus.level.active_key === 'tool/pen') {
-                if (e.button === 0)
-                    self.add_sprite_to_level(self.mouse_down_position);
-                if (e.button === 2)
-                    self.remove_sprite_from_level(self.mouse_down_position);
+                if (e.button === 0) {
+                    if (self.modifier_shift) {
+                        self.add_sprite_to_level(self.mouse_down_position_no_snap);
+                    } else {
+                        self.add_sprite_to_level(self.mouse_down_position);
+                    }
+                } else if (e.button === 2) {
+                    if (self.modifier_shift) {
+                        self.remove_sprite_from_level(self.mouse_down_position_no_snap);
+                    } else {
+                        self.remove_sprite_from_level(self.mouse_down_position);
+                    }
+                }
             } else if (menus.level.active_key === 'tool/pan') {
                 self.old_camera_position = [self.camera_x, self.camera_y];
             }
@@ -353,6 +381,12 @@ class LevelEditor {
             self.zoom_at_point(e.originalEvent.deltaY, p[0], p[1]);
             self.render();
         });
+    }
+
+    setModifierShift(flag) {
+        this.modifier_shift = flag;
+        // this.refresh();
+        this.render();
     }
 
     prepare_rect_group(x0, y0, x1, y1) {
@@ -406,6 +440,9 @@ class LevelEditor {
         if (snap) {
             wx = Math.round(Math.floor((wx + 12) / this.grid_width) * this.grid_width);
             wy = Math.round(Math.floor((wy) / this.grid_height) * this.grid_height);
+        } else {
+            wx = Math.round(wx);
+            wy = Math.round(wy);
         }
         return [wx, wy];
     }

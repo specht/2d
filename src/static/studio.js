@@ -378,7 +378,9 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
 
     tool_menu_items.level = [
-        { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen' },
+        { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen', hints: [
+            { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
+        ] },
         // { group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'W', label: 'Rechteck füllen' },
         { group: 'tool', command: 'select', image: 'select-rect', shortcut: 'W', label: 'Auswählen' },
         { group: 'tool', command: 'pan', image: 'move-hand', shortcut: 'E', label: 'Verschieben' },
@@ -889,6 +891,10 @@ function prepare_pane(which) {
             let button = $(e.target.closest('.menu_level_sprite_item'));
             button.addClass('active');
             game.level_editor.sprite_index = button.data('sprite_index');
+            game.level_editor.grid_width = game.data.sprites[game.level_editor.sprite_index].width;
+            game.level_editor.grid_height = game.data.sprites[game.level_editor.sprite_index].height;
+            game.level_editor.refresh();
+            game.level_editor.render();
         });
         game.level_editor.refresh();
         setTimeout(function() {
