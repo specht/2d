@@ -95,6 +95,8 @@ class Game {
                 this.data.levels[li].layers[lyi].properties ??= {};
                 this.data.levels[li].layers[lyi].properties.visible ??= true;
                 this.data.levels[li].layers[lyi].sprites ??= [];
+                if (!Array.isArray(this.data.levels[li].layers[lyi].sprites))
+                    this.data.levels[li].layers[lyi].sprites = [];
                 this.data.levels[li].layers[lyi].sprite_properties ??= {};
             }
         }
