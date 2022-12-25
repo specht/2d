@@ -678,7 +678,7 @@ class LevelEditor {
             this.sheets.push(sheet);
         }
 
-        for (let li = 0; li < this.game.data.levels[this.level_index].layers.length; li++) {
+        for (let li = this.game.data.levels[this.level_index].layers.length; li >= 0; li--) {
             if (li < this.layer_structs.length) {
                 // this.layer_structs[li].group.renderOrder = -li - 1;
                 if (this.game.data.levels[this.level_index].layers[li].properties.visible) {
