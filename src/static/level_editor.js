@@ -216,7 +216,7 @@ class LevelEditor {
                         let layer_struct = new LayerStruct(self);
                         self.layer_structs.push(layer_struct);
                         self.refresh();
-                        // return self.game.data.levels[self.level_index].layers[self.game.data.levels[self.level_index].layers.length - 1];
+                        return self.game.data.levels[self.level_index].layers[self.game.data.levels[self.level_index].layers.length - 1];
                     },
                     delete_item: (index) => {
                         self.game.data.levels[self.level_index].layers.splice(index, 1);
