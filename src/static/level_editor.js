@@ -8,6 +8,7 @@ class LayerStruct {
         this.group = new THREE.Group();
         this.interval_tree_x = new IntervalTree();
         this.interval_tree_y = new IntervalTree();
+        this.selectionMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5});
         this.reset();
     }
 
@@ -29,26 +30,37 @@ class LayerStruct {
         // console.log(layer);
     }
 
-    remove_sprite(p, update_game) {
+    remove_sprite(p, retain_position) {
         let pos = `${p[0]}/${p[1]}`;
         if (pos in this.placed_sprite_index_for_pos) {
+            let sprite_index = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[this.placed_sprite_index_for_pos[pos]][0];
+            let sw = this.level_editor.game.data.sprites[sprite_index].width;
+            let sh = this.level_editor.game.data.sprites[sprite_index].height;
+            let x0 = p[0] - sw * 0.5;
+            let x1 = p[0] + sw * 0.5;
+            let y0 = p[1];
+            let y1 = p[1] + sh;
             this.group.remove(this.mesh_for_pos[pos]);
+            this.interval_tree_x.remove([x0, x1], this.placed_sprite_index_for_pos[pos]);
+            this.interval_tree_y.remove([y0, y1], this.placed_sprite_index_for_pos[pos]);
             delete this.placed_sprite_index_for_pos[pos];
             delete this.mesh_for_pos[pos];
-            if (update_game) {
-                // find sprite in sprite list
-                let index = null;
-                for (let i = 0; i < this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length; i++) {
-                    let entry = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[i];
-                    if (entry[1] === p[0] && entry[2] === p[1]) {
-                        index = i;
-                        break;
-                    }
-                }
-                if (index !== null)
-                    this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.splice(index, 1);
+            if (!retain_position) {
+                // don't retain position: swap removed sprite with last sprite
+                // let index = null;
+                // for (let i = 0; i < this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length; i++) {
+                //     let entry = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[i];
+                //     if (entry[1] === p[0] && entry[2] === p[1]) {
+                //         index = i;
+                //         break;
+                //     }
+                // }
+                // if (index !== null)
+                //     this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.splice(index, 1);
             }
-            $(this.el_sprite_count).text(`${this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length}`);
+            if (!retain_position) {
+                $(this.el_sprite_count).text(`${this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length}`);
+            }
         }
     }
 
@@ -68,9 +80,8 @@ class LayerStruct {
             let y0 = p[1];
             let y1 = p[1] + sh;
             if (pos in this.placed_sprite_index_for_pos) {
-                this.group.remove(this.mesh_for_pos[pos]);
-                delete this.placed_sprite_index_for_pos[pos];
-                delete this.mesh_for_pos[pos];
+                use_placed_sprite_index = this.placed_sprite_index_for_pos[pos];
+                this.remove_sprite(p, true);
             }
             let mesh = new THREE.Mesh(this.level_editor.game.geometry_for_sprite[sprite_index], this.level_editor.game.material_for_sprite[sprite_index]);
             mesh.position.x = p[0];
@@ -81,10 +92,42 @@ class LayerStruct {
             this.interval_tree_x.insert([x0, x1], use_placed_sprite_index);
             this.interval_tree_y.insert([y0, y1], use_placed_sprite_index);
             if (force_placed_sprite_index === null) {
-                this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.push([sprite_index, p[0], p[1]]);
+                this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[use_placed_sprite_index] = [sprite_index, p[0], p[1]];
             }
             $(this.el_sprite_count).text(`${this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length}`);
         }
+    }
+
+    select_rect(selection_group, x0, y0, x1, y1) {
+        let result_x = new Set();
+        for (let i of this.interval_tree_x.search([x0, x1]))
+            result_x.add(i);
+        let result_y = new Set();
+        for (let i of this.interval_tree_y.search([y0, y1]))
+            result_y.add(i);
+        let result = new Set([...result_x].filter((x) => result_y.has(x)));
+
+        selection_group.remove.apply(selection_group, selection_group.children);
+        for (let index of result) {
+            let s = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[index];
+            let sprite_index = s[0];
+
+            let sw = this.level_editor.game.data.sprites[sprite_index].width;
+            let sh = this.level_editor.game.data.sprites[sprite_index].height;
+            let x0 = s[1] - sw * 0.5;
+            let x1 = s[1] + sw * 0.5;
+            let y0 = s[2];
+            let y1 = s[2] + sh;
+
+            let points = [];
+            points.push(new THREE.Vector3(x0, y0, 1));
+            points.push(new THREE.Vector3(x0, y1, 1));
+            points.push(new THREE.Vector3(x1, y1, 1));
+            points.push(new THREE.Vector3(x1, y0, 1));
+            let geometry = new THREE.BufferGeometry().setFromPoints(points);
+            selection_group.add(new THREE.LineLoop(geometry, this.selectionMaterial));
+        }
+        return [...result];
     }
 }
 
@@ -107,6 +150,7 @@ class LevelEditor {
         this.grid_group = new THREE.Group();
         this.cursor_group = new THREE.Group();
         this.rect_group = new THREE.Group();
+        this.selection_group = new THREE.Group();
         this.layer_structs = [];
         this.camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
         this.camera.position.x = 0;
@@ -122,6 +166,7 @@ class LevelEditor {
         this.y1 = 1.0;
         this.sheets = [];
         this.cursor = null;
+        this.selection = [];
         this.sprite_index = 0;
         this.width = $(this.element).width();
         this.height = $(this.element).height()
@@ -157,6 +202,7 @@ class LevelEditor {
                 return level_div;
             },
             onclick: (e, index) => {
+                this.selection_group.remove.apply(this.selection_group, this.selection_group.children);
                 $(e).closest('.menu_level_item').parent().parent().find('.menu_level_item').removeClass('active');
                 $(e).parent().addClass('active');
                 self.level_index = index;
@@ -204,6 +250,7 @@ class LevelEditor {
                         return layer_div;
                     },
                     onclick: (e, index) => {
+                        this.selection_group.remove.apply(this.selection_group, this.selection_group.children);
                         $(e).closest('.menu_layer_item').parent().parent().find('.menu_layer_item').removeClass('active');
                         $(e).parent().addClass('active');
                         self.layer_index = index;
@@ -248,7 +295,7 @@ class LevelEditor {
                     }
                 });
                 self.refresh();
-                // self.render();
+                self.render();
             },
             gen_new_item: () => {
                 self.game.data.levels.push({});
@@ -279,9 +326,9 @@ class LevelEditor {
 
         $(this.element).off();
 
-        // $(this.element).on('contextmenu', function (e) {
-        //     return false;
-        // });
+        $(this.element).on('contextmenu', function (e) {
+            return false;
+        });
         $(this.element).on('mouseenter', (e) => self.handle_enter(e));
         $(this.element).on('mouseleave', (e) => self.handle_leave(e));
         $(this.element).on('mousedown touchstart', (e) => self.handle_down(e));
@@ -336,6 +383,11 @@ class LevelEditor {
         this.mouse_down_position = this.ui_to_world(touch, true);
         this.mouse_down_position_no_snap = this.ui_to_world(touch, false);
         this.mouse_down_position_raw = touch;
+        this.x0 = this.mouse_down_position_no_snap[0];
+        this.y0 = this.mouse_down_position_no_snap[1];
+        this.x1 = this.mouse_down_position_no_snap[0];
+        this.y1 = this.mouse_down_position_no_snap[1];
+
         if (e.touches) this.mouse_down_button = 0;
         if (menus.level.active_key === 'tool/pen') {
             if (e.button === 0) {
@@ -377,6 +429,11 @@ class LevelEditor {
         //         }
         //     }
         // }
+        if (menus.level.active_key === 'tool/select') {
+            this.selection = this.layer_structs[this.layer_index].select_rect(this.selection_group, this.x0, this.y0, this.x1, this.y1);
+            this.refresh();
+            this.render();
+        }
         this.rect_group.visible = false;
         this.render();
     }
@@ -424,7 +481,11 @@ class LevelEditor {
 
         if (menus.level.active_key === 'tool/fill-rect' || menus.level.active_key === 'tool/select') {
             if (this.mouse_down) {
-                this.prepare_rect_group(this.mouse_down_position_no_snap[0], this.mouse_down_position_no_snap[1], p_no_snap[0], p_no_snap[1]);
+                this.x0 = this.mouse_down_position_no_snap[0];
+                this.y0 = this.mouse_down_position_no_snap[1];
+                this.x1 = p_no_snap[0];
+                this.y1 = p_no_snap[1];
+                this.prepare_rect_group(this.x0, this.y0, this.x1, this.y1);
             }
             this.rect_group.visible = this.mouse_down;
         }
@@ -452,7 +513,7 @@ class LevelEditor {
 
     remove_sprite_from_level(p) {
         if (this.game.data.levels[this.level_index].layers[this.layer_index].properties.visible) {
-            this.layer_structs[this.layer_index].remove_sprite(p, true);
+            this.layer_structs[this.layer_index].remove_sprite(p, false);
             this.render();
         }
     }
@@ -514,6 +575,7 @@ class LevelEditor {
         this.camera.bottom = this.camera_y - this.height * 0.5 / this.scale;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(this.width, this.height);
+        this.renderer.sortObjects = false;
         this.renderer.render(this.scene, this.camera);
     }
 
@@ -583,13 +645,14 @@ class LevelEditor {
 
         for (let li = 0; li < this.game.data.levels[this.level_index].layers.length; li++) {
             if (li < this.layer_structs.length) {
-                this.layer_structs[li].group.renderOrder = -li;
+                // this.layer_structs[li].group.renderOrder = -li - 1;
                 if (this.game.data.levels[this.level_index].layers[li].properties.visible) {
                     this.scene.add(this.layer_structs[li].group);
                 }
             }
         }
         this.scene.add(this.grid_group);
+        this.scene.add(this.selection_group);
         this.scene.add(this.cursor_group);
         this.scene.add(this.rect_group);
     }

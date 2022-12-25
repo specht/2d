@@ -117,7 +117,6 @@ class Game {
 
     create_geometry_and_material_for_sprite(si) {
         this.geometry_for_sprite[si] = new THREE.PlaneGeometry(1, 1, 1, 1);
-        let m = this.geometry_for_sprite[si].getAttribute('position');
         this.material_for_sprite[si] = new THREE.ShaderMaterial({
             uniforms: {
                 texture1: { value: null },
