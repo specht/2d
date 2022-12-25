@@ -4,28 +4,36 @@ class LayerStruct {
     */
     constructor(level_editor) {
         this.level_editor = level_editor;
-        this.group = new THREE.Group();
         this.el_sprite_count = null;
-        this.sprite_for_pos = {};
+        this.group = new THREE.Group();
+        this.interval_tree_x = new IntervalTree();
+        this.interval_tree_y = new IntervalTree();
+        this.reset();
+    }
+
+    reset() {
+        this.group.remove.apply(this.group, this.group.children);
+        this.interval_tree_x.clear();
+        this.interval_tree_y.clear();
         this.mesh_for_pos = {};
+        this.placed_sprite_index_for_pos = {};
     }
 
     // clear layer struct and apply layer from game data
     apply_layer(layer) {
-        this.group.remove.apply(this.group, this.group.children);
-        this.sprite_for_pos = {};
-        this.mesh_for_pos = {};
-        for (let sprite of layer.sprites) {
-            this.add_sprite([sprite[1], sprite[2]], sprite[0], false);
+        this.reset();
+        for (let i = 0; i < layer.sprites.length; i++) {
+            let sprite = layer.sprites[i];
+            this.add_sprite([sprite[1], sprite[2]], sprite[0], i);
         }
         // console.log(layer);
     }
 
     remove_sprite(p, update_game) {
         let pos = `${p[0]}/${p[1]}`;
-        if (pos in this.sprite_for_pos) {
+        if (pos in this.placed_sprite_index_for_pos) {
             this.group.remove(this.mesh_for_pos[pos]);
-            delete this.sprite_for_pos[pos];
+            delete this.placed_sprite_index_for_pos[pos];
             delete this.mesh_for_pos[pos];
             if (update_game) {
                 // find sprite in sprite list
@@ -44,21 +52,35 @@ class LayerStruct {
         }
     }
 
-    add_sprite(p, sprite_index, update_game) {
+    add_sprite(p, sprite_index, force_placed_sprite_index) {
+        let use_placed_sprite_index = null;
+        if (force_placed_sprite_index === null)
+            use_placed_sprite_index = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length;
+        else
+            use_placed_sprite_index = force_placed_sprite_index;
+
         let pos = `${p[0]}/${p[1]}`;
-        if (this.sprite_for_pos[pos] !== sprite_index) {
-            if (pos in this.sprite_for_pos) {
+        if ((this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[this.placed_sprite_index_for_pos[pos]] ?? [])[0] !== sprite_index) {
+            let sw = this.level_editor.game.data.sprites[sprite_index].width;
+            let sh = this.level_editor.game.data.sprites[sprite_index].height;
+            let x0 = p[0] - sw * 0.5;
+            let x1 = p[0] + sw * 0.5;
+            let y0 = p[1];
+            let y1 = p[1] + sh;
+            if (pos in this.placed_sprite_index_for_pos) {
                 this.group.remove(this.mesh_for_pos[pos]);
-                delete this.sprite_for_pos[pos];
+                delete this.placed_sprite_index_for_pos[pos];
                 delete this.mesh_for_pos[pos];
             }
             let mesh = new THREE.Mesh(this.level_editor.game.geometry_for_sprite[sprite_index], this.level_editor.game.material_for_sprite[sprite_index]);
             mesh.position.x = p[0];
             mesh.position.y = p[1];
             this.group.add(mesh);
-            this.sprite_for_pos[pos] = sprite_index;
             this.mesh_for_pos[pos] = mesh;
-            if (update_game) {
+            this.placed_sprite_index_for_pos[pos] = use_placed_sprite_index;
+            this.interval_tree_x.insert([x0, x1], use_placed_sprite_index);
+            this.interval_tree_y.insert([y0, y1], use_placed_sprite_index);
+            if (force_placed_sprite_index === null) {
                 this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.push([sprite_index, p[0], p[1]]);
             }
             $(this.el_sprite_count).text(`${this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length}`);
@@ -71,6 +93,7 @@ class LevelEditor {
         let self = this;
         this.element = element;
         $(this.element).empty();
+        $(this.element).css('cursor', 'crosshair');
         this.grid_width = 24;
         this.grid_height = 24;
         this.grid_x = 0;
@@ -110,7 +133,6 @@ class LevelEditor {
         this.mouse_down_position_no_snap = [0, 0];
         this.mouse_down_position_raw = [0, 0];
         this.old_camera_position = [0, 0];
-        this.sprite_for_pos = {};
         $(this.element).append(this.renderer.domElement);
 
         this.texture_loader = new THREE.TextureLoader();
@@ -258,129 +280,153 @@ class LevelEditor {
 
         $(this.element).off();
 
-        $(this.element).mouseenter(function (e) {
-            let p = self.ui_to_world(e.offsetX, e.offsetY, true);
-            self.cursor_group.remove.apply(self.cursor_group, self.cursor_group.children);
-            if (menus.level.active_key === 'tool/pen') {
-                self.sheets[self.sprite_index].add_sprite_to_group(self.cursor_group, 'sprite', 0, 0);
-                self.cursor_group.position.x = p[0];
-                self.cursor_group.position.y = p[1];
-                self.cursor_group.visible = true;
-            }
-            self.render();
-        });
-        $(this.element).mousemove(function (e) {
-            let p = self.ui_to_world(e.offsetX, e.offsetY, true);
-            let p_no_snap = self.ui_to_world(e.offsetX, e.offsetY, false);
-            if (menus.level.active_key === 'tool/pen') {
-                self.cursor_group.visible = true;
-                if (self.modifier_shift) {
-                    self.cursor_group.position.x = p_no_snap[0];
-                    self.cursor_group.position.y = p_no_snap[1];
-                } else {
-                    self.cursor_group.position.x = p[0];
-                    self.cursor_group.position.y = p[1];
-                }
-                if (self.mouse_down) {
-                    if (self.mouse_down_button === 0) {
-                        if (self.modifier_shift) {
-                            self.add_sprite_to_level(p_no_snap);
-                        } else {
-                            self.add_sprite_to_level(p);
-                        }
-                    } else if (self.mouse_down_button === 2) {
-                        if (self.modifier_shift) {
-                            self.remove_sprite_from_level(p_no_snap);
-                        } else {
-                            self.remove_sprite_from_level(p);
-                        }
-                    }
-                }
-            } else {
-                self.cursor_group.visible = false;
-            }
-            if (menus.level.active_key === 'tool/pan') {
-                // $(self.element).css('cursor', 'url(icons/move-hand.png) 11 4, auto');
-                if (self.mouse_down && self.mouse_down_button === 0) {
-                    self.camera_x = self.old_camera_position[0] - (e.offsetX - self.mouse_down_position_raw[0]) / self.scale;
-                    self.camera_y = self.old_camera_position[1] + (e.offsetY - self.mouse_down_position_raw[1]) / self.scale;
-                    self.refresh();
-                }
-            }
-
-            if (menus.level.active_key === 'tool/fill-rect' || menus.level.active_key === 'tool/select') {
-                if (self.mouse_down) {
-                    self.prepare_rect_group(self.mouse_down_position_no_snap[0], self.mouse_down_position_no_snap[1], p_no_snap[0], p_no_snap[1]);
-                }
-                self.rect_group.visible = self.mouse_down;
-            }
-            self.render();
-        });
-        $(this.element).mouseleave(function (e) {
-            if (menus.level.active_key === 'tool/pen') {
-                self.cursor_group.visible = false;
-            }
-            self.render();
-        });
-        $(this.element).on('contextmenu', function (e) {
-            return false;
-        });
-        $(this.element).mousedown(function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            self.mouse_down = true;
-            self.mouse_down_button = e.button;
-            self.mouse_down_position = self.ui_to_world(e.offsetX, e.offsetY, true);
-            self.mouse_down_position_no_snap = self.ui_to_world(e.offsetX, e.offsetY, false);
-            self.mouse_down_position_raw = [e.offsetX, e.offsetY];
-            if (menus.level.active_key === 'tool/pen') {
-                if (e.button === 0) {
-                    if (self.modifier_shift) {
-                        self.add_sprite_to_level(self.mouse_down_position_no_snap);
-                    } else {
-                        self.add_sprite_to_level(self.mouse_down_position);
-                    }
-                } else if (e.button === 2) {
-                    if (self.modifier_shift) {
-                        self.remove_sprite_from_level(self.mouse_down_position_no_snap);
-                    } else {
-                        self.remove_sprite_from_level(self.mouse_down_position);
-                    }
-                }
-            } else if (menus.level.active_key === 'tool/pan') {
-                self.old_camera_position = [self.camera_x, self.camera_y];
-            }
-            self.render();
-        });
-        $(this.element).mouseup(function (e) {
-            self.mouse_down = false;
-            let p_no_snap = self.ui_to_world(e.offsetX, e.offsetY, false);
-            if (menus.level.active_key === 'tool/fill-rect') {
-                let x0 = self.mouse_down_position_no_snap[0];
-                let y0 = self.mouse_down_position_no_snap[1];
-                let x1 = p_no_snap[0];
-                let y1 = p_no_snap[1];
-                if (x0 > x1) { let temp = x0; x0 = x1; x1 = temp; }
-                if (y0 > y1) { let temp = y0; y0 = y1; y1 = temp; }
-                x0 = Math.round(Math.floor(x0 / self.grid_width) * self.grid_width);
-                y0 = Math.round(Math.floor(y0 / self.grid_height) * self.grid_height);
-                x1 = Math.round(Math.ceil(x1 / self.grid_width) * self.grid_width);
-                y1 = Math.round(Math.ceil(y1 / self.grid_height) * self.grid_height);
-                for (let y = y0; y < y1; y += self.grid_height) {
-                    for (let x = x0; x < x1; x += self.grid_width) {
-                        self.add_sprite_to_level([x, y]);
-                    }
-                }
-            }
-            self.rect_group.visible = false;
-            self.render();
-        });
+        // $(this.element).on('contextmenu', function (e) {
+        //     return false;
+        // });
+        $(this.element).on('mouseenter', (e) => self.handle_enter(e));
+        $(this.element).on('mouseleave', (e) => self.handle_leave(e));
+        $(this.element).on('mousedown touchstart', (e) => self.handle_down(e));
+        $(window).on('mouseup touchend', (e) => self.handle_up(e));
+        $(window).on('mousemove touchmove', (e) => self.handle_move(e));
         $(this.element).on('mousewheel', function (e) {
             e.preventDefault();
-            let p = self.ui_to_world(e.originalEvent.offsetX, e.originalEvent.offsetY, false);
+            let p = self.ui_to_world(self.get_touch_point(e), false);
             self.zoom_at_point(e.originalEvent.deltaY, p[0], p[1]);
             self.render();
         });
+    }
+
+    get_touch_point(e) {
+        let dx = this.element.position().left;
+        let dy = this.element.position().top;
+        if (e.clientX)
+            return [e.clientX - dx, e.clientY - dy];
+        else {
+            if (e.touches) {
+                this.is_touch = true;
+                return [e.touches[0].clientX - dx, e.touches[0].clientY - dy];
+            } else return [0 - dx, 0 - dy];
+        }
+    }
+
+    handle_enter(e) {
+        let p = this.ui_to_world(this.get_touch_point(e), true);
+        this.cursor_group.remove.apply(this.cursor_group, this.cursor_group.children);
+        if (menus.level.active_key === 'tool/pen') {
+            this.sheets[this.sprite_index].add_sprite_to_group(this.cursor_group, 'sprite', 0, 0);
+            this.cursor_group.position.x = p[0];
+            this.cursor_group.position.y = p[1];
+            this.cursor_group.visible = true;
+        }
+        this.render();
+    }
+
+    handle_leave(e) {
+        if (menus.level.active_key === 'tool/pen') {
+            this.cursor_group.visible = false;
+        }
+        this.render();
+    }
+
+    handle_down(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.mouse_down = true;
+        this.mouse_down_button = e.button;
+        this.mouse_down_position = this.ui_to_world(this.get_touch_point(e), true);
+        this.mouse_down_position_no_snap = this.ui_to_world(this.get_touch_point(e), false);
+        this.mouse_down_position_raw = this.get_touch_point(e);
+        if (menus.level.active_key === 'tool/pen') {
+            if (e.button === 0) {
+                if (this.modifier_shift) {
+                    this.add_sprite_to_level(this.mouse_down_position_no_snap);
+                } else {
+                    this.add_sprite_to_level(this.mouse_down_position);
+                }
+            } else if (e.button === 2) {
+                if (this.modifier_shift) {
+                    this.remove_sprite_from_level(this.mouse_down_position_no_snap);
+                } else {
+                    this.remove_sprite_from_level(this.mouse_down_position);
+                }
+            }
+        } else if (menus.level.active_key === 'tool/pan') {
+            this.old_camera_position = [this.camera_x, this.camera_y];
+        }
+        this.render();
+    }
+
+    handle_up(e) {
+        this.mouse_down = false;
+        let p_no_snap = this.ui_to_world(this.get_touch_point(e), false);
+        if (menus.level.active_key === 'tool/fill-rect') {
+            let x0 = this.mouse_down_position_no_snap[0];
+            let y0 = this.mouse_down_position_no_snap[1];
+            let x1 = p_no_snap[0];
+            let y1 = p_no_snap[1];
+            if (x0 > x1) { let temp = x0; x0 = x1; x1 = temp; }
+            if (y0 > y1) { let temp = y0; y0 = y1; y1 = temp; }
+            x0 = Math.round(Math.floor(x0 / this.grid_width) * this.grid_width);
+            y0 = Math.round(Math.floor(y0 / this.grid_height) * this.grid_height);
+            x1 = Math.round(Math.ceil(x1 / this.grid_width) * this.grid_width);
+            y1 = Math.round(Math.ceil(y1 / this.grid_height) * this.grid_height);
+            for (let y = y0; y < y1; y += this.grid_height) {
+                for (let x = x0; x < x1; x += this.grid_width) {
+                    this.add_sprite_to_level([x, y]);
+                }
+            }
+        }
+        this.rect_group.visible = false;
+        this.render();
+    }
+
+    handle_move(e) {
+        let touch = this.get_touch_point(e);
+        let p = this.ui_to_world(touch, true);
+        let p_no_snap = this.ui_to_world(touch, false);
+        if (menus.level.active_key === 'tool/pen') {
+            this.cursor_group.visible = true;
+            if (this.modifier_shift) {
+                this.cursor_group.position.x = p_no_snap[0];
+                this.cursor_group.position.y = p_no_snap[1];
+            } else {
+                this.cursor_group.position.x = p[0];
+                this.cursor_group.position.y = p[1];
+            }
+            if (this.mouse_down) {
+                if (this.mouse_down_button === 0) {
+                    if (this.modifier_shift) {
+                        this.add_sprite_to_level(p_no_snap);
+                    } else {
+                        this.add_sprite_to_level(p);
+                    }
+                } else if (this.mouse_down_button === 2) {
+                    if (this.modifier_shift) {
+                        this.remove_sprite_from_level(p_no_snap);
+                    } else {
+                        this.remove_sprite_from_level(p);
+                    }
+                }
+            }
+        } else {
+            this.cursor_group.visible = false;
+        }
+        if (menus.level.active_key === 'tool/pan') {
+            // $(this.element).css('cursor', 'url(icons/move-hand.png) 11 4, auto');
+            if (this.mouse_down && this.mouse_down_button === 0) {
+                this.camera_x = this.old_camera_position[0] - (touch[0] - this.mouse_down_position_raw[0]) / this.scale;
+                this.camera_y = this.old_camera_position[1] + (touch[1] - this.mouse_down_position_raw[1]) / this.scale;
+                this.refresh();
+            }
+        }
+
+        if (menus.level.active_key === 'tool/fill-rect' || menus.level.active_key === 'tool/select') {
+            if (this.mouse_down) {
+                this.prepare_rect_group(this.mouse_down_position_no_snap[0], this.mouse_down_position_no_snap[1], p_no_snap[0], p_no_snap[1]);
+            }
+            this.rect_group.visible = this.mouse_down;
+        }
+        this.render();
     }
 
     setModifierShift(flag) {
@@ -411,7 +457,7 @@ class LevelEditor {
 
     add_sprite_to_level(p) {
         if (this.game.data.levels[this.level_index].layers[this.layer_index].properties.visible) {
-            this.layer_structs[this.layer_index].add_sprite(p, this.sprite_index, true);
+            this.layer_structs[this.layer_index].add_sprite(p, this.sprite_index, null);
             this.render();
         }
     }
@@ -438,9 +484,9 @@ class LevelEditor {
         this.handleResize();
     }
 
-    ui_to_world(x, y, snap) {
-        let wx = this.camera_x + (x - (this.width / 2)) / this.scale;
-        let wy = this.camera_y - (y - (this.height / 2)) / this.scale;
+    ui_to_world(p, snap) {
+        let wx = this.camera_x + (p[0] - (this.width / 2)) / this.scale;
+        let wy = this.camera_y - (p[1] - (this.height / 2)) / this.scale;
         if (snap) {
             wx = Math.round(Math.floor((wx + 12) / this.grid_width) * this.grid_width);
             wy = Math.round(Math.floor((wy) / this.grid_height) * this.grid_height);
@@ -498,6 +544,21 @@ class LevelEditor {
         // geometry.translate(0.5, 0.5, 0);
         let line = new THREE.LineSegments(geometry, material);
         this.grid_group.add(line);
+
+        // points = [];
+        // points.push(new THREE.Vector3(0, 0))
+        // points.push(new THREE.Vector3(24, 0))
+        // geometry = new THREE.BufferGeometry().setFromPoints(points);
+        // material = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2.0, transparent: true});
+        // line = new THREE.LineSegments(geometry, material);
+        // this.grid_group.add(line);
+        // points = [];
+        // points.push(new THREE.Vector3(0, 0))
+        // points.push(new THREE.Vector3(0, 24))
+        // geometry = new THREE.BufferGeometry().setFromPoints(points);
+        // material = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2.0, transparent: true});
+        // line = new THREE.LineSegments(geometry, material);
+        // this.grid_group.add(line);
     }
 
     refresh() {
@@ -510,7 +571,6 @@ class LevelEditor {
 
         // re-create all sprite sheets
         this.sheets = [];
-        // this.sprite_for_pos = {};
         for (let si = 0; si < this.game.data.sprites.length; si++) {
             let fi = Math.floor(this.game.data.sprites[si].states[0].frames.length / 2 - 0.5);
             let frame = this.game.data.sprites[si].states[0].frames[fi];

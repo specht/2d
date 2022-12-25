@@ -103,6 +103,8 @@ class Canvas {
                 self.zoom_at_point(e.deltaY, cx, cy);
             }
         });
+        $(this.element).off();
+        
         $(this.element).on('mouseenter', (e) => self.handle_enter(e));
         $(this.element).on('mouseleave', (e) => self.handle_leave(e));
         $(this.element).on('mousedown touchstart', (e) => self.handle_down(e));
