@@ -43,7 +43,7 @@ class SpriteSheet {
         // console.log(sprite);
         group.add(sprite);
         if (true) {
-            let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true, opacity: 0.3 });
+            let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.0, transparent: true, opacity: 1 });
             let points = [];
             for (let p of (skin.hitbox || [])) {
                 let px = p[0] - sw / 2 + x;
@@ -52,7 +52,7 @@ class SpriteSheet {
             }
             let geometry = new THREE.BufferGeometry().setFromPoints(points);
             let line = new THREE.LineLoop(geometry, material);
-            // group.add(line);
+            group.add(line);
             // if (skin.pivot) {
             //     let material = new THREE.LineBasicMaterial({ color: 0xff0000 });
             //     points = [];

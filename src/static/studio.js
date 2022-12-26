@@ -383,6 +383,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
             { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
         ] },
         { group: 'tool', command: 'select', image: 'select-rect', shortcut: 'E', label: 'Auswählen', hints: [
+            { key: 'Control+A', label: 'Alles auswählen', callback: function (x) { game.level_editor.select_all(); } },
             { key: 'Delete', label: 'Auswahl löschen', callback: function (x) { game.level_editor.delete_selection(); } },
         ] },
         // { group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'W', label: 'Rechteck füllen' },

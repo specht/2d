@@ -124,16 +124,19 @@ class LayerStruct {
     }
 
     select_rect(selection_group, x0, y0, x1, y1) {
-        console.log(x0, y0, x1, y1);
+        let result = [];
+        selection_group.remove.apply(selection_group, selection_group.children);
+
+        if (!this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].properties.visible)
+            return result;
         let result_x = new Set();
         for (let i of this.interval_tree_x.search([x0, x1]))
             result_x.add(i);
         let result_y = new Set();
         for (let i of this.interval_tree_y.search([y0, y1]))
             result_y.add(i);
-        let result = new Set([...result_x].filter((x) => result_y.has(x)));
+        result = new Set([...result_x].filter((x) => result_y.has(x)));
 
-        selection_group.remove.apply(selection_group, selection_group.children);
         for (let index of result) {
             let s = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[index];
             let sprite_index = s[0];
@@ -269,6 +272,7 @@ class LevelEditor {
                                 button.find('i').removeClass('fa-eye').addClass('fa-eye-slash');
                             }
                             e.stopPropagation();
+                            self.clear_selection();
                             self.refresh();
                             self.render();
                         });
@@ -436,6 +440,7 @@ class LevelEditor {
         } else if (menus.level.active_key === 'tool/pan') {
             this.old_camera_position = [this.camera_x, this.camera_y];
         } else if (menus.level.active_key === 'tool/select') {
+            this.clear_selection();
             this.updating_selection = true;
         }
         this.render();
@@ -569,6 +574,13 @@ class LevelEditor {
         this.render();
     }
 
+    select_all() {
+        this.clear_selection();
+        this.selection = this.layer_structs[this.layer_index].select_rect(this.selection_group, -Infinity, -Infinity, Infinity, Infinity);
+        this.refresh();
+        this.render();
+    }
+
     delete_selection() {
         let delete_these = new Set();
         for (let i of this.selection)
@@ -650,10 +662,10 @@ class LevelEditor {
     }
 
     refresh_grid() {
-        this.x0 = this.camera_x - this.width * 0.5 / this.scale;
-        this.x1 = this.camera_x + this.width * 0.5 / this.scale;
-        this.y0 = this.camera_y - this.height * 0.5 / this.scale;
-        this.y1 = this.camera_y + this.height * 0.5 / this.scale;
+        let x0 = this.camera_x - this.width * 0.5 / this.scale;
+        let x1 = this.camera_x + this.width * 0.5 / this.scale;
+        let y0 = this.camera_y - this.height * 0.5 / this.scale;
+        let y1 = this.camera_y + this.height * 0.5 / this.scale;
 
         this.grid_group.remove.apply(this.grid_group, this.grid_group.children);
         let opacity = 0.2;
@@ -662,16 +674,16 @@ class LevelEditor {
         let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.0, transparent: true, opacity: opacity });
 
         let points = [];
-        let y = Math.floor(this.y0 / this.grid_height) * this.grid_height;
-        while (y < this.y1) {
-            points.push(new THREE.Vector3(this.x0, y))
-            points.push(new THREE.Vector3(this.x1, y))
+        let y = Math.floor(y0 / this.grid_height) * this.grid_height;
+        while (y < y1) {
+            points.push(new THREE.Vector3(x0, y))
+            points.push(new THREE.Vector3(x1, y))
             y += this.grid_height;
         }
-        let x = Math.floor(this.x0 / this.grid_width) * this.grid_width - this.grid_width * 0.5;
-        while (x < this.x1) {
-            points.push(new THREE.Vector3(x, this.y0))
-            points.push(new THREE.Vector3(x, this.y1))
+        let x = Math.floor(x0 / this.grid_width) * this.grid_width - this.grid_width * 0.5;
+        while (x < x1) {
+            points.push(new THREE.Vector3(x, y0))
+            points.push(new THREE.Vector3(x, y1))
             x += this.grid_width;
         }
         let geometry = new THREE.BufferGeometry().setFromPoints(points);
