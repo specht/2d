@@ -378,14 +378,14 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
 
     tool_menu_items.level = [
-        { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen', hints: [
+        { group: 'tool', command: 'pan', image: 'move-hand', shortcut: 'Q', label: 'Verschieben' },
+        { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'W', label: 'Zeichnen', hints: [
             { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
         ] },
-        // { group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'W', label: 'Rechteck füllen' },
-        { group: 'tool', command: 'select', image: 'select-rect', shortcut: 'W', label: 'Auswählen', hints: [
+        { group: 'tool', command: 'select', image: 'select-rect', shortcut: 'E', label: 'Auswählen', hints: [
             { key: 'Delete', label: 'Auswahl löschen', callback: function (x) { game.level_editor.delete_selection(); } },
         ] },
-        { group: 'tool', command: 'pan', image: 'move-hand', shortcut: 'E', label: 'Verschieben' },
+        // { group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'W', label: 'Rechteck füllen' },
     ];
 
 
@@ -400,7 +400,18 @@ document.addEventListener("DOMContentLoaded", function (event) {
 
     update_color_palette();
     // initialize all other menus
-    menus.level = new Menu($('#tool_menu_level'), 'level', tool_menu_items.level);
+    menus.level = new Menu($('#tool_menu_level'), 'level', tool_menu_items.level, null, function() {
+        console.log('oy');
+        if (this.active_key === 'tool/pen') {
+            $('#menu_level_sprites .button').removeClass('active');
+            $('#menu_level_sprites .button').eq(game.level_editor.sprite_index).addClass('active');
+        } else {
+            $('#menu_level_sprites .button').removeClass('active');
+        }
+        if (this.active_key !== 'tool/select') {
+            game?.level_editor?.clear_selection();
+        }
+    });
     // initialize sprites menu last
     menus.sprites = new Menu($('#tool_menu'), 'sprites', tool_menu_items.sprites, canvas);
     canvas.menu = menus.sprites;
@@ -418,13 +429,14 @@ document.addEventListener("DOMContentLoaded", function (event) {
 
     $('.main-nav-item').click(function (e) {
         let key = $(e.target).attr('id').replace('mi_', '');
-        prepare_pane(key);
         $('.main-nav-item').removeClass('active');
         $(`#mi_${key}`).addClass('active');
         $('.main_div').hide();
         $(`#main_div_${key}`).show();
         current_pane = key;
         menus[key].refresh_status_bar();
+        if (current_pane === 'level')
+            game.level_editor.refresh_sprite_widget();
     })
 
     $('#bu_save_game').click(function (e) {
@@ -874,33 +886,6 @@ document.addEventListener("DOMContentLoaded", function (event) {
         //     $('#mi_level').click();
         // }, 250);
     }
+    $('html').css('background-color', '');
+    $('#curtain').fadeOut();
 });
-
-function prepare_pane(which) {
-    if (which === 'level') {
-        $('#menu_level_sprites').empty();
-        for (let si = 0; si < game.data.sprites.length; si++) {
-            game.update_material_for_sprite(si);
-            let fi = Math.floor(game.data.sprites[si].states[0].frames.length / 2 - 0.5);
-            let sprite_button = $(`<div>`).addClass('menu_level_sprite_item').appendTo($('#menu_level_sprites'));
-            sprite_button.append($('<img>').attr('src', game.data.sprites[si].states[0].frames[fi].src));
-            sprite_button.data('sprite_index', si);
-            if (si === 0) sprite_button.addClass('active');
-        }
-        $('.menu_level_sprite_item').mousedown(function (e) {
-            e.preventDefault();
-            $('.menu_level_sprite_item').removeClass('active');
-            let button = $(e.target.closest('.menu_level_sprite_item'));
-            button.addClass('active');
-            game.level_editor.sprite_index = button.data('sprite_index');
-            game.level_editor.grid_width = game.data.sprites[game.level_editor.sprite_index].width;
-            game.level_editor.grid_height = game.data.sprites[game.level_editor.sprite_index].height;
-            game.level_editor.refresh();
-            game.level_editor.render();
-        });
-        game.level_editor.refresh();
-        setTimeout(function() {
-            game.level_editor.render();
-        }, 0);
-    }
-}

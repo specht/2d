@@ -8,7 +8,7 @@ const KEY_TR = {
     'ArrowDown': '▼'
 };
 class Menu {
-    constructor(element, pane, info, canvas) {
+    constructor(element, pane, info, canvas, callback) {
         this.element = element;
         this.pane = pane;
         this.canvas = canvas;
@@ -19,6 +19,9 @@ class Menu {
         this.status_buttons = {};
         this.status_shortcuts = {};
         this.active_key = null;
+        this.callback = null;
+        if (typeof(callback) !== 'undefined')
+            this.callback = callback;
         for (let item of info) {
             if (item.type === 'divider') {
                 this.element.append($('<hr />'));
@@ -66,7 +69,6 @@ class Menu {
         $(window).keydown(function (e) {
             if ($(e.target).is('input')) return;
             let k = self.parseKeyEvent(e);
-            console.log(k);
             if (k in self.shortcuts) {
                 if (self.shortcuts[k].global || self.pane === current_pane) {
                     // console.log(`Handling menu keydown: ${k}`, self.shortcuts[k]);
@@ -303,5 +305,7 @@ class Menu {
         }
         if (command.callback)
             command.callback(command);
+        if (self.callback)
+            self.callback();
     }
 }

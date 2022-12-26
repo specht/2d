@@ -32,33 +32,56 @@ class LayerStruct {
         // console.log(layer);
     }
 
+    remove_from_interval_trees(psi) {
+        let placed = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[psi];
+        let sprite_index = placed[0];
+        let p = [placed[1], placed[2]];
+        let sw = this.level_editor.game.data.sprites[sprite_index].width;
+        let sh = this.level_editor.game.data.sprites[sprite_index].height;
+        let x0 = p[0] - sw * 0.5;
+        let x1 = p[0] + sw * 0.5;
+        let y0 = p[1];
+        let y1 = p[1] + sh;
+        this.interval_tree_x.remove([x0, x1], psi);
+        this.interval_tree_y.remove([y0, y1], psi);
+    }
+
+    insert_into_interval_trees(psi) {
+        let placed = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[psi];
+        let sprite_index = placed[0];
+        let p = [placed[1], placed[2]];
+        let sw = this.level_editor.game.data.sprites[sprite_index].width;
+        let sh = this.level_editor.game.data.sprites[sprite_index].height;
+        let x0 = p[0] - sw * 0.5;
+        let x1 = p[0] + sw * 0.5;
+        let y0 = p[1];
+        let y1 = p[1] + sh;
+        this.interval_tree_x.insert([x0, x1], psi);
+        this.interval_tree_y.insert([y0, y1], psi);
+    }
+
     remove_sprite(p, retain_position) {
         let pos = `${p[0]}/${p[1]}`;
         if (pos in this.placed_sprite_index_for_pos) {
-            let sprite_index = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[this.placed_sprite_index_for_pos[pos]][0];
-            let sw = this.level_editor.game.data.sprites[sprite_index].width;
-            let sh = this.level_editor.game.data.sprites[sprite_index].height;
-            let x0 = p[0] - sw * 0.5;
-            let x1 = p[0] + sw * 0.5;
-            let y0 = p[1];
-            let y1 = p[1] + sh;
+            let placed_sprite_index = this.placed_sprite_index_for_pos[pos];
             this.group.remove(this.mesh_for_pos[pos]);
-            this.interval_tree_x.remove([x0, x1], this.placed_sprite_index_for_pos[pos]);
-            this.interval_tree_y.remove([y0, y1], this.placed_sprite_index_for_pos[pos]);
+            this.remove_from_interval_trees(this.placed_sprite_index_for_pos[pos]);
             delete this.placed_sprite_index_for_pos[pos];
             delete this.mesh_for_pos[pos];
             if (!retain_position) {
-                // don't retain position: swap removed sprite with last sprite
-                // let index = null;
-                // for (let i = 0; i < this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length; i++) {
-                //     let entry = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[i];
-                //     if (entry[1] === p[0] && entry[2] === p[1]) {
-                //         index = i;
-                //         break;
-                //     }
-                // }
-                // if (index !== null)
-                //     this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.splice(index, 1);
+                // don't retain position: swap removed sprite with last sprite (sprite_index vs. this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length - 1)
+                // delete a
+                let a = placed_sprite_index;
+                // move b to position of a
+                let b = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length - 1;
+                if (a !== b) {
+                    this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[a] = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[b];
+                    let sprite = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[a];
+                    this.placed_sprite_index_for_pos[`${sprite[1]}/${sprite[2]}`] = a;
+                    this.remove_from_interval_trees(b);
+                    this.insert_into_interval_trees(a);
+                }
+                this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.splice(b, 1);
             }
             if (!retain_position) {
                 $(this.el_sprite_count).text(`${this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length}`);
@@ -181,10 +204,12 @@ class LevelEditor {
         this.mouse_down_position = [0, 0];
         this.mouse_down_position_no_snap = [0, 0];
         this.mouse_down_position_raw = [0, 0];
+        this.updating_selection = false;
         this.old_camera_position = [0, 0];
         $(this.element).append(this.renderer.domElement);
 
         this.texture_loader = new THREE.TextureLoader();
+        this.refresh_sprite_widget();
 
         // let material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
         // let points = [];
@@ -381,6 +406,7 @@ class LevelEditor {
     handle_down(e) {
         e.preventDefault();
         e.stopPropagation();
+        this.updating_selection = false;
         this.mouse_down = true;
         this.mouse_down_button = e.button;
         let touch = this.get_touch_point(e);
@@ -409,6 +435,8 @@ class LevelEditor {
             }
         } else if (menus.level.active_key === 'tool/pan') {
             this.old_camera_position = [this.camera_x, this.camera_y];
+        } else if (menus.level.active_key === 'tool/select') {
+            this.updating_selection = true;
         }
         this.render();
     }
@@ -433,14 +461,12 @@ class LevelEditor {
         //         }
         //     }
         // }
-        if (menus.level.active_key === 'tool/select') {
+        if (this.updating_selection && menus.level.active_key === 'tool/select') {
             let sx0 = this.x0;
             let sy0 = this.y0;
             let sx1 = this.x1;
             let sy1 = this.y1;
-            console.log(this.x0, this.y0, this.x1, this.y1);
             this.clear_selection();
-            console.log(this.x0, this.y0, this.x1, this.y1);
             this.selection = this.layer_structs[this.layer_index].select_rect(this.selection_group, sx0, sy0, sx1, sy1);
             this.refresh();
             this.render();
@@ -612,6 +638,15 @@ class LevelEditor {
         this.renderer.setSize(this.width, this.height);
         this.renderer.sortObjects = false;
         this.renderer.render(this.scene, this.camera);
+        // let data = {};
+        // if (this.layer_structs.length > 0) {
+        //     data.sprites = ((this.game.data.levels || [{}])[0].layers || [{}])[0].sprites.map(function(x) {return `#${x[0]} @ ${x[1]}/${x[2]}`;});
+        //     data.psifp = this.layer_structs[0].placed_sprite_index_for_pos;
+        //     data.ixtc = this.layer_structs[0].interval_tree_x.values;
+        //     data.iytc = this.layer_structs[0].interval_tree_y.values;
+        //     data.mfp = Object.keys(this.layer_structs[0].mesh_for_pos).length;
+        // }
+        // $('#layer_debug').text(JSON.stringify(data, null, 2));
     }
 
     refresh_grid() {
@@ -684,12 +719,44 @@ class LevelEditor {
                 if (this.game.data.levels[this.level_index].layers[li].properties.visible) {
                     this.scene.add(this.layer_structs[li].group);
                 }
+                if (this.layer_index === li)
+                    this.scene.add(this.cursor_group);
             }
         }
         this.scene.add(this.grid_group);
         this.scene.add(this.selection_group);
-        this.scene.add(this.cursor_group);
         this.scene.add(this.rect_group);
+    }
+
+    refresh_sprite_widget() {
+        $('#menu_level_sprites').empty();
+        for (let si = 0; si < this.game.data.sprites.length; si++) {
+            this.game.update_material_for_sprite(si);
+            let fi = Math.floor(this.game.data.sprites[si].states[0].frames.length / 2 - 0.5);
+            let sprite_button = $(`<div>`).addClass('button button-3').appendTo($('#menu_level_sprites'));
+            // sprite_button.append($('<img>').attr('src', this.game.data.sprites[si].states[0].frames[fi].src).css('width', '100%').css('image-rendering', 'pixelated'));
+            sprite_button.css('background-image', `url(${this.game.data.sprites[si].states[0].frames[fi].src})`);
+            sprite_button.css('background-size', 'contain');
+            sprite_button.css('image-rendering', 'pixelated');
+            sprite_button.data('sprite_index', si);
+            // if (si === 0) sprite_button.addClass('active');
+            sprite_button.mousedown(function(e) {
+                e.preventDefault();
+                $(e.target).closest('.menu').find('.button').removeClass('active');
+                let button = $(e.target.closest('.button'));
+                button.addClass('active');
+                self.sprite_index = button.data('sprite_index');
+                self.grid_width = self.game.data.sprites[self.sprite_index].width;
+                self.grid_height = self.game.data.sprites[self.sprite_index].height;
+                self.refresh();
+                self.render();
+                menus.level.handle_click('tool/pen');
+            });
+        }
+        this.refresh();
+        let self = this;
+        setTimeout(function() { self.render(); }, 0);
+        menus.level.callback();
     }
 }
 
