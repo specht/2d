@@ -50,14 +50,14 @@ class ModalDialog {
         if (!backdrop_click_handler_initialized) {
             backdrop_click_handler_initialized = true;
             self.parent.mousedown(function(e) {
-                self.parent.fadeOut();
+                self.parent.hide();
                 self.parent.find('.modal').hide();
             })
         }
     }
 
     show() {
-        this.parent.fadeIn();
+        this.parent.show();
         this.errorDiv.hide();
         this.dialog.show();
         this.dialog.find('.modal-body')[0].scrollTop = 0;
@@ -68,7 +68,7 @@ class ModalDialog {
 
     hide() {
         this.dialog.hide();
-        this.parent.fadeOut();
+        this.parent.hide();
     }
 
     dismiss() {

@@ -1,84 +1,140 @@
 <!DOCTYPE html>
 <html style="background-color: #000;">
 
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, maximum-scale=1">
-    <meta charset="UTF-8" />
-    <title>Hackschule Game Studio</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-        rel="stylesheet">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,400;0,500;0,700;1,400;1,700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-        rel="stylesheet">
-    <link href="fork-awesome/fork-awesome.min.css" rel="stylesheet">
-    <link href="coloris.min.css" rel="stylesheet">
-    <link href="styles.css?#{@@cache_buster}" rel="stylesheet">
-    <script src="jquery-3.6.0.min.js"></script>
-    <script src="coloris.min.js"></script>
-    <script src="api.js?#{@@cache_buster}"></script>
-    <script src="widgets.js?#{@@cache_buster}"></script>
-    <script src="canvas.js?#{@@cache_buster}"></script>
-    <script src="sprite_sheet.js?#{@@cache_buster}"></script>
-    <script src="level_editor.js?#{@@cache_buster}"></script>
-    <script src="game.js?#{@@cache_buster}"></script>
-    <script src="dropdownmenu.js?#{@@cache_buster}"></script>
-    <script src="modaldialogs.js?#{@@cache_buster}"></script>
-    <script src="menu.js?#{@@cache_buster}"></script>
-    <script src="cling-colors.js?#{@@cache_buster}"></script>
-    <script src="palettes.js?#{@@cache_buster}"></script>
-    <script src="tinycolor-min.js"></script>
-    <script src="moment-with-locales.min.js"></script>
-    <script src="studio.js?#{@@cache_buster}"></script>
-    <script src="three.min.js?#{@@cache_buster}"></script>
-    <script src="masonry.pkgd.min.js?#{@@cache_buster}"></script>
-    <script src="ditherjs.dist.js?#{@@cache_buster}"></script>
-    <script src="interval_tree.js?#{@@cache_buster}"></script>
-    <script src="avl.js?#{@@cache_buster}"></script>
-    <script type="x-shader/x-vertex" id="vertex-shader">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1,
+            user-scalable=no, maximum-scale=1">
+        <meta charset="UTF-8" />
+        <title>Hackschule Game Studio</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+            rel="stylesheet">
+        <link
+            href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,400;0,500;0,700;1,400;1,700&family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+            rel="stylesheet">
+        <link href="fork-awesome/fork-awesome.min.css" rel="stylesheet">
+        <link href="coloris.min.css" rel="stylesheet">
+        <link href="styles.css?#{@@cache_buster}" rel="stylesheet">
+        <script src="jquery-3.6.0.min.js"></script>
+        <script src="coloris.min.js"></script>
+        <script src="api.js?#{@@cache_buster}"></script>
+        <script src="widgets.js?#{@@cache_buster}"></script>
+        <script src="canvas.js?#{@@cache_buster}"></script>
+        <script src="sprite_sheet.js?#{@@cache_buster}"></script>
+        <script src="level_editor.js?#{@@cache_buster}"></script>
+        <script src="game.js?#{@@cache_buster}"></script>
+        <script src="dropdownmenu.js?#{@@cache_buster}"></script>
+        <script src="modaldialogs.js?#{@@cache_buster}"></script>
+        <script src="menu.js?#{@@cache_buster}"></script>
+        <script src="cling-colors.js?#{@@cache_buster}"></script>
+        <script src="palettes.js?#{@@cache_buster}"></script>
+        <script src="tinycolor-min.js"></script>
+        <script src="moment-with-locales.min.js"></script>
+        <script src="studio.js?#{@@cache_buster}"></script>
+        <script src="three.min.js?#{@@cache_buster}"></script>
+        <script src="masonry.pkgd.min.js?#{@@cache_buster}"></script>
+        <script src="ditherjs.dist.js?#{@@cache_buster}"></script>
+        <script src="interval_tree.js?#{@@cache_buster}"></script>
+        <script src="avl.js?#{@@cache_buster}"></script>
+        <script type="x-shader/x-vertex" id="vertex-shader">
       varying vec2 vuv; void main() { vuv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
     </script>
-    <script type="x-shader/x-fragment" id="fragment-shader">
+        <script type="x-shader/x-fragment" id="fragment-shader">
       uniform sampler2D texture1; varying vec2 vuv; void main() { gl_FragColor = texture2D(texture1, vuv); }
     </script>
-  </head>
+        <script type="x-shader/x-fragment" id="fragment-shader-gradient">
+        uniform int n;
+        uniform lowp vec4 ca, cb, cc, cd;
+        uniform lowp vec2 pa, pb, pc, pd;
+        uniform lowp vec2 na, nb, nc, nd;
+        uniform lowp float la, lb, lc, ld;
+        varying vec2 vuv;
+        void main() {
+            if (n == 1) {
+                gl_FragColor = ca;
+            } else if (n == 2) {
+                float wa = clamp(1.0 - dot(vuv - pa, na) / la, 0.0, 1.0);
+                float wb = clamp(1.0 - dot(vuv - pb, nb) / lb, 0.0, 1.0);
+                float sum = wa + wb;
+                wa /= sum;
+                wb /= sum;
+                gl_FragColor = ca * wa + cb * wb;
+            } else if (n == 4) {
+                // code from https://johnflux.com/2016/03/16/four-point-gradient-as-a-shader/
+                lowp vec2 Q = pa - pc;
+                lowp vec2 R = pb - pa;
+                lowp vec2 S = R + pc - pd;
+                lowp vec2 T = pa - vuv;
+                lowp float u;
+                lowp float t;
+                if(Q.x == 0.0 && S.x == 0.0) {
+                    u = -T.x/R.x;
+                    t = (T.y + u*R.y) / (Q.y + u*S.y);
+                } else if(Q.y == 0.0 && S.y == 0.0) {
+                    u = -T.y/R.y;
+                    t = (T.x + u*R.x) / (Q.x + u*S.x);
+                } else {
+                    float A = S.x * R.y - R.x * S.y;
+                    float B = S.x * T.y - T.x * S.y + Q.x*R.y - R.x*Q.y;
+                    float C = Q.x * T.y - T.x * Q.y;
+                    // Solve Au^2 + Bu + C = 0
+                    if(abs(A) < 0.0001)
+                        u = -C/B;
+                    else
+                        u = (-B+sqrt(B*B-4.0*A*C))/(2.0*A);
+                    t = (T.y + u*R.y) / (Q.y + u*S.y);
+                }
+                u = clamp(u,0.0,1.0);
+                t = clamp(t,0.0,1.0);
+                // These two lines smooth out t and u to avoid visual 'lines' at the boundaries.  They can be removed to improve performance at the cost of graphics quality.
+                t = smoothstep(0.0, 1.0, t);
+                u = smoothstep(0.0, 1.0, u);
+                lowp vec4 colorA = mix(ca,cb,u);
+                lowp vec4 colorB = mix(cc,cd,u);
+                gl_FragColor = mix(colorA, colorB, t);
+            } else {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            }
+        }
+    </script>
+    </head>
 
-<body>
-    <div id='main-nav'>
-        <div id='mi_sprites' class='main-nav-item active'>Sprites</div>
-        <div id='mi_level' class='main-nav-item'>Level</div>
-        <div id='mi_code' class='main-nav-item'>Code</div>
-        <div id='mi_settings' class='main-nav-item'>Einstellungen</div>
-        <div id='mi_play' class='main-nav-item'>Spielen</div>
-        <div id='mi_help' class='main-nav-item'>Hilfe</div>
-    </div>
-    <div id='main_div_game' class="main_div" style="margin-top: 40px;">
-        <button id="bu_save_game">Spiel speichern</button>
-        <div id="saved_games_here"></div>
-    </div>
-    <div id='main_div_sprites' class="main_div">
-        <div class='menu_container'>
-            <div class='menu'>
-                <h3>Werkzeuge</h3>
-                <div id='tool_menu' class="menu-body"></div>
-            </div>
-            <div class='menu'>
-                <h3>Palette</h3>
-                <div id='color_menu' class="menu-body"></div>
-            </div>
-            <div class='menu'>
-                <h3>Farbvariationen</h3>
-                <div id='color_variations_menu' class="menu-body"></div>
-            </div>
-            <div class='menu'>
-                <h3>Funktionen</h3>
-                <div id='functions_dropdown' class="menu-body"></div>
-            </div>
-            <!--
+    <body>
+        <div id='main-nav'>
+            <div id='mi_sprites' class='main-nav-item active'>Sprites</div>
+            <div id='mi_level' class='main-nav-item'>Level</div>
+            <div id='mi_code' class='main-nav-item'>Code</div>
+            <div id='mi_settings' class='main-nav-item'>Einstellungen</div>
+            <div id='mi_play' class='main-nav-item'>Spielen</div>
+            <div id='mi_help' class='main-nav-item'>Hilfe</div>
+        </div>
+        <div id='main_div_game' class="main_div" style="margin-top: 40px;">
+            <button id="bu_save_game">Spiel speichern</button>
+            <div id="saved_games_here"></div>
+        </div>
+        <div id='main_div_sprites' class="main_div">
+            <div class='menu_container'>
+                <div class='menu'>
+                    <h3>Werkzeuge</h3>
+                    <div id='tool_menu' class="menu-body"></div>
+                </div>
+                <div class='menu'>
+                    <h3>Palette</h3>
+                    <div id='color_menu' class="menu-body"></div>
+                </div>
+                <div class='menu'>
+                    <h3>Farbvariationen</h3>
+                    <div id='color_variations_menu' class="menu-body"></div>
+                </div>
+                <div class='menu'>
+                    <h3>Funktionen</h3>
+                    <div id='functions_dropdown' class="menu-body"></div>
+                </div>
+                <!--
                 Color picker: select swatch or none
                 Farben an Palette anpassen (mit und ohne Dither)
                 Sättigung / Helligkeit / Kontrast
@@ -89,16 +145,19 @@
                 Hitbox anzeigen und verändern
                 Animation: Frames
             -->
-        </div>
-        <div id='undo_stack'></div>
-        <div id='canvas'></div>
-        <div id='menu_frames' class="scroll_helper scroll_helper_horizontal"></div>
-        <div class='menu_container right_menu_container'>
-            <div class="menu">
-                <h3>Sprites</h3>
-                <div id="menu_sprites" class="menu-body scroll_helper scroll_helper_vertical" style="max-height: calc((100vh - 190px) / 2);"></div>
             </div>
-            <!-- <div class="menu">
+            <div id='undo_stack'></div>
+            <div id='canvas'></div>
+            <div id='menu_frames' class="scroll_helper
+                scroll_helper_horizontal"></div>
+            <div class='menu_container right_menu_container'>
+                <div class="menu">
+                    <h3>Sprites</h3>
+                    <div id="menu_sprites" class="menu-body scroll_helper
+                        scroll_helper_vertical" style="max-height: calc((100vh -
+                        190px) / 2);"></div>
+                </div>
+                <!-- <div class="menu">
                 <h3>Eigenschaften</h3>
                 <div id="menu_properties" class="menu-body">
                     <input id='ti_sprite_label' type="text" placeholder="Name"/>
@@ -106,11 +165,13 @@
                     <button id='bu_sprite_movable' class='btn-checkbox'>Beweglich</button>
                 </div>
             </div> -->
-            <div class="menu">
-                <h3>Zustände</h3>
-                <div id="menu_states" class="menu-body scroll_helper scroll_helper_vertical" style="max-height: calc((100vh - 190px) / 2);"></div>
-            </div>
-            <!--
+                <div class="menu">
+                    <h3>Zustände</h3>
+                    <div id="menu_states" class="menu-body scroll_helper
+                        scroll_helper_vertical" style="max-height: calc((100vh -
+                        190px) / 2);"></div>
+                </div>
+                <!--
                 Color picker: select swatch or none
                 Farben an Palette anpassen (mit und ohne Dither)
                 Sättigung / Helligkeit / Kontrast
@@ -121,63 +182,78 @@
                 Hitbox anzeigen und verändern
                 Animation: Frames
             -->
-        </div>
-    </div>
-    <div id='main_div_level' class="main_div">
-        <div class='menu_container full_left_menu_container'>
-            <div class="menu">
-                <h3>Werkzeuge</h3>
-                <div id='tool_menu_level' class="menu-body"></div>
-            </div>
-            <div class="menu">
-                <h3>Sprites</h3>
-                <div id="menu_level_sprites" class="menu-body scroll_helper scroll_helper_vertical" style="max-height: calc(100vh - 235px);"></div>
             </div>
         </div>
-        <div id="level" style="overflow: hidden;"></div>
-        <div class='menu_container full_right_menu_container'>
-            <div class="menu">
-                <h3>Level</h3>
-                <div id="menu_levels" class="menu-body scroll_helper scroll_helper_vertical" style="max-height: calc((100vh - 195px) / 2);"></div>
+        <div id='main_div_level' class="main_div">
+            <div class='menu_container full_left_menu_container'>
+                <div class="menu">
+                    <h3>Werkzeuge</h3>
+                    <div id='tool_menu_level' class="menu-body"></div>
+                </div>
+                <div class="menu">
+                    <h3>Sprites</h3>
+                    <div id="menu_level_sprites" class="menu-body scroll_helper
+                        scroll_helper_vertical" style="max-height: calc(100vh -
+                        235px);"></div>
+                </div>
             </div>
-            <div class="menu">
-                <h3>Level-Eigenschaften</h3>
-                <div id="menu_level_properties" class="menu-body scroll_helper scroll_helper_vertical"></div>
-            </div>
-            <div class="menu">
-                <h3>Layer</h3>
-                <div id="menu_layers" class="menu-body scroll_helper scroll_helper_vertical" style="max-height: calc((100vh - 195px) / 2);"></div>
-            </div>
-            <div class="menu">
+            <div id="level" style="overflow: hidden;"></div>
+            <div class='menu_container full_right_menu_container'>
+                <div class="menu">
+                    <h3>Level</h3>
+                    <div id="menu_levels" class="menu-body scroll_helper
+                        scroll_helper_vertical" style="max-height: calc((100vh -
+                        195px) / 3);"></div>
+                </div>
+                <div class="menu">
+                    <h3>Level-Eigenschaften</h3>
+                    <div id="menu_level_properties" class="menu-body
+                        scroll_helper scroll_helper_vertical"></div>
+                </div>
+                <div class="menu">
+                    <h3>Backdrops</h3>
+                    <div id="menu_backdrops" class="menu-body scroll_helper
+                        scroll_helper_vertical" style="max-height: calc((100vh -
+                        195px) / 3);"></div>
+                </div>
+                <div class="menu">
+                    <h3>Layer</h3>
+                    <div id="menu_layers" class="menu-body scroll_helper
+                        scroll_helper_vertical" style="max-height: calc((100vh -
+                        195px) / 3);"></div>
+                </div>
+                <!-- <div class="menu">
                 <h3>Layer-Eigenschaften</h3>
                 <div id="menu_layer_properties" class="menu-body scroll_helper scroll_helper_vertical"></div>
-            </div>
-            <!-- <div class="menu">
+            </div> -->
+                <!-- <div class="menu">
                 <h3>Debug</h3>
                 <div id="layer_debug" class="menu-body scroll_helper scroll_helper_vertical" style="max-height: calc((100vh - 195px) / 2); white-space: pre; font-family: monospace; font-size: 90%;"></div>
             </div> -->
-        </div>
-    </div>
-    <div id='status-bar' class='__disabled__scroll_helper scroll_helper_horizontal'></div>
-    <div id='trash'>
-        <i class="fa fa-trash"></i>
-    </div>
-    <div id='save_notification'>
-        <img src="/noto/aob22o8.png" />
-    </div>
-
-    <div class='modal-dialogs' style="display: none;">
-    </div>
-
-    <div class='modal-container' style="display: none;">
-        <div id='modal_load_game' class='modal'>
-            <h3>Spiel laden</h3>
-            <div class='modal-body'>
             </div>
         </div>
-    </div>
-    <div id="curtain" style="position: fixed; left: 0; top: 0; width: 100%; height: 100%; background-color: #000;"></div>
+        <div id='status-bar' class='__disabled__scroll_helper
+            scroll_helper_horizontal'></div>
+        <div id='trash'>
+            <i class="fa fa-trash"></i>
+        </div>
+        <div id='save_notification'>
+            <img src="/noto/aob22o8.png" />
+        </div>
 
-</body>
+        <div class='modal-dialogs' style="display: none;">
+        </div>
+
+        <div class='modal-container' style="display: none;">
+            <div id='modal_load_game' class='modal'>
+                <h3>Spiel laden</h3>
+                <div class='modal-body'>
+                </div>
+            </div>
+        </div>
+        <div id="curtain" style="position: fixed; left: 0; top: 0; width: 100%;
+            height: 100%; background-color: #000;"></div>
+
+    </body>
 
 </html>

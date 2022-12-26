@@ -156,6 +156,7 @@ body {
     background-image: url(rough.png);
     opacity: 0.3;
     border-left: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 100;
 }
 
 .menu_state_item {
@@ -216,6 +217,23 @@ body {
 }
 
 .menu_layer_item .drag_handle {
+    display: block;
+    width: 15px;
+    height: 30px;
+    position: absolute;
+    right: 0;
+    background-image: url(rough.png);
+    opacity: 0.3;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.menu_backdrop_item {
+    display: block;
+    width: 201px;
+    height: 30px;
+}
+
+.menu_backdrop_item .drag_handle {
     display: block;
     width: 15px;
     height: 30px;
@@ -562,25 +580,20 @@ body {
 button.btn-checkbox {
     background-color: rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
+    border-radius: 100%;
     color: rgba(255, 255, 255, 0.8);
-    margin: 1px;
-    padding: 4px 8px;
+    width: 26px;
+    height: 26px;
     cursor: pointer;
-}
-
-button.btn-checkbox::before {
-    content: '✘';
-    width: 1.3em;
-    display: inline-block;
-}
-
-button.btn-checkbox[data-state='true']::before {
-    content: '✔';
+    padding: 0;
+    margin: 1px;
+    background-image: url(icons/times.png);
+    background-repeat: no-repeat;
+    background-position: center center;
 }
 
 button.btn-checkbox[data-state='true'] {
-    background-color: #16884a;
+    background-image: url(icons/check.png);
 }
 
 .state-header {
@@ -662,6 +675,7 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     top: 0px;
     /* transition: border 300ms; */
     cursor: pointer;
+    overflow: hidden;
 }
 
 ._dnd_item:hover {
@@ -964,7 +978,7 @@ input {
     border: 1px solid rgba(255, 255, 255, 0.5);
     border-radius: 4px;
     color: #fff;
-    text-align: center;
+    /* text-align: center; */
     padding: 0.2em;
 }
 
@@ -1020,4 +1034,19 @@ input {
 
 input.clr-color {
     font-family: monospace;
+}
+
+.backdrop-swatch {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    outline: 1px solid rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    position: absolute;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.backdrop-swatch:hover {
+    border: 2px solid rgba(255, 255, 255, 1.0);
+    /* outline: 1px solid rgba(0, 0, 0, 0.5); */
 }

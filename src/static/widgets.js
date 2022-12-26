@@ -18,6 +18,7 @@ class DragAndDropWidget {
         this.mouse_down_element = null;
         this.drop_index = null;
         this.placeholder = $(`<div>`).addClass(options.item_class).addClass('_dnd_item').addClass('placeholder');
+        options.can_be_empty ??= false;
         this.options = options;
         $(options.container).empty();
         for (let i = 0; i < options.items.length; i++) {
@@ -34,7 +35,7 @@ class DragAndDropWidget {
             self.options.onclick(item, $(item).parent().index());
         });
         $(options.container).append(this.add_div);
-        if (options.items.length > 0)
+        if (options.items.length > 0 && (!options.can_be_empty))
             this.options.onclick(this.options.container.children().eq(0).children().eq(0), 0);
     }
 
@@ -89,7 +90,7 @@ class DragAndDropWidget {
     }
 
     can_delete_item() {
-        return this.options.container.children().length > 2;
+        return this.options.can_be_empty || (this.options.container.children().length > 2);
     }
 
     _install_drag_and_drop_handler() {
@@ -345,11 +346,13 @@ class SortableTable {
 
 class ColorWidget {
     constructor(data) {
+        let self = this;
         this.container = data.container;
         let div = $(`<div class='item'>`);
-        div.append(data.label);
-        let color_button = $(`<input type='text' data-coloris class='color-dot' style='background-color: ${data.get()}'>`);
-        color_button.click(function(e) {
+        let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
+        div.append(label);
+        this.color_button = $(`<input type='text' data-coloris class='color-dot' style='background-color: ${data.get()}'>`);
+        this.color_button.click(function(e) {
             Coloris({
                 themeMode: 'dark',
                 alpha: false,
@@ -360,22 +363,78 @@ class ColorWidget {
                 }),
               });
         });
-        div.append(color_button);
+        // label.click(function(e) {
+        //     self.color_button.click();
+        // });
+        div.append(this.color_button);
         $(this.container).append(div);
-        color_button.on('open', function(e) {
-            console.log('open');
+        this.color_button.on('open', function(e) {
+            $('.modal-dialogs').css('background-color', 'transparent').show();
         });
-        color_button.on('close', function(e) {
-            console.log('close');
+        this.color_button.on('close', function(e) {
+            $('.modal-dialogs').css('background-color', '').hide();
         });
-        color_button.on('input', function(e) {
+        this.color_button.on('input', function(e) {
             console.log('input');
             let color = $(e.target).val();
-            color_button.css('background-color', color);
+            self.color_button.css('background-color', color);
             data.set(color);
         });
-        color_button.on('change', function(e) {
+        this.color_button.on('change', function(e) {
             console.log('change');
         });
+    }
+}
+
+class LineEditWidget {
+    constructor(data) {
+        this.data = data;
+        this.container = data.container;
+        let div = $(`<div class='item'>`);
+        let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
+        div.append(label);
+        this.input = $(`<input type='text'>`);
+        this.input.val(data.get());
+        // label.click(function(e) {
+        //     self.input.focus();
+        // });
+        div.append(this.input);
+        $(this.container).append(div);
+        let self = this;
+        this.input.keydown(function(e) { self.update(); });
+        this.input.keyup(function(e) { self.update(); });
+        this.input.change(function(e) { self.update(); });
+    }
+
+    update() {
+        this.data.set(this.input.val().trim());
+    }
+}
+
+class CheckboxWidget {
+    constructor(data) {
+        this.data = data;
+        this.container = data.container;
+        let div = $(`<div class='item'>`);
+        let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
+        div.append(label);
+        this.input = $(`<button class='btn-checkbox' data-state='${this.data.get()}'>`);
+        // label.click(function(e) {
+        //     self.input.click();
+        // });
+        this.input.click(function(e) {
+            let flag = self.input.attr('data-state') === 'true';
+            flag = !flag;
+            $(self.input).attr('data-state', `${flag}`);
+            self.data.set(flag);
+        });
+        div.append(this.input);
+        $(this.container).append(div);
+        let self = this;
+        this.input.change(function(e) { self.update(); });
+    }
+
+    update() {
+        this.data.set(this.input.val().trim());
     }
 }

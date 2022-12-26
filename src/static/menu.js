@@ -156,7 +156,7 @@ class Menu {
     }
 
     refresh_status_bar() {
-        let active_command = null;
+        let active_command = {};
         // console.log('active_key', this.active_key);
         if (this.active_key)
             active_command = this.commands[this.active_key];
@@ -305,6 +305,15 @@ class Menu {
         }
         if (command.callback)
             command.callback(command);
+        if (self.callback)
+            self.callback();
+    }
+
+    blur() {
+        let self = this;
+        self.active_key = null;
+        self.refresh_status_bar();
+        self.element.find('.button').removeClass('active');
         if (self.callback)
             self.callback();
     }

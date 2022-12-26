@@ -88,12 +88,24 @@ class Game {
         for (let li = 0; li < this.data.levels.length; li++) {
             this.data.levels[li].properties ??= {};
             this.data.levels[li].properties.name ??= '';
+            this.data.levels[li].properties.use_level ??= true;
             this.data.levels[li].properties.background_color ??= '#000000';
+            this.data.levels[li].backdrops ??= [];
+            for (let bi = 0; bi < this.data.levels[li].backdrops.length; bi++) {
+                this.data.levels[li].backdrops[bi].visible ??= true;
+                this.data.levels[li].backdrops[bi].colors ??= [['#143b86', 0.5, 0.9], ['#c3def1', 0.5, 0.1]];
+                // this.data.levels[li].backdrops[bi].colors ??= [['#ff0000', 0.1, 0.1], ['#00ff00', 0.9, 0.1], ['#0000ff', 0.1, 0.9], ['#ffffff', 0.9, 0.9]];
+                this.data.levels[li].backdrops[bi].top ??= 0;
+                this.data.levels[li].backdrops[bi].bottom ??= 0;
+                this.data.levels[li].backdrops[bi].width ??= 100;
+                this.data.levels[li].backdrops[bi].height ??= 100;
+            }
             this.data.levels[li].layers ??= [];
             if (this.data.levels[li].layers.length === 0)
                 this.data.levels[li].layers.push({});
             for (let lyi = 0; lyi < this.data.levels[li].layers.length; lyi++) {
                 this.data.levels[li].layers[lyi].properties ??= {};
+                this.data.levels[li].layers[lyi].properties.name ??= '';
                 this.data.levels[li].layers[lyi].properties.visible ??= true;
                 this.data.levels[li].layers[lyi].sprites ??= [];
                 if (!Array.isArray(this.data.levels[li].layers[lyi].sprites))
