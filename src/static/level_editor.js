@@ -247,6 +247,18 @@ class LevelEditor {
                     self.layer_structs.push(layer_struct);
                 }
 
+                $('#menu_level_properties').empty();
+                new ColorWidget({
+                    container: $('#menu_level_properties'),
+                    label: 'Hintergrundfarbe',
+                    get: () => self.game.data.levels[self.level_index].properties.background_color,
+                    set: (x) => {
+                        self.game.data.levels[self.level_index].properties.background_color = x;
+                        self.refresh();
+                        self.render();
+                    },
+                });
+
                 new DragAndDropWidget({
                     game: self.game,
                     container: $('#menu_layers'),
@@ -709,6 +721,7 @@ class LevelEditor {
 
     refresh() {
         this.scene.remove.apply(this.scene, this.scene.children);
+        this.scene.background = new THREE.Color(parse_html_color(this.game.data.levels[this.level_index].properties.background_color));
 
         this.refresh_grid();
         // // remove all elements in the scene

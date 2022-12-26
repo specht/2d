@@ -342,3 +342,40 @@ class SortableTable {
         // }
     }
 }
+
+class ColorWidget {
+    constructor(data) {
+        this.container = data.container;
+        let div = $(`<div class='item'>`);
+        div.append(data.label);
+        let color_button = $(`<input type='text' data-coloris class='color-dot' style='background-color: ${data.get()}'>`);
+        color_button.click(function(e) {
+            Coloris({
+                themeMode: 'dark',
+                alpha: false,
+                theme: 'large',
+                defaultColor: data.get(),
+                swatches: current_palette_rgb.map(function(x) {
+                    return `#${Number(x[0]).toString(16).padStart(2, '0')}${Number(x[1]).toString(16).padStart(2, '0')}${Number(x[2]).toString(16).padStart(2, '0')}`;
+                }),
+              });
+        });
+        div.append(color_button);
+        $(this.container).append(div);
+        color_button.on('open', function(e) {
+            console.log('open');
+        });
+        color_button.on('close', function(e) {
+            console.log('close');
+        });
+        color_button.on('input', function(e) {
+            console.log('input');
+            let color = $(e.target).val();
+            color_button.css('background-color', color);
+            data.set(color);
+        });
+        color_button.on('change', function(e) {
+            console.log('change');
+        });
+    }
+}

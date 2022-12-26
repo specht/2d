@@ -88,6 +88,7 @@ class Game {
         for (let li = 0; li < this.data.levels.length; li++) {
             this.data.levels[li].properties ??= {};
             this.data.levels[li].properties.name ??= '';
+            this.data.levels[li].properties.background_color ??= '#000000';
             this.data.levels[li].layers ??= [];
             if (this.data.levels[li].layers.length === 0)
                 this.data.levels[li].layers.push({});

@@ -402,7 +402,6 @@ document.addEventListener("DOMContentLoaded", function (event) {
     update_color_palette();
     // initialize all other menus
     menus.level = new Menu($('#tool_menu_level'), 'level', tool_menu_items.level, null, function() {
-        console.log('oy');
         if (this.active_key === 'tool/pen') {
             $('#menu_level_sprites .button').removeClass('active');
             $('#menu_level_sprites .button').eq(game.level_editor.sprite_index).addClass('active');
@@ -890,3 +889,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
     $('html').css('background-color', '');
     $('#curtain').fadeOut();
 });
+
+function parse_html_color(color) {
+    return parseInt(color.substr(1, 6), 16);
+}
+
