@@ -333,7 +333,7 @@ class LevelEditor {
                                 button.find('i').removeClass('fa-eye-slash').addClass('fa-eye');
                             } else {
                                 button.find('i').removeClass('fa-eye').addClass('fa-eye-slash');
-                                self.backdrop_index = null;
+                                // self.backdrop_index = null;
                             }
                             e.stopPropagation();
                         //     self.clear_selection();
@@ -451,27 +451,24 @@ class LevelEditor {
                         // self.render();
                     },
                     on_swap_items: (a, b) => {
+                        console.log(`swapping ${a} with ${b}`);
+                        let temp = self.game.data.levels[self.level_index].layers[b];
+                        let temps = self.layer_structs[b];
                         if (a > b) {
-                            let temp = self.game.data.levels[self.level_index].layers[b];
-                            let temps = self.layer_structs[b];
                             for (let i = b; i < a; i++) {
                                 self.game.data.levels[self.level_index].layers[i] = self.game.data.levels[self.level_index].layers[i + 1];
                                 self.layer_structs[i] = self.layer_structs[i + 1];
                             }
-                            self.game.data.levels[self.level_index].layers[a] = temp;
-                            self.layer_structs[a] = temps;
                         } else if (a < b) {
-                            let temp = self.game.data.levels[self.level_index].layers[b];
-                            let temps = self.layer_structs[b];
                             for (let i = b; i > a; i--) {
                                 self.game.data.levels[self.level_index].layers[i] = self.game.data.levels[self.level_index].layers[i - 1];
                                 self.layer_structs[i] = self.layer_structs[i - 1];
                             }
-                            self.game.data.levels[self.level_index].layers[a] = temp;
-                            self.layer_structs[a] = temps;
                         }
+                        self.game.data.levels[self.level_index].layers[a] = temp;
+                        self.layer_structs[a] = temps;
                         self.refresh();
-                        // self.render();
+                        self.render();
                     }
                 });
                 self.refresh();
@@ -638,7 +635,6 @@ class LevelEditor {
         } else {
             this.is_double_touch = false;
         }
-        console.log('down, double_touch:', this.is_double_touch);
         this.updating_selection = false;
         this.mouse_down = true;
         this.mouse_down_button = e.button;

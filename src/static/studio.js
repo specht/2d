@@ -887,6 +887,11 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
 
     if (this.location.host.indexOf('localhost') === 0) {
+        setTimeout(function() {
+            for (let i = 0; i < 8; i++)
+                $('.menu_state_item._dnd_item.add').click();
+        }, 500);
+
         // setTimeout(function() {
         //     show_modal('modal_resize_canvas');
         // show_modal('modal_choose_palette');

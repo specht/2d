@@ -234,6 +234,7 @@ class Game {
                 }
                 self.data.sprites[a] = temp;
                 tr[b] = a;
+                // clean up sprites in levels
                 for (let li = 0; li < self.data.levels.length; li++) {
                     for (let lyi = 0; lyi < self.data.levels[li].layers.length; lyi++) {
                         console.log(JSON.stringify(self.data.levels[li].layers[lyi].sprites));

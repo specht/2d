@@ -141,11 +141,15 @@ class DragAndDropWidget {
                         let index = element.index();
                         element.parent().children().removeClass('drop_target');
                         element.addClass('drop_target');
+                        element.parent().children().css('left', '0');
+                        element.parent().children().css('top', '0');
+                        element.css('left', '20px');
                         self.drop_index = index;
                     } else {
                         self.drop_index = null;
                         self.options.container.children().removeClass('drop_target');
                     }
+                    console.log(self.drop_index);
                 }
             }
         });
