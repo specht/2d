@@ -219,18 +219,35 @@ class Game {
                 this.refresh_frames_on_screen();
             },
             on_swap_items: (a, b) => {
+                let tr = {};
+                let temp = self.data.sprites[b];
                 if (a > b) {
-                    let temp = self.data.sprites[b];
-                    for (let i = b; i < a; i++)
+                    for (let i = b; i < a; i++) {
                         self.data.sprites[i] = self.data.sprites[i + 1];
-                    self.data.sprites[a] = temp;
+                        tr[i + 1] = i;
+                    }
                 } else if (a < b) {
-                    let temp = self.data.sprites[b];
-                    for (let i = b; i > a; i--)
+                    for (let i = b; i > a; i--) {
                         self.data.sprites[i] = self.data.sprites[i - 1];
-                    self.data.sprites[a] = temp;
+                        tr[i - 1] = i;
+                    }
+                }
+                self.data.sprites[a] = temp;
+                tr[b] = a;
+                for (let li = 0; li < self.data.levels.length; li++) {
+                    for (let lyi = 0; lyi < self.data.levels[li].layers.length; lyi++) {
+                        console.log(JSON.stringify(self.data.levels[li].layers[lyi].sprites));
+                        for (let psi = 0; psi < self.data.levels[li].layers[lyi].sprites.length; psi++) {
+                            self.data.levels[li].layers[lyi].sprites[psi][0] = tr[self.data.levels[li].layers[lyi].sprites[psi][0]] ?? self.data.levels[li].layers[lyi].sprites[psi][0];
+                        }
+                        console.log(JSON.stringify(self.data.levels[li].layers[lyi].sprites));
+                    }
                 }
                 this.refresh_frames_on_screen();
+                for (let si = 0; si < self.data.sprites.length; si++) {
+                    this.create_geometry_and_material_for_sprite(si);
+                }
+                // this.level_editor.refresh();
             }
         });
 
