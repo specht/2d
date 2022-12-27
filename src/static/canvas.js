@@ -42,6 +42,7 @@ class Canvas {
         this.overlay_bitmap.height = DEFAULT_HEIGHT;
         this.current_color = 0xff0000ff;
         this.pen_width = 1;
+        this.last_touch_distance = null;
         this.last_mouse_x = null;
         this.last_mouse_y = null;
         this.mouse_in_canvas = false;
@@ -160,6 +161,7 @@ class Canvas {
     }
 
     handle_down(e) {
+        this.last_touch_distance = null;
         if ((e.touches || []).length === 2) {
             this.is_double_touch = true;
             this.double_touch_points = [
@@ -724,12 +726,21 @@ class Canvas {
                 [e.touches[0].clientX, e.touches[0].clientY],
                 [e.touches[1].clientX, e.touches[1].clientY]
             ];
-            if (this.menu.get('tool') === 'tool/pan') {
-                let tx = (this_touch_points[0][0] + this_touch_points[1][0]) * 0.5;
-                let ty = (this_touch_points[0][1] + this_touch_points[1][1]) * 0.5;
-                let cx = tx - this.element.position().left;
-                let cy = ty - this.element.position().top;
-                this.zoom_at_point(100, cx, cy);
+            let dx = this_touch_points[0][0] - this_touch_points[1][0];
+            let dy = this_touch_points[0][1] - this_touch_points[1][1];
+            let this_touch_distance = Math.sqrt(dx * dx + dy * dy);
+            let touch_distance_delta = null;
+            if (this.last_touch_distance !== null)
+                touch_distance_delta = this_touch_distance - this.last_touch_distance;
+            this.last_touch_distance = this_touch_distance;
+            if (touch_distance_delta !== null) {
+                if (this.menu.get('tool') === 'tool/pan') {
+                    let tx = (this_touch_points[0][0] + this_touch_points[1][0]) * 0.5;
+                    let ty = (this_touch_points[0][1] + this_touch_points[1][1]) * 0.5;
+                    let cx = tx - this.element.position().left;
+                    let cy = ty - this.element.position().top;
+                    this.zoom_at_point(touch_distance_delta, cx, cy);
+                }
             }
             console.log('zooming!');
             return;
