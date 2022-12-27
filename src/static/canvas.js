@@ -724,12 +724,12 @@ class Canvas {
                 [e.touches[0].clientX, e.touches[0].clientY],
                 [e.touches[1].clientX, e.touches[1].clientY]
             ];
-            if (self.menu.get('tool') === 'tool/pan') {
+            if (this.menu.get('tool') === 'tool/pan') {
                 e.preventDefault();
                 let tx = (this_touch_points[0][0] + this_touch_points[1][0]) * 0.5;
                 let ty = (this_touch_points[0][1] + this_touch_points[1][1]) * 0.5;
-                let cx = tx - self.element.position().left;
-                let cy = ty - self.element.position().top;
+                let cx = tx - this.element.position().left;
+                let cy = ty - this.element.position().top;
                 self.zoom_at_point(100, cx, cy);
             }
             console.log('zooming!');
