@@ -378,7 +378,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
 
     tool_menu_items.level = [
-        { group: 'tool', command: 'pan', image: 'move-hand', shortcut: 'Q', label: 'Verschieben' },
+        { group: 'tool', command: 'pan', image: 'move-hand-44', shortcut: 'Q', label: 'Verschieben' },
         { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'W', label: 'Zeichnen', hints: [
             { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
         ] },
