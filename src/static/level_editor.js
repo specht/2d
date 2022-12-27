@@ -662,6 +662,7 @@ class LevelEditor {
     }
 
     handle_up(e) {
+        if (current_pane !== 'level') return;
         this.mouse_down = false;
         this.backdrop_move_point = null;
         // let p_no_snap = this.ui_to_world(this.get_touch_point(e), false);
@@ -697,6 +698,7 @@ class LevelEditor {
     }
 
     handle_move(e) {
+        if (current_pane !== 'level') return;
         if (this.is_double_touch) {
             let this_touch_points = [
                 [e.touches[0].clientX, e.touches[0].clientY],
