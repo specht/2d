@@ -742,7 +742,6 @@ class Canvas {
                     this.zoom_at_point(-touch_distance_delta * 3, cx, cy);
                 }
             }
-            console.log('zooming!');
             return;
         }
         let p = this.get_touch_point(e);

@@ -204,6 +204,9 @@ class LevelEditor {
         this.height = $(this.element).height()
         this.scale = this.height / 24.0 / 16.0;
         this.visible_pixels = this.height / this.scale;
+        this.is_touch = false;
+        this.is_double_touch = false;
+        this.double_touch_points = null;
         this.mouse_down = false;
         this.mouse_down_button = 0;
         this.mouse_down_position = [0, 0];
@@ -581,6 +584,7 @@ class LevelEditor {
             return [e.clientX - dx, e.clientY - dy];
         else {
             if (e.touches) {
+                this.is_touch = true;
                 return [e.touches[0].clientX - dx, e.touches[0].clientY - dy];
             }
             return [0 - dx, 0 - dy];
@@ -609,6 +613,16 @@ class LevelEditor {
     handle_down(e) {
         e.preventDefault();
         e.stopPropagation();
+        this.last_touch_distance = null;
+        if ((e.touches || []).length === 2) {
+            this.is_double_touch = true;
+            this.double_touch_points = [
+                [e.touches[0].clientX, e.touches[0].clientY],
+                [e.touches[1].clientX, e.touches[1].clientY]
+            ];
+        } else {
+            this.is_double_touch = false;
+        }
         this.updating_selection = false;
         this.mouse_down = true;
         this.mouse_down_button = e.button;
@@ -682,6 +696,36 @@ class LevelEditor {
     }
 
     handle_move(e) {
+        if (this.is_double_touch) {
+            let this_touch_points = [
+                [e.touches[0].clientX, e.touches[0].clientY],
+                [e.touches[1].clientX, e.touches[1].clientY]
+            ];
+            let dx = this_touch_points[0][0] - this_touch_points[1][0];
+            let dy = this_touch_points[0][1] - this_touch_points[1][1];
+            let this_touch_distance = Math.sqrt(dx * dx + dy * dy);
+            let touch_distance_delta = null;
+            if (this.last_touch_distance !== null)
+                touch_distance_delta = this_touch_distance - this.last_touch_distance;
+            this.last_touch_distance = this_touch_distance;
+            if (touch_distance_delta !== null) {
+                if (this.menu.get('tool') === 'tool/pan') {
+                    let tx = (this_touch_points[0][0] + this_touch_points[1][0]) * 0.5;
+                    let ty = (this_touch_points[0][1] + this_touch_points[1][1]) * 0.5;
+                    // let cx = tx - this.element.position().left;
+                    // let cy = ty - this.element.position().top;
+                    // this.zoom_at_point(-touch_distance_delta * 3, cx, cy);
+                    let p = self.ui_to_world(self.get_touch_point(e), false);
+                    self.zoom_at_point(-touch_distance_delta * 3, tx, ty);
+                    if (self.backdrop_index !== null) {
+                        self.backdrop_controls_setup_for = null;
+                        self.refresh();
+                    }
+                    self.render();
+                }
+            }
+            return;
+        }
         let touch = this.get_touch_point(e);
         let p = this.ui_to_world(touch, true);
         let p_no_snap = this.ui_to_world(touch, false);
