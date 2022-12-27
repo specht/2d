@@ -197,7 +197,7 @@ class DragAndDropWidget {
                 this.options.delete_item(delete_at_end);
             if (swap_later !== null)
                 this.options.on_swap_items(swap_later[0], swap_later[1]);
-            if (select_item_at_end != null)
+            if (select_item_at_end != null && !this.options.can_be_empty)
                 this.options.onclick(this.options.container.children().eq(select_item_at_end).children().eq(0)[0], select_item_at_end);
             if (delete_at_end !== null || swap_later !== null)
                 this.options.game.refresh_frames_on_screen();
@@ -355,7 +355,7 @@ class ColorWidget {
         this.color_button.click(function(e) {
             Coloris({
                 themeMode: 'dark',
-                alpha: false,
+                alpha: data.alpha ?? false,
                 theme: 'large',
                 defaultColor: data.get(),
                 swatches: current_palette_rgb.map(function(x) {
@@ -436,5 +436,38 @@ class CheckboxWidget {
 
     update() {
         this.data.set(this.input.val().trim());
+    }
+}
+
+class SelectWidget {
+    constructor(data) {
+        this.data = data;
+        this.container = data.container;
+        let div = $(`<div class='item'>`);
+        let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
+        div.append(label);
+        this.select = $(`<select>`);
+        for (let key of Object.keys(data.options)) {
+            this.select.append($(`<option>`).val(key).text(data.options[key]));
+        }
+        this.select.val(data.get());
+        // label.click(function(e) {
+        //     self.select.click();
+        // });
+        // this.input.click(function(e) {
+        //     let flag = self.input.attr('data-state') === 'true';
+        //     flag = !flag;
+        //     $(self.input).attr('data-state', `${flag}`);
+        //     self.data.set(flag);
+        // });
+        div.append(this.select);
+        $(this.container).append(div);
+        let self = this;
+        this.select.change(function(e) { self.update(); });
+    }
+
+    update() {
+        if (this.data.get() !== this.select.val())
+            this.data.set(this.select.val());
     }
 }

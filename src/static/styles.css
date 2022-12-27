@@ -331,14 +331,13 @@ body {
 }
 
 .menu_container select {
-    width: 100%;
     display: block;
-    margin-bottom: 5px;
     background-color: rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 0.5em 0.2em;
+    padding: 0.3em;
     color: #fff;
     border-radius: 4px;
+    margin: 1px 0;
 }
 
 #color_menu {

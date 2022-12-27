@@ -217,7 +217,7 @@ class LevelEditor {
         this.backdrop_controls = [];
         this.backdrop_controls_setup_for = null;
         this.backdrop_move_point = null;
-        this.backdrop_move_element = null;
+        this.backdrop_move_elements = {};
         this.backdrop_move_point_old_coordinates = null;
         this.backdrop_move_point_old_size = null;
 
@@ -301,28 +301,29 @@ class LevelEditor {
                     item_class: 'menu_backdrop_item',
                     gen_item: (backdrop, index) => {
                         let backdrop_div = $(`<div>`);
-                        // let button_show = $(`<div class='toggle'>`);
-                        // if (self.game.data.levels[self.level_index].layers[index].properties.visible) {
-                        //     button_show.append($(`<i class='fa fa-eye'>`));
-                        // } else {
-                        //     button_show.append($(`<i class='fa fa-eye-slash'>`));
-                        // }
-                        // button_show.click(function(e) {
-                        //     let button = $(e.target).closest('.toggle');
-                        //     let item = button.closest('.menu_layer_item');
-                        //     let layer_index = item.index();
-                        //     self.game.data.levels[self.level_index].layers[layer_index].properties.visible = !self.game.data.levels[self.level_index].layers[layer_index].properties.visible;
-                        //     if (self.game.data.levels[self.level_index].layers[layer_index].properties.visible) {
-                        //         button.find('i').removeClass('fa-eye-slash').addClass('fa-eye');
-                        //     } else {
-                        //         button.find('i').removeClass('fa-eye').addClass('fa-eye-slash');
-                        //     }
-                        //     e.stopPropagation();
+                        let button_show = $(`<div class='toggle'>`);
+                        if (self.game.data.levels[self.level_index].backdrops[index].visible) {
+                            button_show.append($(`<i class='fa fa-eye'>`));
+                        } else {
+                            button_show.append($(`<i class='fa fa-eye-slash'>`));
+                        }
+                        button_show.click(function(e) {
+                            let button = $(e.target).closest('.toggle');
+                            let item = button.closest('.menu_backdrop_item');
+                            let backdrop_index = item.index();
+                            self.game.data.levels[self.level_index].backdrops[backdrop_index].visible = !self.game.data.levels[self.level_index].backdrops[backdrop_index].visible;
+                            if (self.game.data.levels[self.level_index].backdrops[backdrop_index].visible) {
+                                button.find('i').removeClass('fa-eye-slash').addClass('fa-eye');
+                            } else {
+                                button.find('i').removeClass('fa-eye').addClass('fa-eye-slash');
+                                self.backdrop_index = null;
+                            }
+                            e.stopPropagation();
                         //     self.clear_selection();
-                        //     self.refresh();
-                        //     self.render();
-                        // });
-                        // layer_div.append(button_show);
+                            self.refresh();
+                            self.render();
+                        });
+                        backdrop_div.append(button_show);
                         // let sprite_count = $(`<span>`).text(`${layer.sprites.length}`);
                         // layer_div.append($(`<span style='margin-left: 0.5em;'>`).append(sprite_count).append($('<span>').text(' Sprites')));
                         // self.layer_structs[index].el_sprite_count = sprite_count;
@@ -331,14 +332,16 @@ class LevelEditor {
                     onclick: (e, index) => {
                         $(e).closest('.menu_backdrop_item').parent().parent().find('.menu_backdrop_item').removeClass('active');
                         $(e).parent().addClass('active');
-                        this.backdrop_index = index;
+                        self.backdrop_index = index;
+                        self.setup_backdrop_properties();
+                        $('#menu_backdrop_properties_container').slideDown();
                         menus.level.blur();
                     },
                     gen_new_item: () => {
-                        let x0 = self.camera_x - self.width * 0.45 / self.scale;
-                        let x1 = self.camera_x + self.width * 0.45 / self.scale;
-                        let y0 = self.camera_y - self.height * 0.45 / self.scale;
-                        let y1 = self.camera_y + self.height * 0.45 / self.scale;
+                        let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
+                        let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
+                        let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
+                        let y1 = Math.round(self.camera_y + self.height * 0.45 / self.scale);
                         self.game.data.levels[self.level_index].backdrops.push({ left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 });
                         self.game.fix_game_data();
                         // let layer_struct = new LayerStruct(self);
@@ -349,7 +352,7 @@ class LevelEditor {
                     },
                     delete_item: (index) => {
                         self.game.data.levels[self.level_index].backdrops.splice(index, 1);
-                        this.backdrop_index = null;
+                        self.backdrop_index = null;
                         self.refresh();
                         self.render();
                     },
@@ -367,6 +370,7 @@ class LevelEditor {
                             }
                             self.game.data.levels[self.level_index].backdrops[a] = temp;
                         }
+                        self.backdrop_index = null;
                         self.refresh();
                         self.render();
                     }
@@ -505,6 +509,57 @@ class LevelEditor {
             }
             self.render();
         });
+    }
+
+    setup_backdrop_properties() {
+        let self = this;
+        $('#menu_backdrop_properties').empty();
+        let backdrop = self.game.data.levels[self.level_index].backdrops[self.backdrop_index];
+        new SelectWidget({
+            container: $('#menu_backdrop_properties'),
+            label: `Farben`,
+            options: {
+                '1': 'einfarbig',
+                '2': 'zwei Farben',
+                '4': 'vier Farben',
+            },
+            get: () => {
+                return `${backdrop.colors.length}`;
+            },
+            set: (x) => {
+                if (x === '1') {
+                    backdrop.colors = backdrop.colors.splice(0, 1);
+                } else if (x === '2') {
+                    backdrop.colors = [['#143b86', 0.5, 0.9], ['#c3def1', 0.5, 0.1]];
+                } else if (x === '4') {
+                    backdrop.colors = [['#e7e6e1', 0.1, 0.1], ['#c3def1', 0.9, 0.1], ['#001b4a', 0.1, 0.9], ['#094e54', 0.9, 0.9]];
+                }
+                self.setup_backdrop_properties();
+                self.backdrop_controls_setup_for = null;
+                self.refresh();
+                self.render();
+            },
+        });
+        for (let ci = 0; ci < backdrop.colors.length; ci++) {
+            new ColorWidget({
+                container: $('#menu_backdrop_properties'),
+                label: `Farbe ${ci + 1}`,
+                alpha: true,
+                get: () => {
+                    let c = backdrop.colors[ci][0];
+                    if (c.length == 7) c += 'ff';
+                    console.log(ci, c);
+                    return c;
+                },
+                set: (x) => {
+                    if (`color_${ci}` in self.backdrop_move_elements)
+                        self.backdrop_move_elements[`color_${ci}`].css('background-color', x);
+                    backdrop.colors[ci][0] = x;
+                    self.refresh();
+                    self.render();
+                },
+            });
+        }
     }
 
     update_level_label() {
@@ -687,45 +742,46 @@ class LevelEditor {
                         let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
                         dx /= backdrop.width;
                         dy /= backdrop.height;
-                        let nx = this.backdrop_move_point_old_coordinates[0] + dx;
-                        let ny = this.backdrop_move_point_old_coordinates[1] + dy;
+                        let nx = Math.round((this.backdrop_move_point_old_coordinates[0] + dx) * 1000.0) / 1000.0;
+                        let ny = Math.round((this.backdrop_move_point_old_coordinates[1] + dy) * 1000.0) / 1000.0;
                         backdrop.colors[color_index][1] = nx;
                         backdrop.colors[color_index][2] = ny;
                         let p = this.world_to_ui([backdrop.left + backdrop.width * nx, backdrop.bottom + backdrop.height * ny]);
-                        this.backdrop_move_element.css('left', `${p[0] - 8}px`);
-                        this.backdrop_move_element.css('top', `${p[1] - 8}px`);
+                        this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
+                        this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
                         this.refresh();
                         this.render();
-                    } else if (this.backdrop_move_point === 'sc0') {
+                    } else if (this.backdrop_move_point === 'sc0' || this.backdrop_move_point === 'sc3') {
                         let backdrop = this.game.data.levels[this.level_index].backdrops[this.backdrop_index];
                         let dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
                         let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
                         let nx = this.backdrop_move_point_old_coordinates[0] + dx;
                         let ny = this.backdrop_move_point_old_coordinates[1] + dy;
-                        let p = this.world_to_ui([nx, ny]);
-                        this.backdrop_move_element.css('left', `${p[0] - 8}px`);
-                        this.backdrop_move_element.css('top', `${p[1] - 8}px`);
-                        backdrop.left = this.backdrop_move_point_old_coordinates[0] + dx;
-                        backdrop.width = this.backdrop_move_point_old_size[0] - dx;
-                        backdrop.bottom = this.backdrop_move_point_old_coordinates[1] + dy;
-                        backdrop.height = this.backdrop_move_point_old_size[1] - dy;
-                        this.backdrop_controls_setup_for = null;
-                        this.refresh();
-                        this.render();
-                    } else if (this.backdrop_move_point === 'sc3') {
-                        let backdrop = this.game.data.levels[this.level_index].backdrops[this.backdrop_index];
-                        let dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
-                        let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
-                        let nx = this.backdrop_move_point_old_coordinates[0] + dx;
-                        let ny = this.backdrop_move_point_old_coordinates[1] + dy;
-                        let p = this.world_to_ui([nx, ny]);
-                        this.backdrop_move_element.css('left', `${p[0] - 8}px`);
-                        this.backdrop_move_element.css('top', `${p[1] - 8}px`);
-                        backdrop.left = this.backdrop_move_point_old_coordinates[0];
-                        backdrop.width = this.backdrop_move_point_old_size[0] + dx;
-                        backdrop.bottom = this.backdrop_move_point_old_coordinates[1];
-                        backdrop.height = this.backdrop_move_point_old_size[1] + dy;
-                        this.backdrop_controls_setup_for = null;
+                        if (this.backdrop_move_point === 'sc0') {
+                            let p = this.world_to_ui([nx, ny]);
+                            backdrop.left = this.backdrop_move_point_old_coordinates[0] + dx;
+                            backdrop.width = this.backdrop_move_point_old_size[0] - dx;
+                            backdrop.bottom = this.backdrop_move_point_old_coordinates[1] + dy;
+                            backdrop.height = this.backdrop_move_point_old_size[1] - dy;
+                            this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
+                            this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
+                        } else {
+                            let p = this.world_to_ui([nx + backdrop.width - dx, ny + backdrop.height - dy]);
+                            backdrop.left = this.backdrop_move_point_old_coordinates[0];
+                            backdrop.width = this.backdrop_move_point_old_size[0] + dx;
+                            backdrop.bottom = this.backdrop_move_point_old_coordinates[1];
+                            backdrop.height = this.backdrop_move_point_old_size[1] + dy;
+                            this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
+                            this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
+                        }
+                        for (let ci = 0; ci < backdrop.colors.length; ci++) {
+                            if (`color_${ci}` in this.backdrop_move_elements) {
+                                let color = backdrop.colors[ci];
+                                let p = this.world_to_ui([backdrop.left + backdrop.width * color[1], backdrop.bottom + backdrop.height * color[2]]);
+                                this.backdrop_move_elements[`color_${ci}`].css('left', `${p[0] - 8}px`);
+                                this.backdrop_move_elements[`color_${ci}`].css('top', `${p[1] - 8}px`);
+                            }
+                        }
                         this.refresh();
                         this.render();
                     }
@@ -825,7 +881,7 @@ class LevelEditor {
         let wx = this.camera_x + (p[0] - (this.width / 2)) / this.scale;
         let wy = this.camera_y - (p[1] - (this.height / 2)) / this.scale;
         if (snap) {
-            wx = Math.round(Math.floor((wx + 12) / this.grid_width) * this.grid_width);
+            wx = Math.round(Math.floor((wx + this.grid_width / 2) / this.grid_width) * this.grid_width);
             wy = Math.round(Math.floor((wy) / this.grid_height) * this.grid_height);
         } else {
             wx = Math.round(wx);
@@ -918,6 +974,10 @@ class LevelEditor {
 
     refresh() {
         let self = this;
+        if (self.backdrop_index !== null) {
+            if (self.backdrop_index >= self.game.data.levels[self.level_index].backdrops.length)
+                self.backdrop_index = null;
+        }
         this.scene.remove.apply(this.scene, this.scene.children);
         this.scene.background = new THREE.Color(parse_html_color(this.game.data.levels[this.level_index].properties.background_color));
 
@@ -938,8 +998,10 @@ class LevelEditor {
 
         this.backdrop_group.remove.apply(this.backdrop_group, this.backdrop_group.children);
 
-        for (let bi = 0; bi < this.game.data.levels[this.level_index].backdrops.length; bi++) {
+        for (let bi = this.game.data.levels[this.level_index].backdrops.length - 1; bi >= 0 ; bi--) {
             let backdrop = this.game.data.levels[this.level_index].backdrops[bi];
+            if (!backdrop.visible)
+                continue;
             let geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
             geometry.translate(0.5, 0.5, 0.0);
             geometry.scale(backdrop.width, backdrop.height, 1.0);
@@ -1025,6 +1087,7 @@ class LevelEditor {
 
         }
         if (this.backdrop_controls_setup_for !== this.backdrop_index) {
+            this.backdrop_move_elements = {};
             this.backdrop_controls_setup_for = this.backdrop_index;
             for (let x of this.backdrop_controls)
                 $(x).remove();
@@ -1038,17 +1101,18 @@ class LevelEditor {
 
                 let sc0 = $(`<div style='top: ${p0[1] - 8}px; left: ${p0[0] - 8}px; background-color: #444;'>`).addClass('backdrop-swatch');
                 this.backdrop_controls.push(sc0);
+                this.backdrop_move_elements.sc0 = sc0;
                 $(sc0).on('mousedown touchstart', function(e) {
                     self.backdrop_move_point = `sc0`;
                     self.backdrop_move_point_old_coordinates = [backdrop.left, backdrop.bottom];
                     self.backdrop_move_point_old_size = [backdrop.width, backdrop.height];
-                    self.backdrop_move_element = sc0;
                     self.handle_down(e);
                 });
                 $(this.element).append(sc0);
 
                 let sc3 = $(`<div style='top: ${p1[1] - 8}px; left: ${p1[0] - 8}px; background-color: #444;'>`).addClass('backdrop-swatch');
                 this.backdrop_controls.push(sc3);
+                this.backdrop_move_elements.sc3 = sc3;
                 $(sc3).on('mousedown touchstart', function(e) {
                     self.backdrop_move_point = `sc3`;
                     self.backdrop_move_point_old_coordinates = [backdrop.left, backdrop.bottom];
@@ -1058,26 +1122,20 @@ class LevelEditor {
                 });
                 $(this.element).append(sc3);
 
-                // let swatch_control = $(`<div style='top: ${p0[1] - 8}px; left: ${p1[0] - 8}px; background-color: #444;'>`).addClass('backdrop-swatch');
-                // this.backdrop_controls.push(swatch_control);
-                // $(this.element).append(swatch_control);
-                // swatch_control = $(`<div style='top: ${p1[1] - 8}px; left: ${p0[0] - 8}px; background-color: #444;'>`).addClass('backdrop-swatch');
-                // this.backdrop_controls.push(swatch_control);
-                // $(this.element).append(swatch_control);
-                // swatch_control = $(`<div style='top: ${p1[1] - 8}px; left: ${p1[0] - 8}px; background-color: #444;'>`).addClass('backdrop-swatch');
-                // this.backdrop_controls.push(swatch_control);
-                // $(this.element).append(swatch_control);
-                for (let ci = 0; ci < backdrop.colors.length; ci++) {
-                    let c = backdrop.colors[ci];
-                    let swatch_control = $(`<div style='top: ${p0[1] + (p1[1] - p0[1]) * c[2] - 8}px; left: ${p0[0] + (p1[0] - p0[0]) * c[1] - 8}px; background-color: ${c[0]};'>`).addClass('backdrop-swatch');
-                    this.backdrop_controls.push(swatch_control);
-                    $(swatch_control).on('mousedown touchstart', function(e) {
-                        self.backdrop_move_point = `color_${ci}`;
-                        self.backdrop_move_point_old_coordinates = [c[1], c[2]];
-                        self.backdrop_move_element = swatch_control;
-                        self.handle_down(e);
-                    });
-                    $(this.element).append(swatch_control);
+                if (backdrop.colors.length > 1) {
+                    for (let ci = 0; ci < backdrop.colors.length; ci++) {
+                        let c = backdrop.colors[ci];
+                        let swatch_control = $(`<div style='top: ${p0[1] + (p1[1] - p0[1]) * c[2] - 8}px; left: ${p0[0] + (p1[0] - p0[0]) * c[1] - 8}px; background-color: ${c[0]};'>`).addClass('backdrop-swatch');
+                        this.backdrop_controls.push(swatch_control);
+                        this.backdrop_move_elements[`color_${ci}`] = swatch_control;
+                        $(swatch_control).on('mousedown touchstart', function(e) {
+                            self.backdrop_move_point = `color_${ci}`;
+                            self.backdrop_move_point_old_coordinates = [c[1], c[2]];
+                            self.backdrop_move_element = swatch_control;
+                            self.handle_down(e);
+                        });
+                        $(this.element).append(swatch_control);
+                    }
                 }
             }
 
