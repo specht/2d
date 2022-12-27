@@ -720,8 +720,6 @@ class Canvas {
 
     handle_move(e) {
         if (this.is_double_touch) {
-            $('body').hide();
-
             let this_touch_points = [
                 [e.touches[0].clientX, e.touches[0].clientY],
                 [e.touches[1].clientX, e.touches[1].clientY]
@@ -732,7 +730,7 @@ class Canvas {
                 let ty = (this_touch_points[0][1] + this_touch_points[1][1]) * 0.5;
                 let cx = tx - self.element.position().left;
                 let cy = ty - self.element.position().top;
-                self.zoom_at_point(-2, cx, cy);
+                self.zoom_at_point(100, cx, cy);
             }
             console.log('zooming!');
             return;
