@@ -607,7 +607,7 @@ class Canvas {
     }
 
     handle_up(e) {
-        if (current_pane !== 'sprite') return;
+        if (current_pane !== 'sprites') return;
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = false;
@@ -722,7 +722,7 @@ class Canvas {
     }
 
     handle_move(e) {
-        if (current_pane !== 'sprite') return;
+        if (current_pane !== 'sprites') return;
         if (this.is_double_touch) {
             let this_touch_points = [
                 [e.touches[0].clientX, e.touches[0].clientY],
