@@ -623,6 +623,7 @@ class LevelEditor {
         } else {
             this.is_double_touch = false;
         }
+        console.log('down, double_touch:', this.is_double_touch);
         this.updating_selection = false;
         this.mouse_down = true;
         this.mouse_down_button = e.button;
