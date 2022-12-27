@@ -709,7 +709,7 @@ class LevelEditor {
                 touch_distance_delta = this_touch_distance - this.last_touch_distance;
             this.last_touch_distance = this_touch_distance;
             if (touch_distance_delta !== null) {
-                if (this.menu.get('tool') === 'tool/pan') {
+                if (menus.level.active_key === 'tool/pan') {
                     let tx = (this_touch_points[0][0] + this_touch_points[1][0]) * 0.5;
                     let ty = (this_touch_points[0][1] + this_touch_points[1][1]) * 0.5;
                     // let cx = tx - this.element.position().left;
