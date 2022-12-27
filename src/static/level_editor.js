@@ -715,13 +715,13 @@ class LevelEditor {
                     // let cx = tx - this.element.position().left;
                     // let cy = ty - this.element.position().top;
                     // this.zoom_at_point(-touch_distance_delta * 3, cx, cy);
-                    let p = self.ui_to_world(self.get_touch_point(e), false);
-                    self.zoom_at_point(-touch_distance_delta * 3, tx, ty);
-                    if (self.backdrop_index !== null) {
-                        self.backdrop_controls_setup_for = null;
-                        self.refresh();
+                    let p = this.ui_to_world(this.get_touch_point(e), false);
+                    this.zoom_at_point(-touch_distance_delta * 3, tx, ty);
+                    if (this.backdrop_index !== null) {
+                        this.backdrop_controls_setup_for = null;
+                        this.refresh();
                     }
-                    self.render();
+                    this.render();
                 }
             }
             return;
