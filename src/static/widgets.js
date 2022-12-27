@@ -356,6 +356,8 @@ class ColorWidget {
             Coloris({
                 themeMode: 'dark',
                 alpha: data.alpha ?? false,
+                focusInput: false,
+                selectInput: false,
                 theme: 'large',
                 defaultColor: data.get(),
                 swatches: current_palette_rgb.map(function(x) {

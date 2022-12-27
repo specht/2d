@@ -156,6 +156,7 @@ class Menu {
     }
 
     refresh_status_bar() {
+        if (current_pane !== this.pane) return;
         let active_command = {};
         // console.log('active_key', this.active_key);
         if (this.active_key)

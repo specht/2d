@@ -415,7 +415,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
             $('.menu_backdrop_item').removeClass('active');
             if (game !== null && game.level_editor !== null) {
                 game.level_editor.backdrop_index = null;
-                $('#menu_backdrop_properties_container').slideUp();
+                $('#menu_backdrop_properties_container').hide();
+                $('#menu_backdrops_container').removeClass('connect-bottom');
                 game.level_editor.refresh();
                 game.level_editor.render();
             }

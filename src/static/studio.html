@@ -122,12 +122,12 @@
                     <h3>Werkzeuge</h3>
                     <div id='tool_menu' class="menu-body"></div>
                 </div>
-                <div class='menu'>
+                <div class='menu connect-bottom'>
                     <h3>Palette</h3>
                     <div id='color_menu' class="menu-body"></div>
                 </div>
-                <div class='menu'>
-                    <h3>Farbvariationen</h3>
+                <div class='menu connect-top'>
+                    <!-- <h3>Farbvariationen</h3> -->
                     <div id='color_variations_menu' class="menu-body"></div>
                 </div>
                 <div class='menu'>
@@ -186,9 +186,13 @@
         </div>
         <div id='main_div_level' class="main_div">
             <div class='menu_container full_left_menu_container'>
-                <div class="menu">
+                <div class="menu connect-bottom">
                     <h3>Werkzeuge</h3>
                     <div id='tool_menu_level' class="menu-body"></div>
+                </div>
+                <div class="menu connect-top">
+                    <!-- <h3></h3> -->
+                    <div id='tool_menu_level_settings' class="menu-body"></div>
                 </div>
                 <div class="menu">
                     <h3>Sprites</h3>
@@ -199,25 +203,25 @@
             </div>
             <div id="level" style="overflow: hidden;"></div>
             <div class='menu_container full_right_menu_container'>
-                <div class="menu">
+                <div class="menu connect-bottom">
                     <h3>Level</h3>
                     <div id="menu_levels" class="menu-body scroll_helper
                         scroll_helper_vertical" style="max-height: calc((100vh -
                         195px) / 3);"></div>
                 </div>
-                <div class="menu">
-                    <h3>Level-Eigenschaften</h3>
+                <div class="menu connect-top">
+                    <!-- <h3>Level-Eigenschaften</h3> -->
                     <div id="menu_level_properties" class="menu-body
                         scroll_helper scroll_helper_vertical"></div>
                 </div>
-                <div class="menu">
+                <div id="menu_backdrops_container" class="menu">
                     <h3>Backdrops</h3>
                     <div id="menu_backdrops" class="menu-body scroll_helper
                         scroll_helper_vertical" style="max-height: calc((100vh -
                         195px) / 3);"></div>
                 </div>
-                <div id="menu_backdrop_properties_container" class="menu" style="display: none;">
-                    <h3>Backdrop-Eigenschaften</h3>
+                <div id="menu_backdrop_properties_container" class="menu connect-top" style="display: none;">
+                    <!-- <h3>Backdrop-Eigenschaften</h3> -->
                     <div id="menu_backdrop_properties" class="menu-body scroll_helper
                         scroll_helper_vertical"></div>
                 </div>

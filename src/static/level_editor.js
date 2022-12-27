@@ -223,9 +223,23 @@ class LevelEditor {
         this.backdrop_move_elements = {};
         this.backdrop_move_point_old_coordinates = null;
         this.backdrop_move_point_old_size = null;
+        this.show_grid = true;
 
         this.texture_loader = new THREE.TextureLoader();
         this.refresh_sprite_widget();
+
+        $('#tool_menu_level_settings').empty();
+        new CheckboxWidget({
+            container: $('#tool_menu_level_settings'),
+            label: 'Gitter anzeigen',
+            get: () => self.show_grid,
+            set: (x) => {
+                self.show_grid = x;
+                self.refresh();
+                self.render();
+            },
+        });
+
 
         // let material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
         // let points = [];
@@ -337,7 +351,8 @@ class LevelEditor {
                         $(e).parent().addClass('active');
                         self.backdrop_index = index;
                         self.setup_backdrop_properties();
-                        $('#menu_backdrop_properties_container').slideDown();
+                        $('#menu_backdrop_properties_container').show();
+                        $('#menu_backdrops_container').addClass('connect-bottom');
                         menus.level.blur();
                     },
                     gen_new_item: () => {
@@ -1114,7 +1129,8 @@ class LevelEditor {
                     this.scene.add(this.cursor_group);
             }
         }
-        this.scene.add(this.grid_group);
+        if (this.show_grid)
+            this.scene.add(this.grid_group);
         this.scene.add(this.selection_group);
         this.scene.add(this.rect_group);
 
