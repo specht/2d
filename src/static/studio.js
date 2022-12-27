@@ -382,7 +382,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
         { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'W', label: 'Zeichnen', hints: [
             { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
         ] },
-        { group: 'tool', command: 'select', image: 'select-rect', shortcut: 'E', label: 'Auswählen', hints: [
+        { group: 'tool', command: 'select', image: 'select-rect-44', shortcut: 'E', label: 'Auswählen', hints: [
             { key: 'Control+A', label: 'Alles auswählen', callback: function (x) { game.level_editor.select_all(); } },
             { key: 'Delete', label: 'Auswahl löschen', callback: function (x) { game.level_editor.delete_selection(); } },
         ] },

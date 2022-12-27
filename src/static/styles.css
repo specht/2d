@@ -601,13 +601,14 @@ button.btn-checkbox {
     cursor: pointer;
     padding: 0;
     margin: 1px;
-    background-image: url(icons/times.png);
+    background-image: url(icons/times-44.png);
     background-repeat: no-repeat;
     background-position: center center;
+    background-size: 16px 16px;
 }
 
 button.btn-checkbox[data-state='true'] {
-    background-image: url(icons/check.png);
+    background-image: url(icons/check-44.png);
 }
 
 .state-header {
