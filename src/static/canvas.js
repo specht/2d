@@ -720,6 +720,8 @@ class Canvas {
 
     handle_move(e) {
         if (this.is_double_touch) {
+            $('body').hide();
+
             let this_touch_points = [
                 [e.touches[0].clientX, e.touches[0].clientY],
                 [e.touches[1].clientX, e.touches[1].clientY]
