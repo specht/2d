@@ -211,10 +211,18 @@ body {
 }
 
 .menu_layer_item {
+    background-color: brown;
     display: block;
     width: 201px;
     height: 30px;
+    /* display: flex; */
+    /* align-items: center; */
 }
+
+/* .menu_layer_item > * { */
+    /* position: relative; */
+    /* top: 2px; */
+/* } */
 
 .menu_layer_item .drag_handle {
     display: block;
@@ -279,12 +287,12 @@ body {
 
 .menu_level_sprite_item:hover {
     border: 1px solid rgba(255, 255, 255, 0.35);
-    background-color: rgba(255,255,255,0.1);
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .menu_level_sprite_item.active {
     border: 1px solid rgba(255, 255, 255, 0.6);
-    background-color: rgba(255,255,255,0.2);
+    background-color: rgba(255, 255, 255, 0.2);
     outline: 2px solid #fff;
     border-radius: 4px;
 }
@@ -410,12 +418,21 @@ body {
     display: inline-block;
     background-color: #222;
     color: rgba(255, 255, 255, 0.7);
-    padding: 0.3em 0.5em;
+    /* padding: 0.3em 0.5em; */
     font-size: 15px;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
+    border-radius: 24px;
     cursor: pointer;
+    width: 24px;
+    height: 24px;
+    text-align: center;
 }
+
+.toggle i {
+    position: relative;
+    top: 1px;
+}
+
 
 .toggle .fa-eye-slash {
     opacity: 0.5;
@@ -693,7 +710,7 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     /* margin: 1px; */
 }
 
-._dnd_item > div {
+._dnd_item>div {
     /* border: 1px solid green; */
     position: relative;
     top: 0;
@@ -706,27 +723,27 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     /* pointer-events: none; */
 }
 
-._dnd_item._no_anim > div {
-    transition: none!important;
+._dnd_item._no_anim>div {
+    transition: none !important;
     outline: 1px solid blue;
 }
 
-._dnd_item > div:hover {
+._dnd_item>div:hover {
     border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
-._dnd_item.active > div {
+._dnd_item.active>div {
     border: 1px solid rgba(255, 255, 255, 0.5);
     background-color: rgba(255, 255, 255, 0.2);
 }
 
-._dnd_item.add > div {
+._dnd_item.add>div {
     background-color: transparent;
     border: 1px dashed rgba(255, 255, 255, 0.2);
     border-radius: 2px;
 }
 
-._dnd_item > div > .add {
+._dnd_item>div>.add {
     background-color: rgba(255, 255, 255, 0.05);
     display: inline-flex;
     align-items: center;
@@ -736,7 +753,7 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     height: 100%;
 }
 
-._dnd_item.add:hover > div {
+._dnd_item.add:hover>div {
     border: 1px dashed rgba(255, 255, 255, 0.4);
     color: rgba(255, 255, 255, 0.8);
 }
@@ -752,13 +769,13 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     /* transform: scale(0.8); */
     /* outline: 1px dashed rgba(255, 255, 255, 0.8); */
     /* border-radius: 10px; */
-    box-shadow: inset 0 0 10px rgba(0,0,0,1);
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 1);
     background-color: rgba(0, 0, 0, 0.1);
     /* opacity: 0; */
     /* outline: 1px solid green; */
 }
 
-._dnd_item.add > div.add_choice_container {
+._dnd_item.add>div.add_choice_container {
     padding: 4px;
     padding-top: 10px;
     border: none;
@@ -771,14 +788,14 @@ border: 1px solid rgba(255, 255, 255, 0.7);
 
 ._dnd_item .add_choice {
     padding: 5px 10px;
-    border: 1px solid rgba(255,255,255,0.3);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     background-color: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     display: inline-block;
 }
 
 ._dnd_item .add_choice:hover {
-    border: 1px solid rgba(255,255,255,0.8);
+    border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
 @media (max-height: 600px) {
@@ -898,7 +915,7 @@ height: 24px;
     background-color: #111;
     border-bottom-left-radius: 10px;
     border-bottom-right-radius: 10px;
-    box-shadow: inset 0 10px 10px rgba(0,0,0,0.2);
+    box-shadow: inset 0 10px 10px rgba(0, 0, 0, 0.2);
     text-align: right;
 }
 
@@ -953,7 +970,8 @@ table {
     width: 100%;
 }
 
-table td, table th {
+table td,
+table th {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1007,7 +1025,7 @@ hr {
     cursor: pointer;
 }
 
-.palette-swatches > div.active {
+.palette-swatches>div.active {
     border: 1px solid #fff;
     background-color: rgba(255, 255, 255, 0.1);
 }
@@ -1016,14 +1034,14 @@ hr {
     padding: 5px 5px 10px 5px;
 }
 
-.palette-swatches > div {
+.palette-swatches>div {
     border: 1px solid #444;
     border-radius: 10px;
     margin-bottom: 10px;
     padding: 5px;
 }
 
-.palette-swatches:hover > div {
+.palette-swatches:hover>div {
     border: 1px solid #fff;
     background-color: rgba(255, 255, 255, 0.1);
 }
@@ -1040,7 +1058,8 @@ hr {
     margin-bottom: -2px;
 }
 
-input {
+
+input:not([type='range']) {
     background-color: #000;
     border: 1px solid rgba(255, 255, 255, 0.5);
     border-radius: 4px;
@@ -1074,13 +1093,13 @@ input {
 
 .color-dot {
     display: inline-block;
-    width: 24px!important;
-    height: 24px!important;
+    width: 24px !important;
+    height: 24px !important;
     border: 1.5px solid rgba(255, 255, 255, 0.5);
-    border-radius: 20px!important;
-    padding: 0!important;
+    border-radius: 20px !important;
+    padding: 0 !important;
     cursor: pointer;
-    color: transparent!important;
+    color: transparent !important;
 }
 
 .color-dot:hover {

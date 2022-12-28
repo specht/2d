@@ -528,6 +528,34 @@ class LineEditWidget {
     }
 }
 
+class NumberWidget {
+    constructor(data) {
+        this.data = data;
+        this.container = data.container;
+        let div = $(`<div class='item'>`);
+        let subdiv = $('<div>').css('display', 'flex').css('align-items', 'center');
+        let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
+        div.append(label);
+        this.input = $(`<input type='text' style='text-align: right; width: 3em;'>`);
+        this.input.val(data.get());
+        // label.click(function(e) {
+        //     self.input.focus();
+        // });
+        subdiv.append(this.input);
+        subdiv.append($('<div>').text('%').css('margin-left', '0.25em'));
+        div.append(subdiv);
+        $(this.container).append(div);
+        let self = this;
+        this.input.keydown(function(e) { self.update(); });
+        this.input.keyup(function(e) { self.update(); });
+        this.input.change(function(e) { self.update(); });
+    }
+
+    update() {
+        this.data.set(this.input.val().trim());
+    }
+}
+
 class CheckboxWidget {
     constructor(data) {
         this.data = data;

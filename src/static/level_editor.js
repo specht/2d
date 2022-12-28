@@ -308,78 +308,6 @@ class LevelEditor {
                     },
                 });
 
-                // new DragAndDropWidget({
-                //     game: self.game,
-                //     container: $('#menu_backdrops'),
-                //     can_be_empty: true,
-                //     trash: $('#trash'),
-                //     items: self.game.data.levels[self.level_index].backdrops,
-                //     item_class: 'menu_backdrop_item',
-                //     step_aside_css: { top: '35px' },
-                //     gen_item: (backdrop, index) => {
-                //         let backdrop_div = $(`<div>`);
-                //         let button_show = $(`<div class='toggle'>`);
-                //         if (self.game.data.levels[self.level_index].backdrops[index].visible) {
-                //             button_show.append($(`<i class='fa fa-eye'>`));
-                //         } else {
-                //             button_show.append($(`<i class='fa fa-eye-slash'>`));
-                //         }
-                //         button_show.click(function(e) {
-                //             let button = $(e.target).closest('.toggle');
-                //             let item = button.closest('.menu_backdrop_item').parent();
-                //             let backdrop_index = item.index();
-                //             self.game.data.levels[self.level_index].backdrops[backdrop_index].visible = !self.game.data.levels[self.level_index].backdrops[backdrop_index].visible;
-                //             if (self.game.data.levels[self.level_index].backdrops[backdrop_index].visible) {
-                //                 button.find('i').removeClass('fa-eye-slash').addClass('fa-eye');
-                //             } else {
-                //                 button.find('i').removeClass('fa-eye').addClass('fa-eye-slash');
-                //                 // self.backdrop_index = null;
-                //             }
-                //             e.stopPropagation();
-                //         //     self.clear_selection();
-                //             self.refresh();
-                //             self.render();
-                //         });
-                //         backdrop_div.append(button_show);
-                //         // let sprite_count = $(`<span>`).text(`${layer.sprites.length}`);
-                //         // layer_div.append($(`<span style='margin-left: 0.5em;'>`).append(sprite_count).append($('<span>').text(' Sprites')));
-                //         // self.layer_structs[index].el_sprite_count = sprite_count;
-                //         return backdrop_div;
-                //     },
-                //     onclick: (e, index) => {
-                //         self.backdrop_index = index;
-                //         self.setup_backdrop_properties();
-                //         $('#menu_backdrop_properties_container').show();
-                //         $('#menu_backdrops_container').addClass('connect-bottom');
-                //         menus.level.blur();
-                //     },
-                //     gen_new_item: () => {
-                //         let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
-                //         let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
-                //         let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
-                //         let y1 = Math.round(self.camera_y + self.height * 0.45 / self.scale);
-                //         self.game.data.levels[self.level_index].backdrops.push({ left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 });
-                //         self.game.fix_game_data();
-                //         // let layer_struct = new LayerStruct(self);
-                //         // self.layer_structs.push(layer_struct);
-                //         self.refresh();
-                //         self.render();
-                //         return self.game.data.levels[self.level_index].backdrops[self.game.data.levels[self.level_index].backdrops.length - 1];
-                //     },
-                //     delete_item: (index) => {
-                //         self.game.data.levels[self.level_index].backdrops.splice(index, 1);
-                //         self.backdrop_index = null;
-                //         self.refresh();
-                //         self.render();
-                //     },
-                //     on_move_item: (from, to) => {
-                //         move_item_helper(self.game.data.levels[self.level_index].backdrops, from, to);
-                //         self.backdrop_index = null;
-                //         self.refresh();
-                //         self.render();
-                //     }
-                // });
-
                 new DragAndDropWidget({
                     game: self.game,
                     container: $('#menu_layers'),
@@ -393,8 +321,8 @@ class LevelEditor {
                     ],
                     gen_item: (layer, index) => {
                         let type = layer.type;
-                        let layer_div = $(`<div>`);
-                        let button_show = $(`<div class='toggle'>`);
+                        let layer_div = $(`<div>`).css('padding-top', '2px');
+                        let button_show = $(`<div class='toggle' style='margin-left: 1px;'>`);
                         if (self.game.data.levels[self.level_index].layers[index].properties.visible) {
                             button_show.append($(`<i class='fa fa-eye'>`));
                         } else {
@@ -583,6 +511,20 @@ class LevelEditor {
                 });
             }
         }
+        // $('#menu_layer_properties').append($('<hr />'));
+        // new NumberWidget({
+        //     container: $('#menu_layer_properties'),
+        //     label: 'Deckkraft',
+        //     min: 0,
+        //     max: 100,
+        //     get: () => self.game.data.levels[self.level_index].layers[self.layer_index].properties.opacity * 100.0,
+        //     set: (x) => {
+        //         self.game.data.levels[self.level_index].layers[self.layer_index].properties.opacity = x / 100.0;
+        //         // self.update_layer_label();
+        //         self.refresh();
+        //         self.render();
+        //     },
+        // });
     }
 
     update_level_label() {
@@ -1124,7 +1066,8 @@ class LevelEditor {
                         fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
                         side: THREE.DoubleSide,
                     });
-                    this.scene.add(new THREE.Mesh(geometry, material));
+                    let mesh = new THREE.Mesh(geometry, material);
+                    this.scene.add(mesh);
                 }
             }
         }

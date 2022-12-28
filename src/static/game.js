@@ -98,6 +98,7 @@ class Game {
                 this.data.levels[li].layers[lyi].properties ??= {};
                 this.data.levels[li].layers[lyi].properties.name ??= '';
                 this.data.levels[li].layers[lyi].properties.visible ??= true;
+                this.data.levels[li].layers[lyi].properties.opacity ??= 1.0;
                 if (this.data.levels[li].layers[lyi].type === 'sprites') {
                     this.data.levels[li].layers[lyi].properties.collision_detection ??= true;
                     this.data.levels[li].layers[lyi].sprites ??= [];
