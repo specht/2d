@@ -256,6 +256,7 @@ class LevelEditor {
             trash: $('#trash'),
             items: self.game.data.levels,
             item_class: 'menu_level_item',
+            step_aside_css: { top: '35px' },
             gen_item: (level, index) => {
                 let level_div = $(`<div>`);
                 let level_label = $(`<div>`);
@@ -265,8 +266,6 @@ class LevelEditor {
             },
             onclick: (e, index) => {
                 self.clear_selection();
-                $(e).closest('.menu_level_item').parent().parent().find('.menu_level_item').removeClass('active');
-                $(e).parent().addClass('active');
                 self.level_index = index;
                 self.layer_index = 0;
 
@@ -316,6 +315,7 @@ class LevelEditor {
                     trash: $('#trash'),
                     items: self.game.data.levels[self.level_index].backdrops,
                     item_class: 'menu_backdrop_item',
+                    step_aside_css: { top: '35px' },
                     gen_item: (backdrop, index) => {
                         let backdrop_div = $(`<div>`);
                         let button_show = $(`<div class='toggle'>`);
@@ -326,7 +326,7 @@ class LevelEditor {
                         }
                         button_show.click(function(e) {
                             let button = $(e.target).closest('.toggle');
-                            let item = button.closest('.menu_backdrop_item');
+                            let item = button.closest('.menu_backdrop_item').parent();
                             let backdrop_index = item.index();
                             self.game.data.levels[self.level_index].backdrops[backdrop_index].visible = !self.game.data.levels[self.level_index].backdrops[backdrop_index].visible;
                             if (self.game.data.levels[self.level_index].backdrops[backdrop_index].visible) {
@@ -347,8 +347,6 @@ class LevelEditor {
                         return backdrop_div;
                     },
                     onclick: (e, index) => {
-                        $(e).closest('.menu_backdrop_item').parent().parent().find('.menu_backdrop_item').removeClass('active');
-                        $(e).parent().addClass('active');
                         self.backdrop_index = index;
                         self.setup_backdrop_properties();
                         $('#menu_backdrop_properties_container').show();
@@ -374,20 +372,8 @@ class LevelEditor {
                         self.refresh();
                         self.render();
                     },
-                    on_swap_items: (a, b) => {
-                        if (a > b) {
-                            let temp = self.game.data.levels[self.level_index].backdrops[b];
-                            for (let i = b; i < a; i++) {
-                                self.game.data.levels[self.level_index].backdrops[i] = self.game.data.levels[self.level_index].backdrops[i + 1];
-                            }
-                            self.game.data.levels[self.level_index].backdrops[a] = temp;
-                        } else if (a < b) {
-                            let temp = self.game.data.levels[self.level_index].backdrops[b];
-                            for (let i = b; i > a; i--) {
-                                self.game.data.levels[self.level_index].backdrops[i] = self.game.data.levels[self.level_index].backdrops[i - 1];
-                            }
-                            self.game.data.levels[self.level_index].backdrops[a] = temp;
-                        }
+                    on_move_item: (from, to) => {
+                        move_item_helper(self.game.data.levels[self.level_index].backdrops, from, to);
                         self.backdrop_index = null;
                         self.refresh();
                         self.render();
@@ -400,6 +386,7 @@ class LevelEditor {
                     trash: $('#trash'),
                     items: self.game.data.levels[self.level_index].layers,
                     item_class: 'menu_layer_item',
+                    step_aside_css: { top: '35px' },
                     gen_item: (layer, index) => {
                         let layer_div = $(`<div>`);
                         let button_show = $(`<div class='toggle'>`);
@@ -410,7 +397,7 @@ class LevelEditor {
                         }
                         button_show.click(function(e) {
                             let button = $(e.target).closest('.toggle');
-                            let item = button.closest('.menu_layer_item');
+                            let item = button.closest('.menu_layer_item').parent();
                             let layer_index = item.index();
                             self.game.data.levels[self.level_index].layers[layer_index].properties.visible = !self.game.data.levels[self.level_index].layers[layer_index].properties.visible;
                             if (self.game.data.levels[self.level_index].layers[layer_index].properties.visible) {
@@ -431,8 +418,6 @@ class LevelEditor {
                     },
                     onclick: (e, index) => {
                         self.clear_selection();
-                        $(e).closest('.menu_layer_item').parent().parent().find('.menu_layer_item').removeClass('active');
-                        $(e).parent().addClass('active');
                         self.layer_index = index;
                     },
                     gen_new_item: () => {
@@ -450,23 +435,9 @@ class LevelEditor {
                         self.refresh();
                         // self.render();
                     },
-                    on_swap_items: (a, b) => {
-                        console.log(`swapping ${a} with ${b}`);
-                        let temp = self.game.data.levels[self.level_index].layers[b];
-                        let temps = self.layer_structs[b];
-                        if (a > b) {
-                            for (let i = b; i < a; i++) {
-                                self.game.data.levels[self.level_index].layers[i] = self.game.data.levels[self.level_index].layers[i + 1];
-                                self.layer_structs[i] = self.layer_structs[i + 1];
-                            }
-                        } else if (a < b) {
-                            for (let i = b; i > a; i--) {
-                                self.game.data.levels[self.level_index].layers[i] = self.game.data.levels[self.level_index].layers[i - 1];
-                                self.layer_structs[i] = self.layer_structs[i - 1];
-                            }
-                        }
-                        self.game.data.levels[self.level_index].layers[a] = temp;
-                        self.layer_structs[a] = temps;
+                    on_move_item: (from, to) => {
+                        move_item_helper(self.game.data.levels[self.level_index].layers, from, to);
+                        move_item_helper(self.layer_structs, from, to);
                         self.refresh();
                         self.render();
                     }
@@ -482,19 +453,8 @@ class LevelEditor {
             delete_item: (index) => {
                 self.game.data.levels.splice(index, 1);
             },
-            on_swap_items: (a, b) => {
-                // if (a > b) {
-                //     let temp = self.game.data.sprites[self.sprite_index].states[b];
-                //     for (let i = b; i < a; i++)
-                //     self.game.data.sprites[self.sprite_index].states[i] = self.game.data.sprites[self.sprite_index].states[i + 1];
-                //     self.game.data.sprites[self.sprite_index].states[a] = temp;
-                // } else if (a < b) {
-                //     let temp = self.game.data.sprites[self.sprite_index].states[b];
-                //     for (let i = b; i > a; i--)
-                //     self.game.data.sprites[self.sprite_index].states[i] = self.game.data.sprites[self.sprite_index].states[i - 1];
-                //     self.game.data.sprites[self.sprite_index].states[a] = temp;
-                // }
-                // self.game.refresh_frames_on_screen();
+            on_move_item: (from, to) => {
+                move_item_helper(self.game.data.levels, from, to);
             }
         });
 

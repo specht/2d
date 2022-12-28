@@ -17,26 +17,54 @@ class DragAndDropWidget {
         this.dragging_div = $(`<div style='position: relative; pointer-events: none;'>`);
         this.mouse_down_element = null;
         this.drop_index = null;
-        this.placeholder = $(`<div>`).addClass(options.item_class).addClass('_dnd_item').addClass('placeholder');
+        this.placeholder = $(`<div>`).addClass('_dnd_item').append($('<div>').addClass(options.item_class).addClass('placeholder'));
+        options.old_onclick = options.onclick;
+        options.onclick = function(e, index) {
+            $(self.options.container).find('._dnd_item').removeClass('active');
+            $(self.options.container).find('._dnd_item').eq(index).addClass('active');
+            self.options.old_onclick(e, index);
+        };
         options.can_be_empty ??= false;
+        options.step_aside_css ??= {};
+        options.step_aside_css_mod ??= {};
+        options.step_aside_css_mod_n ??= 0;
         this.options = options;
+        this.options.step_aside_css_reverse = {};
+        this.options.step_aside_css_mod_reverse = {};
+        for (let key of Object.keys(this.options.step_aside_css)) {
+            let v = this.options.step_aside_css[key];
+            let neg = '-';
+            if (v[0] === '-') { v = v.substr(1); neg = ''; }
+            if (v[0] === '+') v = v.substr(1);
+            this.options.step_aside_css_reverse[key] = neg + v;
+        }
+        for (let key of Object.keys(this.options.step_aside_css_mod)) {
+            let v = this.options.step_aside_css_mod[key];
+            let neg = '-';
+            if (v[0] === '-') { v = v.substr(1); neg = ''; }
+            if (v[0] === '+') v = v.substr(1);
+            this.options.step_aside_css_mod_reverse[key] = neg + v;
+        }
+        this.options.step_aside_css_reset = {};
+        for (let key of Object.keys(this.options.step_aside_css))
+            this.options.step_aside_css_reset[key] = '0';
         $(options.container).empty();
         for (let i = 0; i < options.items.length; i++) {
             let item = options.items[i];
             this._append_item(options.gen_item(item, i));
         }
-        this.add_div = $(`<div>`).addClass(options.item_class).addClass('_dnd_item').addClass('add');
-        this.add_div.append($(`<i class='fa fa-plus'></i>`));
+        this.add_div = $(`<div>`).addClass('_dnd_item').addClass('add').append($('<div>').addClass(options.item_class).append($('<div>').addClass('add').append($(`<i class='fa fa-plus'></i>`))));
         this.add_div.click(function (e) {
             let index = options.items.length;
             let item = self.options.gen_item(self.options.gen_new_item(), index);
             self._append_item(item);
             self._move_add_div_to_end();
-            self.options.onclick(item, $(item).parent().index());
+            self.options.onclick(item, $(item).parent().parent().index());
         });
         $(options.container).append(this.add_div);
         if (options.items.length > 0 && (!options.can_be_empty))
             this.options.onclick(this.options.container.children().eq(0).children().eq(0), 0);
+        this.moving_index = null;
     }
 
     get_touch_point(e) {
@@ -59,12 +87,13 @@ class DragAndDropWidget {
 
     _append_item(item) {
         let self = this;
-        let item_div = $(`<div>`).addClass(this.options.item_class).addClass('_dnd_item');
-        item_div.on('contextmenu', () => false);
+        let item_div = $(`<div>`).addClass('_dnd_item');
+        let item_subdiv = $(`<div>`).addClass(this.options.item_class).appendTo(item_div);
+        item_subdiv.on('contextmenu', () => false);
         let drag_handle = $(`<div class='drag_handle'>`);
-        item_div.append(drag_handle);
-        item_div.append(item);//.css('pointer-events', 'none'));
-        item_div.click((e) => {
+        item_subdiv.append(drag_handle);
+        item_subdiv.append(item);
+        item_subdiv.click((e) => {
             let element = $(e.target).closest('._dnd_item');
             self.options.onclick(element.children().eq(0)[0], element.index());
         });
@@ -72,6 +101,7 @@ class DragAndDropWidget {
             e.stopPropagation();
             let item = $(e.target).closest('._dnd_item').children()[0];
             let div = $(item.closest('._dnd_item'));
+            self.moving_index = div.index();
             self.mouse_down_element = div;
             let body = $('html');
             let p = self.get_touch_point(e);
@@ -97,10 +127,6 @@ class DragAndDropWidget {
         let self = this;
         let body = $('html');
         body.on('mousemove._dnd touchmove._dnd', function (e) {
-            // e.preventDefault();
-            // console.log(self.options.container.scrollTop(), self.container_scroll_position[1]);
-            // self.options.container.scrollLeft(self.container_scroll_position[0]);
-            // self.options.container.scrollTop(self.container_scroll_position[1]);
             e.stopPropagation();
             self.options.container[0].scrollLeft = self.container_scroll_position[0];
             self.options.container[0].scrollTop = self.container_scroll_position[1];
@@ -129,8 +155,10 @@ class DragAndDropWidget {
                 self.dragging_div.css('top', `${div_y + dy}px`);
                 // find the element we're currently pointing at
                 if (body.data('_dnd_has_moved')) {
-                    let element = $(document.elementFromPoint(p[0], p[1]));
-                    if (element.closest(self.options.trash).length > 0) {
+                    let element = self.elementWithClassAtPoint(p, '_dnd_item');
+                    if (!self.elementPresentAtPoint(p, self.options.container))
+                        element = $();
+                    if (self.elementPresentAtPoint(p, self.options.trash)) {
                         self.options.trash.addClass('hovering');
                     } else {
                         self.options.trash.removeClass('hovering');
@@ -141,15 +169,44 @@ class DragAndDropWidget {
                         let index = element.index();
                         element.parent().children().removeClass('drop_target');
                         element.addClass('drop_target');
-                        element.parent().children().css('left', '0');
-                        element.parent().children().css('top', '0');
-                        element.css('left', '20px');
                         self.drop_index = index;
+                        if (self.drop_index === self.moving_index)
+                            element.css('opacity', 0);
                     } else {
-                        self.drop_index = null;
-                        self.options.container.children().removeClass('drop_target');
+                        if (self.elementWithClassAtPoint(p, 'menu-body').length === 0) {
+                            self.drop_index = null;
+                            self.options.container.parent().find('._dnd_item > div').css(self.options.step_aside_css_reset);
+                            self.options.container.children().removeClass('drop_target');
+                        }
                     }
-                    console.log(self.drop_index);
+                    element.parent().find('._dnd_item > div').css(self.options.step_aside_css_reset);
+                    if (self.drop_index !== null) {
+                        if (self.drop_index < self.moving_index) {
+                            for (let i = self.drop_index; i < self.moving_index; i++) {
+                                if (self.options.step_aside_css_mod_n > 0) {
+                                    let k = i % self.options.step_aside_css_mod_n;
+                                    if (k === self.options.step_aside_css_mod_n - 1)
+                                        element.parent().children().eq(i).children().eq(0).css(self.options.step_aside_css_mod);
+                                    else
+                                        element.parent().children().eq(i).children().eq(0).css(self.options.step_aside_css);
+                                } else {
+                                    element.parent().children().eq(i).children().eq(0).css(self.options.step_aside_css);
+                                }
+                            }
+                        } else {
+                            for (let i = self.moving_index + 1; i <= self.drop_index; i++) {
+                                if (self.options.step_aside_css_mod_n > 0) {
+                                    let k = i % self.options.step_aside_css_mod_n;
+                                    if (k === 0)
+                                        element.parent().children().eq(i).children().eq(0).css(self.options.step_aside_css_mod_reverse);
+                                    else
+                                        element.parent().children().eq(i).children().eq(0).css(self.options.step_aside_css_reverse);
+                                } else {
+                                    element.parent().children().eq(i).children().eq(0).css(self.options.step_aside_css_reverse);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         });
@@ -172,8 +229,7 @@ class DragAndDropWidget {
             let swap_later = null;
             let dragged_div = this.dragging_div.children().eq(0);
             let p = this.get_touch_point(e);
-            let element = $(document.elementFromPoint(p[0], p[1]));
-            if (this.can_delete_item() && $(element).closest($(this.options.trash)).length > 0) {
+            if (this.can_delete_item() && this.elementPresentAtPoint(p, this.options.trash)) {
                 // item was dropped into the trash
                 delete_at_end = this.placeholder.index();
                 if (dragged_div.hasClass('active'))
@@ -181,14 +237,26 @@ class DragAndDropWidget {
                 else
                     select_item_at_end = this.options.container.find('._dnd_item.active').index();
             } else {
+                if (this.drop_index === this.moving_index || this.drop_index === null) {
+                    this.options.container.parent().find('._dnd_item > div').css(this.options.step_aside_css_reset);
+                } else {
+                    this.options.container.parent().find('._dnd_item').addClass('_no_anim');
+                    this.options.container.parent().find('._dnd_item > div').css(this.options.step_aside_css_reset);
+                    for (let x of this.options.container.parent().find('._dnd_item > div'))
+                        $(x)[0].offsetHeight;
+                    this.options.container.parent().find('._dnd_item').removeClass('_no_anim');
+                }
                 let dropped_div = this.placeholder;
                 if (this.drop_index !== null)
                     dropped_div = this.options.container.children().eq(this.drop_index);
                 if (dropped_div.index() !== this.placeholder.index()) {
                     swap_later = [dropped_div.index(), this.placeholder.index()];
                 }
-                dragged_div.insertAfter(dropped_div);
-                dropped_div.insertAfter(this.placeholder);
+                if (this.drop_index < this.moving_index)
+                    dragged_div.insertBefore(dropped_div);
+                else
+                    dragged_div.insertAfter(dropped_div);
+                // dropped_div.insertAfter(this.placeholder);
             }
             this.options.container.children().removeClass('drop_target');
             this.dragging_div.empty().detach();
@@ -200,7 +268,7 @@ class DragAndDropWidget {
             if (delete_at_end !== null)
                 this.options.delete_item(delete_at_end);
             if (swap_later !== null)
-                this.options.on_swap_items(swap_later[0], swap_later[1]);
+                this.options.on_move_item(swap_later[1], swap_later[0]);
             if (select_item_at_end != null && !this.options.can_be_empty)
                 this.options.onclick(this.options.container.children().eq(select_item_at_end).children().eq(0)[0], select_item_at_end);
             if (delete_at_end !== null || swap_later !== null)
@@ -209,6 +277,21 @@ class DragAndDropWidget {
         body.data('_dnd_moving', false);
         body.off('mousemove._dnd touchmove._dnd');
         body.off('mouseup._dnd touchend._dnd');
+    }
+
+    elementWithClassAtPoint(p, c) {
+        for (let x of $(document.elementsFromPoint(p[0], p[1])))
+            if ($(x).hasClass(c))
+                return $(x);
+        return $();
+    }
+
+    elementPresentAtPoint(p, e) {
+        for (let x of $(document.elementsFromPoint(p[0], p[1]))) {
+            if ($(x).is($(e)))
+                return true;
+        }
+        return false;
     }
 }
 

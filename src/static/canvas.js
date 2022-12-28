@@ -1134,6 +1134,7 @@ class Canvas {
                     trash: $('#trash'),
                     items: sprite.states,
                     item_class: 'menu_state_item',
+                    step_aside_css: { top: '35px' },
                     gen_item: (state, index) => {
                         let state_div = $(`<div>`);
                         let fi = Math.floor(state.frames.length / 2 - 0.5);
@@ -1144,8 +1145,8 @@ class Canvas {
                     },
                     onclick: (e, index) => {
                         self.attachSprite(self.sprite_index, index, 0, function() {
-                            $(e).closest('.menu_state_item').parent().parent().find('.menu_state_item').removeClass('active');
-                            $(e).parent().addClass('active');
+                            // $(e).closest('.menu_state_item').parent().parent().find('.menu_state_item').removeClass('active');
+                            // $(e).parent().addClass('active');
                         });
                     },
                     gen_new_item: () => {
@@ -1157,18 +1158,8 @@ class Canvas {
                         self.game.data.sprites[self.sprite_index].states.splice(index, 1);
                         // canvas.detachSprite();
                     },
-                    on_swap_items: (a, b) => {
-                        if (a > b) {
-                            let temp = self.game.data.sprites[self.sprite_index].states[b];
-                            for (let i = b; i < a; i++)
-                            self.game.data.sprites[self.sprite_index].states[i] = self.game.data.sprites[self.sprite_index].states[i + 1];
-                            self.game.data.sprites[self.sprite_index].states[a] = temp;
-                        } else if (a < b) {
-                            let temp = self.game.data.sprites[self.sprite_index].states[b];
-                            for (let i = b; i > a; i--)
-                            self.game.data.sprites[self.sprite_index].states[i] = self.game.data.sprites[self.sprite_index].states[i - 1];
-                            self.game.data.sprites[self.sprite_index].states[a] = temp;
-                        }
+                    on_move_item: (from, to) => {
+                        move_item_helper(self.game.data.sprites[self.sprite_index].states, from, to);
                         self.game.refresh_frames_on_screen();
                     }
                 });
@@ -1180,13 +1171,14 @@ class Canvas {
                     trash: $('#trash'),
                     items: sprite.states[self.state_index].frames,
                     item_class: 'menu_frame_item',
+                    step_aside_css: { left: '68px' },
                     gen_item: (frame, index) => {
                         return $('<img>').attr('src', frame.src);
                     },
                     onclick: (e, index) => {
                         self.attachSprite(self.sprite_index, self.state_index, index, function() {
-                            $(e).closest('.menu_frame_item').parent().parent().find('.menu_frame_item').removeClass('active');
-                            $(e).parent().addClass('active');
+                            // $(e).closest('.menu_frame_item').parent().parent().find('.menu_frame_item').removeClass('active');
+                            // $(e).parent().addClass('active');
                         });
                     },
                     gen_new_item: () => {
@@ -1198,18 +1190,8 @@ class Canvas {
                         self.game.data.sprites[self.sprite_index].states[self.state_index].frames.splice(index, 1);
                         self.game.refresh_frames_on_screen();
                     },
-                    on_swap_items: (a, b) => {
-                        if (a > b) {
-                            let temp = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[b];
-                            for (let i = b; i < a; i++)
-                            self.game.data.sprites[self.sprite_index].states[self.state_index].frames[i] = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[i + 1];
-                            self.game.data.sprites[self.sprite_index].states[self.state_index].frames[a] = temp;
-                        } else if (a < b) {
-                            let temp = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[b];
-                            for (let i = b; i > a; i--)
-                            self.game.data.sprites[self.sprite_index].states[self.state_index].frames[i] = self.game.data.sprites[self.sprite_index].states[self.state_index].frames[i - 1];
-                            self.game.data.sprites[self.sprite_index].states[self.state_index].frames[a] = temp;
-                        }
+                    on_move_item: (from, to) => {
+                        move_item_helper(self.game.data.sprites[self.sprite_index].states[self.state_index].frames, from, to);
                         self.game.refresh_frames_on_screen();
                     }
                 });
@@ -1229,7 +1211,7 @@ class Canvas {
     }
 
     switchToSprite(si) {
-        let sprite_div = $('#menu_sprites').find('._dnd_item').eq(si);
+        let sprite_div = $('#menu_sprites').find('._dnd_item').eq(si).find('div').eq(0);
         sprite_div.click();
         // adjust scoll position of container
         // state_div.parent().scrollLeft(frame_div.position().left + frame_div.parent().scrollLeft() - Math.floor(frame_div.parent().width() / 2) + Math.floor(frame_div.width() / 2));
@@ -1247,7 +1229,7 @@ class Canvas {
     }
 
     switchToState(sti) {
-        let state_div = $('#menu_states').find('._dnd_item').eq(sti);
+        let state_div = $('#menu_states').find('._dnd_item').eq(sti).find('div').eq(0);
         state_div.click();
         // adjust scoll position of container
         // state_div.parent().scrollLeft(frame_div.position().left + frame_div.parent().scrollLeft() - Math.floor(frame_div.parent().width() / 2) + Math.floor(frame_div.width() / 2));
@@ -1265,7 +1247,7 @@ class Canvas {
     }
 
     switchToFrame(fi) {
-        let frame_div = $('#menu_frames').find('._dnd_item').eq(fi);
+        let frame_div = $('#menu_frames').find('._dnd_item').eq(fi).find('div').eq(0);
         frame_div.click();
         // adjust scoll position of container
         frame_div.parent().scrollLeft(frame_div.position().left + frame_div.parent().scrollLeft() - Math.floor(frame_div.parent().width() / 2) + Math.floor(frame_div.width() / 2));

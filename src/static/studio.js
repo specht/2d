@@ -887,10 +887,43 @@ document.addEventListener("DOMContentLoaded", function (event) {
     });
 
     if (this.location.host.indexOf('localhost') === 0) {
-        setTimeout(function() {
-            for (let i = 0; i < 8; i++)
-                $('.menu_state_item._dnd_item.add').click();
-        }, 500);
+        // window.test_list = [];
+        // new DragAndDropWidget({
+        //     game: self.game,
+        //     container: $('#menu_test'),
+        //     trash: $('#trash'),
+        //     items: window.test_list,
+        //     item_class: 'menu_state_item',
+        //     step_aside_css: { top: '35px' },
+        //     gen_item: (state, index) => {
+        //         window.test_list[window.test_list.length - 1] = index + 1;
+        //         let state_div = $(`<div>`).text(`Item ${index + 1}`);
+        //         return state_div;
+        //     },
+        //     onclick: (e, index) => {
+        //         // $(e).closest('.menu_state_item').parent().parent().find('.menu_state_item').removeClass('active');
+        //         // $(e).parent().addClass('active');
+        //     },
+        //     gen_new_item: () => {
+        //         let x = -1;
+        //         window.test_list.push(x);
+        //         return x;
+        //     },
+        //     delete_item: (index) => {
+        //         window.test_list.splice(index, 1);
+        //     },
+        //     on_move_item: (from, to) => {
+        //         console.log(`moving item from ${from} to ${to}!`);
+        //         move_item_helper(window.test_list, from, to);
+        //         console.log(window.test_list);
+        //     }
+        // });
+        // setTimeout(function() {
+        //     for (let i = 0; i < 8; i++)
+        //         $('#menu_test ._dnd_item .add').click();
+        //     for (let i = 0; i < 4; i++)
+        //         $('#menu_states ._dnd_item .add').click();
+        // }, 500);
 
         // setTimeout(function() {
         //     show_modal('modal_resize_canvas');
@@ -926,3 +959,25 @@ function parse_html_color_to_vec4(color) {
     }
 }
 
+// moves item from one place to another
+// returns an array of index translations
+function move_item_helper(list, from, to) {
+    let tr = [];
+    for (let i = 0; i < list.length; i++) tr[i] = i;
+    if (from === to) return tr;
+    let temp = list[from];
+    if (from < to) {
+        for (let i = from; i < to; i++) {
+            list[i] = list[i + 1];
+            tr[i + 1] = i;
+        }
+    } else {
+        for (let i = from; i > to; i--) {
+            list[i] = list[i - 1];
+            tr[i - 1] = i;
+        }
+    }
+    list[to] = temp;
+    tr[from] = to;
+    return tr;
+}

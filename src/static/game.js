@@ -59,10 +59,10 @@ class Game {
         for (let si = 0; si < this.data.sprites.length; si++) {
             this.data.sprites[si].width ??= DEFAULT_WIDTH;
             this.data.sprites[si].height ??= DEFAULT_HEIGHT;
-            this.data.sprites[si].properties ??= {};
-            this.data.sprites[si].properties.name ??= '';
-            this.data.sprites[si].properties.classes ??= [];
-            this.data.sprites[si].properties.hitboxes ??= {};
+            // this.data.sprites[si].properties ??= {};
+            // this.data.sprites[si].properties.name ??= '';
+            // this.data.sprites[si].properties.classes ??= [];
+            // this.data.sprites[si].properties.hitboxes ??= {};
             this.data.sprites[si].states ??= [];
             if (this.data.sprites[si].states.length === 0) {
                 this.data.sprites[si].states.push({});
@@ -70,14 +70,14 @@ class Game {
             for (let sti = 0; sti < this.data.sprites[si].states.length; sti++) {
                 this.data.sprites[si].states[sti].properties ??= {};
                 this.data.sprites[si].states[sti].properties.name ??= '';
-                this.data.sprites[si].states[sti].properties.hitboxes ??= {};
-                this.data.sprites[si].states[sti].properties.fps ??= 8;
+                // this.data.sprites[si].states[sti].properties.hitboxes ??= {};
+                // this.data.sprites[si].states[sti].properties.fps ??= 8;
                 this.data.sprites[si].states[sti].frames ??= [];
                 if (this.data.sprites[si].states[sti].frames.length === 0)
                     this.data.sprites[si].states[sti].frames.push({});
                 for (let fi = 0; fi < this.data.sprites[si].states[sti].frames.length; fi++) {
-                    this.data.sprites[si].states[sti].frames[fi].properties ??= {};
-                    this.data.sprites[si].states[sti].frames[fi].properties.hitboxes ??= {};
+                    // this.data.sprites[si].states[sti].frames[fi].properties ??= {};
+                    // this.data.sprites[si].states[sti].frames[fi].properties.hitboxes ??= {};
                     this.data.sprites[si].states[sti].frames[fi].src ??= createDataUrlForImageSize(DEFAULT_WIDTH, DEFAULT_HEIGHT);
                 }
             }
@@ -196,10 +196,13 @@ class Game {
             trash: $('#trash'),
             items: this.data.sprites,
             item_class: 'menu_sprite_item',
+            step_aside_css: { left: '68px', top: '0px' },
+            step_aside_css_mod: { left: '-136px', top: '53px'},
+            step_aside_css_mod_n: 3,
             onclick: (e, index) => {
                 canvas.attachSprite(index, 0, 0, function() {
-                    $(e).closest('.menu_sprite_item').parent().parent().find('.menu_sprite_item').removeClass('active');
-                    $(e).parent().addClass('active');
+                    // $(e).closest('.menu_sprite_item').parent().parent().find('.menu_sprite_item').removeClass('active');
+                    // $(e).parent().addClass('active');
                 });
             },
             gen_item: (sprite, index) => {
@@ -218,37 +221,19 @@ class Game {
                 self.data.sprites.splice(index, 1);
                 this.refresh_frames_on_screen();
             },
-            on_swap_items: (a, b) => {
-                let tr = {};
-                let temp = self.data.sprites[b];
-                if (a > b) {
-                    for (let i = b; i < a; i++) {
-                        self.data.sprites[i] = self.data.sprites[i + 1];
-                        tr[i + 1] = i;
-                    }
-                } else if (a < b) {
-                    for (let i = b; i > a; i--) {
-                        self.data.sprites[i] = self.data.sprites[i - 1];
-                        tr[i - 1] = i;
-                    }
-                }
-                self.data.sprites[a] = temp;
-                tr[b] = a;
-                // clean up sprites in levels
+            on_move_item: (from, to) => {
+                let tr = move_item_helper(self.data.sprites, from, to);
                 for (let li = 0; li < self.data.levels.length; li++) {
                     for (let lyi = 0; lyi < self.data.levels[li].layers.length; lyi++) {
-                        console.log(JSON.stringify(self.data.levels[li].layers[lyi].sprites));
                         for (let psi = 0; psi < self.data.levels[li].layers[lyi].sprites.length; psi++) {
-                            self.data.levels[li].layers[lyi].sprites[psi][0] = tr[self.data.levels[li].layers[lyi].sprites[psi][0]] ?? self.data.levels[li].layers[lyi].sprites[psi][0];
+                            self.data.levels[li].layers[lyi].sprites[psi][0] = tr[self.data.levels[li].layers[lyi].sprites[psi][0]];
                         }
-                        console.log(JSON.stringify(self.data.levels[li].layers[lyi].sprites));
                     }
                 }
                 this.refresh_frames_on_screen();
                 for (let si = 0; si < self.data.sprites.length; si++) {
                     this.create_geometry_and_material_for_sprite(si);
                 }
-                // this.level_editor.refresh();
             }
         });
 
