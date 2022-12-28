@@ -4,7 +4,7 @@ body {
     /* background-size: cover; */
     background-repeat: repeat-x;
     background-color: #000;
-    font-family: 'Roboto', sans-serif;
+    font-family: 'IBM Plex Sans', 'Roboto', sans-serif;
     user-select: none;
     -moz-user-drag: none;
     overscroll-behavior: none;
@@ -423,7 +423,7 @@ body {
 
 .key {
     display: inline-block;
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'IBM Plex Mono', 'Roboto Mono', monospace;
     font-weight: bold;
     padding: 0.1em 0.5em;
     /* height: 1.4em; */
@@ -557,6 +557,7 @@ body {
     color: #fff;
     font-weight: bold;
     background-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 1.0);
 }
 
 .menu-body {
@@ -861,7 +862,7 @@ height: 24px;
 }
 
 #modal_load_game .modal-body td.mono {
-    font-family: monospace;
+    font-family: 'IBM Plex Mono', monospace;
     font-size: 14px;
     /* padding: 4px; */
 }
@@ -1076,7 +1077,7 @@ input {
 }
 
 input.clr-color {
-    font-family: monospace;
+    font-family: 'IBM Plex Mono', monospace;
 }
 
 .backdrop-swatch {
