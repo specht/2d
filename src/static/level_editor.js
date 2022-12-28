@@ -227,6 +227,7 @@ class LevelEditor {
         this.backdrop_move_point_old_coordinates = null;
         this.backdrop_move_point_old_size = null;
         this.show_grid = true;
+        this.camera_mode = false;
 
         this.texture_loader = new THREE.TextureLoader();
         this.refresh_sprite_widget();
@@ -243,6 +244,22 @@ class LevelEditor {
             },
         });
 
+        new CheckboxWidget({
+            container: $('#tool_menu_level_settings'),
+            label: 'Kameraansicht',
+            get: () => self.camera_mode,
+            set: (x) => {
+                self.camera_mode = x;
+                handleResize();
+                self.refresh();
+                self.render();
+            },
+        });
+
+        this.bar_top = $(`<div style='background-color: #000; position: absolute; left: 0; right: 0; top: 0; height: 0px; transition: height 0.5s;'>`).appendTo(this.element);
+        this.bar_bottom = $(`<div style='background-color: #000; position: absolute; left: 0; right: 0; bottom: 0; height: 0px; transition: height 0.5s;'>`).appendTo(this.element);
+        this.bar_left = $(`<div style='background-color: #000; position: absolute; left: 0; top: 0; bottom: 0; width: 0px; transition: width 0.5s;'>`).appendTo(this.element);
+        this.bar_right = $(`<div style='background-color: #000; position: absolute; right: 0; top: 0; bottom: 0; width: 0px; transition: width 0.5s;'>`).appendTo(this.element);
 
         // let material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
         // let points = [];
@@ -449,6 +466,7 @@ class LevelEditor {
             self.refresh();
             self.render();
         });
+        this.handleResize();
     }
 
     setup_layer_properties() {
@@ -917,6 +935,27 @@ class LevelEditor {
     handleResize() {
         this.width = $(this.element).width();
         this.height = $(this.element).height()
+        let targetAspectRatio = 16.0 / 9.0;
+        this.bar_top.css('height', '0');
+        this.bar_bottom.css('height', '0');
+        this.bar_left.css('width', '0');
+        this.bar_right.css('width', '0');
+        if (this.camera_mode) {
+            let real_height = this.height;
+            this.camera_x = 0.0;
+            this.camera_y = 0.0;
+            if (this.height * targetAspectRatio > this.width) {
+                let bar_size = Math.round((this.height - this.width / targetAspectRatio) * 0.5);
+                this.bar_top.css('height', `${bar_size}px`);
+                this.bar_bottom.css('height', `${bar_size}px`);
+                real_height = this.width / targetAspectRatio;
+            } else {
+                let bar_size = Math.round((this.width - this.height * targetAspectRatio) * 0.5);
+                this.bar_left.css('width', `${bar_size}px`);
+                this.bar_right.css('width', `${bar_size}px`);
+            }
+            this.scale = real_height / 300.0;
+        }
         this.refresh_grid();
         this.render();
     }
