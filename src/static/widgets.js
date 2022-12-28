@@ -542,7 +542,7 @@ class NumberWidget {
         //     self.input.focus();
         // });
         subdiv.append(this.input);
-        subdiv.append($('<div>').text('%').css('margin-left', '0.25em'));
+        // subdiv.append($('<div>').text('%').css('margin-left', '0.25em'));
         div.append(subdiv);
         $(this.container).append(div);
         let self = this;

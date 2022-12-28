@@ -127,8 +127,9 @@ class LayerStruct {
     select_rect(selection_group, x0, y0, x1, y1) {
         let result = [];
         selection_group.remove.apply(selection_group, selection_group.children);
+        let layer = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index];
 
-        if (!this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].properties.visible)
+        if (!layer.properties.visible)
             return result;
         let result_x = new Set();
         for (let i of this.interval_tree_x.search([x0, x1]))
@@ -139,7 +140,7 @@ class LayerStruct {
         result = new Set([...result_x].filter((x) => result_y.has(x)));
 
         for (let index of result) {
-            let s = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[index];
+            let s = layer.sprites[index];
             let sprite_index = s[0];
 
             let sw = this.level_editor.game.data.sprites[sprite_index].width;
@@ -179,6 +180,8 @@ class LevelEditor {
         this.scene = new THREE.Scene();
         this.grid_group = new THREE.Group();
         this.cursor_group = new THREE.Group();
+        this.cursor_group_inner = new THREE.Group();
+        this.cursor_group.add(this.cursor_group_inner);
         this.rect_group = new THREE.Group();
         this.selection_group = new THREE.Group();
         this.backdrop_cursor = new THREE.Group();
@@ -363,7 +366,7 @@ class LevelEditor {
                         if (self.game.data.levels[self.level_index].layers[self.layer_index].type == 'backdrop') {
                             self.refresh_backdrop_controls();
                         }
-                        self.setup_backdrop_properties();
+                        self.setup_layer_properties();
                         $('#menu_layer_properties_container').show();
                         self.refresh();
                         self.render();
@@ -442,13 +445,13 @@ class LevelEditor {
             self.zoom_at_point(e.originalEvent.deltaY, p[0], p[1]);
             if (self.backdrop_index !== null) {
                 self.refresh_backdrop_controls();
-                self.refresh();
             }
+            self.refresh();
             self.render();
         });
     }
 
-    setup_backdrop_properties() {
+    setup_layer_properties() {
         let self = this;
         $('#menu_layer_properties').empty();
         let layer = self.game.data.levels[self.level_index].layers[self.layer_index];
@@ -485,7 +488,7 @@ class LevelEditor {
                     } else if (x === '4') {
                         backdrop.colors = [['#e7e6e1', 0.1, 0.1], ['#c3def1', 0.9, 0.1], ['#001b4a', 0.1, 0.9], ['#094e54', 0.9, 0.9]];
                     }
-                    self.setup_backdrop_properties();
+                    self.setup_layer_properties();
                     self.backdrop_controls_setup_for = null;
                     self.refresh();
                     self.render();
@@ -512,19 +515,19 @@ class LevelEditor {
             }
         }
         // $('#menu_layer_properties').append($('<hr />'));
-        // new NumberWidget({
-        //     container: $('#menu_layer_properties'),
-        //     label: 'Deckkraft',
-        //     min: 0,
-        //     max: 100,
-        //     get: () => self.game.data.levels[self.level_index].layers[self.layer_index].properties.opacity * 100.0,
-        //     set: (x) => {
-        //         self.game.data.levels[self.level_index].layers[self.layer_index].properties.opacity = x / 100.0;
-        //         // self.update_layer_label();
-        //         self.refresh();
-        //         self.render();
-        //     },
-        // });
+        new NumberWidget({
+            container: $('#menu_layer_properties'),
+            label: 'Parallaxe',
+            min: -100,
+            max: 100,
+            get: () => self.game.data.levels[self.level_index].layers[self.layer_index].properties.parallax,
+            set: (x) => {
+                self.game.data.levels[self.level_index].layers[self.layer_index].properties.parallax = parseFloat(x);
+                // self.update_layer_label();
+                self.refresh();
+                self.render();
+            },
+        });
     }
 
     update_level_label() {
@@ -555,11 +558,11 @@ class LevelEditor {
 
     handle_enter(e) {
         let p = this.ui_to_world(this.get_touch_point(e), true);
-        this.cursor_group.remove.apply(this.cursor_group, this.cursor_group.children);
+        this.cursor_group_inner.remove.apply(this.cursor_group_inner, this.cursor_group_inner.children);
         if (menus.level.active_key === 'tool/pen') {
-            this.sheets[this.sprite_index].add_sprite_to_group(this.cursor_group, 'sprite', 0, 0);
-            this.cursor_group.position.x = p[0];
-            this.cursor_group.position.y = p[1];
+            this.sheets[this.sprite_index].add_sprite_to_group(this.cursor_group_inner, 'sprite', 0, 0);
+            this.cursor_group_inner.position.x = p[0];
+            this.cursor_group_inner.position.y = p[1];
             this.cursor_group.visible = true;
         }
         this.render();
@@ -695,11 +698,11 @@ class LevelEditor {
         if (menus.level.active_key === 'tool/pen' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
             this.cursor_group.visible = true;
             if (this.modifier_shift) {
-                this.cursor_group.position.x = p_no_snap[0];
-                this.cursor_group.position.y = p_no_snap[1];
+                this.cursor_group_inner.position.x = p_no_snap[0];
+                this.cursor_group_inner.position.y = p_no_snap[1];
             } else {
-                this.cursor_group.position.x = p[0];
-                this.cursor_group.position.y = p[1];
+                this.cursor_group_inner.position.x = p[0];
+                this.cursor_group_inner.position.y = p[1];
             }
             if (this.mouse_down) {
                 if (this.mouse_down_button === 0) {
@@ -888,23 +891,26 @@ class LevelEditor {
     }
 
     ui_to_world(p, snap) {
-        let wx = this.camera_x + (p[0] - (this.width / 2)) / this.scale;
-        let wy = this.camera_y - (p[1] - (this.height / 2)) / this.scale;
+        let layer = this.game.data.levels[this.level_index].layers[this.layer_index];
+        let wx = this.camera_x + (p[0] - (this.width / 2)) / this.scale - this.camera_x * layer.properties.parallax;
+        let wy = this.camera_y - (p[1] - (this.height / 2)) / this.scale - this.camera_y * layer.properties.parallax;
         if (snap) {
             wx = Math.round(Math.floor((wx + this.grid_width / 2) / this.grid_width) * this.grid_width);
             wy = Math.round(Math.floor((wy) / this.grid_height) * this.grid_height);
         } else {
             wx = Math.round(wx);
             wy = Math.round(wy);
+            // console.log(p, wx, wy);
         }
         return [wx, wy];
     }
 
     world_to_ui(p) {
+        let layer = this.game.data.levels[this.level_index].layers[this.layer_index];
         let ox = this.camera_x - this.width * 0.5 / this.scale;
         let oy = this.camera_y + this.height * 0.5 / this.scale;
-        let x0 = (p[0] - ox) * this.scale;
-        let y0 = (p[1] - oy) * -this.scale;
+        let x0 = (p[0] + this.camera_x * layer.properties.parallax - ox) * this.scale;
+        let y0 = (p[1] + this.camera_y * layer.properties.parallax - oy) * -this.scale;
         return [x0, y0];
     }
 
@@ -916,6 +922,18 @@ class LevelEditor {
     }
 
     render() {
+
+        let layer = this.game.data.levels[this.level_index].layers[this.layer_index];
+
+        this.selection_group.position.x = this.camera_x * layer.properties.parallax;
+        this.selection_group.position.y = this.camera_y * layer.properties.parallax;
+        this.rect_group.position.x = this.camera_x * layer.properties.parallax;
+        this.rect_group.position.y = this.camera_y * layer.properties.parallax;
+        this.grid_group.position.x = this.camera_x * layer.properties.parallax;
+        this.grid_group.position.y = this.camera_y * layer.properties.parallax;
+        this.cursor_group.position.x = this.camera_x * layer.properties.parallax;
+        this.cursor_group.position.y = this.camera_y * layer.properties.parallax;
+
         // requestAnimationFrame((t) => this.render());
         this.camera.left = this.camera_x - this.width * 0.5 / this.scale;
         this.camera.right = this.camera_x + this.width * 0.5 / this.scale;
@@ -937,10 +955,19 @@ class LevelEditor {
     }
 
     refresh_grid() {
-        let x0 = this.camera_x - this.width * 0.5 / this.scale;
-        let x1 = this.camera_x + this.width * 0.5 / this.scale;
-        let y0 = this.camera_y - this.height * 0.5 / this.scale;
-        let y1 = this.camera_y + this.height * 0.5 / this.scale;
+        let p0 = this.ui_to_world([0, this.height], false);
+        let p1 = this.ui_to_world([this.width, 0], false);
+        // let x0 = this.camera_x - this.width * 0.5 / this.scale;
+        // let x1 = this.camera_x + this.width * 0.5 / this.scale;
+        // let y0 = this.camera_y - this.height * 0.5 / this.scale;
+        // let y1 = this.camera_y + this.height * 0.5 / this.scale;
+
+        // x0 -= this.camera_x * this.game.data.levels[this.level_index].layers[this.layer_index].properties.parallax;
+        // y0 -= this.camera_y * this.game.data.levels[this.level_index].layers[this.layer_index].properties.parallax;
+        // x1 -= this.camera_x * this.game.data.levels[this.level_index].layers[this.layer_index].properties.parallax;
+        // y1 -= this.camera_y * this.game.data.levels[this.level_index].layers[this.layer_index].properties.parallax;
+        let x0 = p0[0]; let y0 = p0[1];
+        let x1 = p1[0]; let y1 = p1[1];
 
         this.grid_group.remove.apply(this.grid_group, this.grid_group.children);
         let opacity = 0.2;
@@ -1011,6 +1038,8 @@ class LevelEditor {
                 if (!this.game.data.levels[this.level_index].layers[li].properties.visible)
                     continue;
                 if (this.game.data.levels[this.level_index].layers[li].type === 'sprites') {
+                    this.layer_structs[li].group.position.x = this.camera_x * this.game.data.levels[this.level_index].layers[li].properties.parallax;
+                    this.layer_structs[li].group.position.y = this.camera_y * this.game.data.levels[this.level_index].layers[li].properties.parallax;
                     this.scene.add(this.layer_structs[li].group);
                     if (this.layer_index === li)
                         this.scene.add(this.cursor_group);
@@ -1056,9 +1085,7 @@ class LevelEditor {
                             pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
                             pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
                         };
-            
                     }
-            
                     let material = new THREE.ShaderMaterial({
                         uniforms: uniforms,
                         transparent: true,
