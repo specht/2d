@@ -523,8 +523,21 @@ class LevelEditor {
     setup_backdrop_properties() {
         let self = this;
         $('#menu_layer_properties').empty();
-        if (self.game.data.levels[self.level_index].layers[self.layer_index].type === 'backdrop') {
-            let backdrop = self.game.data.levels[self.level_index].layers[self.layer_index];
+        let layer = self.game.data.levels[self.level_index].layers[self.layer_index];
+
+        if (layer.type === 'sprites') {
+            new CheckboxWidget({
+                container: $('#menu_layer_properties'),
+                label: 'Kollisionen erkennen',
+                get: () => self.game.data.levels[self.level_index].layers[self.layer_index].properties.collision_detection,
+                set: (x) => {
+                    self.game.data.levels[self.level_index].layers[self.layer_index].properties.collision_detection = x;
+                    // self.update_layer_label();
+                },
+            });
+        }
+        if (layer.type === 'backdrop') {
+            let backdrop = layer;
             new SelectWidget({
                 container: $('#menu_layer_properties'),
                 label: `Farben`,

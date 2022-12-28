@@ -99,6 +99,7 @@ class Game {
                 this.data.levels[li].layers[lyi].properties.name ??= '';
                 this.data.levels[li].layers[lyi].properties.visible ??= true;
                 if (this.data.levels[li].layers[lyi].type === 'sprites') {
+                    this.data.levels[li].layers[lyi].properties.collision_detection ??= true;
                     this.data.levels[li].layers[lyi].sprites ??= [];
                     if (!Array.isArray(this.data.levels[li].layers[lyi].sprites))
                         this.data.levels[li].layers[lyi].sprites = [];
@@ -222,10 +223,12 @@ class Game {
             },
             on_move_item: (from, to) => {
                 let tr = move_item_helper(self.data.sprites, from, to);
-                for (let li = 0; li < self.data.levels.length; li++) {
-                    for (let lyi = 0; lyi < self.data.levels[li].layers.length; lyi++) {
-                        for (let psi = 0; psi < self.data.levels[li].layers[lyi].sprites.length; psi++) {
-                            self.data.levels[li].layers[lyi].sprites[psi][0] = tr[self.data.levels[li].layers[lyi].sprites[psi][0]];
+                for (let levels of self.data.levels) {
+                    for (let layer of levels.layers) {
+                        if (layer.type === 'sprites') {
+                            for (let psi = 0; psi < layer.sprites.length; psi++) {
+                                layer.sprites[psi][0] = tr[layer.sprites[psi][0]];
+                            }
                         }
                     }
                 }
