@@ -432,6 +432,7 @@ class LevelEditor {
                     delete_item: (index) => {
                         self.game.data.levels[self.level_index].layers.splice(index, 1);
                         self.layer_structs.splice(index, 1);
+                        self.layer_index = 0;
                         self.refresh();
                         // self.render();
                     },
@@ -452,6 +453,7 @@ class LevelEditor {
             },
             delete_item: (index) => {
                 self.game.data.levels.splice(index, 1);
+                self.level_index = 0;
             },
             on_move_item: (from, to) => {
                 move_item_helper(self.game.data.levels, from, to);
