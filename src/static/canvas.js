@@ -465,7 +465,7 @@ class Canvas {
                     for (let i = 0; i < 4; i++)
                         color[i] = Math.round(color[i] / count);
                     setCurrentColor(tinycolor({ r: color[0], g: color[1], b: color[2], a: color[3] / 255 }).toHex8String());
-                    window.menu.handle_click(window.revert_to_tool);
+                    this.menu.handle_click(window.revert_to_tool);
                 }
             } else if (this.menu.get('tool') === 'tool/spray') {
                 this.stop_ticker();

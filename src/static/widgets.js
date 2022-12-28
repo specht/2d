@@ -28,6 +28,7 @@ class DragAndDropWidget {
         options.step_aside_css ??= {};
         options.step_aside_css_mod ??= {};
         options.step_aside_css_mod_n ??= 0;
+        options.gen_new_item_options ??= [];
         this.options = options;
         this.options.step_aside_css_reverse = {};
         this.options.step_aside_css_mod_reverse = {};
@@ -53,13 +54,41 @@ class DragAndDropWidget {
             let item = options.items[i];
             this._append_item(options.gen_item(item, i));
         }
-        this.add_div = $(`<div>`).addClass('_dnd_item').addClass('add').append($('<div>').addClass(options.item_class).append($('<div>').addClass('add').append($(`<i class='fa fa-plus'></i>`))));
-        this.add_div.click(function (e) {
-            let index = options.items.length;
-            let item = self.options.gen_item(self.options.gen_new_item(), index);
-            self._append_item(item);
-            self._move_add_div_to_end();
-            self.options.onclick(item, $(item).parent().parent().index());
+        this.add_div = $(`<div>`).addClass('_dnd_item add');
+        this.add_button = $('<div>').addClass(options.item_class).appendTo(this.add_div);
+        $('<div>').addClass('add').append($(`<i class='fa fa-plus'></i>`)).appendTo(this.add_button);
+        if (self.options.gen_new_item_options.length > 0) {
+            this.gen_new_item_options_div = $('<div>').addClass('add_choice_container').css('display', 'none').appendTo(this.add_div);
+            for (let entry of self.options.gen_new_item_options) {
+                let label = entry[0];
+                let type = entry[1];
+                let button = $('<div>').addClass('add_choice').append($(`<i class='fa fa-plus'>`)).append('&nbsp;&nbsp;').append($('<span>').text(label)).appendTo(this.gen_new_item_options_div);
+                button.click(function(e) {
+                    console.log(`adding ${type}!`);
+                    self.gen_new_item_options_div.hide();
+                    let index = self.options.items.length;
+                    let item = self.options.gen_item(self.options.gen_new_item(type), index);
+                    self._append_item(item);
+                    self._move_add_div_to_end();
+                    self.options.onclick(item, $(item).parent().parent().index());
+                });
+            }
+        }
+
+        this.add_button.click(function (e) {
+            if (self.options.gen_new_item_options.length > 0) {
+                if (self.gen_new_item_options_div.is(':visible')) {
+                    self.gen_new_item_options_div.hide();
+                } else {
+                    self.gen_new_item_options_div.show();
+                }
+            } else {
+                let index = self.options.items.length;
+                let item = self.options.gen_item(self.options.gen_new_item(), index);
+                self._append_item(item);
+                self._move_add_div_to_end();
+                self.options.onclick(item, $(item).parent().parent().index());
+            }
         });
         $(options.container).append(this.add_div);
         if (options.items.length > 0 && (!options.can_be_empty))
@@ -464,7 +493,6 @@ class ColorWidget {
             $('.modal-dialogs').css('background-color', '').hide();
         });
         this.color_button.on('input', function(e) {
-            console.log('input');
             let color = $(e.target).val();
             self.color_button.css('background-color', color);
             data.set(color);

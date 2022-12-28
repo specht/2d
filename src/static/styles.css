@@ -758,6 +758,29 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     /* outline: 1px solid green; */
 }
 
+._dnd_item.add > div.add_choice_container {
+    padding: 4px;
+    padding-top: 10px;
+    border: none;
+    display: flex;
+    flex-flow: row;
+    gap: 4px;
+    justify-content: center;
+    box-shadow: inset 0px 15px 10px -10px rgba(0, 0, 0, 1);
+}
+
+._dnd_item .add_choice {
+    padding: 5px 10px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    display: inline-block;
+}
+
+._dnd_item .add_choice:hover {
+    border: 1px solid rgba(255,255,255,0.8);
+}
+
 @media (max-height: 600px) {
     /* #undo_stack img {
 width: 24px;

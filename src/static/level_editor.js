@@ -23,6 +23,7 @@ class LayerStruct {
     // clear layer struct and apply layer from game data
     apply_layer(layer) {
         this.reset();
+        if (layer.type !== 'sprites') return;
         for (let i = 0; i < layer.sprites.length; i++) {
             let sprite = layer.sprites[i];
             this.add_sprite([sprite[1], sprite[2]], sprite[0], i);
@@ -180,7 +181,6 @@ class LevelEditor {
         this.cursor_group = new THREE.Group();
         this.rect_group = new THREE.Group();
         this.selection_group = new THREE.Group();
-        this.backdrop_group = new THREE.Group();
         this.backdrop_cursor = new THREE.Group();
         this.layer_structs = [];
         this.camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
@@ -308,77 +308,77 @@ class LevelEditor {
                     },
                 });
 
-                new DragAndDropWidget({
-                    game: self.game,
-                    container: $('#menu_backdrops'),
-                    can_be_empty: true,
-                    trash: $('#trash'),
-                    items: self.game.data.levels[self.level_index].backdrops,
-                    item_class: 'menu_backdrop_item',
-                    step_aside_css: { top: '35px' },
-                    gen_item: (backdrop, index) => {
-                        let backdrop_div = $(`<div>`);
-                        let button_show = $(`<div class='toggle'>`);
-                        if (self.game.data.levels[self.level_index].backdrops[index].visible) {
-                            button_show.append($(`<i class='fa fa-eye'>`));
-                        } else {
-                            button_show.append($(`<i class='fa fa-eye-slash'>`));
-                        }
-                        button_show.click(function(e) {
-                            let button = $(e.target).closest('.toggle');
-                            let item = button.closest('.menu_backdrop_item').parent();
-                            let backdrop_index = item.index();
-                            self.game.data.levels[self.level_index].backdrops[backdrop_index].visible = !self.game.data.levels[self.level_index].backdrops[backdrop_index].visible;
-                            if (self.game.data.levels[self.level_index].backdrops[backdrop_index].visible) {
-                                button.find('i').removeClass('fa-eye-slash').addClass('fa-eye');
-                            } else {
-                                button.find('i').removeClass('fa-eye').addClass('fa-eye-slash');
-                                // self.backdrop_index = null;
-                            }
-                            e.stopPropagation();
-                        //     self.clear_selection();
-                            self.refresh();
-                            self.render();
-                        });
-                        backdrop_div.append(button_show);
-                        // let sprite_count = $(`<span>`).text(`${layer.sprites.length}`);
-                        // layer_div.append($(`<span style='margin-left: 0.5em;'>`).append(sprite_count).append($('<span>').text(' Sprites')));
-                        // self.layer_structs[index].el_sprite_count = sprite_count;
-                        return backdrop_div;
-                    },
-                    onclick: (e, index) => {
-                        self.backdrop_index = index;
-                        self.setup_backdrop_properties();
-                        $('#menu_backdrop_properties_container').show();
-                        $('#menu_backdrops_container').addClass('connect-bottom');
-                        menus.level.blur();
-                    },
-                    gen_new_item: () => {
-                        let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
-                        let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
-                        let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
-                        let y1 = Math.round(self.camera_y + self.height * 0.45 / self.scale);
-                        self.game.data.levels[self.level_index].backdrops.push({ left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 });
-                        self.game.fix_game_data();
-                        // let layer_struct = new LayerStruct(self);
-                        // self.layer_structs.push(layer_struct);
-                        self.refresh();
-                        self.render();
-                        return self.game.data.levels[self.level_index].backdrops[self.game.data.levels[self.level_index].backdrops.length - 1];
-                    },
-                    delete_item: (index) => {
-                        self.game.data.levels[self.level_index].backdrops.splice(index, 1);
-                        self.backdrop_index = null;
-                        self.refresh();
-                        self.render();
-                    },
-                    on_move_item: (from, to) => {
-                        move_item_helper(self.game.data.levels[self.level_index].backdrops, from, to);
-                        self.backdrop_index = null;
-                        self.refresh();
-                        self.render();
-                    }
-                });
+                // new DragAndDropWidget({
+                //     game: self.game,
+                //     container: $('#menu_backdrops'),
+                //     can_be_empty: true,
+                //     trash: $('#trash'),
+                //     items: self.game.data.levels[self.level_index].backdrops,
+                //     item_class: 'menu_backdrop_item',
+                //     step_aside_css: { top: '35px' },
+                //     gen_item: (backdrop, index) => {
+                //         let backdrop_div = $(`<div>`);
+                //         let button_show = $(`<div class='toggle'>`);
+                //         if (self.game.data.levels[self.level_index].backdrops[index].visible) {
+                //             button_show.append($(`<i class='fa fa-eye'>`));
+                //         } else {
+                //             button_show.append($(`<i class='fa fa-eye-slash'>`));
+                //         }
+                //         button_show.click(function(e) {
+                //             let button = $(e.target).closest('.toggle');
+                //             let item = button.closest('.menu_backdrop_item').parent();
+                //             let backdrop_index = item.index();
+                //             self.game.data.levels[self.level_index].backdrops[backdrop_index].visible = !self.game.data.levels[self.level_index].backdrops[backdrop_index].visible;
+                //             if (self.game.data.levels[self.level_index].backdrops[backdrop_index].visible) {
+                //                 button.find('i').removeClass('fa-eye-slash').addClass('fa-eye');
+                //             } else {
+                //                 button.find('i').removeClass('fa-eye').addClass('fa-eye-slash');
+                //                 // self.backdrop_index = null;
+                //             }
+                //             e.stopPropagation();
+                //         //     self.clear_selection();
+                //             self.refresh();
+                //             self.render();
+                //         });
+                //         backdrop_div.append(button_show);
+                //         // let sprite_count = $(`<span>`).text(`${layer.sprites.length}`);
+                //         // layer_div.append($(`<span style='margin-left: 0.5em;'>`).append(sprite_count).append($('<span>').text(' Sprites')));
+                //         // self.layer_structs[index].el_sprite_count = sprite_count;
+                //         return backdrop_div;
+                //     },
+                //     onclick: (e, index) => {
+                //         self.backdrop_index = index;
+                //         self.setup_backdrop_properties();
+                //         $('#menu_backdrop_properties_container').show();
+                //         $('#menu_backdrops_container').addClass('connect-bottom');
+                //         menus.level.blur();
+                //     },
+                //     gen_new_item: () => {
+                //         let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
+                //         let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
+                //         let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
+                //         let y1 = Math.round(self.camera_y + self.height * 0.45 / self.scale);
+                //         self.game.data.levels[self.level_index].backdrops.push({ left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 });
+                //         self.game.fix_game_data();
+                //         // let layer_struct = new LayerStruct(self);
+                //         // self.layer_structs.push(layer_struct);
+                //         self.refresh();
+                //         self.render();
+                //         return self.game.data.levels[self.level_index].backdrops[self.game.data.levels[self.level_index].backdrops.length - 1];
+                //     },
+                //     delete_item: (index) => {
+                //         self.game.data.levels[self.level_index].backdrops.splice(index, 1);
+                //         self.backdrop_index = null;
+                //         self.refresh();
+                //         self.render();
+                //     },
+                //     on_move_item: (from, to) => {
+                //         move_item_helper(self.game.data.levels[self.level_index].backdrops, from, to);
+                //         self.backdrop_index = null;
+                //         self.refresh();
+                //         self.render();
+                //     }
+                // });
 
                 new DragAndDropWidget({
                     game: self.game,
@@ -387,7 +387,12 @@ class LevelEditor {
                     items: self.game.data.levels[self.level_index].layers,
                     item_class: 'menu_layer_item',
                     step_aside_css: { top: '35px' },
+                    gen_new_item_options: [
+                        ['Sprites', 'sprites'],
+                        ['Backdrop', 'backdrop'],
+                    ],
                     gen_item: (layer, index) => {
+                        let type = layer.type;
                         let layer_div = $(`<div>`);
                         let button_show = $(`<div class='toggle'>`);
                         if (self.game.data.levels[self.level_index].layers[index].properties.visible) {
@@ -411,22 +416,49 @@ class LevelEditor {
                             self.render();
                         });
                         layer_div.append(button_show);
-                        let sprite_count = $(`<span>`).text(`${layer.sprites.length}`);
-                        layer_div.append($(`<span style='margin-left: 0.5em;'>`).append(sprite_count).append($('<span>').text(' Sprites')));
-                        self.layer_structs[index].el_sprite_count = sprite_count;
+                        if (type === 'sprites') {
+                            let sprite_count = $(`<span>`).text(`${layer.sprites.length}`);
+                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Sprites (')).append(sprite_count).append($('<span>').text(')')));
+                            self.layer_structs[index].el_sprite_count = sprite_count;
+                        } else if (type === 'backdrop') {
+                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Backdrop')));
+                        }
                         return layer_div;
                     },
                     onclick: (e, index) => {
                         self.clear_selection();
+                        console.log(`layer click: ${index}`);
                         self.layer_index = index;
+                        if (self.game.data.levels[self.level_index].layers[self.layer_index].type !== 'sprites') {
+                            menus.level.blur();
+                        }
+                        if (self.game.data.levels[self.level_index].layers[self.layer_index].type == 'backdrop') {
+                            self.refresh_backdrop_controls();
+                        }
+                        self.setup_backdrop_properties();
+                        $('#menu_layer_properties_container').show();
+                        self.refresh();
+                        self.render();
                     },
-                    gen_new_item: () => {
-                        let layer = { sprites: [] };
-                        self.game.data.levels[self.level_index].layers.push(layer);
-                        self.game.fix_game_data();
+                    gen_new_item: (type) => {
                         let layer_struct = new LayerStruct(self);
                         self.layer_structs.push(layer_struct);
-                        self.refresh();
+                        if (type === 'sprites') {
+                            let layer = { type: 'sprites', sprites: [] };
+                            self.game.data.levels[self.level_index].layers.push(layer);
+                            self.game.fix_game_data();
+                            self.refresh();
+                        } else if (type === 'backdrop') {
+                            let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
+                            let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
+                            let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
+                            let y1 = Math.round(self.camera_y + self.height * 0.45 / self.scale);
+                            let layer = { type: 'backdrop', left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 };
+                            self.game.data.levels[self.level_index].layers.push(layer);
+                            self.game.fix_game_data();
+                            self.refresh();
+                            self.render();
+                        }
                         return self.game.data.levels[self.level_index].layers[self.game.data.levels[self.level_index].layers.length - 1];
                     },
                     delete_item: (index) => {
@@ -481,7 +513,7 @@ class LevelEditor {
             let p = self.ui_to_world(self.get_touch_point(e), false);
             self.zoom_at_point(e.originalEvent.deltaY, p[0], p[1]);
             if (self.backdrop_index !== null) {
-                self.backdrop_controls_setup_for = null;
+                self.refresh_backdrop_controls();
                 self.refresh();
             }
             self.render();
@@ -490,52 +522,53 @@ class LevelEditor {
 
     setup_backdrop_properties() {
         let self = this;
-        $('#menu_backdrop_properties').empty();
-        let backdrop = self.game.data.levels[self.level_index].backdrops[self.backdrop_index];
-        new SelectWidget({
-            container: $('#menu_backdrop_properties'),
-            label: `Farben`,
-            options: {
-                '1': 'einfarbig',
-                '2': 'zwei Farben',
-                '4': 'vier Farben',
-            },
-            get: () => {
-                return `${backdrop.colors.length}`;
-            },
-            set: (x) => {
-                if (x === '1') {
-                    backdrop.colors = backdrop.colors.splice(0, 1);
-                } else if (x === '2') {
-                    backdrop.colors = [['#143b86', 0.5, 0.9], ['#c3def1', 0.5, 0.1]];
-                } else if (x === '4') {
-                    backdrop.colors = [['#e7e6e1', 0.1, 0.1], ['#c3def1', 0.9, 0.1], ['#001b4a', 0.1, 0.9], ['#094e54', 0.9, 0.9]];
-                }
-                self.setup_backdrop_properties();
-                self.backdrop_controls_setup_for = null;
-                self.refresh();
-                self.render();
-            },
-        });
-        for (let ci = 0; ci < backdrop.colors.length; ci++) {
-            new ColorWidget({
-                container: $('#menu_backdrop_properties'),
-                label: `Farbe ${ci + 1}`,
-                alpha: true,
+        $('#menu_layer_properties').empty();
+        if (self.game.data.levels[self.level_index].layers[self.layer_index].type === 'backdrop') {
+            let backdrop = self.game.data.levels[self.level_index].layers[self.layer_index];
+            new SelectWidget({
+                container: $('#menu_layer_properties'),
+                label: `Farben`,
+                options: {
+                    '1': 'einfarbig',
+                    '2': 'zwei Farben',
+                    '4': 'vier Farben',
+                },
                 get: () => {
-                    let c = backdrop.colors[ci][0];
-                    if (c.length == 7) c += 'ff';
-                    console.log(ci, c);
-                    return c;
+                    return `${backdrop.colors.length}`;
                 },
                 set: (x) => {
-                    if (`color_${ci}` in self.backdrop_move_elements)
-                        self.backdrop_move_elements[`color_${ci}`].css('background-color', x);
-                    backdrop.colors[ci][0] = x;
+                    if (x === '1') {
+                        backdrop.colors = backdrop.colors.splice(0, 1);
+                    } else if (x === '2') {
+                        backdrop.colors = [['#143b86', 0.5, 0.9], ['#c3def1', 0.5, 0.1]];
+                    } else if (x === '4') {
+                        backdrop.colors = [['#e7e6e1', 0.1, 0.1], ['#c3def1', 0.9, 0.1], ['#001b4a', 0.1, 0.9], ['#094e54', 0.9, 0.9]];
+                    }
+                    self.setup_backdrop_properties();
+                    self.backdrop_controls_setup_for = null;
                     self.refresh();
                     self.render();
                 },
             });
+            for (let ci = 0; ci < backdrop.colors.length; ci++) {
+                new ColorWidget({
+                    container: $('#menu_layer_properties'),
+                    label: `Farbe ${ci + 1}`,
+                    alpha: true,
+                    get: () => {
+                        let c = backdrop.colors[ci][0];
+                        if (c.length == 7) c += 'ff';
+                        return c;
+                    },
+                    set: (x) => {
+                        if (`color_${ci}` in self.backdrop_move_elements)
+                            self.backdrop_move_elements[`color_${ci}`].css('background-color', x);
+                        backdrop.colors[ci][0] = x;
+                        self.refresh();
+                        self.render();
+                    },
+                });
+            }
         }
     }
 
@@ -610,7 +643,7 @@ class LevelEditor {
         this.y1 = this.mouse_down_position_no_snap[1];
 
         if (e.touches) this.mouse_down_button = 0;
-        if (menus.level.active_key === 'tool/pen') {
+        if (menus.level.active_key === 'tool/pen' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
             if (e.button === 0) {
                 if (this.modifier_shift) {
                     this.add_sprite_to_level(this.mouse_down_position_no_snap);
@@ -626,10 +659,9 @@ class LevelEditor {
             }
         } else if (menus.level.active_key === 'tool/pan') {
             this.old_camera_position = [this.camera_x, this.camera_y];
-        } else if (menus.level.active_key === 'tool/select') {
+        } else if (menus.level.active_key === 'tool/select' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
             this.clear_selection();
             this.updating_selection = true;
-        } else if (this.backdrop_index !== null) {
         }
         this.render();
     }
@@ -694,7 +726,7 @@ class LevelEditor {
                     let p = this.ui_to_world([tx, ty], false);
                     this.zoom_at_point(-touch_distance_delta * 3, p[0], p[1]);
                     if (this.backdrop_index !== null) {
-                        this.backdrop_controls_setup_for = null;
+                        self.refresh_backdrop_controls();
                         this.refresh();
                     }
                     this.render();
@@ -705,7 +737,7 @@ class LevelEditor {
         let touch = this.get_touch_point(e);
         let p = this.ui_to_world(touch, true);
         let p_no_snap = this.ui_to_world(touch, false);
-        if (menus.level.active_key === 'tool/pen') {
+        if (menus.level.active_key === 'tool/pen' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
             this.cursor_group.visible = true;
             if (this.modifier_shift) {
                 this.cursor_group.position.x = p_no_snap[0];
@@ -737,26 +769,29 @@ class LevelEditor {
             if (this.mouse_down && this.mouse_down_button === 0) {
                 this.camera_x = this.old_camera_position[0] - (touch[0] - this.mouse_down_position_raw[0]) / this.scale;
                 this.camera_y = this.old_camera_position[1] + (touch[1] - this.mouse_down_position_raw[1]) / this.scale;
+                if (this.backdrop_index !== null) this.backdrop_controls_setup_for = null;
                 this.refresh();
-                // this.render();
+                this.render();
             }
         }
 
-        if (menus.level.active_key === 'tool/fill-rect' || menus.level.active_key === 'tool/select') {
-            if (this.mouse_down) {
-                this.x0 = this.mouse_down_position_no_snap[0];
-                this.y0 = this.mouse_down_position_no_snap[1];
-                this.x1 = p_no_snap[0];
-                this.y1 = p_no_snap[1];
-                this.prepare_rect_group(this.x0, this.y0, this.x1, this.y1);
+        if (this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
+            if (menus.level.active_key === 'tool/fill-rect' || menus.level.active_key === 'tool/select') {
+                if (this.mouse_down) {
+                    this.x0 = this.mouse_down_position_no_snap[0];
+                    this.y0 = this.mouse_down_position_no_snap[1];
+                    this.x1 = p_no_snap[0];
+                    this.y1 = p_no_snap[1];
+                    this.prepare_rect_group(this.x0, this.y0, this.x1, this.y1);
+                }
+                this.rect_group.visible = this.mouse_down;
             }
-            this.rect_group.visible = this.mouse_down;
         }
-        if (this.backdrop_index !== null) {
+        if (this.backdrop_index !== null && menus.level.active_key !== 'tool/pan') {
             if (this.mouse_down && this.mouse_down_button === 0) {
                 if (this.backdrop_move_point !== null) {
                     if (this.backdrop_move_point.substr(0, 6) === 'color_') {
-                        let backdrop = this.game.data.levels[this.level_index].backdrops[this.backdrop_index];
+                        let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
                         let color_index = parseInt(this.backdrop_move_point.substr(6));
                         let dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
                         let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
@@ -772,7 +807,7 @@ class LevelEditor {
                         this.refresh();
                         this.render();
                     } else if (this.backdrop_move_point === 'sc0' || this.backdrop_move_point === 'sc3') {
-                        let backdrop = this.game.data.levels[this.level_index].backdrops[this.backdrop_index];
+                        let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
                         let dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
                         let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
                         let nx = this.backdrop_move_point_old_coordinates[0] + dx;
@@ -992,12 +1027,12 @@ class LevelEditor {
         // this.grid_group.add(line);
     }
 
+    refresh_backdrop_controls() {
+        this.backdrop_controls_setup_for = null;
+    }
+
     refresh() {
         let self = this;
-        if (self.backdrop_index !== null) {
-            if (self.backdrop_index >= self.game.data.levels[self.level_index].backdrops.length)
-                self.backdrop_index = null;
-        }
         this.scene.remove.apply(this.scene, this.scene.children);
         this.scene.background = new THREE.Color(parse_html_color(this.game.data.levels[this.level_index].properties.background_color));
 
@@ -1016,75 +1051,68 @@ class LevelEditor {
             this.sheets.push(sheet);
         }
 
-        this.backdrop_group.remove.apply(this.backdrop_group, this.backdrop_group.children);
-
-        for (let bi = this.game.data.levels[this.level_index].backdrops.length - 1; bi >= 0 ; bi--) {
-            let backdrop = this.game.data.levels[this.level_index].backdrops[bi];
-            if (!backdrop.visible)
-                continue;
-            let geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
-            geometry.translate(0.5, 0.5, 0.0);
-            geometry.scale(backdrop.width, backdrop.height, 1.0);
-            geometry.translate(backdrop.left, backdrop.bottom, -1);
-            geometry.translate(0, 0, -1);
-            let gradient_points = backdrop.colors;
-            let uniforms = {};
-            if (gradient_points.length === 1) {
-                uniforms = {
-                    n:  { value: 1 },
-                    ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                };
-            } else if (gradient_points.length === 2) {
-                let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
-                let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
-                let l1 = 1.0 / l;
-                d[0] *= l1; d[1] *= l1;
-                uniforms = {
-                    n:  { value: 2 },
-                    ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                    cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-                    pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-                    pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-                    na: { value: [d[0], d[1]] },
-                    nb: { value: [-d[0], -d[1]] },
-                    la: { value: l },
-                    lb: { value: l },
-                };
-            } else if (gradient_points.length === 4) {
-                uniforms = {
-                    n:  { value: 4 },
-                    ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                    cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-                    cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
-                    cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
-                    pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-                    pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-                    pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
-                    pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
-                };
-    
-            }
-    
-            let material = new THREE.ShaderMaterial({
-                uniforms: uniforms,
-                transparent: true,
-                vertexShader: document.getElementById('vertex-shader').textContent,
-                fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
-                side: THREE.DoubleSide,
-            });
-            this.backdrop_group.add(new THREE.Mesh(geometry, material));
-        }
-
-        this.scene.add(this.backdrop_group);
-
         for (let li = this.game.data.levels[this.level_index].layers.length; li >= 0; li--) {
             if (li < this.layer_structs.length) {
-                // this.layer_structs[li].group.renderOrder = -li - 1;
-                if (this.game.data.levels[this.level_index].layers[li].properties.visible) {
+                if (!this.game.data.levels[this.level_index].layers[li].properties.visible)
+                    continue;
+                if (this.game.data.levels[this.level_index].layers[li].type === 'sprites') {
                     this.scene.add(this.layer_structs[li].group);
+                    if (this.layer_index === li)
+                        this.scene.add(this.cursor_group);
+                } else if (this.game.data.levels[this.level_index].layers[li].type === 'backdrop') {
+                    let backdrop = this.game.data.levels[this.level_index].layers[li];
+                    let geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+                    geometry.translate(0.5, 0.5, 0.0);
+                    geometry.scale(backdrop.width, backdrop.height, 1.0);
+                    geometry.translate(backdrop.left, backdrop.bottom, 0);
+                    // geometry.translate(0, 0, -1);
+                    let gradient_points = backdrop.colors;
+                    let uniforms = {};
+                    if (gradient_points.length === 1) {
+                        uniforms = {
+                            n:  { value: 1 },
+                            ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+                        };
+                    } else if (gradient_points.length === 2) {
+                        let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
+                        let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
+                        let l1 = 1.0 / l;
+                        d[0] *= l1; d[1] *= l1;
+                        uniforms = {
+                            n:  { value: 2 },
+                            ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+                            cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+                            pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+                            pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+                            na: { value: [d[0], d[1]] },
+                            nb: { value: [-d[0], -d[1]] },
+                            la: { value: l },
+                            lb: { value: l },
+                        };
+                    } else if (gradient_points.length === 4) {
+                        uniforms = {
+                            n:  { value: 4 },
+                            ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+                            cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+                            cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
+                            cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
+                            pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+                            pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+                            pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
+                            pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
+                        };
+            
+                    }
+            
+                    let material = new THREE.ShaderMaterial({
+                        uniforms: uniforms,
+                        transparent: true,
+                        vertexShader: document.getElementById('vertex-shader').textContent,
+                        fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
+                        side: THREE.DoubleSide,
+                    });
+                    this.scene.add(new THREE.Mesh(geometry, material));
                 }
-                if (this.layer_index === li)
-                    this.scene.add(this.cursor_group);
             }
         }
         if (this.show_grid)
@@ -1092,8 +1120,12 @@ class LevelEditor {
         this.scene.add(this.selection_group);
         this.scene.add(this.rect_group);
 
-        if (this.backdrop_index !== null) {
-            let backdrop = this.game.data.levels[this.level_index].backdrops[this.backdrop_index];
+        this.backdrop_index = null;
+        if (this.game.data.levels[this.level_index].layers[this.layer_index].type === 'backdrop')
+            this.backdrop_index = this.layer_index;
+
+        if (this.backdrop_index !== null && menus.level.active_key === null) {
+            let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
             this.backdrop_cursor.remove.apply(this.backdrop_cursor, this.backdrop_cursor.children);
             let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true });
 
@@ -1113,8 +1145,8 @@ class LevelEditor {
             for (let x of this.backdrop_controls)
                 $(x).remove();
             this.backdrop_controls = [];
-            if (this.backdrop_index !== null) {
-                let backdrop = this.game.data.levels[this.level_index].backdrops[this.backdrop_index];
+            if (this.backdrop_index !== null && menus.level.active_key === null) {
+                let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
                 let p0 = this.world_to_ui([backdrop.left, backdrop.bottom]);
                 let p1 = this.world_to_ui([backdrop.left + backdrop.width, backdrop.bottom + backdrop.height]);
                 let ox = this.camera_x - this.width * 0.5 / this.scale;
@@ -1159,7 +1191,6 @@ class LevelEditor {
                     }
                 }
             }
-
         }
     }
 
