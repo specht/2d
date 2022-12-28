@@ -721,6 +721,7 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     overflow: hidden;
     vertical-align: middle;
     /* pointer-events: none; */
+    border-radius: 2px;
 }
 
 ._dnd_item._no_anim>div {
@@ -990,7 +991,7 @@ table tr.clickable_row:hover {
 
 .dropdown_menu div.item {
     color: #fff;
-    font-size: 15px;
+    font-size: 14px;
     padding: 5px;
     cursor: pointer;
     font-weight: normal;

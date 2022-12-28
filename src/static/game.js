@@ -68,6 +68,7 @@ class Game {
                 this.data.sprites[si].states.push({});
             }
             for (let sti = 0; sti < this.data.sprites[si].states.length; sti++) {
+                this.data.sprites[si].states[sti].traits ??= {};
                 this.data.sprites[si].states[sti].properties ??= {};
                 this.data.sprites[si].states[sti].properties.name ??= '';
                 // this.data.sprites[si].states[sti].properties.hitboxes ??= {};
@@ -98,6 +99,7 @@ class Game {
                 this.data.levels[li].layers[lyi].properties ??= {};
                 this.data.levels[li].layers[lyi].properties.name ??= '';
                 this.data.levels[li].layers[lyi].properties.visible ??= true;
+                this.data.levels[li].layers[lyi].properties.parallax ??= 0.0;
                 this.data.levels[li].layers[lyi].properties.opacity ??= 1.0;
                 if (this.data.levels[li].layers[lyi].type === 'sprites') {
                     this.data.levels[li].layers[lyi].properties.collision_detection ??= true;
@@ -205,6 +207,7 @@ class Game {
                     // $(e).closest('.menu_sprite_item').parent().parent().find('.menu_sprite_item').removeClass('active');
                     // $(e).parent().addClass('active');
                 });
+                self.build_traits_menu();
             },
             gen_item: (sprite, index) => {
                 let img = $('<img>');
@@ -259,5 +262,26 @@ class Game {
                 }
             }
         }
+    }
+
+    build_traits_menu() {
+        let self = this;
+        console.log('rebuilding traits menu');
+        $('#menu_sprite_properties').empty();
+        let traits_menu = $('<div>').appendTo($('#menu_sprite_properties'))
+        setupDropdownMenu(traits_menu, [
+            {
+                label: 'Eigenschaft hinzufügen',
+                children: [
+                    {
+                        label: 'Spielfigur',
+                        callback: () => {
+                            console.log('hey');
+                            self.build_traits_menu();
+                        },
+                    },
+                ],
+            },
+        ]);
     }
 }
