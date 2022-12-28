@@ -686,8 +686,8 @@ class LevelEditor {
                 if (menus.level.active_key === 'tool/pan') {
                     let tx = (this_touch_points[0][0] + this_touch_points[1][0]) * 0.5;
                     let ty = (this_touch_points[0][1] + this_touch_points[1][1]) * 0.5;
-                    // let cx = tx - this.element.position().left;
-                    // let cy = ty - this.element.position().top;
+                    tx -= this.element.position().left;
+                    ty -= this.element.position().top;
                     // this.zoom_at_point(-touch_distance_delta * 3, cx, cy);
                     let p = this.ui_to_world([tx, ty], false);
                     this.zoom_at_point(-touch_distance_delta * 3, p[0], p[1]);
