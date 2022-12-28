@@ -714,9 +714,9 @@ document.addEventListener("DOMContentLoaded", function (event) {
         body: `
         <p>Bitte gib die gewünschte Größe für das aktuelle Sprite an:</p>
         <div style="text-align: center; font-size: 120%;">
-            <input id='ti_sprite_width' type='text' style='width: 3em; font-size: 100%;'/>
+            <input id='ti_sprite_width' type='text' style='width: 3em; font-size: 100%; text-align: center;'/>
             &times;
-            <input id='ti_sprite_height' type='text' style='width: 3em; font-size: 100%;'/>
+            <input id='ti_sprite_height' type='text' style='width: 3em; font-size: 100%; text-align: center;'/>
         </div>
         `,
         onshow: () => {
