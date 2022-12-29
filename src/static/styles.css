@@ -632,6 +632,8 @@ button.btn {
     color: rgba(255, 255, 255, 0.8);
     width: 26px;
     height: 26px;
+    min-width: 26px;
+    min-height: 26px;
     cursor: pointer;
     padding: 0;
     margin: 1px;
@@ -644,6 +646,8 @@ button.btn-checkbox {
     color: rgba(255, 255, 255, 0.8);
     width: 26px;
     height: 26px;
+    min-width: 26px;
+    min-height: 26px;
     cursor: pointer;
     padding: 0;
     margin: 1px;

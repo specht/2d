@@ -67,6 +67,13 @@ class Game {
             // this.data.sprites[si].properties.classes ??= [];
             // this.data.sprites[si].properties.hitboxes ??= {};
             this.data.sprites[si].traits ??= {};
+            for (let trait of Object.keys(this.data.sprites[si].traits)) {
+                let info = TRAITS[trait] ?? {};
+                for (let key in info.properties ?? {}) {
+                    let property = info.properties[key];
+                    this.data.sprites[si].traits[trait][key] ??= property.default;
+                }
+            }
             this.data.sprites[si].states ??= [];
             if (this.data.sprites[si].states.length === 0) {
                 this.data.sprites[si].states.push({});
@@ -308,6 +315,7 @@ class Game {
         let si = canvas.sprite_index;
         // TODO: Check if this makes sense
         self.data.sprites[si].traits[trait] ??= {};
+        self.fix_game_data();
     }
 
     remove_trait(trait) {
@@ -315,6 +323,7 @@ class Game {
         let si = canvas.sprite_index;
         // TODO: Check if this makes sense
         delete self.data.sprites[si].traits[trait];
+        self.fix_game_data();
     }
 
     build_traits_menu() {
@@ -365,30 +374,36 @@ class Game {
 
     add_trait_controls(trait, element) {
         let self = this;
+        let si = canvas.sprite_index;
         let div = $(`<div class='menu'>`);
         let bu_delete = $(`<button class='btn'>`).append($(`<i class='fa fa-trash'>`));
         bu_delete.click(function(e) {
             self.remove_trait(trait);
             self.build_traits_menu();
         });
-        let title = $(`<h4>`).append($('<span>').text(trait)).append(bu_delete).appendTo(div);
-        if (trait === 'actor') {
-            new NumberWidget({
-                container: div,
-                label: 'Sprungkraft',
-                get: () => 0.0,
-                set: (x) => {
-                    // self.data.properties.title = x;
-                },
-            });
-            new NumberWidget({
-                container: div,
-                label: 'Geschwindigkeit',
-                get: () => 0.0,
-                set: (x) => {
-                    // self.data.properties.title = x;
-                },
-            });
+        let title = $(`<h4>`).append($('<span>').text(TRAITS[trait].label)).append(bu_delete).appendTo(div);
+        let info = TRAITS[trait] ?? {};
+        for (let key in info.properties ?? {}) {
+            let property = info.properties[key];
+            if (property.type === 'float') {
+                new NumberWidget({
+                    container: div,
+                    label: property.label ?? key,
+                    get: () => self.data.sprites[si].traits[trait][key],
+                    set: (x) => {
+                        self.data.sprites[si].traits[trait][key] = x;
+                    },
+                });
+            } else if (property.type === 'bool') {
+                new CheckboxWidget({
+                    container: div,
+                    label: property.label ?? key,
+                    get: () => self.data.sprites[si].traits[trait][key],
+                    set: (x) => {
+                        self.data.sprites[si].traits[trait][key] = x;
+                    },
+                });
+            }
         }
         div.insertAfter(element);
     }
