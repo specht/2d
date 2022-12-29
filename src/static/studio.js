@@ -422,6 +422,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
     canvas.menu = menus.sprites;
 
     menus.settings = new Menu($('#tool_menu_settings'), 'settings', [], null);
+    menus.play = new Menu($('#tool_menu_play'), 'play', [], null);
 
     // menu.handle_click('tool/gradient');
     // menu.handle_click('penWidth/1');
@@ -445,6 +446,10 @@ document.addEventListener("DOMContentLoaded", function (event) {
             menus[key].refresh_status_bar();
         if (current_pane === 'level')
             game.level_editor.refresh_sprite_widget();
+        if (current_pane === 'play') {
+            $('#play_iframe')[0].contentWindow.game.load(game.data);
+            $('#play_iframe').focus();
+        }
     })
 
     $('#bu_save_game').click(function (e) {

@@ -1,31 +1,158 @@
 <!DOCTYPE html>
 <html>
 
-<head>
-  <meta charset="UTF-8" />
-  <title>2D Game Engine</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      cursor: none;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <title>2D Game Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Carter+One&display=swap" rel="stylesheet">
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        /* cursor: none; */
+        font-size: 12px;
+        user-select: none;
+      }
 
-    canvas {
-      width: 100%;
-      height: 100%
-    }
-  </style>
-  <script src="three.min.js"></script>
-  <script type="x-shader/x-vertex" id="vertex-shader">
-    varying vec2 vuv; void main() { vuv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
-  </script>
-  <script type="x-shader/x-fragment" id="fragment-shader">
-    uniform sampler2D texture1; varying vec2 vuv; void main() { gl_FragColor = texture2D(texture1, vuv); }
-  </script>
+      canvas {
+        width: 100%;
+        height: 100%
+      }
+      .play_container {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: #000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+      }
 
-<body>
-  <script src="app.js"></script>
-</body>
+      .play_container_inner {
+          background-color: #000;
+          aspect-ratio: 16/9;
+          overflow: hidden;
+          /* height: 100%; */
+          /* max-width: 100%; */
+      }
+
+      .poster {
+        font-family: 'Carter One', cursive;
+        color: #fff;
+        font-size: 400%;
+        text-align: center;
+        padding: 1em 1em 0.2em 1em;
+        line-height: 1.2em;
+      }
+
+      .menu {
+        color: #ddd;
+        text-align: center;
+        font-size: 200%;
+        font-family: 'Bebas Neue', cursive;
+        text-align: center;
+      }
+
+      .menu .item {
+        width: 10em;
+        margin-left: auto;
+        margin-right: auto;
+        box-shadow: 0 0 0.2em 0 rgba(255, 255, 255, 0.3);
+        margin-bottom: 0.5em;
+        cursor: pointer;
+        /* border-radius: 0.3em; */
+        transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out;
+      }
+
+      .menu .item:hover {
+        box-shadow: 0 0 0.2em 0.1em rgba(255, 255, 255, 0.3);
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+    </style>
+    <script src="three.min.js"></script>
+    <script src="jquery-3.6.0.min.js"></script>
+    <script src="app.js?#{@@cache_buster}"></script>
+    <script type="x-shader/x-vertex" id="vertex-shader">
+        varying vec2 vuv; void main() { vuv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+    </script>
+    <script type="x-shader/x-fragment" id="fragment-shader">
+      uniform sampler2D texture1; varying vec2 vuv; void main() { gl_FragColor = texture2D(texture1, vuv); }
+    </script>
+    <script type="x-shader/x-fragment" id="fragment-shader-gradient">
+      uniform int n;
+      uniform lowp vec4 ca, cb, cc, cd;
+      uniform lowp vec2 pa, pb, pc, pd;
+      uniform lowp vec2 na, nb, nc, nd;
+      uniform lowp float la, lb, lc, ld;
+      varying vec2 vuv;
+      void main() {
+          if (n == 1) {
+              gl_FragColor = ca;
+          } else if (n == 2) {
+              float wa = clamp(1.0 - dot(vuv - pa, na) / la, 0.0, 1.0);
+              float wb = clamp(1.0 - dot(vuv - pb, nb) / lb, 0.0, 1.0);
+              float sum = wa + wb;
+              wa /= sum;
+              wb /= sum;
+              gl_FragColor = ca * wa + cb * wb;
+          } else if (n == 4) {
+              // code from https://johnflux.com/2016/03/16/four-point-gradient-as-a-shader/
+              lowp vec2 Q = pa - pc;
+              lowp vec2 R = pb - pa;
+              lowp vec2 S = R + pc - pd;
+              lowp vec2 T = pa - vuv;
+              lowp float u;
+              lowp float t;
+              if(Q.x == 0.0 && S.x == 0.0) {
+                  u = -T.x/R.x;
+                  t = (T.y + u*R.y) / (Q.y + u*S.y);
+              } else if(Q.y == 0.0 && S.y == 0.0) {
+                  u = -T.y/R.y;
+                  t = (T.x + u*R.x) / (Q.x + u*S.x);
+              } else {
+                  float A = S.x * R.y - R.x * S.y;
+                  float B = S.x * T.y - T.x * S.y + Q.x*R.y - R.x*Q.y;
+                  float C = Q.x * T.y - T.x * Q.y;
+                  // Solve Au^2 + Bu + C = 0
+                  if(abs(A) < 0.0001)
+                      u = -C/B;
+                  else
+                      u = (-B+sqrt(B*B-4.0*A*C))/(2.0*A);
+                  t = (T.y + u*R.y) / (Q.y + u*S.y);
+              }
+              u = clamp(u,0.0,1.0);
+              t = clamp(t,0.0,1.0);
+              // These two lines smooth out t and u to avoid visual 'lines' at the boundaries.  They can be removed to improve performance at the cost of graphics quality.
+              t = smoothstep(0.0, 1.0, t);
+              u = smoothstep(0.0, 1.0, u);
+              lowp vec4 colorA = mix(ca,cb,u);
+              lowp vec4 colorB = mix(cc,cd,u);
+              gl_FragColor = mix(colorA, colorB, t);
+          } else {
+              gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+          }
+      }
+    </script>
+  </head>
+  <body>
+    <div class="play_container">
+      <div class="play_container_inner">
+        <div class="poster">
+          <div id='game_title'></div>
+          <div id='game_author' style="font-size: 60%;"></div>
+        </div>
+        <div class="menu">
+          <div class='item'>Start</div>
+          <div class='item'>Highscores</div>
+          <div class='item'>Hilfe</div>
+        </div>
+      </div>
+    </div>
+  </body>
 
 </html>

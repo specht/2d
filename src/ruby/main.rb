@@ -328,7 +328,7 @@ class Main < Sinatra::Base
         nodes = neo4j_query(<<~END_OF_QUERY).map { |x| x['g'] }
             MATCH (g:Game)
             RETURN g
-            ORDER BY g.ts_created DESC;
+            ORDER BY g.ts_updated DESC;
         END_OF_QUERY
         nodes.map! do |node|
             node[:icon] = icon_for_tag(node[:tag])

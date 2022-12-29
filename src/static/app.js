@@ -1,40 +1,48 @@
-var spritesheet_info = {
-	"width": 440,
-	"height": 459,
-	"sprites": {
-		"sky": {
-			"x": 0, "y": 259, "width": 300, "height": 200,
-			"pivot": [160, 100],
-		},
-		"dustin": {
-			"x": 4, "y": 237, "width": 14, "height": 22,
-			"pivot": [7, 22],
-			"hitbox": [[0, 0], [0, 22], [14, 22], [14, 0]]
-		},
-		"grass": {
-			"x": 92, "y": 234, "width": 24, "height": 24,
-			"pivot": [12, 0],
-			"hitbox": [[0, 0], [0, 24], [24, 24], [24, 0]]
-		},
-		"soil": {
-			"x": 67, "y": 234, "width": 24, "height": 24,
-			"pivot": [12, 0],
-			"hitbox": [[0, 0], [0, 24], [24, 24], [24, 0]]
-		},
-		"shrub": {
-			"x": 191, "y": 144, "width": 96, "height": 16,
-			"pivot": [48, 16],
-			"hitbox": [[0, 0], [0, 16], [96, 16], [96, 0]]
-		},
-		"tree": {
-			"x": 0, "y": 40, "width": 70, "height": 88,
-			"pivot": [35, 88],
-			"hitbox": [[10, 10], [0, 40], [0, 45], [10, 55],
-			[30, 60], [28, 88], [40, 88], [40, 65],
-			[70, 50], [70, 30], [60, 10], [35, 0]]
-		},
+class Game {
+	constructor() {
+		let self = this;
+		let data = null;
+		this.reset();
+		window.addEventListener('resize', () => {
+			self.handle_resize();
+		});
+	}
+
+	load(data) {
+		console.log('loading data', data);
+		this.data = data;
+		$('#game_title').text(this.data.properties.title);
+		$('#game_author').text(this.data.properties.author);
+	}
+
+	reset() {
+		console.log('hello this is game');
+		this.handle_resize();
+	}
+
+	handle_resize() {
+		let width = window.innerWidth;
+		let height = window.innerHeight;
+		if (height * 16.0/9 < width)
+			$('.play_container_inner').css('width', '').css('height', '100%');
+		else
+			$('.play_container_inner').css('height', '').css('width', '100%');
+		$('body').css('font-size', `${height / 30}px`);
 	}
 };
+
+window.game = new Game();
+
+document.addEventListener("DOMContentLoaded", function (event) {
+	window.game.reset();
+});
+
+
+/*
+window.renderer = null;
+window.clock = null;
+window.scene = null;
+window.camera = null;
 
 var keys_tr = {
 	'arrowleft': 'left',
@@ -120,56 +128,6 @@ class SpriteSheet {
 	}
 };
 
-var clock = new THREE.Clock(true);
-var scene = new THREE.Scene();
-var camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
-camera.position.x = 0;
-camera.position.z = 10;
-camera.position.y = 0;
-var renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setClearColor("#058");
-renderer.setSize(window.innerWidth, window.innerHeight);
-
-document.body.appendChild(renderer.domElement);
-
-sheet = new SpriteSheet('spritesheet.png', spritesheet_info);
-let sky = sheet.add_sprite_to_scene(scene, 'sky', 0, 0);
-sky.scale.x = 1.5;
-sky.scale.y = 1.5;
-for (let x = -16; x <= 16; x++)
-	sheet.add_sprite_to_scene(scene, 'soil', x * 24, 0-24-24);
-for (let x = -16; x <= 16; x++)
-	sheet.add_sprite_to_scene(scene, 'soil', x * 24, 0-24-24-24);
-for (let y = 0; y < 10; y++) {
-	sheet.add_sprite_to_scene(scene, 'soil', 9*24, y * 24);
-	sheet.add_sprite_to_scene(scene, 'soil', -9*24, y * 24);
-}
-let tree = sheet.add_sprite_to_scene(scene, 'tree', 48, -24);
-let player = sheet.add_sprite_to_scene(scene, 'dustin', 0, 0-24);
-sheet.add_sprite_to_scene(scene, 'shrub', -80, 0-24-6);
-for (let x = -16; x <= 16; x++)
-	sheet.add_sprite_to_scene(scene, 'grass', x * 24, 0-24);
-for (let y = -1; y == -1; y++) {
-	sheet.add_sprite_to_scene(scene, 'soil', 9*24, y * 24);
-	sheet.add_sprite_to_scene(scene, 'soil', -9*24, y * 24);
-}
-
-// let material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
-// points = [];
-// points.push(new THREE.Vector3(0, 10, 2));
-// points.push(new THREE.Vector3(0, 0, 2));
-// points.push(new THREE.Vector3(10, 0, 2));
-// let geometry = new THREE.BufferGeometry().setFromPoints(points);
-// let line = new THREE.Line(geometry, material);
-// scene.add(line);
-
-var GRAVITY = -0.195;
-var JUMP_SPEEDITY = 5.5;
-
-var player_a = new THREE.Vector3(0, GRAVITY, 0);
-var player_v = new THREE.Vector3();
-var player_rest_y = true;
-
 function animate_step() {
 	player.position.add(player_v);
 	player_v.add(player_a);
@@ -247,8 +205,6 @@ function resize_handler() {
 	camera.updateProjectionMatrix();
 }
 
-resize_handler();
-
 window.addEventListener('resize', () => {
 	resize_handler();
 });
@@ -270,4 +226,63 @@ window.addEventListener('blur', function(e) {
 		keys[keys_tr[k]] = false;
 });
 
-render();
+function reset_game() {
+	var clock = new THREE.Clock(true);
+	var scene = new THREE.Scene();
+	var camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
+	camera.position.x = 0;
+	camera.position.z = 10;
+	camera.position.y = 0;
+	renderer = new THREE.WebGLRenderer({ antialias: true });
+	renderer.setClearColor("#058");
+	renderer.setSize(window.innerWidth, window.innerHeight);
+	
+	document.body.appendChild(renderer.domElement);
+	
+	sheet = new SpriteSheet('spritesheet.png', spritesheet_info);
+	let sky = sheet.add_sprite_to_scene(scene, 'sky', 0, 0);
+	sky.scale.x = 1.5;
+	sky.scale.y = 1.5;
+	for (let x = -16; x <= 16; x++)
+		sheet.add_sprite_to_scene(scene, 'soil', x * 24, 0-24-24);
+	for (let x = -16; x <= 16; x++)
+		sheet.add_sprite_to_scene(scene, 'soil', x * 24, 0-24-24-24);
+	for (let y = 0; y < 10; y++) {
+		sheet.add_sprite_to_scene(scene, 'soil', 9*24, y * 24);
+		sheet.add_sprite_to_scene(scene, 'soil', -9*24, y * 24);
+	}
+	let tree = sheet.add_sprite_to_scene(scene, 'tree', 48, -24);
+	let player = sheet.add_sprite_to_scene(scene, 'dustin', 0, 0-24);
+	sheet.add_sprite_to_scene(scene, 'shrub', -80, 0-24-6);
+	for (let x = -16; x <= 16; x++)
+		sheet.add_sprite_to_scene(scene, 'grass', x * 24, 0-24);
+	for (let y = -1; y == -1; y++) {
+		sheet.add_sprite_to_scene(scene, 'soil', 9*24, y * 24);
+		sheet.add_sprite_to_scene(scene, 'soil', -9*24, y * 24);
+	}
+	
+	// let material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+	// points = [];
+	// points.push(new THREE.Vector3(0, 10, 2));
+	// points.push(new THREE.Vector3(0, 0, 2));
+	// points.push(new THREE.Vector3(10, 0, 2));
+	// let geometry = new THREE.BufferGeometry().setFromPoints(points);
+	// let line = new THREE.Line(geometry, material);
+	// scene.add(line);
+	
+	var GRAVITY = -0.195;
+	var JUMP_SPEEDITY = 5.5;
+	
+	var player_a = new THREE.Vector3(0, GRAVITY, 0);
+	var player_v = new THREE.Vector3();
+	var player_rest_y = true;
+	
+	
+}
+
+document.addEventListener("DOMContentLoaded", function (event) {
+	reset_game();
+	resize_handler();
+	render();
+});
+*/

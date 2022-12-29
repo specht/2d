@@ -236,6 +236,11 @@ class Menu {
             }
         });
         hints.push({
+            key: 'Alt+4', visible: false, global: true, label: 'Spielen', callback: function () {
+                $('#mi_play').click();
+            }
+        });
+        hints.push({
             key: 'Shift+D', label: 'Debug', callback: function () {
                 console.log('debug!');
                 window.debugModal.show();
