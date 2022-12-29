@@ -107,7 +107,7 @@
         <div id='main-nav'>
             <div id='mi_sprites' class='main-nav-item active'>Sprites</div>
             <div id='mi_level' class='main-nav-item'>Level</div>
-            <div id='mi_code' class='main-nav-item'>Code</div>
+            <!-- <div id='mi_code' class='main-nav-item'>Code</div> -->
             <div id='mi_settings' class='main-nav-item'>Einstellungen</div>
             <div id='mi_play' class='main-nav-item'>Spielen</div>
             <div id='mi_help' class='main-nav-item'>Hilfe</div>
@@ -122,13 +122,15 @@
                     <h3>Werkzeuge</h3>
                     <div id='tool_menu' class="menu-body"></div>
                 </div>
-                <div class='menu connect-bottom'>
-                    <h3>Palette</h3>
-                    <div id='color_menu' class="menu-body"></div>
-                </div>
-                <div class='menu connect-top'>
-                    <!-- <h3>Farbvariationen</h3> -->
-                    <div id='color_variations_menu' class="menu-body"></div>
+                <div class='menu-group'>
+                    <div class='menu'>
+                        <h3>Palette</h3>
+                        <div id='color_menu' class="menu-body"></div>
+                    </div>
+                    <div class='menu'>
+                        <!-- <h3>Farbvariationen</h3> -->
+                        <div id='color_variations_menu' class="menu-body"></div>
+                    </div>
                 </div>
                 <div class='menu'>
                     <h3>Funktionen</h3>
@@ -151,25 +153,29 @@
             <div id='menu_frames' class="scroll_helper
                 scroll_helper_horizontal"></div>
             <div class='menu_container right_menu_container'>
-                <div class="menu connect-bottom">
-                    <h3>Sprites</h3>
-                    <div id="menu_sprites" class="menu-body scroll_helper
-                        scroll_helper_vertical" style="max-height: calc((100vh -
-                        190px) * 0.6);"></div>
+                <div class="menu-group">
+                    <div class="menu">
+                        <h3>Sprites</h3>
+                        <div id="menu_sprites" class="menu-body scroll_helper
+                            scroll_helper_vertical" style="max-height: calc((100vh -
+                            190px) * 0.6);"></div>
+                    </div>
+                    <div class="menu">
+                        <div id="menu_sprite_properties" class="menu-body
+                            scroll_helper scroll_helper_vertical"></div>
+                    </div>
                 </div>
-                <div class="menu connect-top">
-                    <div id="menu_sprite_properties" class="menu-body
-                        scroll_helper scroll_helper_vertical"></div>
-                </div>
-                <div class="menu connect-bottom">
-                    <h3>Zustände</h3>
-                    <div id="menu_states" class="menu-body scroll_helper
-                        scroll_helper_vertical" style="max-height: calc((100vh -
-                        190px) * 0.4);"></div>
-                </div>
-                <div class="menu connect-top">
-                    <div id="menu_state_properties" class="menu-body
-                        scroll_helper scroll_helper_vertical"></div>
+                <div class="menu-group">
+                    <div class="menu">
+                        <h3>Zustände</h3>
+                        <div id="menu_states" class="menu-body scroll_helper
+                            scroll_helper_vertical" style="max-height: calc((100vh -
+                            190px) * 0.4);"></div>
+                    </div>
+                    <div class="menu">
+                        <div id="menu_state_properties" class="menu-body
+                            scroll_helper scroll_helper_vertical"></div>
+                    </div>
                 </div>
                 <!-- <div class="menu">
                     <div id="menu_test" class="menu-body scroll_helper
@@ -190,13 +196,14 @@
         </div>
         <div id='main_div_level' class="main_div">
             <div class='menu_container full_left_menu_container'>
-                <div class="menu connect-bottom">
-                    <h3>Werkzeuge</h3>
-                    <div id='tool_menu_level' class="menu-body"></div>
-                </div>
-                <div class="menu connect-top">
-                    <!-- <h3></h3> -->
-                    <div id='tool_menu_level_settings' class="menu-body"></div>
+                <div class="menu-group">
+                    <div class="menu">
+                        <h3>Werkzeuge</h3>
+                        <div id='tool_menu_level' class="menu-body"></div>
+                    </div>
+                    <div class="menu">
+                        <div id='tool_menu_level_settings' class="menu-body"></div>
+                    </div>
                 </div>
                 <div class="menu">
                     <h3>Sprites</h3>
@@ -207,26 +214,30 @@
             </div>
             <div id="level" style="overflow: hidden;"></div>
             <div class='menu_container full_right_menu_container'>
-                <div class="menu connect-bottom">
-                    <h3>Level</h3>
-                    <div id="menu_levels" class="menu-body scroll_helper
-                        scroll_helper_vertical" style="max-height: calc((100vh -
-                        195px) * 0.5);"></div>
+                <div class="menu-group">
+                    <div class="menu">
+                        <h3>Level</h3>
+                        <div id="menu_levels" class="menu-body scroll_helper
+                            scroll_helper_vertical" style="max-height: calc((100vh -
+                            195px) * 0.5);"></div>
+                    </div>
+                    <div class="menu">
+                        <!-- <h3>Level-Eigenschaften</h3> -->
+                        <div id="menu_level_properties" class="menu-body
+                            scroll_helper scroll_helper_vertical"></div>
+                    </div>
                 </div>
-                <div class="menu connect-top">
-                    <!-- <h3>Level-Eigenschaften</h3> -->
-                    <div id="menu_level_properties" class="menu-body
-                        scroll_helper scroll_helper_vertical"></div>
-                </div>
-                <div class="menu connect-bottom">
-                    <h3>Layer</h3>
-                    <div id="menu_layers" class="menu-body scroll_helper
-                        scroll_helper_vertical" style="max-height: calc((100vh -
-                        195px) * 0.5);"></div>
-                </div>
-                <div id="menu_layer_properties_container" class="menu connect-top" style="display: none;">
-                    <div id="menu_layer_properties" class="menu-body scroll_helper
-                        scroll_helper_vertical"></div>
+                <div class="menu-group">
+                    <div class="menu">
+                        <h3>Layer</h3>
+                        <div id="menu_layers" class="menu-body scroll_helper
+                            scroll_helper_vertical" style="max-height: calc((100vh -
+                            195px) * 0.5);"></div>
+                    </div>
+                    <div id="menu_layer_properties_container" class="menu" style="display: none;">
+                        <div id="menu_layer_properties" class="menu-body scroll_helper
+                            scroll_helper_vertical"></div>
+                    </div>
                 </div>
                 <!-- <div class="menu">
                 <h3>Layer-Eigenschaften</h3>
@@ -236,6 +247,20 @@
                 <h3>Debug</h3>
                 <div id="layer_debug" class="menu-body scroll_helper scroll_helper_vertical" style="max-height: calc((100vh - 195px) / 2); white-space: pre; font-family: monospace; font-size: 90%;"></div>
             </div> -->
+            </div>
+        </div>
+        <div id='main_div_settings' class="main_div">
+            <div class='menu_container full_left_menu_container' style="display: none;">
+                <div class="menu">
+                    <h3>Werkzeuge</h3>
+                    <div id='tool_menu_settings' class="menu-body"></div>
+                </div>
+            </div>
+            <div>
+                <div class="menu-body wide-menu-body">
+                    <div id="game-settings-here"></div>
+                </div>
+
             </div>
         </div>
         <div id='status-bar' class='__disabled__scroll_helper

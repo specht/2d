@@ -244,17 +244,17 @@ class LevelEditor {
             },
         });
 
-        new CheckboxWidget({
-            container: $('#tool_menu_level_settings'),
-            label: 'Kameraansicht',
-            get: () => self.camera_mode,
-            set: (x) => {
-                self.camera_mode = x;
-                handleResize();
-                self.refresh();
-                self.render();
-            },
-        });
+        // new CheckboxWidget({
+        //     container: $('#tool_menu_level_settings'),
+        //     label: 'Kameraansicht',
+        //     get: () => self.camera_mode,
+        //     set: (x) => {
+        //         self.camera_mode = x;
+        //         handleResize();
+        //         self.refresh();
+        //         self.render();
+        //     },
+        // });
 
         this.bar_top = $(`<div style='background-color: #000; position: absolute; left: 0; right: 0; top: 0; height: 0px; transition: height 0.5s;'>`).appendTo(this.element);
         this.bar_bottom = $(`<div style='background-color: #000; position: absolute; left: 0; right: 0; bottom: 0; height: 0px; transition: height 0.5s;'>`).appendTo(this.element);
@@ -504,7 +504,7 @@ class LevelEditor {
                     } else if (x === '2') {
                         backdrop.colors = [['#143b86', 0.5, 0.9], ['#c3def1', 0.5, 0.1]];
                     } else if (x === '4') {
-                        backdrop.colors = [['#e7e6e1', 0.1, 0.1], ['#c3def1', 0.9, 0.1], ['#001b4a', 0.1, 0.9], ['#094e54', 0.9, 0.9]];
+                        backdrop.colors = [['#e7e6e1', 0.1, 0.1], ['#c3def1', 0.9, 0.1], ['#12959f', 0.1, 0.9], ['#b296c7', 0.9, 0.9]];
                     }
                     self.setup_layer_properties();
                     self.backdrop_controls_setup_for = null;
@@ -701,10 +701,9 @@ class LevelEditor {
                     // this.zoom_at_point(-touch_distance_delta * 3, cx, cy);
                     let p = this.ui_to_world([tx, ty], false);
                     this.zoom_at_point(-touch_distance_delta * 3, p[0], p[1]);
-                    if (this.backdrop_index !== null) {
+                    if (this.backdrop_index !== null)
                         self.refresh_backdrop_controls();
-                        this.refresh();
-                    }
+                    this.refresh();
                     this.render();
                 }
             }

@@ -179,7 +179,7 @@ function update_color_palette() {
 }
 
 function show_modal(id) {
-    $('.modal').hide();
+    $('modal-container .modal').hide();
     let complete = null;
     if (window[id + '_complete']) {
         complete = window[id + '_complete'];
@@ -189,7 +189,7 @@ function show_modal(id) {
 }
 
 function close_modal() {
-    $('.modal').hide();
+    $('.modal-container .modal').hide();
     $('.modal-container').hide();
     // $('.modal-container').fadeOut({complete: () => {
     //     $('.modal').hide();
@@ -421,6 +421,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
     menus.sprites = new Menu($('#tool_menu'), 'sprites', tool_menu_items.sprites, canvas);
     canvas.menu = menus.sprites;
 
+    menus.settings = new Menu($('#tool_menu_settings'), 'settings', [], null);
+
     // menu.handle_click('tool/gradient');
     // menu.handle_click('penWidth/1');
 
@@ -439,7 +441,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
         $('.main_div').hide();
         $(`#main_div_${key}`).show();
         current_pane = key;
-        menus[key].refresh_status_bar();
+        if (key in menus)
+            menus[key].refresh_status_bar();
         if (current_pane === 'level')
             game.level_editor.refresh_sprite_widget();
     })
@@ -974,5 +977,15 @@ function move_item_helper(list, from, to) {
     }
     list[to] = temp;
     tr[from] = to;
+    return tr;
+}
+
+// deletes item in array
+// returns an array of index translations
+function delete_item_helper(list, index) {
+    let tr = [];
+    for (let i = 0; i < list.length; i++)
+        tr[i] = (i <= index) ? i : i - 1;
+    list.splice(index, 1);
     return tr;
 }

@@ -47,6 +47,9 @@ class Game {
     fix_game_data() {
         // console.log(`Fixing game data / before:`, JSON.stringify(this.data));
         this.data ??= {};
+        this.data.properties ??= {};
+        this.data.properties.title ??= '';
+        this.data.properties.author ??= '';
         this.data.parent ??= null;
         this.data.sprites ??= [];
         if (this.data.sprites.length === 0) {
@@ -222,8 +225,27 @@ class Game {
             },
             delete_item: (index) => {
                 canvas.detachSprite();
-                self.data.sprites.splice(index, 1);
+                let tr = delete_item_helper(self.data.sprites, index);
+                console.log(tr);
+                for (let levels of self.data.levels) {
+                    for (let layer of levels.layers) {
+                        if (layer.type === 'sprites') {
+                            let temp = [];
+                            // remove deleted sprite in all level layers
+                            for (let psi = 0; psi < layer.sprites.length; psi++)
+                                if (layer.sprites[psi][0] !== index)
+                                    temp.push(layer.sprites[psi]);
+                            // translaste remaining sprites
+                            for (let psi = 0; psi < temp.length; psi++)
+                                temp[psi][0] = tr[temp[psi][0]];
+                            // write fixed sprites back to layer
+                            layer.sprites = temp;
+                        }
+                    }
+                }
                 this.refresh_frames_on_screen();
+                for (let si = 0; si < self.data.sprites.length; si++)
+                    this.create_geometry_and_material_for_sprite(si);
             },
             on_move_item: (from, to) => {
                 let tr = move_item_helper(self.data.sprites, from, to);
@@ -237,13 +259,30 @@ class Game {
                     }
                 }
                 this.refresh_frames_on_screen();
-                for (let si = 0; si < self.data.sprites.length; si++) {
+                for (let si = 0; si < self.data.sprites.length; si++)
                     this.create_geometry_and_material_for_sprite(si);
-                }
             }
         });
 
         this.level_editor = new LevelEditor($('#level'), this);
+
+        $('#game-settings-here').empty();
+        new LineEditWidget({
+            container: $('#game-settings-here'),
+            label: 'Titel:',
+            get: () => self.data.properties.title,
+            set: (x) => {
+                self.data.properties.title = x;
+            },
+        });
+        new LineEditWidget({
+            container: $('#game-settings-here'),
+            label: 'Autor:',
+            get: () => self.data.properties.author,
+            set: (x) => {
+                self.data.properties.author = x;
+            },
+        });
     }
 
     refresh_frames_on_screen() {

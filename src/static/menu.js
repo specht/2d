@@ -231,6 +231,11 @@ class Menu {
             }
         });
         hints.push({
+            key: 'Alt+3', visible: false, global: true, label: 'Einstellungen', callback: function () {
+                $('#mi_settings').click();
+            }
+        });
+        hints.push({
             key: 'Shift+D', label: 'Debug', callback: function () {
                 console.log('debug!');
                 window.debugModal.show();

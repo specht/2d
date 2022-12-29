@@ -20,9 +20,9 @@ class DropdownMenu {
                 label.click(function(e) {
                     let item = $(e.target).closest('.item');
                     item.parent().find('.has_submenu').removeClass('open');
-                    item.parent().find('.dropdown_submenu').slideUp();
+                    item.parent().find('.dropdown_submenu').slideUp({duration: 200});
                     if (!item.next().is(':visible')) {
-                        item.next().slideDown();
+                        item.next().slideDown({duration: 200});
                         item.addClass('open');
                     }
                 });
