@@ -66,12 +66,12 @@ class Game {
             // this.data.sprites[si].properties.name ??= '';
             // this.data.sprites[si].properties.classes ??= [];
             // this.data.sprites[si].properties.hitboxes ??= {};
+            this.data.sprites[si].traits ??= {};
             this.data.sprites[si].states ??= [];
             if (this.data.sprites[si].states.length === 0) {
                 this.data.sprites[si].states.push({});
             }
             for (let sti = 0; sti < this.data.sprites[si].states.length; sti++) {
-                this.data.sprites[si].states[sti].traits ??= {};
                 this.data.sprites[si].states[sti].properties ??= {};
                 this.data.sprites[si].states[sti].properties.name ??= '';
                 // this.data.sprites[si].states[sti].properties.hitboxes ??= {};
@@ -303,10 +303,25 @@ class Game {
         }
     }
 
+    add_trait(trait) {
+        let self = this;
+        let si = canvas.sprite_index;
+        // TODO: Check if this makes sense
+        self.data.sprites[si].traits[trait] ??= {};
+    }
+
+    remove_trait(trait) {
+        let self = this;
+        let si = canvas.sprite_index;
+        // TODO: Check if this makes sense
+        delete self.data.sprites[si].traits[trait];
+    }
+
     build_traits_menu() {
         let self = this;
-        console.log('rebuilding traits menu');
+        let si = canvas.sprite_index;
         $('#menu_sprite_properties').empty();
+        $('#menu_sprite_properties_variable_part_following').nextAll().remove();
         let traits_menu = $('<div>').appendTo($('#menu_sprite_properties'))
         setupDropdownMenu(traits_menu, [
             {
@@ -315,12 +330,67 @@ class Game {
                     {
                         label: 'Spielfigur',
                         callback: () => {
-                            console.log('hey');
+                            self.add_trait('actor');
                             self.build_traits_menu();
                         },
+                    },
+                    {
+                        label: 'Blöcke',
+                        children: [
+                            {
+                                label: 'man kann nicht von oben reinfallen',
+                                callback: () => {
+                                    self.add_trait('block_above');
+                                    self.build_traits_menu();
+                                },
+                            },
+                            {
+                                label: 'man kann nicht von der Seite reinlaufen',
+                                callback: () => {
+                                    self.add_trait('block_sides');
+                                    self.build_traits_menu();
+                                },
+                            },
+                        ],
                     },
                 ],
             },
         ]);
+        let keys = Object.keys(self.data.sprites[si].traits);
+        for (let i = keys.length - 1; i >= 0; i--) {
+            let trait = keys[i];
+            this.add_trait_controls(trait, $('#menu_sprite_properties_variable_part_following'));
+        }
     }
+
+    add_trait_controls(trait, element) {
+        let self = this;
+        let div = $(`<div class='menu'>`);
+        let bu_delete = $(`<button class='btn'>`).append($(`<i class='fa fa-trash'>`));
+        bu_delete.click(function(e) {
+            self.remove_trait(trait);
+            self.build_traits_menu();
+        });
+        let title = $(`<h4>`).append($('<span>').text(trait)).append(bu_delete).appendTo(div);
+        if (trait === 'actor') {
+            new NumberWidget({
+                container: div,
+                label: 'Sprungkraft',
+                get: () => 0.0,
+                set: (x) => {
+                    // self.data.properties.title = x;
+                },
+            });
+            new NumberWidget({
+                container: div,
+                label: 'Geschwindigkeit',
+                get: () => 0.0,
+                set: (x) => {
+                    // self.data.properties.title = x;
+                },
+            });
+        }
+        div.insertAfter(element);
+    }
+
 }
