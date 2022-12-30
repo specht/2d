@@ -300,16 +300,16 @@ function load_game() {
 document.addEventListener("DOMContentLoaded", function (event) {
     moment.locale('de');
     tool_menu_items.sprites = [
-        { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'Q', label: 'Zeichnen' },
-        { group: 'tool', command: 'line', image: 'draw-line', shortcut: 'W', label: 'Linie zeichnen' },
+        { group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'Q', label: 'Zeichnen' },
+        { group: 'tool', command: 'line', image: 'draw-line-44', shortcut: 'W', label: 'Linie zeichnen' },
         {
-            group: 'tool', command: 'rect', image: 'draw-rectangle', shortcut: 'E', label: 'Rechteck zeichnen', hints: [
+            group: 'tool', command: 'rect', image: 'draw-rectangle-44', shortcut: 'E', label: 'Rechteck zeichnen', hints: [
                 { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
                 { key: 'Shift', label: 'Zentrieren', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
             ]
         },
         {
-            group: 'tool', command: 'ellipse', image: 'draw-ellipse', shortcut: 'R', label: 'Ellipse zeichnen', hints: [
+            group: 'tool', command: 'ellipse', image: 'draw-ellipse-44', shortcut: 'R', label: 'Ellipse zeichnen', hints: [
                 { key: 'Control', label: 'Seitenverhältnis 1:1', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
                 { key: 'Shift', label: 'Zentrieren', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
             ]
@@ -320,7 +320,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                 { key: 'Shift', label: 'auch auf anderen Farben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
             ]
         },
-        { group: 'tool', command: 'fill', image: 'color-fill', shortcut: 'A', label: 'Fläche füllen' },
+        { group: 'tool', command: 'fill', image: 'color-fill-44', shortcut: 'A', label: 'Fläche füllen' },
         {
             group: 'tool', command: 'gradient', image: 'color-gradient', shortcut: 'S', label: 'Farbverlauf', hints: [
                 { key: 'Control', label: 'Helligkeit variiieren', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
@@ -379,7 +379,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
 
     tool_menu_items.level = [
         { group: 'tool', command: 'pan', image: 'move-hand-44', shortcut: 'Q', label: 'Verschieben' },
-        { group: 'tool', command: 'pen', image: 'draw-freehand', shortcut: 'W', label: 'Zeichnen', hints: [
+        { group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'W', label: 'Zeichnen', hints: [
             { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
         ] },
         { group: 'tool', command: 'select', image: 'select-rect-44', shortcut: 'E', label: 'Auswählen', hints: [
