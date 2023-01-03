@@ -652,6 +652,29 @@ document.addEventListener("DOMContentLoaded", function (event) {
         handleResize();
     });
 
+    window.loginModal = new ModalDialog({
+        title: 'Anmelden',
+        width: '40vw',
+        body: `
+        <p>
+        Du kannst dich anmelden, um sicherzustellen, dass du immer an der richtigen Version deines Spiels arbeitest.
+        </p>
+        <label style='display: inline-block; width: 6em;'>E-Mail:</label>
+        <input id='ti_login_email' type='text' style='display: inline-block; width: calc(100% - 8em);'/>
+        `,
+        onshow: () => {
+            $('#ti_login_email').focus();
+        },
+        footer: [
+            {
+                type: 'button',
+                label: 'Abbrechen',
+                icon: 'fa-times',
+                callback: (self) => self.dismiss(),
+            },
+        ]
+    });
+
     window.loadGameModal = new ModalDialog({
         title: 'Spiel laden',
         width: '60vw',

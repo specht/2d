@@ -170,6 +170,7 @@ class Menu {
         if (active_command.label) hints.unshift(`<b>${active_command.label}</b>`);
         hints.unshift({
             label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () {
+                // window.loginModal.show();
             }
         });
 
