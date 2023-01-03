@@ -7,6 +7,8 @@ class ModalDialog {
         this.options = options;
         this.dialog = $(`<div class='modal' style='display: none;'>`);
         this.dialog.css('width', `${this.options.width}`);
+        if ('height' in options)
+            this.dialog.css('height', `${options.height}`);
         if (options.title) {
             this.dialog.append($('<h3>').text(options.title));
         }

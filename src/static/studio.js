@@ -196,65 +196,6 @@ function close_modal() {
     // }});
 }
 
-function load_game() {
-    api_call('/api/get_games', {}, function (data) {
-        if (data.success) {
-            console.log(data);
-            let body = $('#modal_load_game .modal-body');
-            body.empty();
-            let div = $('<div>');
-            body.append(div);
-            new SortableTable({
-                element: div,
-                headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames'].map(function (x) {
-                    let th = $('<th>').text(x);
-                    // if (['Klasse', 'Ausgeliehen'].indexOf(x) >= 0) th.data('type', 'int');
-                    return th;
-                }),
-                rows: data.nodes.map(function (node) {
-                    return [
-                        node.tag,
-                        $('<td>').append($('<img>').attr('src', `noto/${node.icon}.png`).css('height', '24px')),
-                        $('<td>').text(node.tag),
-                        $('<td>').text(node.author || '–'),
-                        $('<td>').text(node.title || '–'),
-                        $('<td>').text(moment.unix(node.ts_created).format('L LTS')),
-                        $('<td>').text(bytes_to_str(node.size)),
-                        $('<td>').text(`${node.sprite_count}`),
-                        $('<td>').text(`${node.state_count}`),
-                        $('<td>').text(`${node.frame_count}`),
-                    ];
-                }),
-                // filter_callback: user_filter,
-                clickable_rows: true,
-                clickable_row_callback: (tag) => {
-                    game.load(tag);
-                    close_modal();
-                }
-            });
-            // let table = $(`<table>`);
-            // let body = $('#modal_load_game .modal-body');
-            // body.empty();
-            // body.append(table);
-            // for (let node of data.nodes) {
-            //     console.log(node);
-            //     let row = $('<tr>');
-            //     // for (let i = 0; i < data.max_width; i++) {
-            //     //     let td = $('<td>')
-            //     //     if (i == node.offset)
-            //     //         td.html(`<i class='fa fa-circle'></i>`);
-            //     //     td.appendTo(row);
-            //     // }
-            //     $('<td>').append($('<img>').attr('src', `noto/${node.icon}.png`).css('height', '32px')).appendTo(row);
-            //     $(`<td class='mono'>`).text(node.tag).appendTo(row);
-            //     table.append(row);
-
-            // }
-            show_modal('modal_load_game');
-        }
-    })
-}
-
 /*
  ├─e7a7qmp
  ├─5nqrh5b
@@ -711,6 +652,82 @@ document.addEventListener("DOMContentLoaded", function (event) {
         handleResize();
     });
 
+    window.loadGameModal = new ModalDialog({
+        title: 'Spiel laden',
+        width: '60vw',
+        height: '80vh',
+        body: `
+        <div id='load_games_list'></div>
+        `,
+        onshow: () => {
+            let body = $('#load_games_list');
+            body.empty();
+            let self = this;
+            console.log('hey');
+            api_call('/api/get_games', {}, function (data) {
+                if (data.success) {
+                    console.log(data);
+                    let div = $('<div>');
+                    body.append(div);
+                    new SortableTable({
+                        element: div,
+                        headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames'].map(function (x) {
+                            let th = $('<th>').text(x);
+                            // if (['Klasse', 'Ausgeliehen'].indexOf(x) >= 0) th.data('type', 'int');
+                            return th;
+                        }),
+                        rows: data.nodes.map(function (node) {
+                            return [
+                                node.tag,
+                                $('<td>').append($('<img>').attr('src', `noto/${node.icon}.png`).css('height', '24px')),
+                                $('<td>').text(node.tag),
+                                $('<td>').text(node.author || '–'),
+                                $('<td>').text(node.title || '–'),
+                                $('<td>').text(moment.unix(node.ts_created).format('L LTS')),
+                                $('<td>').text(bytes_to_str(node.size)),
+                                $('<td>').text(`${node.sprite_count}`),
+                                $('<td>').text(`${node.state_count}`),
+                                $('<td>').text(`${node.frame_count}`),
+                            ];
+                        }),
+                        // filter_callback: user_filter,
+                        clickable_rows: true,
+                        clickable_row_callback: (tag) => {
+                            game.load(tag);
+                            window.loadGameModal.dismiss();
+                        }
+                    });
+                }
+            });
+            // let table = $(`<table>`);
+            // let body = $('#modal_load_game .modal-body');
+            // body.empty();
+            // body.append(table);
+            // for (let node of data.nodes) {
+            //     console.log(node);
+            //     let row = $('<tr>');
+            //     // for (let i = 0; i < data.max_width; i++) {
+            //     //     let td = $('<td>')
+            //     //     if (i == node.offset)
+            //     //         td.html(`<i class='fa fa-circle'></i>`);
+            //     //     td.appendTo(row);
+            //     // }
+            //     $('<td>').append($('<img>').attr('src', `noto/${node.icon}.png`).css('height', '32px')).appendTo(row);
+            //     $(`<td class='mono'>`).text(node.tag).appendTo(row);
+            //     table.append(row);
+
+            // }
+        },
+        footer: [
+            {
+                type: 'button',
+                label: 'Abbrechen',
+                icon: 'fa-times',
+                callback: (self) => self.dismiss(),
+            },
+        ]
+    });
+    
     window.resizeCanvasModal = new ModalDialog({
         title: 'Größe ändern',
         width: '40vw',

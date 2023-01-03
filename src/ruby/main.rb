@@ -299,15 +299,15 @@ class Main < Sinatra::Base
             SET g.frame_count = $frame_count
             SET g.unique_frame_count = $unique_frame_count;
         END_OF_QUERY
-        if game['title']
-            neo4j_query(<<~END_OF_QUERY, {:content => game['title'], :tag => tag, :ts => Time.now.to_i})
+        if (game['properties'] || {})['title']
+            neo4j_query(<<~END_OF_QUERY, {:content => game['properties']['title'], :tag => tag, :ts => Time.now.to_i})
                 MATCH (g:Game {tag: $tag})
                 MERGE (s:String {content: $content})
                 CREATE (g)-[:TITLE]->(s);
             END_OF_QUERY
         end
-        if game['author']
-            neo4j_query(<<~END_OF_QUERY, {:content => game['author'], :tag => tag, :ts => Time.now.to_i})
+        if (game['properties'] || {})['author']
+            neo4j_query(<<~END_OF_QUERY, {:content => game['properties']['author'], :tag => tag, :ts => Time.now.to_i})
                 MATCH (g:Game {tag: $tag})
                 MERGE (s:String {content: $content})
                 CREATE (g)-[:AUTHOR]->(s);
@@ -325,10 +325,12 @@ class Main < Sinatra::Base
     end
 
     post '/api/get_games' do
-        nodes = neo4j_query(<<~END_OF_QUERY).map { |x| x['g'] }
+        nodes = neo4j_query(<<~END_OF_QUERY).map { |x| x['g'][:author] = x['author']; x['g'][:title] = x['title']; x['g'] }
             MATCH (g:Game)
-            RETURN g
-            ORDER BY g.ts_updated DESC;
+            OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
+            OPTIONAL MATCH (g)-[:TITLE]->(t:String)
+            RETURN g, a.content AS author, t.content AS title
+            ORDER BY g.ts_created DESC;
         END_OF_QUERY
         nodes.map! do |node|
             node[:icon] = icon_for_tag(node[:tag])
