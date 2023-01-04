@@ -279,7 +279,7 @@ class Main < Sinatra::Base
         end
         unique_frame_count = unique_frames.size
         parent = game['parent']
-        game.delete('parent')
+        # game.delete('parent')
         game_json = game.to_json
         size += game_json.size
         tag = Digest::SHA1.hexdigest(game_json).to_i(16).to_s(36)[0, 7]
@@ -331,13 +331,14 @@ class Main < Sinatra::Base
             OPTIONAL MATCH (g)-[:PARENT*]->(p:Game)
             OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
             OPTIONAL MATCH (g)-[:TITLE]->(t:String)
-            RETURN g, a.content AS author, t.content AS title, COUNT(p) AS ac
+            RETURN g, a.content AS author, t.content AS title, COUNT(DISTINCT p) AS ac
             ORDER BY g.ts_created DESC;
         END_OF_QUERY
         nodes.map! do |node|
             node[:icon] = icon_for_tag(node[:tag])
             node
         end
+        nodes.uniq! { |x| x[:tag] }
         respond(:nodes => nodes)
     end
 
@@ -357,6 +358,7 @@ class Main < Sinatra::Base
             node[:icon] = icon_for_tag(node[:tag])
             node
         end
+        nodes.uniq! { |x| x[:tag] }
         respond(:nodes => nodes)
     end
 

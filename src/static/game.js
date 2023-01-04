@@ -5,6 +5,7 @@ class Game {
         this.texture_loader = new THREE.TextureLoader();
         this.geometry_for_sprite = [];
         this.material_for_sprite = [];
+        this.currently_saving = false;
         this.reset();
     }
 
@@ -29,6 +30,8 @@ class Game {
     }
 
     save() {
+        if (this.currently_saving) return;
+        this.currently_saving = true;
         this.data.palette = palettes[selected_palette_index].colors;
         let self = this;
         api_call('/api/save_game', { game: this.data }, function (data) {
@@ -38,8 +41,13 @@ class Game {
                 }
                 $('#save_notification img').attr('src', `noto/${data.icon}.png`);
                 $('#save_notification').addClass('showing');
-                setTimeout(() => { $('#save_notification').removeClass('showing'); }, 3000);
+                setTimeout(() => {
+                    $('#save_notification').removeClass('showing');
+                    self.currently_saving = false;
+                }, 3000);
                 // window.location.href = `/?${data.tag}`;
+            } else {
+                self.currently_saving = false;
             }
         });
     }
