@@ -445,6 +445,10 @@ body {
     opacity: 0.5;
 }
 
+.mono {
+    font-family: 'IBM Plex Mono', 'Roboto Mono', monospace;
+}
+
 .key {
     display: inline-block;
     font-family: 'IBM Plex Mono', 'Roboto Mono', monospace;
@@ -928,9 +932,10 @@ height: 24px;
 .modal .modal-body {
     flex-shrink: 1;
     /* background-color: #111; */
+    height: 100%;
     padding: 15px;
     font-size: 15px;
-    overflow-y: auto;
+    overflow: auto;
     position: relative;
 }
 
@@ -1206,3 +1211,14 @@ input.clr-color {
     height: 100%;
     border: none;
 }
+
+.scroll-helper {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    overflow-y: auto;
+}
+
+.scroll-helper::-webkit-scrollbar {
+    display: none;
+}
+

@@ -325,11 +325,13 @@ class Main < Sinatra::Base
     end
 
     post '/api/get_games' do
-        nodes = neo4j_query(<<~END_OF_QUERY).map { |x| x['g'][:author] = x['author']; x['g'][:title] = x['title']; x['g'] }
+        nodes = neo4j_query(<<~END_OF_QUERY).map { |x| x['g'][:author] = x['author']; x['g'][:title] = x['title']; x['g'][:ancestor_count] = x['ac']; x['g'] }
             MATCH (g:Game)
+            WHERE NOT (:Game)-[:PARENT]->(g)
+            OPTIONAL MATCH (g)-[:PARENT*]->(p:Game)
             OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
             OPTIONAL MATCH (g)-[:TITLE]->(t:String)
-            RETURN g, a.content AS author, t.content AS title
+            RETURN g, a.content AS author, t.content AS title, COUNT(p) AS ac
             ORDER BY g.ts_created DESC;
         END_OF_QUERY
         nodes.map! do |node|
@@ -339,25 +341,22 @@ class Main < Sinatra::Base
         respond(:nodes => nodes)
     end
 
-    post '/api/get_games_leaves' do
-        leaves = neo4j_query(<<~END_OF_QUERY).map { |x| {:tag => x['tag'], :ts => x['ts']} }
-            MATCH (g:Game)
-            WHERE NOT (:Game)-[:PARENT]->(g)
-            RETURN g.tag AS tag, g.ts_created AS ts
-            ORDER BY g.ts_created DESC;
-        END_OF_QUERY
-        respond(:nodes => leaves)
-    end
-
-    post '/api/get_games_lineage' do
+    post '/api/get_versions_for_game' do
         data = parse_request_data(:required_keys => [:tag])
         tag = data[:tag]
         assert(!tag.include?('.'))
         assert(!tag.include?('/'))
-        nodes = neo4j_query(<<~END_OF_QUERY, {:tag => tag}).map { |x| {:tag => x['tag'], :ts => x['ts']} }
-            MATCH (g:Game {tag: $tag})-[:PARENT*]->(p:Game)
-            RETURN p.tag AS tag, p.ts_created AS ts;
+        nodes = neo4j_query(<<~END_OF_QUERY, {:tag => tag}).map { |x| x['g'][:author] = x['author']; x['g'][:title] = x['title']; x['g'][:ancestor_count] = x['ac']; x['g'] }
+            MATCH (l:Game {tag: $tag})-[:PARENT*]->(g:Game)
+            OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
+            OPTIONAL MATCH (g)-[:TITLE]->(t:String)
+            RETURN g, a.content AS author, t.content AS title
+            ORDER BY g.ts_created DESC;
         END_OF_QUERY
+        nodes.map! do |node|
+            node[:icon] = icon_for_tag(node[:tag])
+            node
+        end
         respond(:nodes => nodes)
     end
 

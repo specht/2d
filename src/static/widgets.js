@@ -367,10 +367,12 @@ class SortableTable {
         table.css('display', 'table');
     }
 
-    add_row(row, highlight) {
+    add_row(row, highlight, insert_after_this) {
         if (row === null) return;
         if (typeof(highlight) === 'undefined')
             highlight = true;
+        if (typeof(insert_after_this) === 'undefined')
+            insert_after_this = null;
         let tr = $('<tr>');
         let self = this;
         if (this.options.clickable_rows) {
@@ -379,6 +381,7 @@ class SortableTable {
                 self.clickable_row_callback($(e.target).closest('tr').data('row_data'));
             });
         }
+        let row_data = row[0];
         tr.data('row_data', row[0])
         tr.append(row.slice(1));
         let i = 0;
@@ -392,7 +395,9 @@ class SortableTable {
             i += 1;
         }
         tr.data('col_index', col_index);
+
         this.tbody.append(tr);
+
         if (highlight) {
             tr.addClass('hl').addClass('has_hl');
             setTimeout(function() {

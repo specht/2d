@@ -189,6 +189,10 @@ function show_modal(id) {
 }
 
 function close_modal() {
+    console.log('huhu')
+    for (let x of $('.modal-container .modal')) {
+        console.log(x);
+    }
     $('.modal-container .modal').hide();
     $('.modal-container').hide();
     // $('.modal-container').fadeOut({complete: () => {
@@ -677,16 +681,28 @@ document.addEventListener("DOMContentLoaded", function (event) {
 
     window.loadGameModal = new ModalDialog({
         title: 'Spiel laden',
-        width: '60vw',
+        width: '80vw',
         height: '80vh',
         body: `
-        <div id='load_games_list'></div>
+        <div style='position: absolute; width: calc(100% - 30px); height: calc(100% - 30px);'>
+            <div style='position: absolute; width: 100%; height: 100%;' class='scroll-helper'>
+                <div id='load_games_list' style='position: relative; left: 0; opacity: 1; transition: left 0.5s ease, opacity 0.5s ease;'></div>
+            </div>
+            <div style='position: absolute; width: 100%; height: 100%;' class='scroll-helper'>
+                <button id='bu_load_game_back' style='left: 100%; opacity: 0; transition: left 0.5s ease, opacity 0.5s ease; margin-bottom: 5px;'><i class='fa fa-angle-left'></i> Zurück</button>
+                <div id='load_games_sublist' style='position: relative; left: 100%; opacity: 0; transition: left 0.5s ease, opacity 0.5s ease;'></div>
+            </div>
+        </div>
         `,
         onshow: () => {
+            $('#load_games_list').css('left', '0').css('opacity', 1);
+            $('#load_games_sublist').css('left', '100%').css('opacity', 0);
+            $('#bu_load_game_back').css('left', '100%').css('opacity', 0);
+            $('#load_games_list').parent().css('pointer-events', 'auto');
+            $('#load_games_sublist').parent().css('pointer-events', 'none');
             let body = $('#load_games_list');
             body.empty();
             let self = this;
-            console.log('hey');
             api_call('/api/get_games', {}, function (data) {
                 if (data.success) {
                     console.log(data);
@@ -694,16 +710,60 @@ document.addEventListener("DOMContentLoaded", function (event) {
                     body.append(div);
                     new SortableTable({
                         element: div,
-                        headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames'].map(function (x) {
+                        headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames', 'Versionen'].map(function (x) {
                             let th = $('<th>').text(x);
                             // if (['Klasse', 'Ausgeliehen'].indexOf(x) >= 0) th.data('type', 'int');
                             return th;
                         }),
                         rows: data.nodes.map(function (node) {
+                            let bu_versions = $('');
+                            if (node.ancestor_count > 0) {
+                                bu_versions = $('<button>').css('font-size', '90%').append($(`<div>${node.ancestor_count} Versionen <i class='fa fa-angle-right'></i></div>`));
+                                bu_versions.click(function(e) {
+                                    e.stopPropagation();
+                                    $('#load_games_list').css('left', '-100%').css('opacity', 0);
+                                    $('#load_games_sublist').css('left', '0').css('opacity', 1);
+                                    $('#bu_load_game_back').css('left', '0').css('opacity', 1);
+                                    $('#load_games_list').parent().css('pointer-events', 'none');
+                                    $('#load_games_sublist').parent().css('pointer-events', 'auto');
+                                    $('#load_games_sublist').empty();
+                                    api_call('/api/get_versions_for_game', {tag: node.tag}, function(data) {
+                                        if (data.success) {
+                                            new SortableTable({
+                                                element: $('#load_games_sublist'),
+                                                headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames'].map(function (x) {
+                                                    let th = $('<th>').text(x);
+                                                    return th;
+                                                }),
+                                                rows: data.nodes.map(function (node) {
+                                                    return [
+                                                        node.tag,
+                                                        $('<td>').append($('<img>').attr('src', `noto/${node.icon}.png`).css('height', '24px')),
+                                                        $('<td>').addClass('mono').text(node.tag),
+                                                        $('<td>').text(node.author || '–'),
+                                                        $('<td>').text(node.title || '–'),
+                                                        $('<td>').text(moment.unix(node.ts_created).format('L LTS')),
+                                                        $('<td>').text(bytes_to_str(node.size)),
+                                                        $('<td>').text(`${node.sprite_count}`),
+                                                        $('<td>').text(`${node.state_count}`),
+                                                        $('<td>').text(`${node.frame_count}`),
+                                                    ];
+                                                }),
+                                                // filter_callback: user_filter,
+                                                clickable_rows: true,
+                                                clickable_row_callback: (tag) => {
+                                                    game.load(tag);
+                                                    window.loadGameModal.dismiss();
+                                                }
+                                            });
+                                        }
+                                    });
+                                });
+                            }
                             return [
                                 node.tag,
                                 $('<td>').append($('<img>').attr('src', `noto/${node.icon}.png`).css('height', '24px')),
-                                $('<td>').text(node.tag),
+                                $('<td>').addClass('mono').text(node.tag),
                                 $('<td>').text(node.author || '–'),
                                 $('<td>').text(node.title || '–'),
                                 $('<td>').text(moment.unix(node.ts_created).format('L LTS')),
@@ -711,6 +771,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                 $('<td>').text(`${node.sprite_count}`),
                                 $('<td>').text(`${node.state_count}`),
                                 $('<td>').text(`${node.frame_count}`),
+                                $('<td>').append(bu_versions),
                             ];
                         }),
                         // filter_callback: user_filter,
@@ -722,24 +783,6 @@ document.addEventListener("DOMContentLoaded", function (event) {
                     });
                 }
             });
-            // let table = $(`<table>`);
-            // let body = $('#modal_load_game .modal-body');
-            // body.empty();
-            // body.append(table);
-            // for (let node of data.nodes) {
-            //     console.log(node);
-            //     let row = $('<tr>');
-            //     // for (let i = 0; i < data.max_width; i++) {
-            //     //     let td = $('<td>')
-            //     //     if (i == node.offset)
-            //     //         td.html(`<i class='fa fa-circle'></i>`);
-            //     //     td.appendTo(row);
-            //     // }
-            //     $('<td>').append($('<img>').attr('src', `noto/${node.icon}.png`).css('height', '32px')).appendTo(row);
-            //     $(`<td class='mono'>`).text(node.tag).appendTo(row);
-            //     table.append(row);
-
-            // }
         },
         footer: [
             {
@@ -749,6 +792,15 @@ document.addEventListener("DOMContentLoaded", function (event) {
                 callback: (self) => self.dismiss(),
             },
         ]
+    });
+
+    $('#bu_load_game_back').click(function(e) {
+        $('#load_games_list').css('left', '0').css('opacity', 1);
+        $('#load_games_sublist').css('left', '100%').css('opacity', 0);
+        $('#bu_load_game_back').css('left', '100%').css('opacity', 0);
+        $('#load_games_list').parent().css('pointer-events', 'auto');
+        $('#load_games_sublist').parent().css('pointer-events', 'none');
+        $('#load_games_sublist').empty();
     });
     
     window.resizeCanvasModal = new ModalDialog({
