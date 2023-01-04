@@ -1071,7 +1071,7 @@ class LevelEditor {
             this.sheets.push(sheet);
         }
 
-        for (let li = this.game.data.levels[this.level_index].layers.length; li >= 0; li--) {
+        for (let li = this.game.data.levels[this.level_index].layers.length - 1; li >= 0; li--) {
             if (li < this.layer_structs.length) {
                 if (!this.game.data.levels[this.level_index].layers[li].properties.visible)
                     continue;
