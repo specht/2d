@@ -168,11 +168,11 @@ class Menu {
         statusBar.empty();
         let hints = (active_command.hints || []).slice(0);
         if (active_command.label) hints.unshift(`<b>${active_command.label}</b>`);
-        hints.unshift({
-            label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () {
-                // window.loginModal.show();
-            }
-        });
+        // hints.unshift({
+        //     label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () {
+        //         window.loginModal.show();
+        //     }
+        // });
 
         hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) self.element.find('.tooltip').show(); else self.element.find('.tooltip').hide(); } });
         // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });

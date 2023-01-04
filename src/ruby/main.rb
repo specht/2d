@@ -348,6 +348,12 @@ class Main < Sinatra::Base
         assert(!tag.include?('.'))
         assert(!tag.include?('/'))
         nodes = neo4j_query(<<~END_OF_QUERY, {:tag => tag}).map { |x| x['g'][:author] = x['author']; x['g'][:title] = x['title']; x['g'][:ancestor_count] = x['ac']; x['g'] }
+            MATCH (g:Game {tag: $tag})
+            OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
+            OPTIONAL MATCH (g)-[:TITLE]->(t:String)
+            RETURN g, a.content AS author, t.content AS title;
+        END_OF_QUERY
+        nodes += neo4j_query(<<~END_OF_QUERY, {:tag => tag}).map { |x| x['g'][:author] = x['author']; x['g'][:title] = x['title']; x['g'][:ancestor_count] = x['ac']; x['g'] }
             MATCH (l:Game {tag: $tag})-[:PARENT*]->(g:Game)
             OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
             OPTIONAL MATCH (g)-[:TITLE]->(t:String)

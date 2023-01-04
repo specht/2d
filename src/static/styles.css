@@ -1098,12 +1098,12 @@ hr {
 
 
 input:not([type='range']) {
-    background-color: #000;
+    background-color: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.5);
     border-radius: 4px;
     color: #fff;
     /* text-align: center; */
-    padding: 0.2em;
+    padding: 0.4em 0.2em;
 }
 
 .modal-dialogs {

@@ -658,13 +658,15 @@ document.addEventListener("DOMContentLoaded", function (event) {
 
     window.loginModal = new ModalDialog({
         title: 'Anmelden',
-        width: '40vw',
+        width: '60vw',
         body: `
         <p>
         Du kannst dich anmelden, um sicherzustellen, dass du immer an der richtigen Version deines Spiels arbeitest.
         </p>
+        <p>
         <label style='display: inline-block; width: 6em;'>E-Mail:</label>
-        <input id='ti_login_email' type='text' style='display: inline-block; width: calc(100% - 8em);'/>
+        <input id='ti_login_email' type='text' style='font-size: 100%; display: inline-block; min-width: 20em; width: calc(100% - 8em);'/>
+        </p>
         `,
         onshow: () => {
             $('#ti_login_email').focus();
@@ -718,7 +720,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                         rows: data.nodes.map(function (node) {
                             let bu_versions = $('');
                             if (node.ancestor_count > 0) {
-                                bu_versions = $('<button>').css('font-size', '90%').append($(`<div>${node.ancestor_count} Versionen <i class='fa fa-angle-right'></i></div>`));
+                                bu_versions = $('<button>').css('font-size', '90%').append($(`<div>${node.ancestor_count + 1} Versionen <i class='fa fa-angle-right'></i></div>`));
                                 bu_versions.click(function(e) {
                                     e.stopPropagation();
                                     $('#load_games_list').css('left', '-100%').css('opacity', 0);
