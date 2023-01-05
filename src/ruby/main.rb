@@ -1,4 +1,5 @@
 require "base64"
+require "chunky_png"
 require "date"
 require "digest"
 require "json"
@@ -20,6 +21,9 @@ Neo4jBolt.bolt_port = 7687
 ANIMALS = %w(s1cfi07 rqaux7w q6xbd0g pxly0tu on87yoe n0vdqui lm78e76 lclapq1 l3lawv5 l2ozijf l2d1t8l l0v66o3 kp11rle k2ram59 jzp6ovu
              jq70giy irath30 hj6vqa0 gdbl86r ga56q6n g54ebrx g8ceaya ffg1kv8 f4jizb6 e2z9poi aob22o8 ako2wyi a7oqxgh a2r8to1 114g99w
              49v6ivw 9g4gu5z 7zl61mu 7hmau5i 6iwskal 4r9nct2 4nyev3o 4j8mqjo)
+
+MAX_SPRITESHEET_WIDTH = 1024
+MAX_SPRITESHEET_HEIGHT = 1024
 
 def debug(message, index = 0)
     index = 0
@@ -214,6 +218,110 @@ class Main < Sinatra::Base
         respond(:pong => "yay")
     end
 
+    def self.render_spritesheet_for_tag(tag)
+        path = "/gen/spritesheets/#{tag}.json"
+        return if File.exists?(path)
+        debug "Rendering spritesheet for #{tag}!"
+        FileUtils.mkpath(File.dirname(path))
+        game = JSON.parse(File.read("/gen/games/#{tag}.json"))
+        sprite_sizes = {}
+        sprite_paths = {}
+        game['sprites'].each.with_index do |sprite, si|
+            sprite['states'].each.with_index do |state, sti|
+                state['frames'].each.with_index do |frame, fi|
+                    png_path = "/gen/png/#{frame['tag']}.png"
+                    frame = ChunkyPNG::Image.from_file(png_path)
+                    key = "#{si}/#{sti}/#{fi}"
+                    sprite_sizes[key] = [frame.width + 2, frame.height + 2]
+                    sprite_paths[key] = png_path
+                end
+            end
+        end
+        frames_by_height = sprite_sizes.keys.sort do |a, b|
+            sprite_sizes[b][1] <=> sprite_sizes[a][1]
+        end
+        sprite_positions = {}
+        sheets = []
+        x = 0
+        y = 0
+        ny = nil
+        sheet = nil
+        r = 0
+        frames_by_height.each do |key|
+            r += 1
+            break if r > 10
+            debug "#{x} #{y} #{sprite_sizes[key]}"
+            ny ||= y + sprite_sizes[key][1]
+            if ny > MAX_SPRITESHEET_HEIGHT
+                debug "next spritesheet!"
+                x = 0
+                y = 0
+                ny = nil
+                sheet = nil
+                redo
+            end
+            nx = x + sprite_sizes[key][0]
+            if nx > MAX_SPRITESHEET_WIDTH
+                debug "next row!"
+                x = 0
+                y = ny
+                ny = nil
+                redo
+            end
+            r = 0
+            if sheet.nil?
+                sheet = ChunkyPNG::Image.new(MAX_SPRITESHEET_WIDTH, MAX_SPRITESHEET_HEIGHT, ChunkyPNG::Color::TRANSPARENT)
+                sheets << sheet
+            end
+
+            frame = ChunkyPNG::Image.from_file(sprite_paths[key])
+            debug "#{sheets.size - 1} #{x}:#{y} #{frame.width}x#{frame.height} <= #{key}"
+            # left
+            sheets.last.replace!(frame.crop(0, 0, 1, frame.height), x, y + 1)
+            # right
+            sheets.last.replace!(frame.crop(frame.width - 1, 0, 1, frame.height), x + frame.width + 1, y + 1)
+            # top
+            sheets.last.replace!(frame.crop(0, 0, frame.width, 1), x + 1, y)
+            # bottom
+            sheets.last.replace!(frame.crop(0, frame.height - 1, frame.width, 1), x + 1, y + frame.height + 1)
+            # top left
+            sheets.last.replace!(frame.crop(0, 0, 1, 1), x, y)
+            # top right
+            sheets.last.replace!(frame.crop(frame.width - 1, 0, 1, 1), x + frame.width + 1, y)
+            # bottom left
+            sheets.last.replace!(frame.crop(0, frame.height - 1, 1, 1), x, y + frame.height + 1)
+            # bottom right
+            sheets.last.replace!(frame.crop(frame.width - 1, frame.height - 1, 1, 1), x + frame.width + 1, y + frame.height + 1)
+            # center
+            sheets.last.replace!(frame, x + 1, y + 1)
+            sprite_positions[key] = [sheets.size - 1, x + 1, y + 1]
+            x = nx
+        end
+        info = {
+            :spritesheets => []
+        }
+        sheets.each.with_index do |sheet, i|
+            path = "/gen/spritesheets/#{tag}-#{i}.png"
+            sheet.save(path, :fast_rgba)
+            info[:spritesheets] << "#{tag}-#{i}.png"
+        end
+        tiles = []
+        game['sprites'].each.with_index do |sprite, si|
+            tiles << []
+            sprite['states'].each.with_index do |state, sti|
+                tiles.last << []
+                state['frames'].each.with_index do |frame, fi|
+                    key = "#{si}/#{sti}/#{fi}"
+                    tiles.last.last << sprite_positions[key]
+                end
+            end
+        end
+        info[:tiles] = tiles
+        File.open("/gen/spritesheets/#{tag}.json", 'w') do |f|
+            f.write(info.to_json)
+        end
+    end
+
     def icon_for_tag(tag)
         ANIMALS[tag.to_i(36) % ANIMALS.size]
     end
@@ -221,6 +329,7 @@ class Main < Sinatra::Base
     post "/api/load_game" do
         data = parse_request_data(:required_keys => [:tag])
         tag = data[:tag]
+        Main.render_spritesheet_for_tag(tag)
         assert(!tag.include?('.'))
         assert(!tag.include?('/'))
         if tag == 'test-game'
@@ -441,4 +550,8 @@ class Main < Sinatra::Base
             status 404
         end
     end
+end
+
+if ENV['DEVELOPMENT'] == '1'
+    Main.render_spritesheet_for_tag('4npzmmx')
 end
