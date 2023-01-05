@@ -1222,3 +1222,27 @@ input.clr-color {
     display: none;
 }
 
+#error_curtain {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    text-align: center;
+    font-size: 150%;
+}
+
+#error_curtain div.robot {
+    background-image: url(robot.png);
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: 50% 50%;
+    height: 50vh;
+    margin-top: 15vh;
+}
+
+#error_curtain p {
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 15px;
+}

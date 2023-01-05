@@ -1088,3 +1088,13 @@ function delete_item_helper(list, index) {
     list.splice(index, 1);
     return tr;
 }
+
+window.onerror = function(event, source, lineno, colno, error) {
+    // let data = {
+    //     event: event,
+    //     source: source,
+
+    // };
+    // console.log('welp');
+    $('#error_curtain').show();
+};
