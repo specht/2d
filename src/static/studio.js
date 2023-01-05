@@ -1096,5 +1096,7 @@ window.onerror = function(event, source, lineno, colno, error) {
 
     // };
     // console.log('welp');
-    $('#error_curtain').show();
+    $('#error_curtain').fadeIn();
+    $('#error_curtain .robot').css('transform', 'scale(1)');
+    $('#error_curtain p').css('transform', 'translate(0, 0)').css('opacity', 1);
 };
