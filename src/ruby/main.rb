@@ -551,7 +551,3 @@ class Main < Sinatra::Base
         end
     end
 end
-
-if ENV['DEVELOPMENT'] == '1'
-    Main.render_spritesheet_for_tag('4npzmmx')
-end

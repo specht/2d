@@ -261,6 +261,11 @@ class Game {
                 this.refresh_frames_on_screen();
                 for (let si = 0; si < self.data.sprites.length; si++)
                     this.create_geometry_and_material_for_sprite(si);
+                // fix level editor
+                if (self.level_editor.sprite_index >= self.data.sprites.length - 1)
+                    self.level_editor.sprite_index = self.data.sprites.length - 1;
+                self.level_editor.layer_structs[self.level_editor.layer_index].apply_layer(self.data.levels[self.level_editor.level_index].layers[self.level_editor.layer_index]);
+
             },
             on_move_item: (from, to) => {
                 let tr = move_item_helper(self.data.sprites, from, to);
