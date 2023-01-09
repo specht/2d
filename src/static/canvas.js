@@ -608,6 +608,7 @@ class Canvas {
 
     handle_up(e) {
         if (current_pane !== 'sprites') return;
+        if (this.mouse_down_point === null) return;
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = false;
