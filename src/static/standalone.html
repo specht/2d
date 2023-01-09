@@ -71,11 +71,21 @@
       .menu .item:hover {
         box-shadow: 0 0 0.2em 0.1em rgba(255, 255, 255, 0.3);
         background-color: rgba(255, 255, 255, 0.1);
+        transition: none;
+      }
+
+      #screen, #overlay {
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
       }
 
     </style>
     <script src="three.min.js"></script>
     <script src="jquery-3.6.0.min.js"></script>
+    <script src="api.js?#{@@cache_buster}"></script>
     <script src="app.js?#{@@cache_buster}"></script>
     <script type="x-shader/x-vertex" id="vertex-shader">
         varying vec2 vuv; void main() { vuv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
@@ -142,14 +152,17 @@
   <body>
     <div class="play_container">
       <div class="play_container_inner">
-        <div class="poster">
-          <div id='game_title'></div>
-          <div id='game_author' style="font-size: 60%;"></div>
-        </div>
-        <div class="menu">
-          <div class='item'>Start</div>
-          <div class='item'>Highscores</div>
-          <div class='item'>Hilfe</div>
+        <div id="screen"></div>
+        <div id="overlay">
+          <div class="poster">
+            <div id='game_title'></div>
+            <div id='game_author' style="font-size: 60%;"></div>
+          </div>
+          <div class="menu">
+            <div class='item' id="mi_start">Start</div>
+            <div class='item'>Highscores</div>
+            <div class='item'>Hilfe</div>
+          </div>
         </div>
       </div>
     </div>

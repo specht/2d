@@ -354,9 +354,7 @@ class Main < Sinatra::Base
         respond(:game => game)
     end
 
-    post "/api/save_game" do
-        data = parse_request_data(:required_keys => [:game], :types => {:game => Hash}, :max_body_length => 1024 * 1024 * 20)
-        game = data[:game]
+    def save_game(game, add_to_database)
         size = 0
         sprite_count = 0
         state_count = 0
@@ -398,38 +396,53 @@ class Main < Sinatra::Base
                 f.write game_json
             end
         end
-        neo4j_query(<<~END_OF_QUERY, {:tag => tag, :ts => Time.now.to_i, :size => size, :sprite_count => sprite_count, :state_count => state_count, :frame_count => frame_count, :unique_frame_count => unique_frame_count})
-            MERGE (g:Game {tag: $tag})
-            SET g.ts_created = COALESCE(g.ts_created, $ts)
-            SET g.ts_updated = $ts
-            SET g.size = $size
-            SET g.sprite_count = $sprite_count
-            SET g.state_count = $state_count
-            SET g.frame_count = $frame_count
-            SET g.unique_frame_count = $unique_frame_count;
-        END_OF_QUERY
-        if (game['properties'] || {})['title']
-            neo4j_query(<<~END_OF_QUERY, {:content => game['properties']['title'], :tag => tag, :ts => Time.now.to_i})
-                MATCH (g:Game {tag: $tag})
-                MERGE (s:String {content: $content})
-                CREATE (g)-[:TITLE]->(s);
+        Main.render_spritesheet_for_tag(tag)
+        if add_to_database
+            neo4j_query(<<~END_OF_QUERY, {:tag => tag, :ts => Time.now.to_i, :size => size, :sprite_count => sprite_count, :state_count => state_count, :frame_count => frame_count, :unique_frame_count => unique_frame_count})
+                MERGE (g:Game {tag: $tag})
+                SET g.ts_created = COALESCE(g.ts_created, $ts)
+                SET g.ts_updated = $ts
+                SET g.size = $size
+                SET g.sprite_count = $sprite_count
+                SET g.state_count = $state_count
+                SET g.frame_count = $frame_count
+                SET g.unique_frame_count = $unique_frame_count;
             END_OF_QUERY
+            if (game['properties'] || {})['title']
+                neo4j_query(<<~END_OF_QUERY, {:content => game['properties']['title'], :tag => tag, :ts => Time.now.to_i})
+                    MATCH (g:Game {tag: $tag})
+                    MERGE (s:String {content: $content})
+                    CREATE (g)-[:TITLE]->(s);
+                END_OF_QUERY
+            end
+            if (game['properties'] || {})['author']
+                neo4j_query(<<~END_OF_QUERY, {:content => game['properties']['author'], :tag => tag, :ts => Time.now.to_i})
+                    MATCH (g:Game {tag: $tag})
+                    MERGE (s:String {content: $content})
+                    CREATE (g)-[:AUTHOR]->(s);
+                END_OF_QUERY
+            end
+            if parent && parent != tag
+                neo4j_query(<<~END_OF_QUERY, {:tag => tag, :parent => parent})
+                    MATCH (g:Game {tag: $tag})
+                    MATCH (p:Game {tag: $parent})
+                    WHERE p.ts_created < g.ts_created
+                    CREATE (g)-[:PARENT]->(p);
+                END_OF_QUERY
+            end
         end
-        if (game['properties'] || {})['author']
-            neo4j_query(<<~END_OF_QUERY, {:content => game['properties']['author'], :tag => tag, :ts => Time.now.to_i})
-                MATCH (g:Game {tag: $tag})
-                MERGE (s:String {content: $content})
-                CREATE (g)-[:AUTHOR]->(s);
-            END_OF_QUERY
-        end
-        if parent && parent != tag
-            neo4j_query(<<~END_OF_QUERY, {:tag => tag, :parent => parent})
-                MATCH (g:Game {tag: $tag})
-                MATCH (p:Game {tag: $parent})
-                WHERE p.ts_created < g.ts_created
-                CREATE (g)-[:PARENT]->(p);
-            END_OF_QUERY
-        end
+        return tag
+    end
+
+    post "/api/save_game" do
+        data = parse_request_data(:required_keys => [:game], :types => {:game => Hash}, :max_body_length => 1024 * 1024 * 20)
+        tag = save_game(data[:game], true)
+        respond(:tag => tag, :icon => icon_for_tag(tag))
+    end
+
+    post "/api/save_game_temp" do
+        data = parse_request_data(:required_keys => [:game], :types => {:game => Hash}, :max_body_length => 1024 * 1024 * 20)
+        tag = save_game(data[:game], false)
         respond(:tag => tag, :icon => icon_for_tag(tag))
     end
 

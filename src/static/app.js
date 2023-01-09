@@ -1,33 +1,105 @@
 class Game {
 	constructor() {
 		let self = this;
-		let data = null;
+		this.data = null;
+		this.spritesheet_info = null;
+		this.spritesheets = null;
+		this.running = false;
 		this.reset();
 		window.addEventListener('resize', () => {
 			self.handle_resize();
 		});
 	}
 
-	load(data) {
-		console.log('loading data', data);
-		this.data = data;
+	async load(tag) {
+		// load game json
+		this.reset();
+		this.data = await (await fetch(`/gen/games/${tag}.json`)).json();
+		this.spritesheet_info = await (await fetch(`/gen/spritesheets/${tag}.json`)).json();
+		this.spritesheets = [];
+		for (let i = 0; i < this.spritesheet_info.spritesheets.length; i++) {
+			let blob = await(await fetch(`/gen/spritesheets/${this.spritesheet_info.spritesheets[i]}`)).blob();
+			let texture = new THREE.Texture();
+			texture.image = await createImageBitmap(blob);
+			texture.needsUpdate = true;
+			this.spritesheets.push(texture);
+		}
+		console.log(this);
+
+        // api_call('/api/load_game', { tag: tag }, function (data) {
+        //     if (data.success) {
+		// 		self.data = data;
+        //         console.log(data);
+        //     }
+        // });
+		// this.data = data;
 		$('#game_title').text(this.data.properties.title);
 		$('#game_author').text(this.data.properties.author);
+		this.setup();
 	}
+
+	setup() {
+		this.running = false;
+        this.clock = new THREE.Clock(true);
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
+        this.camera.position.x = 0;
+        this.camera.position.z = 10;
+        this.camera.position.y = 0;
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setClearColor("#000");
+		this.camera_x = 0.0;
+		this.camera_y = 0.0;
+		this.scale = 10.0;
+		$('#screen').empty();
+		$('#screen').append(this.renderer.domElement);
+	}
+
+	run() {
+		if (this.running) return;
+		this.running = true;
+		$('#overlay').fadeOut();
+		$('#screen').fadeIn();
+		requestAnimationFrame((t) => this.render());
+	}
+
+	stop() {
+		if (!this.running) return;
+		this.running = false;
+		$('#overlay').fadeIn();
+		$('#screen').fadeOut();
+	}
+
+	render() {
+        this.camera.left = this.camera_x - this.width * 0.5 / this.scale;
+        this.camera.right = this.camera_x + this.width * 0.5 / this.scale;
+        this.camera.top = this.camera_y + this.height * 0.5 / this.scale;
+        this.camera.bottom = this.camera_y - this.height * 0.5 / this.scale;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(this.width, this.height);
+        this.renderer.sortObjects = false;
+        this.renderer.render(this.scene, this.camera);
+		if (this.running)
+	        requestAnimationFrame((t) => this.render());
+    }
 
 	reset() {
 		console.log('hello this is game');
 		this.handle_resize();
+		this.stop();
+		$('#overlay').show();
+		$('#screen').hide();
+		this.setup();
 	}
 
 	handle_resize() {
-		let width = window.innerWidth;
-		let height = window.innerHeight;
-		if (height * 16.0/9 < width)
+		this.width = window.innerWidth;
+		this.height = window.innerHeight;
+		if (this.height * 16.0/9 < this.width)
 			$('.play_container_inner').css('width', '').css('height', '100%');
 		else
 			$('.play_container_inner').css('height', '').css('width', '100%');
-		$('body').css('font-size', `${height / 30}px`);
+		$('body').css('font-size', `${this.height / 30}px`);
 	}
 };
 
@@ -35,6 +107,9 @@ window.game = new Game();
 
 document.addEventListener("DOMContentLoaded", function (event) {
 	window.game.reset();
+	$('#mi_start').click(function(e) {
+		window.game.run();
+	});
 });
 
 

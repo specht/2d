@@ -392,8 +392,14 @@ document.addEventListener("DOMContentLoaded", function (event) {
         if (current_pane === 'level')
             game.level_editor.refresh_sprite_widget();
         if (current_pane === 'play') {
-            $('#play_iframe')[0].contentWindow.game.load(game.data);
-            $('#play_iframe').focus();
+            $('#play_iframe').hide();
+            api_call('/api/save_game_temp', { game: game.data }, function (data) {
+                if (data.success) {
+                    $('#play_iframe')[0].contentWindow.game.load(data.tag);
+                    $('#play_iframe').fadeIn();
+                    $('#play_iframe').focus();
+                }
+            });
         }
     })
 
