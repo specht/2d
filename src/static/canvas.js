@@ -723,7 +723,6 @@ class Canvas {
 
     handle_move(e) {
         if (current_pane !== 'sprites') return;
-        console.log(e);
         if (this.is_double_touch) {
             if ((e.touches ?? []).length < 2) return;
             let this_touch_points = [
