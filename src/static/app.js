@@ -9,9 +9,16 @@ class Game {
 		this.running = false;
 		this.level_index = 0;
 		this.layers = [];
+		this.player_mesh = null;
 		this.reset();
 		window.addEventListener('resize', () => {
 			self.handle_resize();
+		});
+		window.addEventListener('keydown', (e) => {
+			this.handle_key_down(e.code)
+		});
+		window.addEventListener('keyup', (e) => {
+			this.handle_key_up(e.code)
 		});
 	}
 
@@ -84,7 +91,6 @@ class Game {
 			uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
 			let mesh = new THREE.Mesh(geometry, this.spritesheets[tile_info[0]]);
 			this.mesh_catalogue.push(mesh);
-			// this.scene.add(mesh);
 		}
 
 		if (this.level_index >= this.data.levels.length)
@@ -101,6 +107,13 @@ class Game {
 				for (let spi = 0; spi < layer.sprites.length; spi++) {
 					let placed = layer.sprites[spi];
 					let mesh = this.mesh_catalogue[placed[0]].clone();
+					let sprite = this.data.sprites[placed[0]];
+					if ('actor' in sprite.traits)
+					{
+						this.player_mesh = mesh;
+						this.camera_x = placed[1];
+						this.camera_y = placed[2] + 72;
+					}
 					mesh.position.set(placed[1], placed[2], 0);
 					game_layer.add(mesh);
 				}
@@ -191,9 +204,9 @@ class Game {
 
 	render() {
 		let scale = this.height / this.pixel_height;
-		let zoom = (Math.sin(this.clock.getElapsedTime() * 0.5) + 1.0) * 0.2 + 1.0;
-		scale *= zoom;
-		this.camera_x = Math.sin(this.clock.getElapsedTime()) * 20;
+		// let zoom = (Math.sin(this.clock.getElapsedTime() * 0.5) + 1.0) * 0.2 + 1.0;
+		// scale *= zoom;
+		// this.camera_x = Math.sin(this.clock.getElapsedTime()) * 20;
 
 		for (let i = 0; i < this.layers.length; i++) {
 			this.layers[i].position.x = this.camera_x * this.data.levels[this.level_index].layers[i].properties.parallax;
@@ -229,6 +242,24 @@ class Game {
 		else
 			$('.play_container_inner').css('height', '').css('width', '100%');
 		$('body').css('font-size', `${this.height / 30}px`);
+	}
+
+	handle_key_down(key) {
+		if (this.player_mesh !== null) {
+			// this.player_mesh.position.set(100, 0, 10);
+			if (key === 'ArrowRight') {
+				this.player_mesh.position.x += 1;
+			}
+			if (key === 'ArrowLeft') {
+				this.player_mesh.position.x -= 1;
+			}
+			// this.player_mesh.matrixWorldNeedsUpdate = true;
+			// console.log(this.player_mesh.position);
+		}
+	}
+
+	handle_key_up(key) {
+
 	}
 };
 
