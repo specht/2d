@@ -10,6 +10,8 @@ class Game {
 		this.level_index = 0;
 		this.layers = [];
 		this.player_mesh = null;
+		this.meshes_for_sprite = [];
+		this.animated_sprites = [];
 		this.reset();
 		window.addEventListener('resize', () => {
 			self.handle_resize();
@@ -68,6 +70,9 @@ class Game {
 		this.camera_x = 0.0;
 		this.camera_y = 0.0;
 		this.pixel_height = 240.0;
+		this.player_mesh = null;
+		this.animated_sprites = [];
+		this.meshes_for_sprite = [];
 
 		$('#screen').empty();
 		$('#screen').append(this.renderer.domElement);
@@ -83,14 +88,17 @@ class Game {
 			let sprite = this.data.sprites[si];
 			let geometry = new THREE.PlaneGeometry(sprite.width, sprite.height);
 			geometry.translate(0, sprite.height / 2, 0);
-			let uv = geometry.attributes.uv;
 			let tile_info = this.spritesheet_info.tiles[si][0][0];
+			let mesh = new THREE.Mesh(geometry, this.spritesheets[tile_info[0]]);
+			let uv = geometry.attributes.uv;
 			uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
 			uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
 			uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
 			uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
-			let mesh = new THREE.Mesh(geometry, this.spritesheets[tile_info[0]]);
 			this.mesh_catalogue.push(mesh);
+			this.meshes_for_sprite.push([]);
+			if (sprite.states[0].frames.length > 1)
+				this.animated_sprites.push(si);
 		}
 
 		if (this.level_index >= this.data.levels.length)
@@ -115,6 +123,7 @@ class Game {
 						this.camera_y = placed[2] + 72;
 					}
 					mesh.position.set(placed[1], placed[2], 0);
+					this.meshes_for_sprite[placed[0]].push(mesh);
 					game_layer.add(mesh);
 				}
 			} else if (layer.type === 'backdrop') {
@@ -208,11 +217,29 @@ class Game {
 		// scale *= zoom;
 		// this.camera_x = Math.sin(this.clock.getElapsedTime()) * 20;
 
+		for (let si of this.animated_sprites) {
+			let sprite = this.data.sprites[si];
+			let sti = 0;
+			let fps = 8.0;
+			let fi = Math.floor(this.clock.getElapsedTime() * fps) % sprite.states[sti].frames.length;
+			for (let mesh of this.meshes_for_sprite[si]) {
+				let uv = mesh.geometry.attributes.uv;
+				let tw = this.spritesheet_info.width;
+				let th = this.spritesheet_info.height;
+				let tile_info = this.spritesheet_info.tiles[si][0][fi];
+				uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
+				uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
+				uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
+				uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
+				uv.needsUpdate = true;
+			}
+		}
+
 		for (let i = 0; i < this.layers.length; i++) {
 			this.layers[i].position.x = this.camera_x * this.data.levels[this.level_index].layers[i].properties.parallax;
 			this.layers[i].position.y = this.camera_y * this.data.levels[this.level_index].layers[i].properties.parallax;
 		}
-		
+
         this.camera.left = this.camera_x - this.width * 0.5 / scale;
         this.camera.right = this.camera_x + this.width * 0.5 / scale;
         this.camera.top = this.camera_y + this.height * 0.5 / scale;
