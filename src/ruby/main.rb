@@ -233,7 +233,7 @@ class Main < Sinatra::Base
                     png_path = "/gen/png/#{frame['tag']}.png"
                     frame = ChunkyPNG::Image.from_file(png_path)
                     key = "#{si}/#{sti}/#{fi}"
-                    sprite_sizes[key] = [frame.width * SPRITESHEET_FACTOR + 2, frame.height * SPRITESHEET_FACTOR + 2]
+                    sprite_sizes[key] = [(frame.width + 2) * SPRITESHEET_FACTOR, (frame.height + 2) * SPRITESHEET_FACTOR]
                     sprite_paths[key] = png_path
                 end
             end
@@ -279,24 +279,24 @@ class Main < Sinatra::Base
             frame.resample_nearest_neighbor!(frame.width * SPRITESHEET_FACTOR, frame.height * SPRITESHEET_FACTOR)
             debug "#{sheets.size - 1} #{x}:#{y} #{frame.width}x#{frame.height} <= #{key}"
             # left
-            sheets.last.replace!(frame.crop(0, 0, 1, frame.height), x, y + 1)
+            sheets.last.replace!(frame.crop(0, 0, SPRITESHEET_FACTOR, frame.height), x, y + SPRITESHEET_FACTOR)
             # right
-            sheets.last.replace!(frame.crop(frame.width - 1, 0, 1, frame.height), x + frame.width + 1, y + 1)
+            sheets.last.replace!(frame.crop(frame.width - SPRITESHEET_FACTOR, 0, SPRITESHEET_FACTOR, frame.height), x + frame.width + SPRITESHEET_FACTOR, y + SPRITESHEET_FACTOR)
             # top
-            sheets.last.replace!(frame.crop(0, 0, frame.width, 1), x + 1, y)
+            sheets.last.replace!(frame.crop(0, 0, frame.width, SPRITESHEET_FACTOR), x + SPRITESHEET_FACTOR, y)
             # bottom
-            sheets.last.replace!(frame.crop(0, frame.height - 1, frame.width, 1), x + 1, y + frame.height + 1)
+            sheets.last.replace!(frame.crop(0, frame.height - SPRITESHEET_FACTOR, frame.width, SPRITESHEET_FACTOR), x + SPRITESHEET_FACTOR, y + frame.height + SPRITESHEET_FACTOR)
             # top left
-            sheets.last.replace!(frame.crop(0, 0, 1, 1), x, y)
+            sheets.last.replace!(frame.crop(0, 0, SPRITESHEET_FACTOR, SPRITESHEET_FACTOR), x, y)
             # top right
-            sheets.last.replace!(frame.crop(frame.width - 1, 0, 1, 1), x + frame.width + 1, y)
+            sheets.last.replace!(frame.crop(frame.width - SPRITESHEET_FACTOR, 0, SPRITESHEET_FACTOR, SPRITESHEET_FACTOR), x + frame.width + SPRITESHEET_FACTOR, y)
             # bottom left
-            sheets.last.replace!(frame.crop(0, frame.height - 1, 1, 1), x, y + frame.height + 1)
+            sheets.last.replace!(frame.crop(0, frame.height - SPRITESHEET_FACTOR, SPRITESHEET_FACTOR, SPRITESHEET_FACTOR), x, y + frame.height + SPRITESHEET_FACTOR)
             # bottom right
-            sheets.last.replace!(frame.crop(frame.width - 1, frame.height - 1, 1, 1), x + frame.width + 1, y + frame.height + 1)
+            sheets.last.replace!(frame.crop(frame.width - SPRITESHEET_FACTOR, frame.height - SPRITESHEET_FACTOR, SPRITESHEET_FACTOR, SPRITESHEET_FACTOR), x + frame.width + SPRITESHEET_FACTOR, y + frame.height + SPRITESHEET_FACTOR)
             # center
-            sheets.last.replace!(frame, x + 1, y + 1)
-            sprite_positions[key] = [sheets.size - 1, x + 1, y + 1]
+            sheets.last.replace!(frame, x + SPRITESHEET_FACTOR, y + SPRITESHEET_FACTOR)
+            sprite_positions[key] = [sheets.size - 1, x + SPRITESHEET_FACTOR, y + SPRITESHEET_FACTOR]
             x = nx
         end
         info = {
