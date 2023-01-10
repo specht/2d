@@ -22,8 +22,9 @@ ANIMALS = %w(s1cfi07 rqaux7w q6xbd0g pxly0tu on87yoe n0vdqui lm78e76 lclapq1 l3l
              jq70giy irath30 hj6vqa0 gdbl86r ga56q6n g54ebrx g8ceaya ffg1kv8 f4jizb6 e2z9poi aob22o8 ako2wyi a7oqxgh a2r8to1 114g99w
              49v6ivw 9g4gu5z 7zl61mu 7hmau5i 6iwskal 4r9nct2 4nyev3o 4j8mqjo)
 
-MAX_SPRITESHEET_WIDTH = 1024
-MAX_SPRITESHEET_HEIGHT = 1024
+SPRITESHEET_FACTOR = 4
+MAX_SPRITESHEET_WIDTH = 1024 * SPRITESHEET_FACTOR
+MAX_SPRITESHEET_HEIGHT = 1024 * SPRITESHEET_FACTOR
 
 def debug(message, index = 0)
     index = 0
@@ -232,7 +233,7 @@ class Main < Sinatra::Base
                     png_path = "/gen/png/#{frame['tag']}.png"
                     frame = ChunkyPNG::Image.from_file(png_path)
                     key = "#{si}/#{sti}/#{fi}"
-                    sprite_sizes[key] = [frame.width + 2, frame.height + 2]
+                    sprite_sizes[key] = [frame.width * SPRITESHEET_FACTOR + 2, frame.height * SPRITESHEET_FACTOR + 2]
                     sprite_paths[key] = png_path
                 end
             end
@@ -275,6 +276,7 @@ class Main < Sinatra::Base
             end
 
             frame = ChunkyPNG::Image.from_file(sprite_paths[key])
+            frame.resample_nearest_neighbor!(frame.width * SPRITESHEET_FACTOR, frame.height * SPRITESHEET_FACTOR)
             debug "#{sheets.size - 1} #{x}:#{y} #{frame.width}x#{frame.height} <= #{key}"
             # left
             sheets.last.replace!(frame.crop(0, 0, 1, frame.height), x, y + 1)

@@ -25,7 +25,7 @@ class Game {
 			let blob = await(await fetch(`/gen/spritesheets/${this.spritesheet_info.spritesheets[i]}`)).blob();
 			let texture = new THREE.Texture();
 			texture.image = await createImageBitmap(blob);
-			texture.magFilter = THREE.NearestFilter;
+			// texture.magFilter = THREE.NearestFilter;
 			texture.needsUpdate = true;
 			let material = new THREE.ShaderMaterial({
 				uniforms: {
@@ -79,9 +79,9 @@ class Game {
 			let uv = geometry.attributes.uv;
 			let tile_info = this.spritesheet_info.tiles[si][0][0];
 			uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
-			uv.setXY(1, (tile_info[1] + sprite.width) / tw, tile_info[2] / th);
-			uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height) / th);
-			uv.setXY(3, (tile_info[1] + sprite.width) / tw, (tile_info[2] + sprite.height) / th);
+			uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
+			uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
+			uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
 			let mesh = new THREE.Mesh(geometry, this.spritesheets[tile_info[0]]);
 			this.mesh_catalogue.push(mesh);
 			// this.scene.add(mesh);
