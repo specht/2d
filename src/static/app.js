@@ -4,7 +4,11 @@ class Game {
 		this.data = null;
 		this.spritesheet_info = null;
 		this.spritesheets = null;
+		// a mesh for every sprite (not regarding state or frame)
+		this.mesh_catalogue = [];
 		this.running = false;
+		this.level_index = 0;
+		this.layers = [];
 		this.reset();
 		window.addEventListener('resize', () => {
 			self.handle_resize();
@@ -21,24 +25,30 @@ class Game {
 			let blob = await(await fetch(`/gen/spritesheets/${this.spritesheet_info.spritesheets[i]}`)).blob();
 			let texture = new THREE.Texture();
 			texture.image = await createImageBitmap(blob);
+			texture.magFilter = THREE.NearestFilter;
 			texture.needsUpdate = true;
-			this.spritesheets.push(texture);
+			let material = new THREE.ShaderMaterial({
+				uniforms: {
+					texture1: { value: texture },
+				},
+				transparent: true,
+				vertexShader: document.getElementById('vertex-shader').textContent,
+				fragmentShader: document.getElementById('fragment-shader').textContent,
+				side: THREE.DoubleSide,
+			});
+			this.spritesheets.push(material);
 		}
 		console.log(this);
 
-        // api_call('/api/load_game', { tag: tag }, function (data) {
-        //     if (data.success) {
-		// 		self.data = data;
-        //         console.log(data);
-        //     }
-        // });
-		// this.data = data;
 		$('#game_title').text(this.data.properties.title);
 		$('#game_author').text(this.data.properties.author);
 		this.setup();
+		if (window.location.host.substring(0, 9) === 'localhost')
+			this.run();
 	}
 
 	setup() {
+
 		this.running = false;
         this.clock = new THREE.Clock(true);
         this.scene = new THREE.Scene();
@@ -50,9 +60,118 @@ class Game {
         this.renderer.setClearColor("#000");
 		this.camera_x = 0.0;
 		this.camera_y = 0.0;
-		this.scale = 10.0;
+		this.pixel_height = 240.0;
+
 		$('#screen').empty();
 		$('#screen').append(this.renderer.domElement);
+		this.mesh_catalogue = [];
+		this.layers = [];
+
+		if (this.data === null)
+			return;
+
+		let tw = this.spritesheet_info.width;
+		let th = this.spritesheet_info.height;
+		for (let si = 0; si < this.data.sprites.length; si++) {
+			let sprite = this.data.sprites[si];
+			let geometry = new THREE.PlaneGeometry(sprite.width, sprite.height);
+			geometry.translate(0, sprite.height / 2, 0);
+			let uv = geometry.attributes.uv;
+			let tile_info = this.spritesheet_info.tiles[si][0][0];
+			uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
+			uv.setXY(1, (tile_info[1] + sprite.width) / tw, tile_info[2] / th);
+			uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height) / th);
+			uv.setXY(3, (tile_info[1] + sprite.width) / tw, (tile_info[2] + sprite.height) / th);
+			let mesh = new THREE.Mesh(geometry, this.spritesheets[tile_info[0]]);
+			this.mesh_catalogue.push(mesh);
+			// this.scene.add(mesh);
+		}
+
+		if (this.level_index >= this.data.levels.length)
+			return;
+
+		this.scene.background = new THREE.Color(parse_html_color(this.data.levels[this.level_index].properties.background_color));
+
+		let level = this.data.levels[this.level_index];
+		for (let li = 0; li < level.layers.length; li++) {
+			let game_layer = new THREE.Group();
+			let layer = level.layers[li];
+			console.log(layer);
+			if (layer.type === 'sprites') {
+				for (let spi = 0; spi < layer.sprites.length; spi++) {
+					let placed = layer.sprites[spi];
+					let mesh = this.mesh_catalogue[placed[0]].clone();
+					mesh.position.set(placed[1], placed[2], 0);
+					game_layer.add(mesh);
+				}
+			} else if (layer.type === 'backdrop') {
+				let backdrop = layer;
+				let geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+				geometry.translate(0.5, 0.5, 0.0);
+				geometry.scale(backdrop.width, backdrop.height, 1.0);
+				geometry.translate(backdrop.left, backdrop.bottom, 0);
+				// geometry.translate(0, 0, -1);
+				let gradient_points = backdrop.colors;
+				let uniforms = {};
+				if (gradient_points.length === 1) {
+					uniforms = {
+						n:  { value: 1 },
+						ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+					};
+				} else if (gradient_points.length === 2) {
+					let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
+					let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
+					let l1 = 1.0 / l;
+					d[0] *= l1; d[1] *= l1;
+					uniforms = {
+						n:  { value: 2 },
+						ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+						cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+						pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+						pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+						na: { value: [d[0], d[1]] },
+						nb: { value: [-d[0], -d[1]] },
+						la: { value: l },
+						lb: { value: l },
+					};
+				} else if (gradient_points.length === 4) {
+					uniforms = {
+						n:  { value: 4 },
+						ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+						cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+						cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
+						cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
+						pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+						pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+						pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
+						pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
+					};
+				}
+				let material = new THREE.ShaderMaterial({
+					uniforms: uniforms,
+					transparent: true,
+					vertexShader: document.getElementById('vertex-shader').textContent,
+					fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
+					side: THREE.DoubleSide,
+				});
+				let mesh = new THREE.Mesh(geometry, material);
+				game_layer.add(mesh);
+			}
+			this.layers.push(game_layer);
+		}
+
+		for (let i = this.layers.length - 1; i >= 0; i--)
+			this.scene.add(this.layers[i]);
+
+		// let material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+        // let points = [];
+        // points.push(new THREE.Vector3(0, 24, 2));
+        // points.push(new THREE.Vector3(0, 0, 2));
+        // points.push(new THREE.Vector3(24, 0, 2));
+        // let geometry = new THREE.BufferGeometry().setFromPoints(points);
+        // let line = new THREE.Line(geometry, material);
+        // this.scene.add(line);
+
 	}
 
 	run() {
@@ -71,10 +190,20 @@ class Game {
 	}
 
 	render() {
-        this.camera.left = this.camera_x - this.width * 0.5 / this.scale;
-        this.camera.right = this.camera_x + this.width * 0.5 / this.scale;
-        this.camera.top = this.camera_y + this.height * 0.5 / this.scale;
-        this.camera.bottom = this.camera_y - this.height * 0.5 / this.scale;
+		let scale = this.height / this.pixel_height;
+		let zoom = (Math.sin(this.clock.getElapsedTime() * 0.5) + 1.0) * 0.2 + 1.0;
+		scale *= zoom;
+		this.camera_x = Math.sin(this.clock.getElapsedTime()) * 20;
+
+		for (let i = 0; i < this.layers.length; i++) {
+			this.layers[i].position.x = this.camera_x * this.data.levels[this.level_index].layers[i].properties.parallax;
+			this.layers[i].position.y = this.camera_y * this.data.levels[this.level_index].layers[i].properties.parallax;
+		}
+		
+        this.camera.left = this.camera_x - this.width * 0.5 / scale;
+        this.camera.right = this.camera_x + this.width * 0.5 / scale;
+        this.camera.top = this.camera_y + this.height * 0.5 / scale;
+        this.camera.bottom = this.camera_y - this.height * 0.5 / scale;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(this.width, this.height);
         this.renderer.sortObjects = false;

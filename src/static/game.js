@@ -303,6 +303,14 @@ class Game {
                 self.data.properties.author = x;
             },
         });
+        if (typeof(this.data.parent) !== 'undefined') {
+            $('#play_iframe').hide();
+            if ($('#play_iframe')[0].contentWindow.game) {
+                $('#play_iframe')[0].contentWindow.game.load(this.data.parent);
+                $('#play_iframe').fadeIn();
+                $('#play_iframe').focus();
+            }
+        }
     }
 
     refresh_frames_on_screen() {

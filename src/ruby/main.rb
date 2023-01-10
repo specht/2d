@@ -317,6 +317,8 @@ class Main < Sinatra::Base
             end
         end
         info[:tiles] = tiles
+        info[:width] = MAX_SPRITESHEET_WIDTH
+        info[:height] = MAX_SPRITESHEET_HEIGHT
         File.open("/gen/spritesheets/#{tag}.json", 'w') do |f|
             f.write(info.to_json)
         end
