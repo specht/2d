@@ -245,6 +245,7 @@ class Main < Sinatra::Base
     end
     sprite_positions = {}
     sheets = []
+    sheet_contents = []
     x = 0
     y = 0
     ny = nil
@@ -275,6 +276,7 @@ class Main < Sinatra::Base
       if sheet.nil?
         sheet = ChunkyPNG::Image.new(MAX_SPRITESHEET_WIDTH, MAX_SPRITESHEET_HEIGHT, ChunkyPNG::Color::TRANSPARENT)
         sheets << sheet
+        sheet_contents << []
       end
 
       frame = ChunkyPNG::Image.from_file(sprite_paths[key])
@@ -298,20 +300,23 @@ class Main < Sinatra::Base
       # center
       sheets.last.replace!(frame, x + 1, y + 1)
       sprite_positions[key] = [sheets.size - 1, (x + 1) * SPRITESHEET_FACTOR, (y + 1) * SPRITESHEET_FACTOR]
+      sheet_contents.last << [key, x, y]
       x = nx
     end
     info = {
       :spritesheets => [],
     }
     sheets.each.with_index do |sheet, i|
-      path = "/gen/spritesheets/#{tag}-#{i}.png"
-    #   sheet.resample_nearest_neighbor!(sheet.width * 4, sheet.height * 4)
-      sheet.save(path + 's', :fast_rgba)
-      im = Vips::Image.new_from_file path + 's'
-      im = im.resize(4, :kernel => :nearest)
-      im.pngsave(path)
-      FileUtils.rm_f(path + 's')
-      info[:spritesheets] << "#{tag}-#{i}.png"
+      sheet_sha1 = Digest::SHA1.hexdigest(sheet_contents[i].to_json)[0, 16]
+      path = "/gen/spritesheets/#{sheet_sha1}.png"
+      unless File.exists?(path)
+        sheet.save(path + 's', :fast_rgba)
+        im = Vips::Image.new_from_file path + 's'
+        im = im.resize(4, :kernel => :nearest)
+        im.pngsave(path)
+        FileUtils.rm_f(path + 's')
+      end
+      info[:spritesheets] << "#{sheet_sha1}.png"
     end
     tiles = []
     game["sprites"].each.with_index do |sprite, si|

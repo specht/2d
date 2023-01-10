@@ -110,7 +110,6 @@ class Game {
 		for (let li = 0; li < level.layers.length; li++) {
 			let game_layer = new THREE.Group();
 			let layer = level.layers[li];
-			console.log(layer);
 			if (layer.type === 'sprites') {
 				for (let spi = 0; spi < layer.sprites.length; spi++) {
 					let placed = layer.sprites[spi];
@@ -220,7 +219,7 @@ class Game {
 		for (let si of this.animated_sprites) {
 			let sprite = this.data.sprites[si];
 			let sti = 0;
-			let fps = 8.0;
+			let fps = sprite.states[sti].properties.fps ?? 8;
 			let fi = Math.floor(this.clock.getElapsedTime() * fps) % sprite.states[sti].frames.length;
 			for (let mesh of this.meshes_for_sprite[si]) {
 				let uv = mesh.geometry.attributes.uv;
