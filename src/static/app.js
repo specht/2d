@@ -12,6 +12,10 @@ class Game {
 		this.player_mesh = null;
 		this.meshes_for_sprite = [];
 		this.animated_sprites = [];
+		this.minx = 0;
+		this.miny = 0;
+		this.maxx = 0;
+		this.maxy = 0;
 		this.reset();
 		window.addEventListener('resize', () => {
 			self.handle_resize();
@@ -107,6 +111,10 @@ class Game {
 		this.scene.background = new THREE.Color(parse_html_color(this.data.levels[this.level_index].properties.background_color));
 
 		let level = this.data.levels[this.level_index];
+		this.minx = 0;
+		this.maxx = 0;
+		this.miny = 0;
+		this.maxy = 0;
 		for (let li = 0; li < level.layers.length; li++) {
 			let game_layer = new THREE.Group();
 			let layer = level.layers[li];
@@ -115,6 +123,16 @@ class Game {
 					let placed = layer.sprites[spi];
 					let mesh = this.mesh_catalogue[placed[0]].clone();
 					let sprite = this.data.sprites[placed[0]];
+					let x = placed[1];
+					let y = placed[2];
+					let x0 = x - sprite.width / 2;
+					let x1 = x + sprite.width / 2;
+					let y0 = y;
+					let y1 = y + sprite.height;
+					if (x0 < this.minx) this.minx = x0;
+					if (x1 > this.maxx) this.maxx = x1;
+					if (y0 < this.miny) this.miny = y0;
+					if (y1 > this.maxy) this.maxy = y1;
 					if ('actor' in sprite.traits)
 					{
 						this.player_mesh = mesh;
@@ -212,6 +230,7 @@ class Game {
 
 	render() {
 		let scale = this.height / this.pixel_height;
+		
 		// let zoom = (Math.sin(this.clock.getElapsedTime() * 0.5) + 1.0) * 0.2 + 1.0;
 		// scale *= zoom;
 		// this.camera_x = Math.sin(this.clock.getElapsedTime()) * 20;
@@ -243,7 +262,23 @@ class Game {
         this.camera.right = this.camera_x + this.width * 0.5 / scale;
         this.camera.top = this.camera_y + this.height * 0.5 / scale;
         this.camera.bottom = this.camera_y - this.height * 0.5 / scale;
-        this.camera.updateProjectionMatrix();
+
+		// fix camera
+		if (this.camera.left < this.minx)
+			this.camera_x += (this.minx - this.camera.left);
+		if (this.camera.right > this.maxx)
+			this.camera_x += (this.maxx - this.camera.right);
+		if (this.camera.bottom < this.miny)
+			this.camera_y += (this.miny - this.camera.bottom);
+		if (this.camera.top > this.maxy)
+			this.camera_y += (this.maxy - this.camera.top);
+
+		this.camera.left = this.camera_x - this.width * 0.5 / scale;
+		this.camera.right = this.camera_x + this.width * 0.5 / scale;
+		this.camera.top = this.camera_y + this.height * 0.5 / scale;
+		this.camera.bottom = this.camera_y - this.height * 0.5 / scale;
+
+		this.camera.updateProjectionMatrix();
         this.renderer.setSize(this.width, this.height);
         this.renderer.sortObjects = false;
         this.renderer.render(this.scene, this.camera);

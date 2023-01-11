@@ -254,7 +254,6 @@ class Main < Sinatra::Base
     frames_by_height.each do |key|
       r += 1
       break if r > 10
-      debug "#{x} #{y} #{sprite_sizes[key]}"
       ny ||= y + sprite_sizes[key][1]
       if ny > MAX_SPRITESHEET_HEIGHT
         debug "next spritesheet!"
@@ -280,7 +279,6 @@ class Main < Sinatra::Base
       end
 
       frame = ChunkyPNG::Image.from_file(sprite_paths[key])
-      debug "#{sheets.size - 1} #{x}:#{y} #{frame.width}x#{frame.height} <= #{key}"
       # left
       sheets.last.replace!(frame.crop(0, 0, 1, frame.height), x, y + 1)
       # right
