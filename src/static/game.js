@@ -412,7 +412,7 @@ class Game {
                     label: property.label ?? key,
                     get: () => self.data.sprites[si].traits[trait][key],
                     set: (x) => {
-                        self.data.sprites[si].traits[trait][key] = x;
+                        self.data.sprites[si].traits[trait][key] = parseFloat(x);
                     },
                 });
             } else if (property.type === 'bool') {

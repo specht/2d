@@ -1,3 +1,10 @@
+let SIMULATION_RATE = 60;
+let KEY_UP = 'up';
+let KEY_DOWN = 'down';
+let KEY_LEFT = 'left';
+let KEY_RIGHT = 'right';
+let KEY_JUMP = 'jump';
+
 class Game {
 	constructor() {
 		let self = this;
@@ -9,13 +16,8 @@ class Game {
 		this.running = false;
 		this.level_index = 0;
 		this.layers = [];
-		this.player_mesh = null;
 		this.meshes_for_sprite = [];
 		this.animated_sprites = [];
-		this.minx = 0;
-		this.miny = 0;
-		this.maxx = 0;
-		this.maxy = 0;
 		this.reset();
 		window.addEventListener('resize', () => {
 			self.handle_resize();
@@ -77,6 +79,15 @@ class Game {
 		this.player_mesh = null;
 		this.animated_sprites = [];
 		this.meshes_for_sprite = [];
+		this.player_mesh = null;
+		this.player_traits = null;
+
+		this.minx = 0;
+		this.miny = 0;
+		this.maxx = 0;
+		this.maxy = 0;
+		this.pressed_keys = {};
+		this.simulated_to = 0;
 
 		$('#screen').empty();
 		$('#screen').append(this.renderer.domElement);
@@ -135,7 +146,9 @@ class Game {
 					if (y1 > this.maxy) this.maxy = y1;
 					if ('actor' in sprite.traits)
 					{
+						console.log(sprite.traits);
 						this.player_mesh = mesh;
+						this.player_traits = sprite.traits.actor;
 						this.camera_x = placed[1];
 						this.camera_y = placed[2] + 72;
 					}
@@ -229,6 +242,7 @@ class Game {
 	}
 
 	render() {
+		this.simulate();
 		let scale = this.height / this.pixel_height;
 		
 		// let zoom = (Math.sin(this.clock.getElapsedTime() * 0.5) + 1.0) * 0.2 + 1.0;
@@ -306,21 +320,59 @@ class Game {
 	}
 
 	handle_key_down(key) {
-		if (this.player_mesh !== null) {
-			// this.player_mesh.position.set(100, 0, 10);
-			if (key === 'ArrowRight') {
-				this.player_mesh.position.x += 1;
-			}
-			if (key === 'ArrowLeft') {
-				this.player_mesh.position.x -= 1;
-			}
-			// this.player_mesh.matrixWorldNeedsUpdate = true;
-			// console.log(this.player_mesh.position);
-		}
+		if (key === 'ArrowLeft')
+			this.pressed_keys[KEY_LEFT] = true;
+		if (key === 'ArrowRight')
+			this.pressed_keys[KEY_RIGHT] = true;
+		if (key === 'ArrowUp')
+			this.pressed_keys[KEY_UP] = true;
+		if (key === 'ArrowDown')
+			this.pressed_keys[KEY_DOWN] = true;
+		if (key === 'Space')
+			this.pressed_keys[KEY_JUMP] = true;
 	}
 
 	handle_key_up(key) {
+		if (key === 'ArrowLeft')
+			this.pressed_keys[KEY_LEFT] = false;
+		if (key === 'ArrowRight')
+			this.pressed_keys[KEY_RIGHT] = false;
+		if (key === 'ArrowUp')
+			this.pressed_keys[KEY_UP] = false;
+		if (key === 'ArrowDown')
+			this.pressed_keys[KEY_DOWN] = false;
+		if (key === 'Space')
+			this.pressed_keys[KEY_JUMP] = false;
+	}
 
+	// handle simulation at fixed rate
+	simulation_step() {
+
+		if (this.player_mesh !== null) {
+			if (this.pressed_keys[KEY_RIGHT])
+				this.player_mesh.position.x += this.player_traits.vrun;
+			if (this.pressed_keys[KEY_LEFT])
+				this.player_mesh.position.x -= this.player_traits.vrun;
+		}
+		// 	// this.player_mesh.position.set(100, 0, 10);
+		// 	if (key === 'ArrowRight') {
+		// 		this.player_mesh.position.x += 1;
+		// 	}
+		// 	if (key === 'ArrowLeft') {
+		// 		this.player_mesh.position.x -= 1;
+		// 	}
+		// 	// this.player_mesh.matrixWorldNeedsUpdate = true;
+		// 	// console.log(this.player_mesh.position);
+		// }
+
+	}
+
+	simulate() {
+		let simulate_to = Math.floor(this.clock.getElapsedTime() * 60.0);
+		while (this.simulated_to < simulate_to) {
+			this.simulation_step();
+			this.simulated_to++;
+		}
 	}
 };
 
@@ -332,7 +384,6 @@ document.addEventListener("DOMContentLoaded", function (event) {
 		window.game.run();
 	});
 });
-
 
 /*
 window.renderer = null;
