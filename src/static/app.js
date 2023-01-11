@@ -75,7 +75,7 @@ class Game {
         this.renderer.setClearColor("#000");
 		this.camera_x = 0.0;
 		this.camera_y = 0.0;
-		this.screen_pixel_height = 240.0;
+		this.screen_pixel_height = 240;
 		this.player_mesh = null;
 		this.animated_sprites = [];
 		this.meshes_for_sprite = [];
@@ -96,6 +96,8 @@ class Game {
 
 		if (this.data === null)
 			return;
+
+		this.screen_pixel_height = this.data.properties.screen_pixel_height;
 
 		let tw = this.spritesheet_info.width;
 		let th = this.spritesheet_info.height;
@@ -150,7 +152,7 @@ class Game {
 						this.player_mesh = mesh;
 						this.player_traits = sprite.traits.actor;
 						this.camera_x = placed[1];
-						this.camera_y = placed[2] + 72;
+						this.camera_y = placed[2] + this.data.properties.screen_pixel_height * 0.3;
 					}
 					mesh.position.set(placed[1], placed[2], 0);
 					this.meshes_for_sprite[placed[0]].push(mesh);

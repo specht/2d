@@ -58,6 +58,7 @@ class Game {
         this.data.properties ??= {};
         this.data.properties.title ??= '';
         this.data.properties.author ??= '';
+        this.data.properties.screen_pixel_height ??= 240.0;
         this.data.parent ??= null;
         this.data.sprites ??= [];
         if (this.data.sprites.length === 0) {
@@ -301,6 +302,14 @@ class Game {
             get: () => self.data.properties.author,
             set: (x) => {
                 self.data.properties.author = x;
+            },
+        });
+        new NumberWidget({
+            container: $('#game-settings-here'),
+            label: 'Höhe in Pixeln:',
+            get: () => self.data.properties.screen_pixel_height,
+            set: (x) => {
+                self.data.properties.screen_pixel_height = parseFloat(x);
             },
         });
         if (typeof(this.data.parent) !== 'undefined') {
