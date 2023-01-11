@@ -136,16 +136,18 @@ class Game {
 					let placed = layer.sprites[spi];
 					let mesh = this.mesh_catalogue[placed[0]].clone();
 					let sprite = this.data.sprites[placed[0]];
-					let x = placed[1];
-					let y = placed[2];
-					let x0 = x - sprite.width / 2;
-					let x1 = x + sprite.width / 2;
-					let y0 = y;
-					let y1 = y + sprite.height;
-					if (x0 < this.minx) this.minx = x0;
-					if (x1 > this.maxx) this.maxx = x1;
-					if (y0 < this.miny) this.miny = y0;
-					if (y1 > this.maxy) this.maxy = y1;
+					if (layer.properties.collision_detection) {
+						let x = placed[1];
+						let y = placed[2];
+						let x0 = x - sprite.width / 2;
+						let x1 = x + sprite.width / 2;
+						let y0 = y;
+						let y1 = y + sprite.height;
+						if (x0 < this.minx) this.minx = x0;
+						if (x1 > this.maxx) this.maxx = x1;
+						if (y0 < this.miny) this.miny = y0;
+						if (y1 > this.maxy) this.maxy = y1;
+					}
 					if ('actor' in sprite.traits)
 					{
 						console.log(sprite.traits);
@@ -213,6 +215,7 @@ class Game {
 			}
 			this.layers.push(game_layer);
 		}
+		console.log(this.minx, this.maxx, this.miny, this.maxy);
 
 		for (let i = this.layers.length - 1; i >= 0; i--)
 			this.scene.add(this.layers[i]);
@@ -269,11 +272,6 @@ class Game {
 			}
 		}
 
-		for (let i = 0; i < this.layers.length; i++) {
-			this.layers[i].position.x = this.camera_x * this.data.levels[this.level_index].layers[i].properties.parallax;
-			this.layers[i].position.y = this.camera_y * this.data.levels[this.level_index].layers[i].properties.parallax;
-		}
-
         this.camera.left = this.camera_x - this.width * 0.5 / scale;
         this.camera.right = this.camera_x + this.width * 0.5 / scale;
         this.camera.top = this.camera_y + this.height * 0.5 / scale;
@@ -281,6 +279,7 @@ class Game {
 
 		// fix camera
 		if (this.maxx - this.minx > this.screen_pixel_height * 16.0 / 9) {
+			console.log(this.camera.left, this.minx);
 			if (this.camera.left < this.minx)
 				this.camera_x += (this.minx - this.camera.left);
 			if (this.camera.right > this.maxx)
@@ -301,6 +300,11 @@ class Game {
 		this.camera.right = this.camera_x + this.width * 0.5 / scale;
 		this.camera.top = this.camera_y + this.height * 0.5 / scale;
 		this.camera.bottom = this.camera_y - this.height * 0.5 / scale;
+
+		for (let i = 0; i < this.layers.length; i++) {
+			this.layers[i].position.x = this.camera_x * this.data.levels[this.level_index].layers[i].properties.parallax;
+			this.layers[i].position.y = this.camera_y * this.data.levels[this.level_index].layers[i].properties.parallax;
+		}
 
 		this.camera.updateProjectionMatrix();
         this.renderer.setSize(this.width, this.height);
@@ -363,7 +367,10 @@ class Game {
 				this.player_mesh.position.x += this.player_traits.vrun;
 			if (this.pressed_keys[KEY_LEFT])
 				this.player_mesh.position.x -= this.player_traits.vrun;
+			this.camera_x = this.player_mesh.position.x;
+			this.camera_y = this.player_mesh.position.y + this.data.properties.screen_pixel_height * 0.3;
 		}
+
 		// 	// this.player_mesh.position.set(100, 0, 10);
 		// 	if (key === 'ArrowRight') {
 		// 		this.player_mesh.position.x += 1;
