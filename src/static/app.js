@@ -283,12 +283,16 @@ class Game {
 				this.camera_x += (this.minx - this.camera.left);
 			if (this.camera.right > this.maxx)
 				this.camera_x += (this.maxx - this.camera.right);
+		} else {
+			this.camera_x = (this.minx + this.maxx) * 0.5;
 		}
 		if (this.maxy - this.miny > this.screen_pixel_height) {
 			if (this.camera.bottom < this.miny)
 				this.camera_y += (this.miny - this.camera.bottom);
 			if (this.camera.top > this.maxy)
 				this.camera_y += (this.maxy - this.camera.top);
+		} else {
+			this.camera_y = (this.miny + this.maxy) * 0.5;
 		}
 
 		this.camera.left = this.camera_x - this.width * 0.5 / scale;
