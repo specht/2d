@@ -75,7 +75,7 @@ class Game {
         this.renderer.setClearColor("#000");
 		this.camera_x = 0.0;
 		this.camera_y = 0.0;
-		this.pixel_height = 240.0;
+		this.screen_pixel_height = 240.0;
 		this.player_mesh = null;
 		this.animated_sprites = [];
 		this.meshes_for_sprite = [];
@@ -243,7 +243,7 @@ class Game {
 
 	render() {
 		this.simulate();
-		let scale = this.height / this.pixel_height;
+		let scale = this.height / this.screen_pixel_height;
 		
 		// let zoom = (Math.sin(this.clock.getElapsedTime() * 0.5) + 1.0) * 0.2 + 1.0;
 		// scale *= zoom;
@@ -278,14 +278,18 @@ class Game {
         this.camera.bottom = this.camera_y - this.height * 0.5 / scale;
 
 		// fix camera
-		if (this.camera.left < this.minx)
-			this.camera_x += (this.minx - this.camera.left);
-		if (this.camera.right > this.maxx)
-			this.camera_x += (this.maxx - this.camera.right);
-		if (this.camera.bottom < this.miny)
-			this.camera_y += (this.miny - this.camera.bottom);
-		if (this.camera.top > this.maxy)
-			this.camera_y += (this.maxy - this.camera.top);
+		if (this.maxx - this.minx > this.screen_pixel_height * 16.0 / 9) {
+			if (this.camera.left < this.minx)
+				this.camera_x += (this.minx - this.camera.left);
+			if (this.camera.right > this.maxx)
+				this.camera_x += (this.maxx - this.camera.right);
+		}
+		if (this.maxy - this.miny > this.screen_pixel_height) {
+			if (this.camera.bottom < this.miny)
+				this.camera_y += (this.miny - this.camera.bottom);
+			if (this.camera.top > this.maxy)
+				this.camera_y += (this.maxy - this.camera.top);
+		}
 
 		this.camera.left = this.camera_x - this.width * 0.5 / scale;
 		this.camera.right = this.camera_x + this.width * 0.5 / scale;
