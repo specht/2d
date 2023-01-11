@@ -279,7 +279,6 @@ class Game {
 
 		// fix camera
 		if (this.maxx - this.minx > this.screen_pixel_height * 16.0 / 9) {
-			console.log(this.camera.left, this.minx);
 			if (this.camera.left < this.minx)
 				this.camera_x += (this.minx - this.camera.left);
 			if (this.camera.right > this.maxx)
