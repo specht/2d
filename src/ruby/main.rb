@@ -298,9 +298,10 @@ class Main < Sinatra::Base
       # center
       sheets.last.replace!(frame, x + 1, y + 1)
       sprite_positions[key] = [sheets.size - 1, (x + 1) * SPRITESHEET_FACTOR, (y + 1) * SPRITESHEET_FACTOR]
-      sheet_contents.last << [key, x, y]
+      sheet_contents.last << [key, x, y, File.basename(sprite_paths[key])]
       x = nx
     end
+    debug sheet_contents.to_yaml
     info = {
       :spritesheets => [],
     }

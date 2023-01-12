@@ -395,6 +395,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
             $('#play_iframe').hide();
             api_call('/api/save_game_temp', { game: game.data }, function (data) {
                 if (data.success) {
+                    console.log(`tag: ${data.tag}`);
                     $('#play_iframe')[0].contentWindow.game.load(data.tag);
                     $('#play_iframe').fadeIn();
                     $('#play_iframe').focus();

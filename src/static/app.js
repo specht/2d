@@ -31,12 +31,14 @@ class Game {
 	}
 
 	async load(tag) {
+		console.log(`loading ${tag}`);
 		// load game json
 		this.reset();
 		this.data = await (await fetch(`/gen/games/${tag}.json`)).json();
 		this.spritesheet_info = await (await fetch(`/gen/spritesheets/${tag}.json`)).json();
 		this.spritesheets = [];
 		for (let i = 0; i < this.spritesheet_info.spritesheets.length; i++) {
+			console.log(this.spritesheet_info.spritesheets[i]);
 			let blob = await(await fetch(`/gen/spritesheets/${this.spritesheet_info.spritesheets[i]}`)).blob();
 			let texture = new THREE.Texture();
 			texture.image = await createImageBitmap(blob);
