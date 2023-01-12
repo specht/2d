@@ -76,6 +76,8 @@ class Game {
 		this.camera_x = 0.0;
 		this.camera_y = 0.0;
 		this.screen_pixel_height = 240;
+		this.screen_safe_zone_x = 0.4;
+		this.screen_safe_zone_y = 0.4;
 		this.player_mesh = null;
 		this.animated_sprites = [];
 		this.meshes_for_sprite = [];
@@ -361,13 +363,21 @@ class Game {
 	// handle simulation at fixed rate
 	simulation_step() {
 
+		let scale = this.height / this.screen_pixel_height;
 		if (this.player_mesh !== null) {
 			if (this.pressed_keys[KEY_RIGHT])
 				this.player_mesh.position.x += this.player_traits.vrun;
 			if (this.pressed_keys[KEY_LEFT])
 				this.player_mesh.position.x -= this.player_traits.vrun;
-			this.camera_x = this.player_mesh.position.x;
-			this.camera_y = this.player_mesh.position.y + this.data.properties.screen_pixel_height * 0.3;
+			let safe_zone_x0 = this.player_mesh.position.x - (this.width / 2 / scale) * this.screen_safe_zone_x;
+			let safe_zone_x1 = this.player_mesh.position.x + (this.width / 2 / scale) * this.screen_safe_zone_x;
+			let safe_zone_y0 = this.player_mesh.position.y - (this.height / 2 / scale) * this.screen_safe_zone_y;
+			let safe_zone_y1 = this.player_mesh.position.y + (this.height / 2 / scale) * this.screen_safe_zone_y;
+			if (this.camera_x < safe_zone_x0) this.camera_x = safe_zone_x0;
+			if (this.camera_x > safe_zone_x1) this.camera_x = safe_zone_x1;
+			if (this.camera_y < safe_zone_y0) this.camera_y = safe_zone_y0;
+			if (this.camera_y > safe_zone_y1) this.camera_y = safe_zone_y1;
+			// this.camera_y = this.player_mesh.position.y + this.data.properties.screen_pixel_height * 0.3;
 		}
 
 		// 	// this.player_mesh.position.set(100, 0, 10);
