@@ -5,12 +5,12 @@ var TRAITS = {
             vrun: {
                 label: 'Geschwindigkeit',
                 type: 'float',
-                default: 1.0,
+                default: 3.0,
             },
             vjump: {
                 label: 'Sprungkraft',
                 type: 'float',
-                default: 1.0,
+                default: 9.0,
             },
             can_jump: {
                 label: 'kann springen',

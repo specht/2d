@@ -18,6 +18,9 @@ class Game {
 		this.layers = [];
 		this.meshes_for_sprite = [];
 		this.animated_sprites = [];
+		this.interval_tree_x = new IntervalTree();
+        this.interval_tree_y = new IntervalTree();
+		this.active_level_sprites = [];
 		this.reset();
 		window.addEventListener('resize', () => {
 			self.handle_resize();
@@ -80,11 +83,12 @@ class Game {
 		this.screen_pixel_height = 240;
 		this.screen_safe_zone_x = 0.4;
 		this.screen_safe_zone_y = 0.4;
-		this.player_mesh = null;
 		this.animated_sprites = [];
 		this.meshes_for_sprite = [];
 		this.player_mesh = null;
+		this.player_sprite = null;
 		this.player_traits = null;
+		this.player_vy = 0.0;
 
 		this.minx = 0;
 		this.miny = 0;
@@ -92,6 +96,10 @@ class Game {
 		this.maxy = 0;
 		this.pressed_keys = {};
 		this.simulated_to = 0;
+
+		this.interval_tree_x.clear();
+		this.interval_tree_y.clear();
+		this.active_level_sprites = [];
 
 		$('#screen').empty();
 		$('#screen').append(this.renderer.domElement);
@@ -140,7 +148,8 @@ class Game {
 					let placed = layer.sprites[spi];
 					let mesh = this.mesh_catalogue[placed[0]].clone();
 					let sprite = this.data.sprites[placed[0]];
-					if (layer.properties.collision_detection) {
+					let effective_collision_detection = layer.properties.collision_detection && (Math.abs(layer.properties.parallax) < 0.0001);
+					if (effective_collision_detection) {
 						let x = placed[1];
 						let y = placed[2];
 						let x0 = x - sprite.width / 2;
@@ -151,11 +160,18 @@ class Game {
 						if (x1 > this.maxx) this.maxx = x1;
 						if (y0 < this.miny) this.miny = y0;
 						if (y1 > this.maxy) this.maxy = y1;
+						if (!('actor' in sprite.traits))
+						{
+							this.interval_tree_x.insert([x0, x1], this.active_level_sprites.length);
+							this.interval_tree_y.insert([y0, y1], this.active_level_sprites.length);
+							this.active_level_sprites.push({layer_index: li, sprite_index: placed[0], mesh: mesh});
+						}
 					}
 					if ('actor' in sprite.traits)
 					{
 						console.log(sprite.traits);
 						this.player_mesh = mesh;
+						this.player_sprite = sprite;
 						this.player_traits = sprite.traits.actor;
 						this.camera_x = placed[1];
 						this.camera_y = placed[2] + this.data.properties.screen_pixel_height * 0.3;
@@ -362,15 +378,86 @@ class Game {
 			this.pressed_keys[KEY_JUMP] = false;
 	}
 
+	has_trait_at_player(trait, dx0, dx1, dy0, dy1) {
+		let x0 = this.player_mesh.position.x + dx0;
+		let x1 = this.player_mesh.position.x + dx1;
+		let y0 = this.player_mesh.position.y + dy0;
+		let y1 = this.player_mesh.position.y + dy1;
+
+		let result_x = new Set();
+		for (let i of this.interval_tree_x.search([x0, x1]))
+			result_x.add(i);
+		let result_y = new Set();
+		for (let i of this.interval_tree_y.search([y0, y1]))
+			result_y.add(i);
+		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
+		for (let entry_index of result) {
+			let entry = this.active_level_sprites[entry_index];
+			let sprite = this.data.sprites[entry.sprite_index];
+			if (trait in sprite.traits)
+				return entry;
+		}
+		return null;
+	}
+
 	// handle simulation at fixed rate
 	simulation_step() {
-
 		let scale = this.height / this.screen_pixel_height;
 		if (this.player_mesh !== null) {
 			if (this.pressed_keys[KEY_RIGHT])
 				this.player_mesh.position.x += this.player_traits.vrun;
 			if (this.pressed_keys[KEY_LEFT])
 				this.player_mesh.position.x -= this.player_traits.vrun;
+			if (this.pressed_keys[KEY_UP])
+				this.player_mesh.position.y += this.player_traits.vrun;
+			if (this.pressed_keys[KEY_DOWN])
+				this.player_mesh.position.y -= this.player_traits.vrun;
+
+			if (this.has_trait_at_player('block_above', -0.5, 0.5, -0.1, 0)) {
+				this.player_vy = 0;
+				if (this.pressed_keys[KEY_JUMP])
+					this.player_vy = this.player_sprite.traits.actor.vjump;
+			}
+
+			this.player_mesh.position.y += this.player_vy;
+
+			this.player_vy -= this.data.properties.gravity;
+			if (this.player_vy < -10)
+				this.player_vy = -10;
+
+			if (this.has_trait_at_player('block_above', -0.5, 0.5, -0.1, 0)) {
+				if (this.pressed_keys[KEY_JUMP])
+					this.player_vy = 12;
+			}
+
+			let entry = this.has_trait_at_player('block_above', -0.5, 0.5, 0.1, 1.1);
+			if (entry) {
+				let sprite = this.data.sprites[entry.sprite_index];
+				this.player_mesh.position.y = entry.mesh.position.y + sprite.height;
+			}
+
+			let ppr = 0.7;
+			entry = this.has_trait_at_player('block_sides',
+				this.player_sprite.width * 0.5 * ppr - 1,
+				this.player_sprite.width * 0.5 * ppr,
+				0.5, this.player_sprite.height - 1);
+			if (entry) {
+				let sprite = this.data.sprites[entry.sprite_index];
+				this.player_mesh.position.x = entry.mesh.position.x - sprite.width * 0.5 - this.player_sprite.width * 0.5 * ppr;
+			}
+
+			let ppl = 0.7;
+			entry = this.has_trait_at_player('block_sides',
+				-this.player_sprite.width * 0.5 * ppr,
+				-this.player_sprite.width * 0.5 * ppr + 1,
+				0.5, this.player_sprite.height - 1);
+			if (entry) {
+				let sprite = this.data.sprites[entry.sprite_index];
+				this.player_mesh.position.x = entry.mesh.position.x + sprite.width * 0.5 + this.player_sprite.width * 0.5 * ppr;
+			}
+
+
+			// let camera follow player
 			let safe_zone_x0 = this.player_mesh.position.x - (this.width / 2 / scale) * this.screen_safe_zone_x;
 			let safe_zone_x1 = this.player_mesh.position.x + (this.width / 2 / scale) * this.screen_safe_zone_x;
 			let safe_zone_y0 = this.player_mesh.position.y - (this.height / 2 / scale) * this.screen_safe_zone_y;

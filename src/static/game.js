@@ -59,6 +59,7 @@ class Game {
         this.data.properties.title ??= '';
         this.data.properties.author ??= '';
         this.data.properties.screen_pixel_height ??= 240.0;
+        this.data.properties.gravity ??= 0.5;
         this.data.parent ??= null;
         this.data.sprites ??= [];
         if (this.data.sprites.length === 0) {
@@ -310,6 +311,14 @@ class Game {
             get: () => self.data.properties.screen_pixel_height,
             set: (x) => {
                 self.data.properties.screen_pixel_height = parseFloat(x);
+            },
+        });
+        new NumberWidget({
+            container: $('#game-settings-here'),
+            label: 'Gravitation:',
+            get: () => self.data.properties.gravity,
+            set: (x) => {
+                self.data.properties.gravity = parseFloat(x);
             },
         });
         if (typeof(this.data.parent) !== 'undefined') {
