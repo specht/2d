@@ -5,6 +5,110 @@ let KEY_LEFT = 'left';
 let KEY_RIGHT = 'right';
 let KEY_JUMP = 'jump';
 
+class TouchControl {
+    constructor(options) {
+        this.options = options;
+        this.bg_element = $('<div>');
+        this.bg_element.css('position', 'absolute').css('width', options.radius).css('height', options.radius).css('border-radius', options.radius);
+        this.bg_element.css('background-color', 'rgba(0,0,0,0.5)');
+        this.bg_element.css('border', '2px solid #444');
+        this.bg_element.css(options.css);
+		this.fg_element = $('<div>');
+        this.fg_element.css('position', 'absolute').css('width', options.radius).css('height', options.radius).css('border-radius', options.radius);
+        // this.fg_element.css('border', '1px solid green');
+		this.fg_element.css('left', '50%');
+		this.fg_element.css('top', '50%');
+		this.fg_element.css('transform', 'translate(-50%, -50%) scale(0.7) translate(0px, 0px)');
+        this.fg_element.css('background-color', 'rgba(255,255,255,0.5)');
+		this.fg_element.css('border', '3px solid #fff');
+		this.bg_element.append(this.fg_element);
+        options.element.append(this.bg_element);
+		let self = this;
+		this.bg_element.on('touchstart', function(e) {
+			self.handle_touch(e);
+		});
+		this.bg_element.on('touchmove', function(e) {
+			self.handle_touch(e);
+		});
+		this.bg_element.on('touchend touchcancel', function(e) {
+			self.fg_element.css('transform', `translate(-50%, -50%) scale(0.7) translate(0px, 0px)`);
+			self.options.game.pressed_keys[KEY_RIGHT] = false;
+			self.options.game.pressed_keys[KEY_LEFT] = false;
+			self.options.game.pressed_keys[KEY_UP] = false;
+			self.options.game.pressed_keys[KEY_DOWN] = false;
+		});
+    }
+
+	handle_touch(e) {
+		let self = this;
+		let touch = e.touches[0];
+		let width = self.bg_element.width();
+		let height = self.bg_element.height();
+		let dx = (touch.clientX - self.bg_element.position().left - width / 2) / (width / 2);
+		let dy = (touch.clientY - self.bg_element.position().top - height / 2) / (height / 2);
+		let r = Math.sqrt(dx * dx + dy * dy);
+		let fr = r;
+		if (fr > 1.0)
+			fr = 1.0;
+		dx *= fr / r;
+		dy *= fr / r;
+		let phi = Math.atan2(dy, dx) / Math.PI * 180;
+		self.fg_element.css('transform', `translate(-50%, -50%) scale(0.7) translate(${dx * (width / 2)}px, ${dy * (height / 2)}px)`);
+		self.options.game.pressed_keys[KEY_RIGHT] = (phi > -60.0 && phi < 60.0);
+		self.options.game.pressed_keys[KEY_LEFT] = (phi > 120.0 || phi < -120.0);
+	}
+}
+
+class TouchButton {
+    constructor(options) {
+        this.options = options;
+        this.bg_element = $('<div>');
+        this.bg_element.css('position', 'absolute').css('width', options.radius).css('height', options.radius).css('border-radius', options.radius);
+        this.bg_element.css('background-color', 'rgba(0,0,0,0.5)');
+        this.bg_element.css('border', '2px solid #444');
+        this.bg_element.css(options.css);
+		this.fg_element = $('<div>');
+        this.fg_element.css('position', 'absolute').css('width', options.radius).css('height', options.radius).css('border-radius', options.radius);
+        // this.fg_element.css('border', '1px solid green');
+		this.fg_element.css('left', '50%');
+		this.fg_element.css('top', '50%');
+		this.fg_element.css('transform', 'translate(-50%, -50%) scale(0.7) translate(0px, 0px)');
+        this.fg_element.css('background-color', 'rgba(255,255,255,0.5)');
+		this.fg_element.css('border', '3px solid #fff');
+		this.bg_element.append(this.fg_element);
+        options.element.append(this.bg_element);
+		let self = this;
+		this.bg_element.on('touchstart', function(e) {
+			self.handle_touch(e);
+		});
+		this.bg_element.on('touchmove', function(e) {
+			self.handle_touch(e);
+		});
+		this.bg_element.on('touchend touchcancel', function(e) {
+			self.fg_element.css('transform', `translate(-50%, -50%) scale(0.7) translate(0px, 0px)`);
+			self.options.game.pressed_keys[KEY_JUMP] = false;
+		});
+    }
+
+	handle_touch(e) {
+		let self = this;
+		let touch = e.touches[0];
+		let width = self.bg_element.width();
+		let height = self.bg_element.height();
+		let dx = (touch.clientX - self.bg_element.position().left - width / 2) / (width / 2);
+		let dy = (touch.clientY - self.bg_element.position().top - height / 2) / (height / 2);
+		let r = Math.sqrt(dx * dx + dy * dy);
+		let fr = r;
+		if (fr > 0.0)
+			fr = 0.0;
+		dx *= fr / r;
+		dy *= fr / r;
+		let phi = Math.atan2(dy, dx) / Math.PI * 180;
+		self.fg_element.css('transform', `translate(-50%, -50%) scale(0.7) translate(${dx * (width / 2)}px, ${dy * (height / 2)}px)`);
+		self.options.game.pressed_keys[KEY_JUMP] = true;
+	}
+}
+
 class Game {
 	constructor() {
 		let self = this;
@@ -30,6 +134,28 @@ class Game {
 		});
 		window.addEventListener('keyup', (e) => {
 			this.handle_key_up(e.code)
+		});
+		window.addEventListener('touchstart', (e) => {
+			$('#touch_controls').show();
+		});
+
+		new TouchControl({
+			element: $('#touch_controls'),
+			game: self,
+			radius: '20vh',
+			css: {
+				left: '10vh',
+				bottom: '10vh',
+			},
+		});
+		new TouchButton({
+			element: $('#touch_controls'),
+			game: self,
+			radius: '20vh',
+			css: {
+				right: '10vh',
+				bottom: '10vh',
+			},
 		});
 	}
 
@@ -63,8 +189,10 @@ class Game {
 		$('#game_title').text(this.data.properties.title);
 		$('#game_author').text(this.data.properties.author);
 		this.setup();
-		if (window.location.host.substring(0, 9) === 'localhost')
+		if (window.location.host.substring(0, 9) === 'localhost') {
 			this.run();
+			$('#touch_controls').show();
+		}
 	}
 
 	setup() {
@@ -414,10 +542,10 @@ class Game {
 				this.player_mesh.position.x += this.player_traits.vrun;
 			if (this.pressed_keys[KEY_LEFT])
 				this.player_mesh.position.x -= this.player_traits.vrun;
-			if (this.pressed_keys[KEY_UP])
-				this.player_mesh.position.y += this.player_traits.vrun;
-			if (this.pressed_keys[KEY_DOWN])
-				this.player_mesh.position.y -= this.player_traits.vrun;
+			// if (this.pressed_keys[KEY_UP])
+			// 	this.player_mesh.position.y += this.player_traits.vrun;
+			// if (this.pressed_keys[KEY_DOWN])
+			// 	this.player_mesh.position.y -= this.player_traits.vrun;
 
 			this.player_mesh.position.y += this.player_vy;
 
@@ -504,9 +632,8 @@ class Game {
 	}
 };
 
-window.game = new Game();
-
 document.addEventListener("DOMContentLoaded", function (event) {
+	window.game = new Game();
 	window.game.reset();
 	$('#mi_start').click(function(e) {
 		window.game.run();

@@ -81,7 +81,13 @@
         right: 0;
         bottom: 0;
       }
-
+      #touch_controls {
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+      }
     </style>
     <script src="three.min.js"></script>
     <script src="jquery-3.6.0.min.js"></script>
@@ -155,6 +161,10 @@
     <div class="play_container">
       <div class="play_container_inner">
         <div id="screen"></div>
+        <div id="touch_controls" style="display: none;">
+          <!-- <div id="touch_move"></div> -->
+          <!-- <div id="touch_jump"></div> -->
+        </div>
         <div id="overlay">
           <div class="poster">
             <div id='game_title'></div>
