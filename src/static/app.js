@@ -235,7 +235,7 @@ class Game {
 			}
 			this.layers.push(game_layer);
 		}
-		console.log(this.minx, this.maxx, this.miny, this.maxy);
+		// console.log(this.minx, this.maxx, this.miny, this.maxy);
 
 		for (let i = this.layers.length - 1; i >= 0; i--)
 			this.scene.add(this.layers[i]);
@@ -309,8 +309,8 @@ class Game {
 		if (this.maxy - this.miny > this.screen_pixel_height) {
 			if (this.camera.bottom < this.miny)
 				this.camera_y += (this.miny - this.camera.bottom);
-			if (this.camera.top > this.maxy)
-				this.camera_y += (this.maxy - this.camera.top);
+			// if (this.camera.top > this.maxy)
+			// 	this.camera_y += (this.maxy - this.camera.top);
 		} else {
 			this.camera_y = (this.miny + this.maxy) * 0.5;
 		}
@@ -404,6 +404,12 @@ class Game {
 	simulation_step() {
 		let scale = this.height / this.screen_pixel_height;
 		if (this.player_mesh !== null) {
+			if (this.has_trait_at_player('block_above', -0.5, 0.5, -0.1, 0)) {
+				this.player_vy = 0;
+				if (this.pressed_keys[KEY_JUMP])
+					this.player_vy = this.player_sprite.traits.actor.vjump;
+			}
+
 			if (this.pressed_keys[KEY_RIGHT])
 				this.player_mesh.position.x += this.player_traits.vrun;
 			if (this.pressed_keys[KEY_LEFT])
@@ -412,12 +418,6 @@ class Game {
 				this.player_mesh.position.y += this.player_traits.vrun;
 			if (this.pressed_keys[KEY_DOWN])
 				this.player_mesh.position.y -= this.player_traits.vrun;
-
-			if (this.has_trait_at_player('block_above', -0.5, 0.5, -0.1, 0)) {
-				this.player_vy = 0;
-				if (this.pressed_keys[KEY_JUMP])
-					this.player_vy = this.player_sprite.traits.actor.vjump;
-			}
 
 			this.player_mesh.position.y += this.player_vy;
 
@@ -430,13 +430,27 @@ class Game {
 					this.player_vy = 12;
 			}
 
+			let ppu = 1.0;
+			let ppl = 0.7;
+			let ppr = 0.7;
+
 			let entry = this.has_trait_at_player('block_above', -0.5, 0.5, 0.1, 1.1);
 			if (entry) {
 				let sprite = this.data.sprites[entry.sprite_index];
 				this.player_mesh.position.y = entry.mesh.position.y + sprite.height;
 			}
 
-			let ppr = 0.7;
+			if (this.player_vy > 0) {
+				entry = this.has_trait_at_player('block_below', -0.5, 0.5,
+					this.player_sprite.height * ppu + 0.1,
+					this.player_sprite.height * ppu + 1.1);
+				if (entry) {
+					let sprite = this.data.sprites[entry.sprite_index];
+					this.player_mesh.position.y = entry.mesh.position.y - this.player_sprite.height * ppu;
+					this.player_vy = 0;
+				}
+			}
+
 			entry = this.has_trait_at_player('block_sides',
 				this.player_sprite.width * 0.5 * ppr - 1,
 				this.player_sprite.width * 0.5 * ppr,
@@ -446,14 +460,13 @@ class Game {
 				this.player_mesh.position.x = entry.mesh.position.x - sprite.width * 0.5 - this.player_sprite.width * 0.5 * ppr;
 			}
 
-			let ppl = 0.7;
 			entry = this.has_trait_at_player('block_sides',
-				-this.player_sprite.width * 0.5 * ppr,
-				-this.player_sprite.width * 0.5 * ppr + 1,
+				-this.player_sprite.width * 0.5 * ppl,
+				-this.player_sprite.width * 0.5 * ppl + 1,
 				0.5, this.player_sprite.height - 1);
 			if (entry) {
 				let sprite = this.data.sprites[entry.sprite_index];
-				this.player_mesh.position.x = entry.mesh.position.x + sprite.width * 0.5 + this.player_sprite.width * 0.5 * ppr;
+				this.player_mesh.position.x = entry.mesh.position.x + sprite.width * 0.5 + this.player_sprite.width * 0.5 * ppl;
 			}
 
 

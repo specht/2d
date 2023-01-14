@@ -30,4 +30,7 @@ var TRAITS = {
     block_sides: {
         label: 'man kann nicht von den Seiten reinlaufen',
     },
+    block_below: {
+        label: 'man kann nicht von unten reinspringen',
+    },
 };

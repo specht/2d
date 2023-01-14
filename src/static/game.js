@@ -399,6 +399,13 @@ class Game {
                                     self.build_traits_menu();
                                 },
                             },
+                            {
+                                label: 'man kann nicht von unten reinspringen',
+                                callback: () => {
+                                    self.add_trait('block_below');
+                                    self.build_traits_menu();
+                                },
+                            },
                         ],
                     },
                 ],
