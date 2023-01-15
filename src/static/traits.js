@@ -1,4 +1,4 @@
-var SPRITE_TRAITS = [
+var SPRITE_TRAITS_ORDER = [
     [
         'Spielfigur',
         [
@@ -16,16 +16,16 @@ var SPRITE_TRAITS = [
 
 ];
 
-var STATE_TRAITS = {
+var STATE_TRAITS_ORDER = {
     actor: [
-        'actor_front',
-        'actor_back',
-        'actor_left',
-        'actor_right',
+        ['Aussehen', ['front', 'back', 'left', 'right']],
+        ['Laufen', ['walk_front', 'walk_back', 'walk_left', 'walk_right']],
+        ['Springen', ['jump_front', 'jump_back', 'jump_left', 'jump_right']],
+        ['Fallen', ['fall_front', 'fall_back', 'fall_left', 'fall_right']],
     ],
 };
 
-var TRAITS = {
+var SPRITE_TRAITS = {
     actor: {
         label: 'Spielfigur',
         properties: {
@@ -54,20 +54,6 @@ var TRAITS = {
                 default: true,
             },
         },
-        state_traits: {
-            actor_front: {
-                label: 'Spielfigur schaut nach vorn',
-            },
-            actor_back: {
-                label: 'Spielfigur schaut nach hinten',
-            },
-            actor_left: {
-                label: 'Spielfigur schaut nach links',
-            },
-            actor_right: {
-                label: 'Spielfigur schaut nach rechts',
-            },
-        },
     },
     block_above: {
         label: 'man kann nicht von oben reinfallen',
@@ -77,5 +63,26 @@ var TRAITS = {
     },
     block_below: {
         label: 'man kann nicht von unten reinspringen',
+    },
+};
+
+var STATE_TRAITS = {
+    actor: {
+        front: {label: 'Spielfigur schaut nach vorn'},
+        back: {label: 'Spielfigur schaut nach hinten'},
+        left: {label: 'Spielfigur schaut nach links'},
+        right: {label: 'Spielfigur schaut nach rechts'},
+        walk_front: {label: 'Spielfigur läuft nach vorn'},
+        walk_back: {label: 'Spielfigur läuft nach hinten'},
+        walk_left: {label: 'Spielfigur läuft nach links'},
+        walk_right: {label: 'Spielfigur läuft nach rechts'},
+        jump_front: {label: 'Spielfigur springt nach vorn'},
+        jump_back: {label: 'Spielfigur springt nach hinten'},
+        jump_left: {label: 'Spielfigur springt nach links'},
+        jump_right: {label: 'Spielfigur springt nach rechts'},
+        fall_front: {label: 'Spielfigur fällt nach vorn'},
+        fall_back: {label: 'Spielfigur fällt nach hinten'},
+        fall_left: {label: 'Spielfigur fällt nach links'},
+        fall_right: {label: 'Spielfigur fällt nach rechts'},
     },
 };

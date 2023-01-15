@@ -1149,6 +1149,7 @@ class Canvas {
                             // $(e).closest('.menu_state_item').parent().parent().find('.menu_state_item').removeClass('active');
                             // $(e).parent().addClass('active');
                         });
+                        self.game.build_state_traits_menu();
                     },
                     gen_new_item: () => {
                         self.game.data.sprites[self.sprite_index].states.push({});

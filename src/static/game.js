@@ -78,10 +78,14 @@ class Game {
             // this.data.sprites[si].properties.hitboxes ??= {};
             this.data.sprites[si].traits ??= {};
             for (let trait of Object.keys(this.data.sprites[si].traits)) {
-                let info = TRAITS[trait] ?? {};
+                let info = SPRITE_TRAITS[trait] ?? {};
                 for (let key in info.properties ?? {}) {
                     let property = info.properties[key];
                     this.data.sprites[si].traits[trait][key] ??= property.default;
+                }
+                for (let sti = 0; sti < this.data.sprites[si].states.length; sti++) {
+                    this.data.sprites[si].states[sti].traits ??= {};
+                    this.data.sprites[si].states[sti].traits[trait] ??= {};
                 }
             }
             this.data.sprites[si].states ??= [];
@@ -227,7 +231,7 @@ class Game {
                     // $(e).closest('.menu_sprite_item').parent().parent().find('.menu_sprite_item').removeClass('active');
                     // $(e).parent().addClass('active');
                 });
-                self.build_traits_menu();
+                self.build_sprite_traits_menu();
             },
             gen_item: (sprite, index) => {
                 let img = $('<img>');
@@ -353,7 +357,7 @@ class Game {
         }
     }
 
-    add_trait(trait) {
+    add_sprite_trait(trait) {
         let self = this;
         let si = canvas.sprite_index;
         // TODO: Check if this makes sense
@@ -361,7 +365,7 @@ class Game {
         self.fix_game_data();
     }
 
-    remove_trait(trait) {
+    remove_sprite_trait(trait) {
         let self = this;
         let si = canvas.sprite_index;
         // TODO: Check if this makes sense
@@ -369,52 +373,53 @@ class Game {
         self.fix_game_data();
     }
 
-    build_traits_submenu(traits) {
+    build_sprite_traits_submenu(traits) {
         let self = this;
         return traits.map(function(x) {
             if (typeof(x) === 'string')
                 return {
-                    label: TRAITS[x].label,
+                    label: SPRITE_TRAITS[x].label,
                     callback: () => {
-                        self.add_trait(x);
-                        self.build_traits_menu();
+                        self.add_sprite_trait(x);
+                        self.build_sprite_traits_menu();
                     }
                 };
             let d = {label: x[0]};
-            if ((!(x[0] in TRAITS)) && x.length > 1) {
-                d.children = self.build_traits_submenu(x[1]);
+            if ((!(x[0] in SPRITE_TRAITS)) && x.length > 1) {
+                d.children = self.build_sprite_traits_submenu(x[1]);
             }
             return d;
         });
     }
 
-    build_traits_menu() {
+    build_sprite_traits_menu() {
         let self = this;
-        let si = canvas.sprite_index;5
+        let si = canvas.sprite_index;
         $('#menu_sprite_properties').empty();
         $('#menu_sprite_properties_variable_part_following').nextAll().remove();
         let traits_menu = $('<div>').appendTo($('#menu_sprite_properties'))
         let traits_menu_data = [];
-        traits_menu_data.push({label: 'Eigenschaft hinzufügen', children: this.build_traits_submenu(SPRITE_TRAITS)});
+        traits_menu_data.push({label: 'Eigenschaft hinzufügen', children: this.build_sprite_traits_submenu(SPRITE_TRAITS_ORDER)});
         setupDropdownMenu(traits_menu, traits_menu_data);
         let keys = Object.keys(self.data.sprites[si].traits);
         for (let i = keys.length - 1; i >= 0; i--) {
             let trait = keys[i];
-            this.add_trait_controls(trait, $('#menu_sprite_properties_variable_part_following'));
+            this.add_sprite_trait_controls(trait, $('#menu_sprite_properties_variable_part_following'));
         }
+        this.build_state_traits_menu();
     }
 
-    add_trait_controls(trait, element) {
+    add_sprite_trait_controls(trait, element) {
         let self = this;
         let si = canvas.sprite_index;
         let div = $(`<div class='menu'>`);
         let bu_delete = $(`<button class='btn'>`).append($(`<i class='fa fa-trash'>`));
         bu_delete.click(function(e) {
-            self.remove_trait(trait);
-            self.build_traits_menu();
+            self.remove_sprite_trait(trait);
+            self.build_sprite_traits_menu();
         });
-        let title = $(`<h4>`).append($('<span>').text(TRAITS[trait].label)).append(bu_delete).appendTo(div);
-        let info = TRAITS[trait] ?? {};
+        let title = $(`<h4>`).append($('<span>').text(SPRITE_TRAITS[trait].label)).append(bu_delete).appendTo(div);
+        let info = SPRITE_TRAITS[trait] ?? {};
         for (let key in info.properties ?? {}) {
             let property = info.properties[key];
             if (property.type === 'float') {
@@ -442,4 +447,112 @@ class Game {
         div.insertAfter(element);
     }
 
+    add_state_trait(sprite_trait, trait) {
+        let self = this;
+        let si = canvas.sprite_index;
+        let sti = canvas.state_index;
+        // TODO: Check if this makes sense
+        self.data.sprites[si].states[sti].traits ??= {};
+        self.data.sprites[si].states[sti].traits[sprite_trait] ??= {};
+        self.data.sprites[si].states[sti].traits[sprite_trait][trait] ??= {};
+        self.fix_game_data();
+    }
+
+    remove_state_trait(sprite_trait, trait) {
+        let self = this;
+        let si = canvas.sprite_index;
+        let sti = canvas.state_index;
+        // TODO: Check if this makes sense
+        delete self.data.sprites[si].states[sti].traits[sprite_trait][trait];
+        self.fix_game_data();
+    }
+
+    build_state_traits_submenu(sprite_trait, traits) {
+        let self = this;
+        console.log(traits);
+        return traits.map(function(x) {
+            if (typeof(x) === 'string')
+                return {
+                    label: STATE_TRAITS[sprite_trait][x].label,
+                    callback: () => {
+                        self.add_state_trait(sprite_trait, x);
+                        self.build_state_traits_menu();
+                    }
+                };
+            let d = {label: x[0]};
+            if ((!(x[0] in STATE_TRAITS)) && x.length > 1) {
+                console.log(x);
+                d.children = self.build_state_traits_submenu(sprite_trait, x[1]);
+            }
+            return d;
+        });
+    }
+
+    build_state_traits_menu() {
+        let self = this;
+        let si = canvas.sprite_index;
+        let sti = canvas.state_index;
+        $('#menu_state_properties').empty();
+        $('#menu_state_properties_variable_part_following').nextAll().remove();
+        let traits_menu = $('<div>').appendTo($('#menu_state_properties'))
+        let traits_menu_data = [];
+        let children = [];
+        for (let sprite_trait of Object.keys(self.data.sprites[si].traits)) {
+            if (sprite_trait in STATE_TRAITS_ORDER)
+                children.push({label: SPRITE_TRAITS[sprite_trait].label, children: this.build_state_traits_submenu(sprite_trait, STATE_TRAITS_ORDER[sprite_trait])});
+        }
+        if (children.length === 0) return;
+        traits_menu_data.push({label: 'Eigenschaft hinzufügen', children: children});
+        setupDropdownMenu(traits_menu, traits_menu_data);
+
+        let sprite_traits = Object.keys(self.data.sprites[si].traits);
+        for (let i = sprite_traits.length - 1; i >= 0; i--) {
+            let sprite_trait = sprite_traits[i];
+            let keys = Object.keys(self.data.sprites[si].states[sti].traits[sprite_trait]);
+            for (let i = keys.length - 1; i >= 0; i--) {
+                let trait = keys[i];
+                this.add_state_trait_controls(sprite_trait, trait, $('#menu_state_properties_variable_part_following'));
+            }
+        }
+
+    }
+
+    add_state_trait_controls(sprite_trait, trait, element) {
+        let self = this;
+        let si = canvas.sprite_index;
+        let sti = canvas.state_index;
+        let div = $(`<div class='menu'>`);
+        let bu_delete = $(`<button class='btn'>`).append($(`<i class='fa fa-trash'>`));
+        bu_delete.click(function(e) {
+            self.remove_state_trait(sprite_trait, trait);
+            self.build_state_traits_menu();
+        });
+        let title = $(`<h4>`).append($('<span>').text(STATE_TRAITS[sprite_trait][trait].label)).append(bu_delete).appendTo(div);
+        // let info = SPRITE_TRAITS[trait] ?? {};
+        // for (let key in info.properties ?? {}) {
+        //     let property = info.properties[key];
+        //     if (property.type === 'float') {
+        //         new NumberWidget({
+        //             container: div,
+        //             label: property.label ?? key,
+        //             min: property.min ?? null,
+        //             max: property.max ?? null,
+        //             get: () => self.data.sprites[si].traits[trait][key],
+        //             set: (x) => {
+        //                 self.data.sprites[si].traits[trait][key] = x;
+        //             },
+        //         });
+        //     } else if (property.type === 'bool') {
+        //         new CheckboxWidget({
+        //             container: div,
+        //             label: property.label ?? key,
+        //             get: () => self.data.sprites[si].traits[trait][key],
+        //             set: (x) => {
+        //                 self.data.sprites[si].traits[trait][key] = x;
+        //             },
+        //         });
+        //     }
+        // }
+        div.insertAfter(element);
+    }
 }
