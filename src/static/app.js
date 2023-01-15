@@ -56,6 +56,8 @@ class TouchControl {
 		self.fg_element.css('transform', `translate(-50%, -50%) scale(0.7) translate(${dx * (width / 2)}px, ${dy * (height / 2)}px)`);
 		self.options.game.pressed_keys[KEY_RIGHT] = (phi > -60.0 && phi < 60.0);
 		self.options.game.pressed_keys[KEY_LEFT] = (phi > 120.0 || phi < -120.0);
+		self.options.game.pressed_keys[KEY_UP] = (phi > 30.0 || phi < 150.0);
+		self.options.game.pressed_keys[KEY_DOWN] = (phi > 210.0 || phi < 330.0);
 	}
 }
 
