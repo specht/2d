@@ -554,10 +554,29 @@ class NumberWidget {
         this.input.keydown(function(e) { self.update(); });
         this.input.keyup(function(e) { self.update(); });
         this.input.change(function(e) { self.update(); });
+        this.input.focus(function(e) { self.focus(); });
+        this.input.blur(function(e) { self.blur(); });
     }
 
     update() {
         this.data.set(this.input.val().trim());
+    }
+
+    focus() {
+        this.old_value = this.data.get();
+    }
+
+    blur() {
+        let v = this.input.val().replace(',', '.');
+        v = parseFloat(v);
+        if (isNaN(v))
+            v = this.old_value;
+        if (this.data.min !== null && v < this.data.min)
+            v = this.data.min;
+        if (this.data.max !== null && v > this.data.max)
+            v = this.data.max;
+        this.input.val(v);
+        this.data.set(v);
     }
 }
 

@@ -191,7 +191,7 @@ class Game {
 		this.setup();
 		if (window.location.host.substring(0, 9) === 'localhost') {
 			this.run();
-			$('#touch_controls').show();
+			// $('#touch_controls').show();
 		}
 	}
 

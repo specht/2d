@@ -308,17 +308,21 @@ class Game {
         new NumberWidget({
             container: $('#game-settings-here'),
             label: 'Höhe in Pixeln:',
+            min: 16,
+            max: 1080,
             get: () => self.data.properties.screen_pixel_height,
             set: (x) => {
-                self.data.properties.screen_pixel_height = parseFloat(x);
+                self.data.properties.screen_pixel_height = x;
             },
         });
         new NumberWidget({
             container: $('#game-settings-here'),
             label: 'Gravitation:',
+            min: 0,
+            max: 100,
             get: () => self.data.properties.gravity,
             set: (x) => {
-                self.data.properties.gravity = parseFloat(x);
+                self.data.properties.gravity = x;
             },
         });
         if (typeof(this.data.parent) !== 'undefined') {
@@ -368,7 +372,6 @@ class Game {
     build_traits_submenu(traits) {
         let self = this;
         return traits.map(function(x) {
-            console.log(typeof(x));
             if (typeof(x) === 'string')
                 return {
                     label: TRAITS[x].label,
@@ -418,9 +421,11 @@ class Game {
                 new NumberWidget({
                     container: div,
                     label: property.label ?? key,
+                    min: property.min ?? null,
+                    max: property.max ?? null,
                     get: () => self.data.sprites[si].traits[trait][key],
                     set: (x) => {
-                        self.data.sprites[si].traits[trait][key] = parseFloat(x);
+                        self.data.sprites[si].traits[trait][key] = x;
                     },
                 });
             } else if (property.type === 'bool') {

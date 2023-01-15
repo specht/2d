@@ -540,7 +540,7 @@ class LevelEditor {
             max: 100,
             get: () => self.game.data.levels[self.level_index].layers[self.layer_index].properties.parallax,
             set: (x) => {
-                self.game.data.levels[self.level_index].layers[self.layer_index].properties.parallax = parseFloat(x);
+                self.game.data.levels[self.level_index].layers[self.layer_index].properties.parallax = x;
                 // self.update_layer_label();
                 self.refresh();
                 self.render();
