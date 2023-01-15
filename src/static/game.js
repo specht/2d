@@ -365,52 +365,35 @@ class Game {
         self.fix_game_data();
     }
 
+    build_traits_submenu(traits) {
+        let self = this;
+        return traits.map(function(x) {
+            console.log(typeof(x));
+            if (typeof(x) === 'string')
+                return {
+                    label: TRAITS[x].label,
+                    callback: () => {
+                        self.add_trait(x);
+                        self.build_traits_menu();
+                    }
+                };
+            let d = {label: x[0]};
+            if ((!(x[0] in TRAITS)) && x.length > 1) {
+                d.children = self.build_traits_submenu(x[1]);
+            }
+            return d;
+        });
+    }
+
     build_traits_menu() {
         let self = this;
-        let si = canvas.sprite_index;
+        let si = canvas.sprite_index;5
         $('#menu_sprite_properties').empty();
         $('#menu_sprite_properties_variable_part_following').nextAll().remove();
         let traits_menu = $('<div>').appendTo($('#menu_sprite_properties'))
-        setupDropdownMenu(traits_menu, [
-            {
-                label: 'Eigenschaft hinzufügen',
-                children: [
-                    {
-                        label: 'Spielfigur',
-                        callback: () => {
-                            self.add_trait('actor');
-                            self.build_traits_menu();
-                        },
-                    },
-                    {
-                        label: 'Blöcke',
-                        children: [
-                            {
-                                label: 'man kann nicht von oben reinfallen',
-                                callback: () => {
-                                    self.add_trait('block_above');
-                                    self.build_traits_menu();
-                                },
-                            },
-                            {
-                                label: 'man kann nicht von der Seite reinlaufen',
-                                callback: () => {
-                                    self.add_trait('block_sides');
-                                    self.build_traits_menu();
-                                },
-                            },
-                            {
-                                label: 'man kann nicht von unten reinspringen',
-                                callback: () => {
-                                    self.add_trait('block_below');
-                                    self.build_traits_menu();
-                                },
-                            },
-                        ],
-                    },
-                ],
-            },
-        ]);
+        let traits_menu_data = [];
+        traits_menu_data.push({label: 'Eigenschaft hinzufügen', children: this.build_traits_submenu(SPRITE_TRAITS)});
+        setupDropdownMenu(traits_menu, traits_menu_data);
         let keys = Object.keys(self.data.sprites[si].traits);
         for (let i = keys.length - 1; i >= 0; i--) {
             let trait = keys[i];

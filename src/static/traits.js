@@ -1,3 +1,21 @@
+var SPRITE_TRAITS = [
+    [
+        'Spielfigur',
+        [
+            'actor',
+        ]
+    ],
+    [
+        'Blöcke',
+        [
+            'block_above',
+            'block_sides',
+            'block_below',
+        ]
+    ],
+
+];
+
 var TRAITS = {
     actor: {
         label: 'Spielfigur',
