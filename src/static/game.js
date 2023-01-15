@@ -103,7 +103,7 @@ class Game {
                 for (let fi = 0; fi < this.data.sprites[si].states[sti].frames.length; fi++) {
                     // this.data.sprites[si].states[sti].frames[fi].properties ??= {};
                     // this.data.sprites[si].states[sti].frames[fi].properties.hitboxes ??= {};
-                    this.data.sprites[si].states[sti].frames[fi].src ??= createDataUrlForImageSize(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+                    this.data.sprites[si].states[sti].frames[fi].src ??= createDataUrlForImageSize(this.data.sprites[si].width, this.data.sprites[si].height);
                 }
             }
         }
@@ -469,7 +469,7 @@ class Game {
 
     build_state_traits_submenu(sprite_trait, traits) {
         let self = this;
-        console.log(traits);
+        // console.log(traits);
         return traits.map(function(x) {
             if (typeof(x) === 'string')
                 return {
@@ -481,7 +481,7 @@ class Game {
                 };
             let d = {label: x[0]};
             if ((!(x[0] in STATE_TRAITS)) && x.length > 1) {
-                console.log(x);
+                // console.log(x);
                 d.children = self.build_state_traits_submenu(sprite_trait, x[1]);
             }
             return d;

@@ -13,7 +13,12 @@ var SPRITE_TRAITS_ORDER = [
             'block_below',
         ],
     ],
-
+    [
+        'Leitern',
+        [
+            'ladder',
+        ],
+    ],
 ];
 
 var STATE_TRAITS_ORDER = {
@@ -63,6 +68,9 @@ var SPRITE_TRAITS = {
     },
     block_below: {
         label: 'man kann nicht von unten reinspringen',
+    },
+    ladder: {
+        label: 'man kann dran hoch- und runterklettern',
     },
 };
 

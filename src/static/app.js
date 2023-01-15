@@ -506,7 +506,9 @@ class Game {
 			this.pressed_keys[KEY_JUMP] = false;
 	}
 
-	has_trait_at_player(trait, dx0, dx1, dy0, dy1) {
+	has_trait_at_player(trait_or_traits, dx0, dx1, dy0, dy1) {
+		if (typeof(trait_or_traits) === 'string')
+			trait_or_traits = [trait_or_traits];
 		let x0 = this.player_mesh.position.x + dx0;
 		let x1 = this.player_mesh.position.x + dx1;
 		let y0 = this.player_mesh.position.y + dy0;
@@ -522,8 +524,9 @@ class Game {
 		for (let entry_index of result) {
 			let entry = this.active_level_sprites[entry_index];
 			let sprite = this.data.sprites[entry.sprite_index];
-			if (trait in sprite.traits)
-				return entry;
+			for (let trait of trait_or_traits)
+				if (trait in sprite.traits)
+					return entry;
 		}
 		return null;
 	}
@@ -532,30 +535,40 @@ class Game {
 	simulation_step() {
 		let scale = this.height / this.screen_pixel_height;
 		if (this.player_mesh !== null) {
-			if (this.has_trait_at_player('block_above', -0.5, 0.5, -0.1, 0)) {
+
+			// if we're standing, we can jump
+			if (this.has_trait_at_player(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0)) {
 				this.player_vy = 0;
 				if (this.pressed_keys[KEY_JUMP])
 					this.player_vy = this.player_sprite.traits.actor.vjump;
 			}
 
+			// move left / right
 			if (this.pressed_keys[KEY_RIGHT])
 				this.player_mesh.position.x += this.player_traits.vrun;
 			if (this.pressed_keys[KEY_LEFT])
 				this.player_mesh.position.x -= this.player_traits.vrun;
-			// if (this.pressed_keys[KEY_UP])
-			// 	this.player_mesh.position.y += this.player_traits.vrun;
-			// if (this.pressed_keys[KEY_DOWN])
-			// 	this.player_mesh.position.y -= this.player_traits.vrun;
 
-			this.player_mesh.position.y += this.player_vy;
+			if (this.has_trait_at_player('ladder', -0.5, 0.5, 0, 1.0)) {
+				if (this.pressed_keys[KEY_UP]) {
+					this.player_mesh.position.y += this.player_traits.vrun;
+					while (!this.has_trait_at_player('ladder', -0.5, 0.5, 0.0, 1.0)) {
+						this.player_mesh.position.y -= 1;
+					}
+				}
+				if (this.pressed_keys[KEY_DOWN])
+					this.player_mesh.position.y -= this.player_traits.vrun;
+				if (this.player_vy > 0)
+					this.player_mesh.position.y += this.player_vy;
+			} else {
+				this.player_mesh.position.y += this.player_vy;
+			}
 
-			this.player_vy -= this.data.properties.gravity;
-			if (this.player_vy < -10)
-				this.player_vy = -10;
-
-			if (this.has_trait_at_player('block_above', -0.5, 0.5, -0.1, 0)) {
-				if (this.pressed_keys[KEY_JUMP])
-					this.player_vy = 12;
+			// decrease y velocity because of gravity
+			if (!this.has_trait_at_player(['block_above', 'ladder'], -0.5, 0.5, -1.0, 0.0)) {
+				this.player_vy -= this.data.properties.gravity;
+				if (this.player_vy < -10)
+					this.player_vy = -10;
 			}
 
 			let ppu = 1.0;
