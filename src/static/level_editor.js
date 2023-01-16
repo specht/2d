@@ -360,6 +360,15 @@ class LevelEditor {
                     },
                 });
 
+                new LineEditWidget({
+                    container: $('#menu_level_properties'),
+                    label: 'Youtube',
+                    get: () => self.game.data.levels[self.level_index].properties.yt_tag,
+                    set: (x) => {
+                        self.game.data.levels[self.level_index].properties.yt_tag = x;
+                    },
+                });
+
                 new DragAndDropWidget({
                     game: self.game,
                     container: $('#menu_layers'),

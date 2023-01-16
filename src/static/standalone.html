@@ -95,6 +95,7 @@
     <script src="api.js?#{@@cache_buster}"></script>
     <script src="interval_tree.js?#{@@cache_buster}"></script>
     <script src="app.js?#{@@cache_buster}"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script type="x-shader/x-vertex" id="vertex-shader">
         varying vec2 vuv; void main() { vuv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
     </script>
@@ -158,6 +159,7 @@
     </script>
   </head>
   <body>
+    <div id='yt_placeholder'></div>
     <div class="play_container">
       <div class="play_container_inner">
         <div id="screen"></div>

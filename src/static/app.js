@@ -4,6 +4,7 @@ let KEY_DOWN = 'down';
 let KEY_LEFT = 'left';
 let KEY_RIGHT = 'right';
 let KEY_JUMP = 'jump';
+window.yt_player = null;
 
 class Game {
 	constructor() {
@@ -275,10 +276,15 @@ class Game {
 	}
 
 	run() {
+
+		if (window.yt_player !== null) {
+			window.yt_player.loadVideoById('QkIoP2qBthI');
+		}
 		if (this.running) return;
 		this.running = true;
 		$('#overlay').fadeOut();
 		$('#screen').fadeIn();
+
 		requestAnimationFrame((t) => this.render());
 	}
 
@@ -648,7 +654,20 @@ class TouchButton {
 document.addEventListener("DOMContentLoaded", function (event) {
 	window.game = new Game();
 	window.game.reset();
+
 	$('#mi_start').click(function(e) {
 		window.game.run();
 	});
 });
+
+function onYouTubeIframeAPIReady() {
+    window.yt_player = new YT.Player('yt_placeholder', {
+        height: '390',
+        width: '640',
+        // videoId: vars.game_start_options.video_id,
+        // events: {
+        //     'onReady': onPlayerReady,
+        //     'onStateChange': onPlayerStateChange
+        // }
+    });
+}

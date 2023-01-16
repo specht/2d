@@ -115,6 +115,7 @@ class Game {
             this.data.levels[li].properties.name ??= '';
             this.data.levels[li].properties.use_level ??= true;
             this.data.levels[li].properties.background_color ??= '#000000';
+            this.data.levels[li].properties.yt_tag ??= '';
             this.data.levels[li].layers ??= [];
             if (this.data.levels[li].layers.length === 0)
                 this.data.levels[li].layers.push({});
