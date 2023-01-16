@@ -95,8 +95,8 @@ class Game {
             for (let sti = 0; sti < this.data.sprites[si].states.length; sti++) {
                 this.data.sprites[si].states[sti].properties ??= {};
                 this.data.sprites[si].states[sti].properties.name ??= '';
+                this.data.sprites[si].states[sti].properties.fps ??= 8;
                 // this.data.sprites[si].states[sti].properties.hitboxes ??= {};
-                // this.data.sprites[si].states[sti].properties.fps ??= 8;
                 this.data.sprites[si].states[sti].frames ??= [];
                 if (this.data.sprites[si].states[sti].frames.length === 0)
                     this.data.sprites[si].states[sti].frames.push({});
@@ -507,7 +507,16 @@ class Game {
                 canvas.update_state_label();
             },
         });
-
+        new NumberWidget({
+            container: $('#menu_state_properties'),
+            label: 'Framerate',
+            min: 1,
+            max: 60,
+            get: () => self.data.sprites[si].states[sti].properties.fps,
+            set: (x) => {
+                self.data.sprites[si].states[sti].properties.fps = x;
+            },
+        });
 
         $('#menu_state_properties_variable_part_following').nextAll().remove();
         let traits_menu = $('<div>').appendTo($('#menu_state_properties'))
