@@ -542,6 +542,7 @@ class NumberWidget {
         data.max ??= null;
         data.step ??= 1;
         data.decimalPlaces ??= 0;
+        data.suffix ??= null;
         if (data.min !== null && !Array.isArray(data.min))
             data.min = [data.min];
         if (data.max !== null && !Array.isArray(data.max))
@@ -586,6 +587,8 @@ class NumberWidget {
             });
             this.input[i].blur(function(e) { self.blur(i); });
         }
+        if (this.data.suffix !== null)
+            subdiv.append($(`<span style='margin-left: 0.25em;'>`).text(this.data.suffix));
         div.append(subdiv);
         $(this.container).append(div);
     }

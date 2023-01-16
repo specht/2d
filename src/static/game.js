@@ -510,6 +510,8 @@ class Game {
         new NumberWidget({
             container: $('#menu_state_properties'),
             label: 'Framerate',
+            suffix: 'fps',
+            width: '1.8em',
             min: 1,
             max: 60,
             get: () => self.data.sprites[si].states[sti].properties.fps,
