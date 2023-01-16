@@ -497,9 +497,9 @@ class Game {
         let self = this;
         let si = canvas.sprite_index;
         let sti = canvas.state_index;
-        $('#menu_state_properties').empty();
+        $('#menu_state_properties_fixed').empty();
         new LineEditWidget({
-            container: $('#menu_state_properties'),
+            container: $('#menu_state_properties_fixed'),
             label: 'Titel',
             get: () => self.data.sprites[si].states[sti].properties.name,
             set: (x) => {
@@ -508,7 +508,7 @@ class Game {
             },
         });
         new NumberWidget({
-            container: $('#menu_state_properties'),
+            container: $('#menu_state_properties_fixed'),
             label: 'Framerate',
             suffix: 'fps',
             width: '1.8em',
@@ -520,6 +520,7 @@ class Game {
             },
         });
 
+        $('#menu_state_properties').empty();
         $('#menu_state_properties_variable_part_following').nextAll().remove();
         let traits_menu = $('<div>').appendTo($('#menu_state_properties'))
         let traits_menu_data = [];

@@ -23,7 +23,7 @@ var SPRITE_TRAITS_ORDER = [
 
 var STATE_TRAITS_ORDER = {
     actor: [
-        ['Aussehen', ['front', 'back', 'left', 'right']],
+        ['Stehen', ['front', 'back', 'left', 'right']],
         ['Laufen', ['walk_front', 'walk_back', 'walk_left', 'walk_right']],
         ['Springen', ['jump_front', 'jump_back', 'jump_left', 'jump_right']],
         ['Fallen', ['fall_front', 'fall_back', 'fall_left', 'fall_right']],
