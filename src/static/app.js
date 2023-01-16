@@ -304,6 +304,17 @@ class Character {
 		if (dx > 0) direction = 'right';
 		if (dx < 0) direction = 'left';
 
+		// let dy = 0;
+		// if (this.has_trait_at(['ladder'], -0.5, 0.5, 0, 1)) {
+		// 	if (this.game.pressed_keys[KEY_UP]) dy += this.traits.vrun;
+		// }
+		// if (this.has_trait_at(['ladder'], -0.5, 0.5, -1, 0)) {
+		// 	if (this.game.pressed_keys[KEY_DOWN]) dy -= this.traits.vrun;
+		// }
+		// dy = this.try_move_y(dy);
+		// if (Math.abs(dy) > 0.1)
+		// 	direction = 'back';
+
 		// if we're standing, we can jump
 		if (this.sprite.traits[this.character_trait].can_jump) {
 			if (this.standing_on_ground()) {
@@ -318,11 +329,11 @@ class Character {
 			if (Math.abs(dy) < 0.01) this.vy = 0;
 		}
 
-		if (!this.has_trait_at(['ladder'], -0.5, 0.5, -1.0, 0.0)) {
+		// if (!this.has_trait_at(['ladder'], -0.5, 0.5, -1.0, 0.0)) {
 			this.vy -= this.game.data.properties.gravity;
 			if (this.vy < -10)
 				this.vy = -10;
-		}
+		// }
 
 		this.update_state_and_direction(state, direction);
 
