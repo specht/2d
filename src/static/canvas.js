@@ -61,6 +61,7 @@ class Canvas {
         this.periodic_ticker_handle = null;
         this.spray_pixels = null;
         this.spray_pixels_per_shot = 1;
+        this.label_for_state = [];
         $(this.element).css('overflow', 'hidden');
         $(this.element).css('cursor', 'crosshair');
         $(this.backdrop_color).css('background-color', `#777`);
@@ -653,6 +654,7 @@ class Canvas {
         let data = overlay_context.getImageData(0, 0, overlay_width, overlay_height).data;
         outline_context.beginPath();
         outline_context.strokeStyle = '#ffffff';
+        // outline_context.setLineDash([4, 4]);
         outline_context.lineWidth = 1;
         // TODO: This code is really slow on a large sprite
         for (let y = 0; y < overlay_height; y++) {
@@ -1141,7 +1143,9 @@ class Canvas {
                         let fi = Math.floor(state.frames.length / 2 - 0.5);
                         let img = $('<img>').attr('src', state.frames[fi].src);
                         state_div.append(img);
-                        state_div.append($(`<div class='state_label'>`).text(state.label));
+                        let state_label = $(`<div class='state_label'>`).text(state.properties.name);
+                        self.label_for_state[index] = state_label;
+                        state_div.append(state_label);
                         return state_div;
                     },
                     onclick: (e, index) => {
@@ -1272,6 +1276,10 @@ class Canvas {
 
     switchToLastFrame() {
         this.switchToFrame(this.game.data.sprites[this.sprite_index].states[this.state_index].frames.length - 1);
+    }
+
+    update_state_label() {
+        this.label_for_state[this.state_index].text(this.game.data.sprites[this.sprite_index].states[this.state_index].properties.name);
     }
 
     grow_image(image, width, height) {

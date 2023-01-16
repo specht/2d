@@ -331,7 +331,7 @@ class LevelEditor {
                 $('#menu_level_properties').empty();
                 new LineEditWidget({
                     container: $('#menu_level_properties'),
-                    label: 'Name',
+                    label: 'Titel',
                     get: () => self.game.data.levels[self.level_index].properties.name,
                     set: (x) => {
                         self.game.data.levels[self.level_index].properties.name = x;

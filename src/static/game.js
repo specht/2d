@@ -293,6 +293,7 @@ class Game {
         this.level_editor = new LevelEditor($('#level'), this);
 
         $('#game-settings-here').empty();
+
         new LineEditWidget({
             container: $('#game-settings-here'),
             label: 'Titel:',
@@ -497,6 +498,17 @@ class Game {
         let si = canvas.sprite_index;
         let sti = canvas.state_index;
         $('#menu_state_properties').empty();
+        new LineEditWidget({
+            container: $('#menu_state_properties'),
+            label: 'Titel',
+            get: () => self.data.sprites[si].states[sti].properties.name,
+            set: (x) => {
+                self.data.sprites[si].states[sti].properties.name = x;
+                canvas.update_state_label();
+            },
+        });
+
+
         $('#menu_state_properties_variable_part_following').nextAll().remove();
         let traits_menu = $('<div>').appendTo($('#menu_state_properties'))
         let traits_menu_data = [];
