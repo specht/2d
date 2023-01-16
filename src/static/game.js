@@ -58,6 +58,7 @@ class Game {
         this.data.properties ??= {};
         this.data.properties.title ??= '';
         this.data.properties.author ??= '';
+        this.data.properties.yt_tag ??= '';
         this.data.properties.screen_pixel_height ??= 240.0;
         this.data.properties.gravity ??= 0.5;
         this.data.parent ??= null;
@@ -309,6 +310,14 @@ class Game {
             get: () => self.data.properties.author,
             set: (x) => {
                 self.data.properties.author = x;
+            },
+        });
+        new LineEditWidget({
+            container: $('#game-settings-here'),
+            label: 'Youtube ID:',
+            get: () => self.data.properties.yt_tag,
+            set: (x) => {
+                self.data.properties.yt_tag = x;
             },
         });
         new NumberWidget({

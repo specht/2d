@@ -513,7 +513,7 @@ class LineEditWidget {
         this.data = data;
         this.container = data.container;
         let div = $(`<div class='item'>`);
-        let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
+        let label = $(`<div style='margin-right: 1em; white-space: pre;'>`).text(data.label);
         div.append(label);
         this.input = $(`<input type='text'>`);
         this.input.val(data.get());

@@ -287,10 +287,13 @@ class Game {
 	run() {
 		if (window.yt_player !== null) {
 			window.yt_player.pauseVideo();
-			if ((window.game.data.levels[0].properties.yt_tag ?? '').length > 0) {
-				window.yt_player.loadVideoById(window.game.data.levels[0].properties.yt_tag);
-				// window.yt_player.playVideo();
-			}
+			let yt_tag = null;
+			if ((window.game.data.properties.yt_tag ?? '').length > 0)
+				yt_tag = window.game.data.properties.yt_tag;
+			if ((window.game.data.levels[0].properties.yt_tag ?? '').length > 0)
+				yt_tag = window.game.data.levels[0].properties.yt_tag;
+			if (yt_tag !== null)
+				window.yt_player.loadVideoById(yt_tag);
 		}
 		if (this.running) return;
 		this.running = true;
