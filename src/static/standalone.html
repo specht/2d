@@ -8,6 +8,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Carter+One&display=swap" rel="stylesheet">
     <style>
+      @font-face {
+        font-family: 'LM';
+        src: url('/lmmono10-regular.otf');
+      }
       body {
         margin: 0;
         overflow: hidden;
@@ -80,6 +84,26 @@
         top: 0;
         right: 0;
         bottom: 0;
+      }
+      #console {
+        position: absolute;
+        font-family: 'LM', monospace;
+        pointer-events: none;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        text-align: center;
+        transition: transform 0.5s ease;
+        transform: translate(0, 8vh);
+      }
+      #console.showing {
+        transform: translate(0, 0);
+      }
+      .console-message {
+        font-size: 4vh;
+        color: #fff;
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 1vh;
       }
       #touch_controls {
         position: absolute;
@@ -177,6 +201,8 @@
             <div class='item'>Highscores</div>
             <div class='item'>Hilfe</div>
           </div>
+        </div>
+        <div id="console">
         </div>
       </div>
     </div>

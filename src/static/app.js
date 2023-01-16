@@ -136,10 +136,46 @@ class Character {
 	}
 }
 
+class VariableClock {
+	constructor() {
+        this.clock = new THREE.Clock(true);
+		this.speed = 1.0;
+		this.t0 = 0.0;
+		this.t1 = 0.0;
+	}
+
+	getSpeed() {
+		return this.speed;
+	}
+
+	setSpeed(speed) {
+		if (speed !== this.speed) {
+			this.speed = speed;
+			this.t0 = this.getElapsedTime();
+			this.t1 = this.clock.getElapsedTime();
+		}
+	}
+
+	getElapsedTime() {
+		return this.t0 + (this.clock.getElapsedTime() - this.t1) * this.speed;
+	}
+
+	delta(d) {
+		let s = this.getSpeed();
+		s += d;
+		if (s < 0.0) s = 0.0;
+		if (s > 10.0) s = 10.0;
+		this.setSpeed(s);
+		add_console_message(`Geschwindigkeit: ${s.toFixed(1)}`)
+	}
+}
+
 class Game {
 	constructor() {
 		let self = this;
 		this.data = null;
+		console.log(window.location);
+		this.development = window.location.search.substring(0, 4) === '?dev';
 		this.spritesheet_info = null;
 		this.spritesheets = null;
 		// a mesh for every sprite (not regarding state or frame)
@@ -233,7 +269,7 @@ class Game {
 
 	setup() {
 		this.running = false;
-        this.clock = new THREE.Clock(true);
+        this.clock = new VariableClock();
         this.scene = new THREE.Scene();
         this.camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
         this.camera.position.x = 0;
@@ -550,6 +586,14 @@ class Game {
 			this.pressed_keys[KEY_DOWN] = true;
 		if (key === 'Space')
 			this.pressed_keys[KEY_JUMP] = true;
+		if (this.development) {
+			if (key === 'Period') {
+				this.clock.delta(-0.1);
+			}
+			if (key === 'Slash') {
+				this.clock.delta(0.1);
+			}
+		}
 	}
 
 	handle_key_up(key) {
@@ -704,4 +748,16 @@ function onYouTubeIframeAPIReady() {
         height: '390',
         width: '640',
     });
+}
+
+function add_console_message(s) {
+	if (!game.development) return;
+	$('#console').empty();
+	$(`<div style=''>`).addClass('console-message').text(s).appendTo($('#console'));
+	$('#console').addClass('showing');
+	if (window.console_timeout)
+		clearTimeout(window.console_timeout);
+	window.console_timeout = setTimeout(function() {
+		$('#console').removeClass('showing');
+	}, 3000);
 }
