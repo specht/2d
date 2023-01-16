@@ -63,7 +63,7 @@ var SPRITE_TRAITS = {
                 default: true,
             },
             ex_left: {
-                label: 'Kollision links',
+                label: 'Kollisionsbox links',
                 type: 'float',
                 min: 0,
                 max: 1,
@@ -83,7 +83,7 @@ var SPRITE_TRAITS = {
                 }
             },
             ex_right: {
-                label: 'Kollision rechts',
+                label: 'Kollisionsbox rechts',
                 type: 'float',
                 min: 0,
                 max: 1,
@@ -103,7 +103,7 @@ var SPRITE_TRAITS = {
                 }
             },
             ex_top: {
-                label: 'Kollision oben',
+                label: 'Kollisionsbox oben',
                 type: 'float',
                 min: 0,
                 max: 1,

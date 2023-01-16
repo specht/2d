@@ -7,17 +7,94 @@ let KEY_JUMP = 'jump';
 window.yt_player = null;
 
 class Character {
-	constructor(game, sprite, mesh) {
+	constructor(game, sprite_index, mesh) {
 		this.game = game;
-		this.sprite = sprite;
+		this.sprite_index = sprite_index;
+		this.sprite = this.game.data.sprites[this.sprite_index];
 		this.mesh = mesh;
 		this.traits = {};
 		this.follow_camera = false;
+		this.character_trait = null;
+		this.state = 'stand';
+		this.direction = 'front';
+		this.t0 = 0.0;
+
 		if ('actor' in this.sprite.traits) {
-			this.traits = this.sprite.traits.actor;
+			this.character_trait = 'actor';
+			this.traits = this.sprite.traits[this.character_trait];
 			this.follow_camera = true;
 		}
-		console.log(`character`, this.sprite, this.mesh);
+		this.sti_for_state = {};
+		for (let state of ['stand', 'walk', 'jump', 'fall']) {
+			this.sti_for_state[state] ??= {};
+		}
+
+		// fall
+		for (let sti = 0; sti < this.sprite.states.length; sti++) {
+			let state = this.sprite.states[sti];
+			let state_traits = state.traits[this.character_trait] ?? {};
+			let prefix = 'fall_';
+			for (let s of ['fall']) {
+				for (let d of ['front', 'back', 'left', 'right']) {
+					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
+				}
+			}
+		}
+
+		// jump
+		for (let sti = 0; sti < this.sprite.states.length; sti++) {
+			let state = this.sprite.states[sti];
+			let state_traits = state.traits[this.character_trait] ?? {};
+			let prefix = 'jump_';
+			for (let s of ['jump']) {
+				for (let d of ['front', 'back', 'left', 'right']) {
+					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
+				}
+			}
+		}
+
+		// walk
+		for (let sti = 0; sti < this.sprite.states.length; sti++) {
+			let state = this.sprite.states[sti];
+			let state_traits = state.traits[this.character_trait] ?? {};
+			let prefix = 'walk_';
+			for (let s of ['walk']) {
+				for (let d of ['front', 'back', 'left', 'right']) {
+					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
+				}
+			}
+			for (let s of ['walk']) {
+				for (let d of ['front', 'back', 'left', 'right']) {
+					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] ??= sti;
+				}
+			}
+		}
+
+		// stand
+		for (let sti = 0; sti < this.sprite.states.length; sti++) {
+			let state = this.sprite.states[sti];
+			let state_traits = state.traits[this.character_trait] ?? {};
+			let prefix = '';
+			for (let s of ['stand']) {
+				for (let d of ['front', 'back', 'left', 'right']) {
+					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
+				}
+			}
+			for (let s of ['stand', 'walk', 'jump', 'fall']) {
+				for (let d of ['front', 'back', 'left', 'right']) {
+					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] ??= sti;
+				}
+			}
+		}
+
+		for (let state of ['stand', 'walk', 'jump', 'fall']) {
+			for (let d of ['front', 'back', 'left', 'right']) {
+				this.sti_for_state[state][d] ??= 0;
+			}
+		}
+
+		console.log(this.sti_for_state);
+
 		this.vy = 0;
 	}
 
@@ -46,20 +123,96 @@ class Character {
 		return null;
 	}
 
+	intersect_x_with_trait(dx, trait_or_traits, dx0, dx1, dy0, dy1) {
+		if (typeof(trait_or_traits) === 'string')
+			trait_or_traits = [trait_or_traits];
+
+		let x0 = this.mesh.position.x + dx0;
+		let x1 = this.mesh.position.x + dx1;
+		let y0 = this.mesh.position.y + dy0;
+		let y1 = this.mesh.position.y + dy1;
+
+		let result_x = new Set();
+		for (let i of this.game.interval_tree_x.search([x0, x1]))
+			result_x.add(i);
+		let result_y = new Set();
+		for (let i of this.game.interval_tree_y.search([y0, y1]))
+			result_y.add(i);
+		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
+		for (let entry_index of result) {
+			let entry = this.game.active_level_sprites[entry_index];
+			let sprite = this.game.data.sprites[entry.sprite_index];
+			for (let trait of trait_or_traits) {
+				if (trait in sprite.traits) {
+					let winx = this.mesh.position.x;
+					if (dx < 0)
+						winx = Math.max(x0, entry.mesh.position.x + sprite.width / 2 + this.traits.ex_left * this.sprite.width * 0.5);
+					else if (dx > 0)
+						winx = Math.min(x0, entry.mesh.position.x - sprite.width / 2 - this.traits.ex_right * this.sprite.width * 0.5);
+					dx = winx - this.mesh.position.x;
+				}
+			}
+		}
+		return dx;
+	}
+
+	try_move_x(dx) {
+		if (dx < 0) {
+			let lb = -this.traits.ex_left * this.sprite.width * 0.5;
+			let tb = this.traits.ex_top * this.sprite.height;
+			dx = this.intersect_x_with_trait(dx, ['block_sides'], lb + dx, lb, 0.1, tb - 0.1);
+		} else if (dx > 0) {
+			let rb = this.traits.ex_right * this.sprite.width * 0.5;
+			let tb = this.traits.ex_top * this.sprite.height;
+			dx = this.intersect_x_with_trait(dx, ['block_sides'], rb, rb + dx, 0.1, tb - 0.1);
+		}
+		this.mesh.position.x += dx;
+	}
+
+	update_state_and_direction(state, direction) {
+		let old_sti = this.sti_for_state[this.state][this.direction];
+		this.state = state;
+		this.direction = direction;
+		let sti = this.sti_for_state[this.state][this.direction];
+		if (sti !== old_sti) {
+			this.t0 = this.game.clock.getElapsedTime();
+			let info = this.game.geometry_and_material_for_frame[this.sprite_index][sti][0];
+			this.mesh.geometry = info.geometry;
+			this.mesh.material = info.material;
+		}
+		// animate character if there's more than one frame
+		if (this.game.data.sprites[this.sprite_index].states[sti].frames.length > 0) {
+			let fi = Math.floor((this.game.clock.getElapsedTime() - this.t0) * this.sprite.states[sti].properties.fps) % this.sprite.states[sti].frames.length;
+			let info = this.game.geometry_and_material_for_frame[this.sprite_index][sti][fi];
+			this.mesh.geometry = info.geometry;
+			this.mesh.material = info.material;
+		}
+	}
+
 	simulation_step() {
 
-		// if we're standing, we can jump
-		if (this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0)) {
-			this.vy = 0;
-			if (this.game.pressed_keys[KEY_JUMP])
-				this.vy = this.traits.vjump;
-		}
+		// // if we're standing, we can jump
+		// if (this.sprite.traits[this.character_trait].can_jump) {
+		// 	if (this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0)) {
+		// 		this.vy = 0;
+		// 		if (this.game.pressed_keys[KEY_JUMP])
+		// 			this.vy = this.traits.vjump;
+		// 	}
+		// }
 
 		// move left / right
-		if (this.game.pressed_keys[KEY_RIGHT])
-			this.mesh.position.x += this.traits.vrun;
-		if (this.game.pressed_keys[KEY_LEFT])
-			this.mesh.position.x -= this.traits.vrun;
+		let dx = 0;
+		if (this.game.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun;
+		if (this.game.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun;
+		let state = (Math.abs(dx) > 0) ? 'walk' : 'stand';
+		let direction = this.direction;
+		if (dx > 0) direction = 'right';
+		if (dx < 0) direction = 'left';
+		this.try_move_x(dx);
+
+		this.update_state_and_direction(state, direction);
+
+		return;
 
 		if (this.has_trait_at('ladder', -0.5, 0.5, 0, 1.0)) {
 			if (this.game.pressed_keys[KEY_UP]) {
@@ -73,7 +226,12 @@ class Character {
 			if (this.vy > 0)
 				this.mesh.position.y += this.vy;
 		} else {
-			this.mesh.position.y += this.vy;
+			if (this.sprite.traits[this.character_trait].affected_by_gravity) {
+				this.mesh.position.y += this.vy;
+			} else {
+				if (this.vy > 0)
+					this.mesh.position.y += this.vy;
+			}
 		}
 
 		// decrease y velocity because of gravity
@@ -184,6 +342,7 @@ class Game {
 		this.level_index = 0;
 		this.layers = [];
 		this.meshes_for_sprite = [];
+		this.geometry_and_material_for_frame = [];
 		this.animated_sprites = [];
 		this.interval_tree_x = new IntervalTree();
         this.interval_tree_y = new IntervalTree();
@@ -285,6 +444,7 @@ class Game {
 		this.animated_sprites = [];
 		this.meshes_for_sprite = [];
 		this.player_character = null;
+		this.geometry_and_material_for_frame = [];
 
 		this.minx = 0;
 		this.miny = 0;
@@ -306,25 +466,38 @@ class Game {
 			return;
 
 		this.screen_pixel_height = this.data.properties.screen_pixel_height;
+		this.screen_safe_zone_x = this.data.properties.safe_zone_x;
+		this.screen_safe_zone_y = this.data.properties.safe_zone_y;
 
 		let tw = this.spritesheet_info.width;
 		let th = this.spritesheet_info.height;
 		for (let si = 0; si < this.data.sprites.length; si++) {
 			let sprite = this.data.sprites[si];
-			let geometry = new THREE.PlaneGeometry(sprite.width, sprite.height);
-			geometry.translate(0, sprite.height / 2, 0);
-			let tile_info = this.spritesheet_info.tiles[si][0][0];
-			let mesh = new THREE.Mesh(geometry, this.spritesheets[tile_info[0]]);
-			// mesh.scale.x *= -1;
-			let uv = geometry.attributes.uv;
-			uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
-			uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
-			uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
-			uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
-			this.mesh_catalogue.push(mesh);
-			this.meshes_for_sprite.push([]);
-			if (sprite.states[0].frames.length > 1)
-				this.animated_sprites.push(si);
+			this.geometry_and_material_for_frame[si] = [];
+			for (let sti = 0; sti < sprite.states.length; sti++) {
+				this.geometry_and_material_for_frame[si][sti] = [];
+				let state = sprite.states[sti];
+				for (let fi = 0; fi < state.frames.length; fi++) {
+					let geometry = new THREE.PlaneGeometry(sprite.width, sprite.height);
+					geometry.translate(0, sprite.height / 2, 0);
+					let tile_info = this.spritesheet_info.tiles[si][sti][fi];
+					let uv = geometry.attributes.uv;
+					uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
+					uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
+					uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
+					uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
+					this.geometry_and_material_for_frame[si][sti][fi] = {geometry: geometry, material: this.spritesheets[tile_info[0]]}
+
+					if (sti === 0 && fi === 0) {
+						let mesh = new THREE.Mesh(geometry, this.spritesheets[tile_info[fi]]);
+						// mesh.scale.x *= -1;
+						this.mesh_catalogue.push(mesh);
+						this.meshes_for_sprite.push([]);
+						// if (sprite.states[0].frames.length > 1)
+							// this.animated_sprites.push(si);
+					}
+				}
+			}
 		}
 
 		if (this.level_index >= this.data.levels.length)
@@ -343,8 +516,9 @@ class Game {
 			if (layer.type === 'sprites') {
 				for (let spi = 0; spi < layer.sprites.length; spi++) {
 					let placed = layer.sprites[spi];
-					let mesh = this.mesh_catalogue[placed[0]].clone();
-					let sprite = this.data.sprites[placed[0]];
+					let si = placed[0];
+					let mesh = this.mesh_catalogue[si].clone();
+					let sprite = this.data.sprites[si];
 					let effective_collision_detection = layer.properties.collision_detection && (Math.abs(layer.properties.parallax) < 0.0001);
 					if (effective_collision_detection) {
 						let x = placed[1];
@@ -361,18 +535,18 @@ class Game {
 						{
 							this.interval_tree_x.insert([x0, x1], this.active_level_sprites.length);
 							this.interval_tree_y.insert([y0, y1], this.active_level_sprites.length);
-							this.active_level_sprites.push({layer_index: li, sprite_index: placed[0], mesh: mesh});
+							this.active_level_sprites.push({layer_index: li, sprite_index: si, mesh: mesh});
 						}
 					}
 					if ('actor' in sprite.traits)
 					{
 						console.log(sprite.traits);
-						this.player_character = new Character(this, sprite, mesh);
+						this.player_character = new Character(this, si, mesh);
 						this.camera_x = placed[1];
 						this.camera_y = placed[2] + this.data.properties.screen_pixel_height * 0.3;
 					}
 					mesh.position.set(placed[1], placed[2], 0);
-					this.meshes_for_sprite[placed[0]].push(mesh);
+					this.meshes_for_sprite[si].push(mesh);
 					game_layer.add(mesh);
 				}
 			} else if (layer.type === 'backdrop') {
@@ -498,23 +672,23 @@ class Game {
 		this.simulate();
 		let scale = this.height / this.screen_pixel_height;
 
-		for (let si of this.animated_sprites) {
-			let sprite = this.data.sprites[si];
-			let sti = 0;
-			let fps = sprite.states[sti].properties.fps ?? 8;
-			let fi = Math.floor(this.clock.getElapsedTime() * fps) % sprite.states[sti].frames.length;
-			for (let mesh of this.meshes_for_sprite[si]) {
-				let uv = mesh.geometry.attributes.uv;
-				let tw = this.spritesheet_info.width;
-				let th = this.spritesheet_info.height;
-				let tile_info = this.spritesheet_info.tiles[si][0][fi];
-				uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
-				uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
-				uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
-				uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
-				uv.needsUpdate = true;
-			}
-		}
+		// for (let si of this.animated_sprites) {
+		// 	let sprite = this.data.sprites[si];
+		// 	let sti = 0;
+		// 	let fps = sprite.states[sti].properties.fps ?? 8;
+		// 	let fi = Math.floor(this.clock.getElapsedTime() * fps) % sprite.states[sti].frames.length;
+		// 	for (let mesh of this.meshes_for_sprite[si]) {
+		// 		let uv = mesh.geometry.attributes.uv;
+		// 		let tw = this.spritesheet_info.width;
+		// 		let th = this.spritesheet_info.height;
+		// 		let tile_info = this.spritesheet_info.tiles[si][0][fi];
+		// 		uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
+		// 		uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
+		// 		uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
+		// 		uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
+		// 		uv.needsUpdate = true;
+		// 	}
+		// }
 
         this.camera.left = this.camera_x - this.width * 0.5 / scale;
         this.camera.right = this.camera_x + this.width * 0.5 / scale;

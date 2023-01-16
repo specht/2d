@@ -61,6 +61,8 @@ class Game {
         this.data.properties.yt_tag ??= '';
         this.data.properties.screen_pixel_height ??= 240.0;
         this.data.properties.gravity ??= 0.5;
+        this.data.properties.safe_zone_x ??= 0.4;
+        this.data.properties.safe_zone_y ??= 0.4;
         this.data.parent ??= null;
         this.data.sprites ??= [];
         if (this.data.sprites.length === 0) {
@@ -340,6 +342,30 @@ class Game {
             get: () => self.data.properties.gravity,
             set: (x) => {
                 self.data.properties.gravity = x;
+            },
+        });
+        new NumberWidget({
+            container: $('#game-settings-here'),
+            label: 'Kamera Safe Zone (Breite):',
+            min: 0.0,
+            max: 1.0,
+            step: 0.1,
+            decimalPlaces: 1,
+            get: () => self.data.properties.safe_zone_x,
+            set: (x) => {
+                self.data.properties.safe_zone_x = x;
+            },
+        });
+        new NumberWidget({
+            container: $('#game-settings-here'),
+            label: 'Kamera Safe Zone (Höhe):',
+            min: 0.0,
+            max: 1.0,
+            step: 0.1,
+            decimalPlaces: 1,
+            get: () => self.data.properties.safe_zone_y,
+            set: (x) => {
+                self.data.properties.safe_zone_y = x;
             },
         });
         if (typeof(this.data.parent) !== 'undefined') {
