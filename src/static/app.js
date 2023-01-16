@@ -539,8 +539,10 @@ class Game {
 						// mesh.scale.x *= -1;
 						this.mesh_catalogue.push(mesh);
 						this.meshes_for_sprite.push([]);
-						// if (sprite.states[0].frames.length > 1)
-							// this.animated_sprites.push(si);
+						if (sprite.states[0].frames.length > 1) {
+							if (!('actor' in sprite.traits))
+								this.animated_sprites.push(si);
+						}
 					}
 				}
 			}
@@ -718,23 +720,23 @@ class Game {
 		this.simulate();
 		let scale = this.height / this.screen_pixel_height;
 
-		// for (let si of this.animated_sprites) {
-		// 	let sprite = this.data.sprites[si];
-		// 	let sti = 0;
-		// 	let fps = sprite.states[sti].properties.fps ?? 8;
-		// 	let fi = Math.floor(this.clock.getElapsedTime() * fps) % sprite.states[sti].frames.length;
-		// 	for (let mesh of this.meshes_for_sprite[si]) {
-		// 		let uv = mesh.geometry.attributes.uv;
-		// 		let tw = this.spritesheet_info.width;
-		// 		let th = this.spritesheet_info.height;
-		// 		let tile_info = this.spritesheet_info.tiles[si][0][fi];
-		// 		uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
-		// 		uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
-		// 		uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
-		// 		uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
-		// 		uv.needsUpdate = true;
-		// 	}
-		// }
+		for (let si of this.animated_sprites) {
+			let sprite = this.data.sprites[si];
+			let sti = 0;
+			let fps = sprite.states[sti].properties.fps ?? 8;
+			let fi = Math.floor(this.clock.getElapsedTime() * fps) % sprite.states[sti].frames.length;
+			for (let mesh of this.meshes_for_sprite[si]) {
+				let uv = mesh.geometry.attributes.uv;
+				let tw = this.spritesheet_info.width;
+				let th = this.spritesheet_info.height;
+				let tile_info = this.spritesheet_info.tiles[si][0][fi];
+				uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
+				uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
+				uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
+				uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
+				uv.needsUpdate = true;
+			}
+		}
 
         this.camera.left = this.camera_x - this.width * 0.5 / scale;
         this.camera.right = this.camera_x + this.width * 0.5 / scale;
