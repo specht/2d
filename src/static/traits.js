@@ -40,6 +40,8 @@ var SPRITE_TRAITS = {
                 min: 0.0,
                 max: 100.0,
                 default: 3.0,
+                decimalPlaces: 1,
+                step: 0.1,
             },
             vjump: {
                 label: 'Sprungkraft',
@@ -47,6 +49,8 @@ var SPRITE_TRAITS = {
                 default: 9.0,
                 min: 0.0,
                 max: 100.0,
+                decimalPlaces: 1,
+                step: 0.1,
             },
             can_jump: {
                 label: 'kann springen',

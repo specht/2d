@@ -243,6 +243,38 @@ class LevelEditor {
                 self.render();
             },
         });
+        this.grid_size_widget = new NumberWidget({
+            count: 2,
+            container: $('#tool_menu_level_settings'),
+            connector: $('<span>').css('width', '0.8em').css('text-align', 'center').html('&times;'),
+            label: 'Gittergröße:',
+            width: '1.8em',
+            min: [1, 1],
+            max: [512, 512],
+            get: () => [self.grid_width, self.grid_height],
+            set: (width, height) => {
+                self.grid_width = width;
+                self.grid_height = height;
+                self.refresh();
+                self.render();
+            },
+        });
+        this.grid_offset_widget = new NumberWidget({
+            count: 2,
+            container: $('#tool_menu_level_settings'),
+            connector: $('<span>').css('width', '0.8em').css('text-align', 'center').html(':'),
+            label: 'Gitteroffset:',
+            width: '1.8em',
+            min: [-1024, -1024],
+            max: [1024, 1024],
+            get: () => [self.grid_x, self.grid_y],
+            set: (x, y) => {
+                self.grid_x = x;
+                self.grid_y = y;
+                self.refresh();
+                self.render();
+            },
+        });
 
         // new CheckboxWidget({
         //     container: $('#tool_menu_level_settings'),
@@ -536,8 +568,10 @@ class LevelEditor {
         new NumberWidget({
             container: $('#menu_layer_properties'),
             label: 'Parallaxe',
-            min: -100,
-            max: 100,
+            min: -1,
+            max: 1,
+            step: 0.1,
+            decimalPlaces: 2,
             get: () => self.game.data.levels[self.level_index].layers[self.layer_index].properties.parallax,
             set: (x) => {
                 self.game.data.levels[self.level_index].layers[self.layer_index].properties.parallax = x;
@@ -913,8 +947,8 @@ class LevelEditor {
         let wx = this.camera_x + (p[0] - (this.width / 2)) / this.scale - this.camera_x * layer.properties.parallax;
         let wy = this.camera_y - (p[1] - (this.height / 2)) / this.scale - this.camera_y * layer.properties.parallax;
         if (snap) {
-            wx = Math.round(Math.floor((wx + this.grid_width / 2) / this.grid_width) * this.grid_width);
-            wy = Math.round(Math.floor((wy) / this.grid_height) * this.grid_height);
+            wx = Math.round(Math.floor((wx + this.grid_width / 2) / this.grid_width) * this.grid_width + (this.grid_x % this.grid_width));
+            wy = Math.round(Math.floor((wy) / this.grid_height) * this.grid_height + (this.grid_y % this.grid_height));
         } else {
             wx = Math.round(wx);
             wy = Math.round(wy);
@@ -1015,13 +1049,13 @@ class LevelEditor {
         let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.0, transparent: true, opacity: opacity });
 
         let points = [];
-        let y = Math.floor(y0 / this.grid_height) * this.grid_height;
+        let y = Math.floor(y0 / this.grid_height) * this.grid_height + (this.grid_y % this.grid_height);
         while (y < y1) {
             points.push(new THREE.Vector3(x0, y))
             points.push(new THREE.Vector3(x1, y))
             y += this.grid_height;
         }
-        let x = Math.floor(x0 / this.grid_width) * this.grid_width - this.grid_width * 0.5;
+        let x = Math.floor(x0 / this.grid_width) * this.grid_width - this.grid_width * 0.5 + (this.grid_x % this.grid_width);
         while (x < x1) {
             points.push(new THREE.Vector3(x, y0))
             points.push(new THREE.Vector3(x, y1))
@@ -1236,6 +1270,10 @@ class LevelEditor {
                 self.sprite_index = button.data('sprite_index');
                 self.grid_width = self.game.data.sprites[self.sprite_index].width;
                 self.grid_height = self.game.data.sprites[self.sprite_index].height;
+                self.grid_x = 0;
+                self.grid_y = 0;
+                self.grid_size_widget.refresh();
+                self.grid_offset_widget.refresh();
                 self.refresh();
                 self.render();
                 menus.level.handle_click('tool/pen');

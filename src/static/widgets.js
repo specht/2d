@@ -535,48 +535,118 @@ class LineEditWidget {
 
 class NumberWidget {
     constructor(data) {
+        let self = this;
+        data.count ??= 1;
+        data.width ??= '2.5em';
+        data.min ??= null;
+        data.max ??= null;
+        data.step ??= 1;
+        data.decimalPlaces ??= 0;
+        if (data.min !== null && !Array.isArray(data.min))
+            data.min = [data.min];
+        if (data.max !== null && !Array.isArray(data.max))
+            data.max = [data.max];
         this.data = data;
         this.container = data.container;
         let div = $(`<div class='item'>`);
         let subdiv = $('<div>').css('display', 'flex').css('align-items', 'center');
         let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
         div.append(label);
-        this.input = $(`<input type='text' style='text-align: right; width: 3em;'>`);
-        this.input.val(data.get());
-        // label.click(function(e) {
-        //     self.input.focus();
-        // });
-        subdiv.append(this.input);
-        // subdiv.append($('<div>').text('%').css('margin-left', '0.25em'));
+        this.input = [];
+        let v = data.get();
+        if (!Array.isArray(v)) v = [v];
+        for (let i = 0; i < data.count; i++) {
+            this.input.push($(`<input type='text' style='text-align: center; width: ${this.data.width};'>`));
+            this.input[i].val(self.format(v[i]));
+            if (i > 0)
+                subdiv.append(this.data.connector);
+            subdiv.append(this.input[i]);
+            this.input[i].keydown(function(e) { self.update(i); });
+            this.input[i].keyup(function(e) { self.update(i); });
+            this.input[i].change(function(e) { self.update(i); });
+            this.input[i].focus(function(e) {
+                self.focus(i);
+                $(e.target).select();
+            });
+            this.input[i].keydown(function(e) {
+                if (self.get(i) !== null) {
+                    if (e.code === 'ArrowUp')
+                        self.delta(i, self.data.step);
+                    if (e.code === 'ArrowDown')
+                        self.delta(i, -self.data.step);
+                }
+            });
+            this.input[i].on('wheel', function(e) {
+                if (self.get(i) !== null && self.input[i].is(':focus')) {
+                    if (e.originalEvent.deltaY < 0)
+                        self.delta(i, self.data.step);
+                    if (e.originalEvent.deltaY > 0)
+                        self.delta(i, -self.data.step);
+                }
+            });
+            this.input[i].blur(function(e) { self.blur(i); });
+        }
         div.append(subdiv);
         $(this.container).append(div);
-        let self = this;
-        this.input.keydown(function(e) { self.update(); });
-        this.input.keyup(function(e) { self.update(); });
-        this.input.change(function(e) { self.update(); });
-        this.input.focus(function(e) { self.focus(); });
-        this.input.blur(function(e) { self.blur(); });
+    }
+
+    delta(i, d) {
+        let nv = this.get(i) + d;
+        if (this.data.min !== null && nv < this.data.min[i])
+            nv = this.data.min[i];
+        if (this.data.max !== null && nv > this.data.max[i])
+            nv = this.data.max[i];
+        this.input[i].val(this.format(nv));
+        this.update(i);
+    }
+
+    refresh() {
+        let v = this.data.get();
+        if (!Array.isArray(v)) v = [v];
+        for (let i = 0; i < this.data.count; i++)
+            this.input[i].val(this.format(v[i]));
+    }
+
+    get(i) {
+        let v = this.input[i].val().replace(',', '.');
+        v = parseFloat(v);
+        if (isNaN(v))
+            return null;
+        if (this.data.min !== null && v < this.data.min[i])
+            v = this.data.min[i];
+        if (this.data.max !== null && v > this.data.max[i])
+            v = this.data.max[i];
+        return v;
     }
 
     update() {
-        this.data.set(this.input.val().trim());
+        let values = [];
+        for (let i = 0; i < this.data.count; i++) {
+            let v = this.get(i);
+            if (v === null) return;
+            values.push(v);
+        }
+        this.data.set(...values);
     }
 
     focus() {
         this.old_value = this.data.get();
+        if (!Array.isArray(this.old_value)) this.old_value = [this.old_value];
+    }
+
+    format(v) {
+        return v.toFixed(this.data.decimalPlaces);
     }
 
     blur() {
-        let v = this.input.val().replace(',', '.');
-        v = parseFloat(v);
-        if (isNaN(v))
-            v = this.old_value;
-        if (this.data.min !== null && v < this.data.min)
-            v = this.data.min;
-        if (this.data.max !== null && v > this.data.max)
-            v = this.data.max;
-        this.input.val(v);
-        this.data.set(v);
+        let values = [];
+        for (let i = 0; i < this.data.count; i++) {
+            let v = this.get(i);
+            if (v === null) v = this.old_value[i];
+            values.push(v);
+            this.input[i].val(this.format(v));
+        }
+        this.data.set(...values);
     }
 }
 

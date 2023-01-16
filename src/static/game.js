@@ -324,6 +324,8 @@ class Game {
             label: 'Gravitation:',
             min: 0,
             max: 100,
+            step: 0.1,
+            decimalPlaces: 2,
             get: () => self.data.properties.gravity,
             set: (x) => {
                 self.data.properties.gravity = x;
@@ -428,6 +430,8 @@ class Game {
                     label: property.label ?? key,
                     min: property.min ?? null,
                     max: property.max ?? null,
+                    step: property.step ?? null,
+                    decimalPlaces: property.decimalPlaces ?? null,
                     get: () => self.data.sprites[si].traits[trait][key],
                     set: (x) => {
                         self.data.sprites[si].traits[trait][key] = x;
