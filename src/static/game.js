@@ -443,6 +443,9 @@ class Game {
                     max: property.max ?? null,
                     step: property.step ?? null,
                     decimalPlaces: property.decimalPlaces ?? null,
+                    onfocus: property.onfocus ?? null,
+                    onblur: property.onblur ?? null,
+                    onchange: property.onchange ?? null,
                     get: () => self.data.sprites[si].traits[trait][key],
                     set: (x) => {
                         self.data.sprites[si].traits[trait][key] = x;

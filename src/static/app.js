@@ -6,6 +6,140 @@ let KEY_RIGHT = 'right';
 let KEY_JUMP = 'jump';
 window.yt_player = null;
 
+class Character {
+	constructor(game, sprite, mesh) {
+		this.game = game;
+		this.sprite = sprite;
+		this.mesh = mesh;
+		this.traits = {};
+		this.follow_camera = false;
+		if ('actor' in this.sprite.traits) {
+			this.traits = this.sprite.traits.actor;
+			this.follow_camera = true;
+		}
+		console.log(`character`, this.sprite, this.mesh);
+		this.vy = 0;
+	}
+
+	has_trait_at(trait_or_traits, dx0, dx1, dy0, dy1) {
+		if (typeof(trait_or_traits) === 'string')
+			trait_or_traits = [trait_or_traits];
+		let x0 = this.mesh.position.x + dx0;
+		let x1 = this.mesh.position.x + dx1;
+		let y0 = this.mesh.position.y + dy0;
+		let y1 = this.mesh.position.y + dy1;
+
+		let result_x = new Set();
+		for (let i of this.game.interval_tree_x.search([x0, x1]))
+			result_x.add(i);
+		let result_y = new Set();
+		for (let i of this.game.interval_tree_y.search([y0, y1]))
+			result_y.add(i);
+		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
+		for (let entry_index of result) {
+			let entry = this.game.active_level_sprites[entry_index];
+			let sprite = this.game.data.sprites[entry.sprite_index];
+			for (let trait of trait_or_traits)
+				if (trait in sprite.traits)
+					return entry;
+		}
+		return null;
+	}
+
+	simulation_step() {
+
+		// if we're standing, we can jump
+		if (this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0)) {
+			this.vy = 0;
+			if (this.game.pressed_keys[KEY_JUMP])
+				this.vy = this.traits.vjump;
+		}
+
+		// move left / right
+		if (this.game.pressed_keys[KEY_RIGHT])
+			this.mesh.position.x += this.traits.vrun;
+		if (this.game.pressed_keys[KEY_LEFT])
+			this.mesh.position.x -= this.traits.vrun;
+
+		if (this.has_trait_at('ladder', -0.5, 0.5, 0, 1.0)) {
+			if (this.game.pressed_keys[KEY_UP]) {
+				this.mesh.position.y += this.traits.vrun;
+				while (!this.has_trait_at('ladder', -0.5, 0.5, 0.0, 1.0)) {
+					this.mesh.position.y -= 1;
+				}
+			}
+			if (this.game.pressed_keys[KEY_DOWN])
+				this.mesh.position.y -= this.traits.vrun;
+			if (this.vy > 0)
+				this.mesh.position.y += this.vy;
+		} else {
+			this.mesh.position.y += this.vy;
+		}
+
+		// decrease y velocity because of gravity
+		if (!this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -1.0, 0.0)) {
+			this.vy -= this.game.data.properties.gravity;
+			if (this.vy < -10)
+				this.vy = -10;
+		}
+
+		let ppu = 1.0;
+		let ppl = 0.7;
+		let ppr = 0.7;
+
+		let entry = this.has_trait_at_player('block_above', -0.5, 0.5, 0.1, 1.1);
+		if (entry) {
+			let sprite = this.data.sprites[entry.sprite_index];
+			this.player_mesh.position.y = entry.mesh.position.y + sprite.height;
+		}
+
+		return;
+
+		if (this.player_vy > 0) {
+			entry = this.has_trait_at_player('block_below', -0.5, 0.5,
+				this.player_sprite.height * ppu + 0.1,
+				this.player_sprite.height * ppu + 1.1);
+			if (entry) {
+				let sprite = this.data.sprites[entry.sprite_index];
+				this.player_mesh.position.y = entry.mesh.position.y - this.player_sprite.height * ppu;
+				this.player_vy = 0;
+			}
+		}
+
+		entry = this.has_trait_at_player('block_sides',
+			this.player_sprite.width * 0.5 * ppr - 1,
+			this.player_sprite.width * 0.5 * ppr,
+			0.5, this.player_sprite.height - 1);
+		if (entry) {
+			let sprite = this.data.sprites[entry.sprite_index];
+			this.player_mesh.position.x = entry.mesh.position.x - sprite.width * 0.5 - this.player_sprite.width * 0.5 * ppr;
+		}
+
+		entry = this.has_trait_at_player('block_sides',
+			-this.player_sprite.width * 0.5 * ppl,
+			-this.player_sprite.width * 0.5 * ppl + 1,
+			0.5, this.player_sprite.height - 1);
+		if (entry) {
+			let sprite = this.data.sprites[entry.sprite_index];
+			this.player_mesh.position.x = entry.mesh.position.x + sprite.width * 0.5 + this.player_sprite.width * 0.5 * ppl;
+		}
+
+
+		let scale = this.game.height / this.game.screen_pixel_height;
+		// let camera follow player
+		let safe_zone_x0 = this.player_mesh.position.x - (this.width / 2 / scale) * this.screen_safe_zone_x;
+		let safe_zone_x1 = this.player_mesh.position.x + (this.width / 2 / scale) * this.screen_safe_zone_x;
+		let safe_zone_y0 = this.player_mesh.position.y - (this.height / 2 / scale) * this.screen_safe_zone_y;
+		let safe_zone_y1 = this.player_mesh.position.y + (this.height / 2 / scale) * this.screen_safe_zone_y;
+		if (this.camera_x < safe_zone_x0) this.camera_x = safe_zone_x0;
+		if (this.camera_x > safe_zone_x1) this.camera_x = safe_zone_x1;
+		if (this.camera_y < safe_zone_y0) this.camera_y = safe_zone_y0;
+		if (this.camera_y > safe_zone_y1) this.camera_y = safe_zone_y1;
+		// this.camera_y = this.player_mesh.position.y + this.data.properties.screen_pixel_height * 0.3;
+
+	}
+}
+
 class Game {
 	constructor() {
 		let self = this;
@@ -118,10 +252,7 @@ class Game {
 		this.screen_safe_zone_y = 0.4;
 		this.animated_sprites = [];
 		this.meshes_for_sprite = [];
-		this.player_mesh = null;
-		this.player_sprite = null;
-		this.player_traits = null;
-		this.player_vy = 0.0;
+		this.player_character = null;
 
 		this.minx = 0;
 		this.miny = 0;
@@ -152,6 +283,7 @@ class Game {
 			geometry.translate(0, sprite.height / 2, 0);
 			let tile_info = this.spritesheet_info.tiles[si][0][0];
 			let mesh = new THREE.Mesh(geometry, this.spritesheets[tile_info[0]]);
+			// mesh.scale.x *= -1;
 			let uv = geometry.attributes.uv;
 			uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
 			uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
@@ -203,9 +335,7 @@ class Game {
 					if ('actor' in sprite.traits)
 					{
 						console.log(sprite.traits);
-						this.player_mesh = mesh;
-						this.player_sprite = sprite;
-						this.player_traits = sprite.traits.actor;
+						this.player_character = new Character(this, sprite, mesh);
 						this.camera_x = placed[1];
 						this.camera_y = placed[2] + this.data.properties.screen_pixel_height * 0.3;
 					}
@@ -284,6 +414,25 @@ class Game {
 
 	}
 
+	parse_yt_timestamp(s) {
+		let t = 0;
+		if (typeof(s) === 'undefined' || s === null)
+			return 0;
+		if (/^\d+h\d+m\d+(\.\d+)?s$/.test(s)) {
+			let parts = s.split(/[hms]/);
+			t = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
+		} else if (/^\d+m\d+(\.\d+)?s$/.test(s)) {
+			let parts = s.split(/[ms]/);
+			t = parseInt(parts[0]) * 60 + parseFloat(parts[1]);
+		} else if (/^\d+(\.\d+)?s$/.test(s)) {
+			let parts = s.split(/[s]/);
+			t = parseFloat(parts[0]);
+		} else if (/^\d+(\.\d+)?$/.test(s)) {
+			t = parseFloat(s);
+		}
+		return t;
+	}
+
 	run() {
 		if (window.yt_player !== null) {
 			window.yt_player.pauseVideo();
@@ -292,8 +441,11 @@ class Game {
 				yt_tag = window.game.data.properties.yt_tag;
 			if ((window.game.data.levels[0].properties.yt_tag ?? '').length > 0)
 				yt_tag = window.game.data.levels[0].properties.yt_tag;
-			if (yt_tag !== null)
-				window.yt_player.loadVideoById(yt_tag);
+			if (yt_tag !== null) {
+				let parts = yt_tag.split('#');
+				let s = this.parse_yt_timestamp(parts[1]);
+				window.yt_player.loadVideoById(parts[0], s);
+			}
 		}
 		if (this.running) return;
 		this.running = true;
@@ -313,10 +465,6 @@ class Game {
 	render() {
 		this.simulate();
 		let scale = this.height / this.screen_pixel_height;
-		
-		// let zoom = (Math.sin(this.clock.getElapsedTime() * 0.5) + 1.0) * 0.2 + 1.0;
-		// scale *= zoom;
-		// this.camera_x = Math.sin(this.clock.getElapsedTime()) * 20;
 
 		for (let si of this.animated_sprites) {
 			let sprite = this.data.sprites[si];
@@ -421,134 +569,10 @@ class Game {
 			this.pressed_keys[KEY_JUMP] = false;
 	}
 
-	has_trait_at_player(trait_or_traits, dx0, dx1, dy0, dy1) {
-		if (typeof(trait_or_traits) === 'string')
-			trait_or_traits = [trait_or_traits];
-		let x0 = this.player_mesh.position.x + dx0;
-		let x1 = this.player_mesh.position.x + dx1;
-		let y0 = this.player_mesh.position.y + dy0;
-		let y1 = this.player_mesh.position.y + dy1;
-
-		let result_x = new Set();
-		for (let i of this.interval_tree_x.search([x0, x1]))
-			result_x.add(i);
-		let result_y = new Set();
-		for (let i of this.interval_tree_y.search([y0, y1]))
-			result_y.add(i);
-		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
-		for (let entry_index of result) {
-			let entry = this.active_level_sprites[entry_index];
-			let sprite = this.data.sprites[entry.sprite_index];
-			for (let trait of trait_or_traits)
-				if (trait in sprite.traits)
-					return entry;
-		}
-		return null;
-	}
-
 	// handle simulation at fixed rate
 	simulation_step() {
-		let scale = this.height / this.screen_pixel_height;
-		if (this.player_mesh !== null) {
-
-			// if we're standing, we can jump
-			if (this.has_trait_at_player(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0)) {
-				this.player_vy = 0;
-				if (this.pressed_keys[KEY_JUMP])
-					this.player_vy = this.player_sprite.traits.actor.vjump;
-			}
-
-			// move left / right
-			if (this.pressed_keys[KEY_RIGHT])
-				this.player_mesh.position.x += this.player_traits.vrun;
-			if (this.pressed_keys[KEY_LEFT])
-				this.player_mesh.position.x -= this.player_traits.vrun;
-
-			if (this.has_trait_at_player('ladder', -0.5, 0.5, 0, 1.0)) {
-				if (this.pressed_keys[KEY_UP]) {
-					this.player_mesh.position.y += this.player_traits.vrun;
-					while (!this.has_trait_at_player('ladder', -0.5, 0.5, 0.0, 1.0)) {
-						this.player_mesh.position.y -= 1;
-					}
-				}
-				if (this.pressed_keys[KEY_DOWN])
-					this.player_mesh.position.y -= this.player_traits.vrun;
-				if (this.player_vy > 0)
-					this.player_mesh.position.y += this.player_vy;
-			} else {
-				this.player_mesh.position.y += this.player_vy;
-			}
-
-			// decrease y velocity because of gravity
-			if (!this.has_trait_at_player(['block_above', 'ladder'], -0.5, 0.5, -1.0, 0.0)) {
-				this.player_vy -= this.data.properties.gravity;
-				if (this.player_vy < -10)
-					this.player_vy = -10;
-			}
-
-			let ppu = 1.0;
-			let ppl = 0.7;
-			let ppr = 0.7;
-
-			let entry = this.has_trait_at_player('block_above', -0.5, 0.5, 0.1, 1.1);
-			if (entry) {
-				let sprite = this.data.sprites[entry.sprite_index];
-				this.player_mesh.position.y = entry.mesh.position.y + sprite.height;
-			}
-
-			if (this.player_vy > 0) {
-				entry = this.has_trait_at_player('block_below', -0.5, 0.5,
-					this.player_sprite.height * ppu + 0.1,
-					this.player_sprite.height * ppu + 1.1);
-				if (entry) {
-					let sprite = this.data.sprites[entry.sprite_index];
-					this.player_mesh.position.y = entry.mesh.position.y - this.player_sprite.height * ppu;
-					this.player_vy = 0;
-				}
-			}
-
-			entry = this.has_trait_at_player('block_sides',
-				this.player_sprite.width * 0.5 * ppr - 1,
-				this.player_sprite.width * 0.5 * ppr,
-				0.5, this.player_sprite.height - 1);
-			if (entry) {
-				let sprite = this.data.sprites[entry.sprite_index];
-				this.player_mesh.position.x = entry.mesh.position.x - sprite.width * 0.5 - this.player_sprite.width * 0.5 * ppr;
-			}
-
-			entry = this.has_trait_at_player('block_sides',
-				-this.player_sprite.width * 0.5 * ppl,
-				-this.player_sprite.width * 0.5 * ppl + 1,
-				0.5, this.player_sprite.height - 1);
-			if (entry) {
-				let sprite = this.data.sprites[entry.sprite_index];
-				this.player_mesh.position.x = entry.mesh.position.x + sprite.width * 0.5 + this.player_sprite.width * 0.5 * ppl;
-			}
-
-
-			// let camera follow player
-			let safe_zone_x0 = this.player_mesh.position.x - (this.width / 2 / scale) * this.screen_safe_zone_x;
-			let safe_zone_x1 = this.player_mesh.position.x + (this.width / 2 / scale) * this.screen_safe_zone_x;
-			let safe_zone_y0 = this.player_mesh.position.y - (this.height / 2 / scale) * this.screen_safe_zone_y;
-			let safe_zone_y1 = this.player_mesh.position.y + (this.height / 2 / scale) * this.screen_safe_zone_y;
-			if (this.camera_x < safe_zone_x0) this.camera_x = safe_zone_x0;
-			if (this.camera_x > safe_zone_x1) this.camera_x = safe_zone_x1;
-			if (this.camera_y < safe_zone_y0) this.camera_y = safe_zone_y0;
-			if (this.camera_y > safe_zone_y1) this.camera_y = safe_zone_y1;
-			// this.camera_y = this.player_mesh.position.y + this.data.properties.screen_pixel_height * 0.3;
-		}
-
-		// 	// this.player_mesh.position.set(100, 0, 10);
-		// 	if (key === 'ArrowRight') {
-		// 		this.player_mesh.position.x += 1;
-		// 	}
-		// 	if (key === 'ArrowLeft') {
-		// 		this.player_mesh.position.x -= 1;
-		// 	}
-		// 	// this.player_mesh.matrixWorldNeedsUpdate = true;
-		// 	// console.log(this.player_mesh.position);
-		// }
-
+		if (this.player_character !== null)
+			this.player_character.simulation_step();
 	}
 
 	simulate() {
@@ -669,6 +693,10 @@ class TouchButton {
 document.addEventListener("DOMContentLoaded", function (event) {
 	window.game = new Game();
 	window.game.reset();
+
+	let tag = window.location.hash.substring(1);
+	console.log(tag);
+	if (tag.length === 7) window.game.load(tag);
 
 	$('#mi_start').click(function(e) {
 		window.game.run();

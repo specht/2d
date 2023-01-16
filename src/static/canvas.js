@@ -62,6 +62,7 @@ class Canvas {
         this.spray_pixels = null;
         this.spray_pixels_per_shot = 1;
         this.label_for_state = [];
+        this.draw_ex = false;
         $(this.element).css('overflow', 'hidden');
         $(this.element).css('cursor', 'crosshair');
         $(this.backdrop_color).css('background-color', `#777`);
@@ -995,6 +996,8 @@ class Canvas {
         this.overlay_bitmap_outline.width = Math.min(this.bitmap.width * this.scale, this.size + 2 * this.scale) + 1;
         this.overlay_bitmap_outline.height = Math.min(this.bitmap.height * this.scale, this.size + 2 * this.scale) + 1;
         let context = this.overlay_grid.getContext('2d');
+
+        // render grid lines (white)
         context.beginPath();
         let opacity = this.scale / 32 * 0.4;
         if (opacity > 0.6) opacity = 0.6;
@@ -1007,6 +1010,8 @@ class Canvas {
         }
         context.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
         context.stroke();
+
+        // render grid lines (black)
         context.beginPath();
         for (let y = 0; y < (this.size + this.scale * 2) / this.scale; y++) {
             let i = Math.round(y * this.scale);
@@ -1017,6 +1022,27 @@ class Canvas {
         }
         context.strokeStyle = `rgba(0, 0, 0, ${opacity * 0.5})`;
         context.stroke();
+
+        if (this.draw_ex && game != null && 'actor' in game.data.sprites[canvas.sprite_index].traits) {
+            // render sprite collision extension lines
+            context.beginPath();
+            let x0 = Math.round(this.bitmap.width * (0.5 - game.data.sprites[canvas.sprite_index].traits.actor.ex_left * 0.5) * this.scale);
+            let x1 = Math.round(this.bitmap.width * (0.5 + game.data.sprites[canvas.sprite_index].traits.actor.ex_right * 0.5) * this.scale);
+            let y = Math.round(this.bitmap.width * (1.0 - game.data.sprites[canvas.sprite_index].traits.actor.ex_top) * this.scale);
+            context.moveTo(0 + 0.5, this.bitmap.height * this.scale + 0.5);
+            context.lineTo(x0 + 0.5, this.bitmap.height * this.scale + 0.5);
+            context.lineTo(x0 + 0.5, y + 0.5);
+            context.lineTo(x1 + 0.5, y + 0.5);
+            context.lineTo(x1 + 0.5, this.bitmap.height * this.scale + 0.5);
+            context.lineTo(this.bitmap.width * this.scale + 0.5, this.bitmap.height * this.scale + 0.5);
+            context.lineTo(this.bitmap.width * this.scale + 0.5, 0.5);
+            context.lineTo(0.5, 0.5);
+            context.strokeStyle = `#f00`;
+            context.fillStyle = 'rgba(255, 0, 0, 0.2)'
+            context.fill();
+            context.stroke();
+        }
+
         $(this.bitmap).css('width', `${Math.round(this.bitmap.width * this.scale)}px`);
         $(this.bitmap).css('height', `${Math.round(this.bitmap.height * this.scale)}px`);
         $(this.bitmap).css('left', `${this.offset_x}px`);

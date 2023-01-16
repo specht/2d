@@ -62,6 +62,66 @@ var SPRITE_TRAITS = {
                 type: 'bool',
                 default: true,
             },
+            ex_left: {
+                label: 'Kollision links',
+                type: 'float',
+                min: 0,
+                max: 1,
+                step: 0.05,
+                decimalPlaces: 2,
+                default: 0.7,
+                onfocus: () => {
+                    canvas.draw_ex = true;
+                    canvas.handleResize();
+                },
+                onblur: () => {
+                    canvas.draw_ex = false;
+                    canvas.handleResize();
+                },
+                onchange: () => {
+                    canvas.handleResize();
+                }
+            },
+            ex_right: {
+                label: 'Kollision rechts',
+                type: 'float',
+                min: 0,
+                max: 1,
+                step: 0.05,
+                decimalPlaces: 2,
+                default: 0.7,
+                onfocus: () => {
+                    canvas.draw_ex = true;
+                    canvas.handleResize();
+                },
+                onblur: () => {
+                    canvas.draw_ex = false;
+                    canvas.handleResize();
+                },
+                onchange: () => {
+                    canvas.handleResize();
+                }
+            },
+            ex_top: {
+                label: 'Kollision oben',
+                type: 'float',
+                min: 0,
+                max: 1,
+                step: 0.05,
+                decimalPlaces: 2,
+                default: 1.0,
+                onfocus: () => {
+                    canvas.draw_ex = true;
+                    canvas.handleResize();
+                },
+                onblur: () => {
+                    canvas.draw_ex = false;
+                    canvas.handleResize();
+                },
+                onchange: () => {
+                    canvas.handleResize();
+                }
+            },
         },
     },
     block_above: {

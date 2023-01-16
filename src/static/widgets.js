@@ -543,6 +543,8 @@ class NumberWidget {
         data.step ??= 1;
         data.decimalPlaces ??= 0;
         data.suffix ??= null;
+        data.onfocus ??= null;
+        data.onblur ??= null;
         if (data.min !== null && !Array.isArray(data.min))
             data.min = [data.min];
         if (data.max !== null && !Array.isArray(data.max))
@@ -566,6 +568,7 @@ class NumberWidget {
             this.input[i].keyup(function(e) { self.update(i); });
             this.input[i].change(function(e) { self.update(i); });
             this.input[i].focus(function(e) {
+                if (self.data.onfocus) self.data.onfocus();
                 self.focus(i);
                 $(e.target).select();
             });
@@ -579,13 +582,18 @@ class NumberWidget {
             });
             this.input[i].on('wheel', function(e) {
                 if (self.get(i) !== null && self.input[i].is(':focus')) {
+                    e.stopPropagation();
+                    e.preventDefault();
                     if (e.originalEvent.deltaY < 0)
                         self.delta(i, self.data.step);
                     if (e.originalEvent.deltaY > 0)
                         self.delta(i, -self.data.step);
                 }
             });
-            this.input[i].blur(function(e) { self.blur(i); });
+            this.input[i].blur(function(e) {
+                self.blur(i);
+                if (self.data.onblur) self.data.onblur();
+            });
         }
         if (this.data.suffix !== null)
             subdiv.append($(`<span style='margin-left: 0.25em;'>`).text(this.data.suffix));
@@ -630,6 +638,7 @@ class NumberWidget {
             values.push(v);
         }
         this.data.set(...values);
+        if (this.data.onchange) this.data.onchange();
     }
 
     focus() {
@@ -650,6 +659,7 @@ class NumberWidget {
             this.input[i].val(this.format(v));
         }
         this.data.set(...values);
+        if (this.data.onchange) this.data.onchange();
     }
 }
 
