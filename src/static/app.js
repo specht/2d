@@ -83,60 +83,56 @@ class Character {
 				this.vy = -10;
 		}
 
-		let ppu = 1.0;
-		let ppl = 0.7;
-		let ppr = 0.7;
+		let ppu = this.traits.ex_top;
+		let ppl = this.traits.ex_left;
+		let ppr = this.traits.ex_right;
 
-		let entry = this.has_trait_at_player('block_above', -0.5, 0.5, 0.1, 1.1);
+		let entry = this.has_trait_at('block_above', -0.5, 0.5, 0.1, 1.1);
 		if (entry) {
-			let sprite = this.data.sprites[entry.sprite_index];
-			this.player_mesh.position.y = entry.mesh.position.y + sprite.height;
+			let sprite = this.game.data.sprites[entry.sprite_index];
+			this.mesh.position.y = entry.mesh.position.y + this.sprite.height;
 		}
 
-		return;
-
-		if (this.player_vy > 0) {
-			entry = this.has_trait_at_player('block_below', -0.5, 0.5,
-				this.player_sprite.height * ppu + 0.1,
-				this.player_sprite.height * ppu + 1.1);
+		if (this.vy > 0) {
+			entry = this.has_trait_at('block_below', -0.5, 0.5,
+				this.sprite.height * ppu + 0.1,
+				this.sprite.height * ppu + 1.1);
 			if (entry) {
-				let sprite = this.data.sprites[entry.sprite_index];
-				this.player_mesh.position.y = entry.mesh.position.y - this.player_sprite.height * ppu;
-				this.player_vy = 0;
+				let sprite = this.game.data.sprites[entry.sprite_index];
+				this.mesh.position.y = entry.mesh.position.y - this.sprite.height * ppu;
+				this.vy = 0;
 			}
 		}
 
-		entry = this.has_trait_at_player('block_sides',
-			this.player_sprite.width * 0.5 * ppr - 1,
-			this.player_sprite.width * 0.5 * ppr,
-			0.5, this.player_sprite.height - 1);
+		entry = this.has_trait_at('block_sides',
+			this.sprite.width * 0.5 * ppr - 1,
+			this.sprite.width * 0.5 * ppr,
+			0.5, this.sprite.height - 1);
 		if (entry) {
-			let sprite = this.data.sprites[entry.sprite_index];
-			this.player_mesh.position.x = entry.mesh.position.x - sprite.width * 0.5 - this.player_sprite.width * 0.5 * ppr;
+			let sprite = this.game.data.sprites[entry.sprite_index];
+			this.mesh.position.x = entry.mesh.position.x - sprite.width * 0.5 - this.sprite.width * 0.5 * ppr;
 		}
 
-		entry = this.has_trait_at_player('block_sides',
-			-this.player_sprite.width * 0.5 * ppl,
-			-this.player_sprite.width * 0.5 * ppl + 1,
-			0.5, this.player_sprite.height - 1);
+		entry = this.has_trait_at('block_sides',
+			-this.sprite.width * 0.5 * ppl,
+			-this.sprite.width * 0.5 * ppl + 1,
+			0.5, this.sprite.height - 1);
 		if (entry) {
-			let sprite = this.data.sprites[entry.sprite_index];
-			this.player_mesh.position.x = entry.mesh.position.x + sprite.width * 0.5 + this.player_sprite.width * 0.5 * ppl;
+			let sprite = this.game.data.sprites[entry.sprite_index];
+			this.mesh.position.x = entry.mesh.position.x + sprite.width * 0.5 + this.sprite.width * 0.5 * ppl;
 		}
 
-
-		let scale = this.game.height / this.game.screen_pixel_height;
-		// let camera follow player
-		let safe_zone_x0 = this.player_mesh.position.x - (this.width / 2 / scale) * this.screen_safe_zone_x;
-		let safe_zone_x1 = this.player_mesh.position.x + (this.width / 2 / scale) * this.screen_safe_zone_x;
-		let safe_zone_y0 = this.player_mesh.position.y - (this.height / 2 / scale) * this.screen_safe_zone_y;
-		let safe_zone_y1 = this.player_mesh.position.y + (this.height / 2 / scale) * this.screen_safe_zone_y;
-		if (this.camera_x < safe_zone_x0) this.camera_x = safe_zone_x0;
-		if (this.camera_x > safe_zone_x1) this.camera_x = safe_zone_x1;
-		if (this.camera_y < safe_zone_y0) this.camera_y = safe_zone_y0;
-		if (this.camera_y > safe_zone_y1) this.camera_y = safe_zone_y1;
-		// this.camera_y = this.player_mesh.position.y + this.data.properties.screen_pixel_height * 0.3;
-
+		if (this.follow_camera) {
+			let scale = this.game.height / this.game.screen_pixel_height;
+			let safe_zone_x0 = this.mesh.position.x - (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
+			let safe_zone_x1 = this.mesh.position.x + (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
+			let safe_zone_y0 = this.mesh.position.y - (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
+			let safe_zone_y1 = this.mesh.position.y + (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
+			if (this.game.camera_x < safe_zone_x0) this.game.camera_x = safe_zone_x0;
+			if (this.game.camera_x > safe_zone_x1) this.game.camera_x = safe_zone_x1;
+			if (this.game.camera_y < safe_zone_y0) this.game.camera_y = safe_zone_y0;
+			if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
+		}
 	}
 }
 

@@ -1035,8 +1035,8 @@ class Canvas {
             context.lineTo(x1 + 0.5, y + 0.5);
             context.lineTo(x1 + 0.5, this.bitmap.height * this.scale + 0.5);
             context.lineTo(this.bitmap.width * this.scale + 0.5, this.bitmap.height * this.scale + 0.5);
-            context.lineTo(this.bitmap.width * this.scale + 0.5, 0.5);
-            context.lineTo(0.5, 0.5);
+            context.lineTo(this.bitmap.width * this.scale + 0.5, -0.5);
+            context.lineTo(0.5, -0.5);
             context.strokeStyle = `#f00`;
             context.fillStyle = 'rgba(255, 0, 0, 0.2)'
             context.fill();
