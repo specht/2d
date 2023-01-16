@@ -587,10 +587,10 @@ class Game {
 		if (key === 'Space')
 			this.pressed_keys[KEY_JUMP] = true;
 		if (this.development) {
-			if (key === 'Period') {
+			if (key === 'Comma') {
 				this.clock.delta(-0.1);
 			}
-			if (key === 'Slash') {
+			if (key === 'Period') {
 				this.clock.delta(0.1);
 			}
 		}
