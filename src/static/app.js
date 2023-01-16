@@ -59,6 +59,10 @@ class Game {
 	async load(tag) {
 		// load game json
 		this.reset();
+		if (window.yt_player !== null) {
+			window.yt_player.pauseVideo();
+		}
+
 		this.data = await (await fetch(`/gen/games/${tag}.json`)).json();
 		this.spritesheet_info = await (await fetch(`/gen/spritesheets/${tag}.json`)).json();
 		this.spritesheets = [];
@@ -85,14 +89,19 @@ class Game {
 		$('#game_title').text(this.data.properties.title);
 		$('#game_author').text(this.data.properties.author);
 		this.setup();
-		if (window.location.host.substring(0, 9) === 'localhost') {
-			this.run();
-			// $('#touch_controls').show();
+		// if (window.location.host.substring(0, 9) === 'localhost') {
+		// 	this.run();
+		// 	// $('#touch_controls').show();
+		// }
+	}
+
+	stop() {
+		if (window.yt_player !== null) {
+			window.yt_player.pauseVideo();
 		}
 	}
 
 	setup() {
-
 		this.running = false;
         this.clock = new THREE.Clock(true);
         this.scene = new THREE.Scene();
@@ -276,9 +285,12 @@ class Game {
 	}
 
 	run() {
-
 		if (window.yt_player !== null) {
-			window.yt_player.loadVideoById('QkIoP2qBthI');
+			window.yt_player.pauseVideo();
+			if ((window.game.data.levels[0].properties.yt_tag ?? '').length > 0) {
+				window.yt_player.loadVideoById(window.game.data.levels[0].properties.yt_tag);
+				// window.yt_player.playVideo();
+			}
 		}
 		if (this.running) return;
 		this.running = true;
@@ -664,10 +676,5 @@ function onYouTubeIframeAPIReady() {
     window.yt_player = new YT.Player('yt_placeholder', {
         height: '390',
         width: '640',
-        // videoId: vars.game_start_options.video_id,
-        // events: {
-        //     'onReady': onPlayerReady,
-        //     'onStateChange': onPlayerStateChange
-        // }
     });
 }

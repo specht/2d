@@ -407,6 +407,9 @@ document.addEventListener("DOMContentLoaded", function (event) {
                     $('#play_iframe').focus();
                 }
             });
+        } else {
+            if ($('#play_iframe')[0].contentWindow.yt_player !== null)
+                $('#play_iframe')[0].contentWindow.yt_player.pauseVideo();
         }
     })
 
