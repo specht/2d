@@ -114,7 +114,7 @@ body {
     scrollbar-width: none;
 }
 
-.right_menu_container {
+.right_menu_container, .far_right_menu_container {
     position: absolute;
     top: 50px;
     left: 0px;

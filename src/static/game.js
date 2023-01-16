@@ -397,7 +397,7 @@ class Game {
         let si = canvas.sprite_index;
         $('#menu_sprite_properties').empty();
         $('#menu_sprite_properties_variable_part_following').nextAll().remove();
-        let traits_menu = $('<div>').appendTo($('#menu_sprite_properties'))
+        let traits_menu = $('<div>').css('max-height', 'calc(50vh - 90px)').appendTo($('#menu_sprite_properties'));
         let traits_menu_data = [];
         traits_menu_data.push({label: 'Eigenschaft hinzufügen', children: this.build_sprite_traits_submenu(SPRITE_TRAITS_ORDER)});
         setupDropdownMenu(traits_menu, traits_menu_data);

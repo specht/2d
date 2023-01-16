@@ -26,9 +26,15 @@ function handleResize() {
     $('#menu_frames').css('width', `${$('#canvas').width()}px`);
     $('.menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('.menu_container').width() - 25}px`);
     $('.right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
+    $('.far_right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25 + 225}px`);
     $('.full_right_menu_container').css('left', `${window.innerWidth - 236}px`);
     $('.full_left_menu_container').css('left', `20px`);
     // $('#right_menu_container .menu_frames').css('height', `${$('#canvas').height() * 0.2 - 25}px`);
+
+    if (window.innerWidth - $('#canvas').width() > 940)
+        $('#states_container').appendTo($('.far_right_menu_container'));
+    else
+        $('#states_container').appendTo($('.right_menu_container'));
 
     $('#main_div_level .left_menu_container').css('left', '10px');
     $('#main_div_level .left_menu_container').css('width', '174px');
