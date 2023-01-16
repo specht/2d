@@ -283,6 +283,10 @@ class Character {
 		this.mesh.scale.x = flipped ? -1.0 : 1.0;
 	}
 
+	standing_on_ground() {
+		return this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0);
+	}
+
 	simulation_step() {
 
 		// move left / right
@@ -290,14 +294,19 @@ class Character {
 		if (this.game.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun;
 		if (this.game.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun;
 		dx = this.try_move_x(dx);
-		let state = (Math.abs(dx) > 0.1) ? 'walk' : 'stand';
+		let state = 'stand';
+		if (this.standing_on_ground()) {
+			state = (Math.abs(dx) > 0.1) ? 'walk' : 'stand';
+		} else {
+			state = (this.vy > 0) ? 'jump' : 'fall';
+		}
 		let direction = this.direction;
 		if (dx > 0) direction = 'right';
 		if (dx < 0) direction = 'left';
 
 		// if we're standing, we can jump
 		if (this.sprite.traits[this.character_trait].can_jump) {
-			if (this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0)) {
+			if (this.standing_on_ground()) {
 				this.vy = 0;
 				if (this.game.pressed_keys[KEY_JUMP])
 					this.vy = this.traits.vjump;
@@ -328,76 +337,6 @@ class Character {
 			if (this.game.camera_y < safe_zone_y0) this.game.camera_y = safe_zone_y0;
 			if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
 		}
-
-
-		return;
-
-		if (this.has_trait_at('ladder', -0.5, 0.5, 0, 1.0)) {
-			if (this.game.pressed_keys[KEY_UP]) {
-				this.mesh.position.y += this.traits.vrun;
-				while (!this.has_trait_at('ladder', -0.5, 0.5, 0.0, 1.0)) {
-					this.mesh.position.y -= 1;
-				}
-			}
-			if (this.game.pressed_keys[KEY_DOWN])
-				this.mesh.position.y -= this.traits.vrun;
-			if (this.vy > 0)
-				this.mesh.position.y += this.vy;
-		} else {
-			if (this.sprite.traits[this.character_trait].affected_by_gravity) {
-				this.mesh.position.y += this.vy;
-			} else {
-				if (this.vy > 0)
-					this.mesh.position.y += this.vy;
-			}
-		}
-
-		// decrease y velocity because of gravity
-		if (!this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -1.0, 0.0)) {
-			this.vy -= this.game.data.properties.gravity;
-			if (this.vy < -10)
-				this.vy = -10;
-		}
-
-		let ppu = this.traits.ex_top;
-		let ppl = this.traits.ex_left;
-		let ppr = this.traits.ex_right;
-
-		let entry = this.has_trait_at('block_above', -0.5, 0.5, 0.1, 1.1);
-		if (entry) {
-			let sprite = this.game.data.sprites[entry.sprite_index];
-			this.mesh.position.y = entry.mesh.position.y + this.sprite.height;
-		}
-
-		if (this.vy > 0) {
-			entry = this.has_trait_at('block_below', -0.5, 0.5,
-				this.sprite.height * ppu + 0.1,
-				this.sprite.height * ppu + 1.1);
-			if (entry) {
-				let sprite = this.game.data.sprites[entry.sprite_index];
-				this.mesh.position.y = entry.mesh.position.y - this.sprite.height * ppu;
-				this.vy = 0;
-			}
-		}
-
-		entry = this.has_trait_at('block_sides',
-			this.sprite.width * 0.5 * ppr - 1,
-			this.sprite.width * 0.5 * ppr,
-			0.5, this.sprite.height - 1);
-		if (entry) {
-			let sprite = this.game.data.sprites[entry.sprite_index];
-			this.mesh.position.x = entry.mesh.position.x - sprite.width * 0.5 - this.sprite.width * 0.5 * ppr;
-		}
-
-		entry = this.has_trait_at('block_sides',
-			-this.sprite.width * 0.5 * ppl,
-			-this.sprite.width * 0.5 * ppl + 1,
-			0.5, this.sprite.height - 1);
-		if (entry) {
-			let sprite = this.game.data.sprites[entry.sprite_index];
-			this.mesh.position.x = entry.mesh.position.x + sprite.width * 0.5 + this.sprite.width * 0.5 * ppl;
-		}
-
 	}
 }
 
