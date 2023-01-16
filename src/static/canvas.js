@@ -4,7 +4,7 @@ const PEN_SHAPE_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
     'tool/fill-rect', 'tool/fill-ellipse', 'tool/picker', 'tool/spray', 'tool/fill'];
 const TWO_POINT_TOOLS = ['tool/line', 'tool/rect', 'tool/ellipse',
     'tool/fill-rect', 'tool/fill-ellipse', 'tool/gradient'];
-const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
+const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse', 'tool/move',
     'tool/fill-rect', 'tool/fill-ellipse', 'tool/spray', 'tool/fill', 'tool/gradient'];
 const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient'];
 const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker', 'tool/move', 'tool/gradient'];
