@@ -18,37 +18,67 @@ class Character {
 		this.state = 'stand';
 		this.direction = 'front';
 		this.t0 = 0.0;
+		this.sti_for_state = {};
 
 		if ('actor' in this.sprite.traits) {
 			this.character_trait = 'actor';
 			this.traits = this.sprite.traits[this.character_trait];
 			this.follow_camera = true;
 		}
-		this.sti_for_state = {};
+
 		for (let state of ['stand', 'walk', 'jump', 'fall']) {
 			this.sti_for_state[state] ??= {};
 		}
 
-		// fall
-		for (let sti = 0; sti < this.sprite.states.length; sti++) {
-			let state = this.sprite.states[sti];
-			let state_traits = state.traits[this.character_trait] ?? {};
-			let prefix = 'fall_';
-			for (let s of ['fall']) {
-				for (let d of ['front', 'back', 'left', 'right']) {
-					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
-				}
-			}
-		}
+		// // fall
+		// for (let sti = 0; sti < this.sprite.states.length; sti++) {
+		// 	let state = this.sprite.states[sti];
+		// 	let state_traits = state.traits[this.character_trait] ?? {};
+		// 	let prefix = 'fall_';
+		// 	for (let s of ['fall']) {
+		// 		for (let d of ['front', 'back', 'left', 'right']) {
+		// 			if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
+		// 		}
+		// 	}
+		// }
 
-		// jump
+		// // jump
+		// for (let sti = 0; sti < this.sprite.states.length; sti++) {
+		// 	let state = this.sprite.states[sti];
+		// 	let state_traits = state.traits[this.character_trait] ?? {};
+		// 	let prefix = 'jump_';
+		// 	for (let s of ['jump']) {
+		// 		for (let d of ['front', 'back', 'left', 'right']) {
+		// 			if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
+		// 		}
+		// 	}
+		// }
+
+		// walk
+		// for (let sti = 0; sti < this.sprite.states.length; sti++) {
+		// 	let state = this.sprite.states[sti];
+		// 	let state_traits = state.traits[this.character_trait] ?? {};
+		// 	let prefix = 'walk_';
+		// 	for (let s of ['walk']) {
+		// 		for (let d of ['front', 'back', 'left', 'right']) {
+		// 			if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
+		// 		}
+		// 	}
+		// 	for (let s of ['walk']) {
+		// 		for (let d of ['front', 'back', 'left', 'right']) {
+		// 			if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] ??= sti;
+		// 		}
+		// 	}
+		// }
+
+		// stand
 		for (let sti = 0; sti < this.sprite.states.length; sti++) {
 			let state = this.sprite.states[sti];
 			let state_traits = state.traits[this.character_trait] ?? {};
-			let prefix = 'jump_';
-			for (let s of ['jump']) {
-				for (let d of ['front', 'back', 'left', 'right']) {
-					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
+			let prefix = '';
+			for (let d of ['front', 'back', 'left', 'right']) {
+				if (`${prefix}${d}` in state_traits) {
+					this.assign_sti('stand', d, sti, 100, false);
 				}
 			}
 		}
@@ -58,44 +88,60 @@ class Character {
 			let state = this.sprite.states[sti];
 			let state_traits = state.traits[this.character_trait] ?? {};
 			let prefix = 'walk_';
-			for (let s of ['walk']) {
-				for (let d of ['front', 'back', 'left', 'right']) {
-					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
-				}
-			}
-			for (let s of ['walk']) {
-				for (let d of ['front', 'back', 'left', 'right']) {
-					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] ??= sti;
+			for (let d of ['front', 'back', 'left', 'right']) {
+				if (`${prefix}${d}` in state_traits) {
+					this.assign_sti('walk', d, sti, 100, false);
 				}
 			}
 		}
 
-		// stand
+		// jump
 		for (let sti = 0; sti < this.sprite.states.length; sti++) {
 			let state = this.sprite.states[sti];
 			let state_traits = state.traits[this.character_trait] ?? {};
-			let prefix = '';
-			for (let s of ['stand']) {
-				for (let d of ['front', 'back', 'left', 'right']) {
-					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
-				}
-			}
-			for (let s of ['stand', 'walk', 'jump', 'fall']) {
-				for (let d of ['front', 'back', 'left', 'right']) {
-					if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] ??= sti;
+			let prefix = 'jump_';
+			for (let d of ['front', 'back', 'left', 'right']) {
+				if (`${prefix}${d}` in state_traits) {
+					this.assign_sti('jump', d, sti, 100, false);
 				}
 			}
 		}
 
+		// fall
+		for (let sti = 0; sti < this.sprite.states.length; sti++) {
+			let state = this.sprite.states[sti];
+			let state_traits = state.traits[this.character_trait] ?? {};
+			let prefix = 'fall_';
+			for (let d of ['front', 'back', 'left', 'right']) {
+				if (`${prefix}${d}` in state_traits) {
+					this.assign_sti('fall', d, sti, 100, false);
+				}
+			}
+		}
+
+		// assign default states
 		for (let state of ['stand', 'walk', 'jump', 'fall']) {
 			for (let d of ['front', 'back', 'left', 'right']) {
-				this.sti_for_state[state][d] ??= 0;
+				this.assign_sti(state, d, 0, 0, false);
 			}
+		}
+
+		// try to assigne flipped states
+		for (let state of ['stand', 'walk', 'jump', 'fall']) {
+			this.assign_sti(state, 'left', this.sti_for_state[state].right.sti, 1, true);
+			this.assign_sti(state, 'right', this.sti_for_state[state].left.sti, 1, true);
 		}
 
 		console.log(this.sti_for_state);
 
 		this.vy = 0;
+	}
+
+	assign_sti(state, direction, sti, confidence, flipped) {
+		this.sti_for_state[state] ??= {};
+		this.sti_for_state[state][direction] ??= {sti: sti, confidence: confidence, flipped: flipped};
+		if (confidence > this.sti_for_state[state][direction].confidence)
+			this.sti_for_state[state][direction] = {sti: sti, confidence: confidence, flipped: flipped};
 	}
 
 	has_trait_at(trait_or_traits, dx0, dx1, dy0, dy1) {
@@ -167,14 +213,61 @@ class Character {
 			dx = this.intersect_x_with_trait(dx, ['block_sides'], rb, rb + dx, 0.1, tb - 0.1);
 		}
 		this.mesh.position.x += dx;
+		return dx;
+	}
+
+	intersect_y_with_trait(dy, trait_or_traits, dx0, dx1, dy0, dy1) {
+		if (typeof(trait_or_traits) === 'string')
+			trait_or_traits = [trait_or_traits];
+
+		let x0 = this.mesh.position.x + dx0;
+		let x1 = this.mesh.position.x + dx1;
+		let y0 = this.mesh.position.y + dy0;
+		let y1 = this.mesh.position.y + dy1;
+
+		let result_x = new Set();
+		for (let i of this.game.interval_tree_x.search([x0, x1]))
+			result_x.add(i);
+		let result_y = new Set();
+		for (let i of this.game.interval_tree_y.search([y0, y1]))
+			result_y.add(i);
+		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
+		for (let entry_index of result) {
+			let entry = this.game.active_level_sprites[entry_index];
+			let sprite = this.game.data.sprites[entry.sprite_index];
+			for (let trait of trait_or_traits) {
+				if (trait in sprite.traits) {
+					let winy = this.mesh.position.y;
+					if (dy < 0)
+						winy = Math.max(y0, entry.mesh.position.y + sprite.height);
+					else if (dy > 0)
+						winy = Math.min(y0, entry.mesh.position.y - this.sprite.height * this.traits.ex_top);
+					dy = winy - this.mesh.position.y;
+				}
+			}
+		}
+		return dy;
+	}
+
+	try_move_y(dy) {
+		if (dy < 0) {
+			dy = this.intersect_y_with_trait(dy, ['block_above'], -0.5, 0.5, dy, 0.0);
+		} else if (dy > 0) {
+			let tb = this.traits.ex_top * this.sprite.height;
+			dy = this.intersect_y_with_trait(dy, ['block_below'], -0.5, 0.5, tb + 0.1, tb + dy + 0.1);
+		}
+		this.mesh.position.y += dy;
+		return dy;
 	}
 
 	update_state_and_direction(state, direction) {
-		let old_sti = this.sti_for_state[this.state][this.direction];
+		let old_sti = this.sti_for_state[this.state][this.direction].sti;
+		let old_flipped = this.sti_for_state[this.state][this.direction].flipped;
 		this.state = state;
 		this.direction = direction;
-		let sti = this.sti_for_state[this.state][this.direction];
-		if (sti !== old_sti) {
+		let sti = this.sti_for_state[this.state][this.direction].sti;
+		let flipped = this.sti_for_state[this.state][this.direction].flipped;
+		if (sti !== old_sti || flipped !== old_flipped) {
 			this.t0 = this.game.clock.getElapsedTime();
 			let info = this.game.geometry_and_material_for_frame[this.sprite_index][sti][0];
 			this.mesh.geometry = info.geometry;
@@ -187,30 +280,55 @@ class Character {
 			this.mesh.geometry = info.geometry;
 			this.mesh.material = info.material;
 		}
+		this.mesh.scale.x = flipped ? -1.0 : 1.0;
 	}
 
 	simulation_step() {
-
-		// // if we're standing, we can jump
-		// if (this.sprite.traits[this.character_trait].can_jump) {
-		// 	if (this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0)) {
-		// 		this.vy = 0;
-		// 		if (this.game.pressed_keys[KEY_JUMP])
-		// 			this.vy = this.traits.vjump;
-		// 	}
-		// }
 
 		// move left / right
 		let dx = 0;
 		if (this.game.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun;
 		if (this.game.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun;
-		let state = (Math.abs(dx) > 0) ? 'walk' : 'stand';
+		dx = this.try_move_x(dx);
+		let state = (Math.abs(dx) > 0.1) ? 'walk' : 'stand';
 		let direction = this.direction;
 		if (dx > 0) direction = 'right';
 		if (dx < 0) direction = 'left';
-		this.try_move_x(dx);
+
+		// if we're standing, we can jump
+		if (this.sprite.traits[this.character_trait].can_jump) {
+			if (this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0)) {
+				this.vy = 0;
+				if (this.game.pressed_keys[KEY_JUMP])
+					this.vy = this.traits.vjump;
+			}
+		}
+
+		if (this.sprite.traits[this.character_trait].affected_by_gravity) {
+			let dy = this.try_move_y(this.vy);
+			if (Math.abs(dy) < 0.01) this.vy = 0;
+		}
+
+		if (!this.has_trait_at(['ladder'], -0.5, 0.5, -1.0, 0.0)) {
+			this.vy -= this.game.data.properties.gravity;
+			if (this.vy < -10)
+				this.vy = -10;
+		}
 
 		this.update_state_and_direction(state, direction);
+
+		if (this.follow_camera) {
+			let scale = this.game.height / this.game.screen_pixel_height;
+			let safe_zone_x0 = this.mesh.position.x - (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
+			let safe_zone_x1 = this.mesh.position.x + (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
+			let safe_zone_y0 = this.mesh.position.y - (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
+			let safe_zone_y1 = this.mesh.position.y + (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
+			if (this.game.camera_x < safe_zone_x0) this.game.camera_x = safe_zone_x0;
+			if (this.game.camera_x > safe_zone_x1) this.game.camera_x = safe_zone_x1;
+			if (this.game.camera_y < safe_zone_y0) this.game.camera_y = safe_zone_y0;
+			if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
+		}
+
 
 		return;
 
@@ -280,17 +398,6 @@ class Character {
 			this.mesh.position.x = entry.mesh.position.x + sprite.width * 0.5 + this.sprite.width * 0.5 * ppl;
 		}
 
-		if (this.follow_camera) {
-			let scale = this.game.height / this.game.screen_pixel_height;
-			let safe_zone_x0 = this.mesh.position.x - (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
-			let safe_zone_x1 = this.mesh.position.x + (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
-			let safe_zone_y0 = this.mesh.position.y - (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
-			let safe_zone_y1 = this.mesh.position.y + (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
-			if (this.game.camera_x < safe_zone_x0) this.game.camera_x = safe_zone_x0;
-			if (this.game.camera_x > safe_zone_x1) this.game.camera_x = safe_zone_x1;
-			if (this.game.camera_y < safe_zone_y0) this.game.camera_y = safe_zone_y0;
-			if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
-		}
 	}
 }
 
