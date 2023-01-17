@@ -4,14 +4,8 @@
   <head>
     <meta charset="UTF-8" />
     <title>2D Game Engine</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Carter+One&display=swap" rel="stylesheet">
+    <link href="fonts.css?#{@@cache_buster}" rel="stylesheet">
     <style>
-      @font-face {
-        font-family: 'LM';
-        src: url('/lmmono10-regular.otf');
-      }
       body {
         margin: 0;
         overflow: hidden;
@@ -87,7 +81,7 @@
       }
       #console {
         position: absolute;
-        font-family: 'LM', monospace;
+        font-family: 'IBM Plex Mono', 'Roboto Mono', monospace;
         pointer-events: none;
         left: 0;
         right: 0;

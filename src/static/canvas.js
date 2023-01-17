@@ -398,7 +398,7 @@ class Canvas {
                     this.mouse_down_point = s;
                     this.mouse_down_color = this.get_pixel(this.bitmap, this.mouse_down_point[0], this.mouse_down_point[1]);
                     this.spray_pixels = this.determine_spray_pixels();
-                    let context = this.bitmap.getContext('2d');
+                    let context = this.bitmap.getContext('2d', { willReadFrequently: true });
                     this.mouse_down_pixels = context.getImageData(0, 0, this.bitmap.width, this.bitmap.height);
                 }
                 let mdx = s[0] - this.mouse_down_point[0];
@@ -876,13 +876,29 @@ class Canvas {
         this.write_frame_to_game_data();
     }
 
-    rotate() {
+    rotateRight() {
         let temp = document.createElement('canvas');
         temp.width = this.bitmap.width;
         temp.height = this.bitmap.height;
         let context = temp.getContext('2d');
         context.translate(this.bitmap.width / 2, this.bitmap.height / 2);
         context.rotate(Math.PI / 2);
+        context.translate(-this.bitmap.width / 2, -this.bitmap.height / 2);
+        context.drawImage(this.bitmap, 0, 0);
+        context = this.bitmap.getContext('2d');
+        context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
+        context.drawImage(temp, 0, 0);
+        this.append_to_undo_stack();
+        this.write_frame_to_game_data();
+    }
+
+    rotateLeft() {
+        let temp = document.createElement('canvas');
+        temp.width = this.bitmap.width;
+        temp.height = this.bitmap.height;
+        let context = temp.getContext('2d');
+        context.translate(this.bitmap.width / 2, this.bitmap.height / 2);
+        context.rotate(-Math.PI / 2);
         context.translate(-this.bitmap.width / 2, -this.bitmap.height / 2);
         context.drawImage(this.bitmap, 0, 0);
         context = this.bitmap.getContext('2d');
@@ -910,10 +926,19 @@ class Canvas {
             [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0],
             [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1],
             [-1, 2], [0, 2], [1, 2]];
+        else if (width == 6)
+            return [
+                [-1, -2], [0, -2], [1, -2], [2, -2],
+                [-2, -1], [-1, -1], [0, -1], [1, -1], [2, -1], [3, -1],
+                [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [3, 0],
+                [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1], [3, 1],
+                [-2, 2], [-1, 2], [0, 2], [1, 2], [2, 2], [3, 2],
+                [-1, 3], [0, 3], [1, 3], [2, 3],
+            ];
     }
 
     set_pixel(canvas, x, y, color) {
-        let context = canvas.getContext('2d');
+        let context = canvas.getContext('2d', { willReadFrequently: true });
         let data = context.getImageData(x, y, 1, 1);
         data.data[0] = (color >> 24) & 0xff;
         data.data[1] = (color >> 16) & 0xff;
@@ -923,13 +948,13 @@ class Canvas {
     }
 
     get_pixel(canvas, x, y) {
-        let context = canvas.getContext('2d');
+        let context = canvas.getContext('2d', { willReadFrequently: true });
         let data = context.getImageData(x, y, 1, 1);
         return [data.data[0], data.data[1], data.data[2], data.data[3]];
     }
 
     set_pixels(canvas, mask, color) {
-        let context = canvas.getContext('2d');
+        let context = canvas.getContext('2d', { willReadFrequently: true });
         let data = context.getImageData(0, 0, canvas.width, canvas.height);
         for (let p of mask) {
             let x = p[0];
@@ -948,6 +973,11 @@ class Canvas {
     clear(canvas) {
         let context = canvas.getContext('2d');
         context.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    clearFrame() {
+        this.clear(this.bitmap);
+        this.write_frame_to_game_data();
     }
 
     fix_scale() {

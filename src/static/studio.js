@@ -58,8 +58,8 @@ function setCurrentColor(color) {
     let t = tinycolor(color);
     $('#current_color_menu').css('background', `linear-gradient(${t.toRgbString()},${t.toRgbString()}), url(transparent.png), #777`);
     $('#color_variations_menu').empty();
-    let a = tinycolor(color).analogous(10);
-    for (var h = 0; h < 9; h++) {
+    let a = tinycolor(color).analogous(12);
+    for (var h = 0; h < 11; h++) {
         var variation = a[h + 1];
         var swatch = $("<span class='button button-9'>");
         var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
@@ -70,13 +70,13 @@ function setCurrentColor(color) {
         $('#color_variations_menu').append(swatch);
     }
     $('#color_variations_menu').append('<br />');
-    for (var h = -4; h <= 4; h++) {
+    for (var h = -5; h <= 5; h++) {
         var variation = tinycolor(color);
         // -40 -30 -20 -10 0 10 20 30 40
         if (h < 0)
-            variation.darken(Math.pow(Math.abs(h / 4.0), 1.0) * 40);
+            variation.darken(Math.pow(Math.abs(h / 5.0), 1.0) * 40);
         else
-            variation.brighten(Math.pow(Math.abs(h / 4.0), 1.0) * 40);
+            variation.brighten(Math.pow(Math.abs(h / 5.0), 1.0) * 40);
         var swatch = $("<span class='button button-9'>");
         var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
         swatch.css('background', b);
@@ -86,13 +86,13 @@ function setCurrentColor(color) {
         $('#color_variations_menu').append(swatch);
     }
     $('#color_variations_menu').append('<br />');
-    for (var h = -4; h <= 4; h++) {
+    for (var h = -5; h <= 5; h++) {
         var variation = tinycolor(color);
         // -40 -30 -20 -10 0 10 20 30 40
         if (h < 0)
-            variation.darken(Math.pow(Math.abs(h / 4.0), 2.0) * 20);
+            variation.darken(Math.pow(Math.abs(h / 5.0), 2.0) * 20);
         else
-            variation.brighten(Math.pow(Math.abs(h / 4.0), 2.0) * 20);
+            variation.brighten(Math.pow(Math.abs(h / 5.0), 2.0) * 20);
         var swatch = $("<span class='button button-9'>");
         var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
         swatch.css('background', b);
@@ -102,12 +102,12 @@ function setCurrentColor(color) {
         $('#color_variations_menu').append(swatch);
     }
     $('#color_variations_menu').append('<br />');
-    for (var h = -4; h <= 4; h++) {
+    for (var h = -5; h <= 5; h++) {
         var variation = tinycolor(color);
         if (h < 0)
-            variation.desaturate(-h * 20);
+            variation.desaturate(-h * 16);
         else
-            variation.saturate(h * 20);
+            variation.saturate(h * 16);
         var swatch = $("<span class='button button-9'>");
         var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
         swatch.css('background', b);
@@ -117,9 +117,9 @@ function setCurrentColor(color) {
         $('#color_variations_menu').append(swatch);
     }
     $('#color_variations_menu').append('<br />');
-    for (var h = 1; h <= 9; h++) {
+    for (var h = 1; h <= 11; h++) {
         var variation = tinycolor(color);
-        variation.setAlpha(h / 9);
+        variation.setAlpha(h / 11);
         var swatch = $("<span class='button button-9'>");
         var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
         swatch.css('background', b);
@@ -271,6 +271,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                 { key: 'Shift', label: 'auch auf anderen Farben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
             ]
         },
+        { group: 'tool', command: 'select-rect', image: 'select-rect-44', shortcut: 'Y', label: 'Rechteck auswählen' },
         { group: 'tool', command: 'fill', image: 'color-fill-44', shortcut: 'A', label: 'Fläche füllen' },
         {
             group: 'tool', command: 'gradient', image: 'color-gradient', shortcut: 'S', label: 'Farbverlauf', hints: [
@@ -309,18 +310,20 @@ document.addEventListener("DOMContentLoaded", function (event) {
                 { key: 'Space', label: 'Automatisch anpassen', callback: () => canvas.autoFit() },
                 `Zoome mit dem Mausrad und klicke, um den sichtbaren Ausschnitt zu verschieben`]
         },
+        { command: 'clear', image: 'document-new', callback: () => canvas.clearFrame(), label: 'Frame löschen' },
         { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Z', label: 'Farbe auswählen' },
         { group: 'tool', command: 'move', image: 'transform-move', shortcut: 'X', label: 'Sprite verschieben' },
-        // { command: 'rotate-left', image: 'transform-rotate-left' },
-        { command: 'rotate-right', image: 'transform-rotate-right', shortcut: 'C', callback: () => canvas.rotate() },
-        { command: 'flip-h', image: 'transform-flip-h', shortcut: 'V', callback: () => canvas.flipHorizontal() },
-        { command: 'flip-v', image: 'transform-flip-v', shortcut: 'B', callback: () => canvas.flipVertical() },
+        { command: 'rotate-left', image: 'transform-rotate-left', shortcut: 'C', callback: () => canvas.rotateLeft() },
+        { command: 'rotate-right', image: 'transform-rotate-right', shortcut: 'V', callback: () => canvas.rotateRight() },
+        { command: 'flip-h', image: 'transform-flip-h', shortcut: 'B', callback: () => canvas.flipHorizontal() },
+        { command: 'flip-v', image: 'transform-flip-v', shortcut: 'N', callback: () => canvas.flipVertical() },
         { type: 'divider' },
         { group: 'penWidth', command: '1', image: 'pen-width-1', shortcut: '1', data: 1, callback: setPenWidth },
         { group: 'penWidth', command: '2', image: 'pen-width-2', shortcut: '2', data: 2, callback: setPenWidth },
         { group: 'penWidth', command: '3', image: 'pen-width-3', shortcut: '3', data: 3, callback: setPenWidth },
         { group: 'penWidth', command: '4', image: 'pen-width-4', shortcut: '4', data: 4, callback: setPenWidth },
         { group: 'penWidth', command: '5', image: 'pen-width-5', shortcut: '5', data: 5, callback: setPenWidth },
+        { group: 'penWidth', command: '6', image: 'pen-width-6', shortcut: '6', data: 6, callback: setPenWidth },
     ];
     tool_menu_items.sprites = tool_menu_items.sprites.map(function (x) {
         if (!x.callback)
