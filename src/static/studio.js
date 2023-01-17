@@ -318,12 +318,12 @@ document.addEventListener("DOMContentLoaded", function (event) {
         { command: 'flip-h', image: 'transform-flip-h', shortcut: 'B', callback: () => canvas.flipHorizontal() },
         { command: 'flip-v', image: 'transform-flip-v', shortcut: 'N', callback: () => canvas.flipVertical() },
         { type: 'divider' },
-        { group: 'penWidth', command: '1', image: 'pen-width-1', shortcut: '1', data: 1, callback: setPenWidth },
-        { group: 'penWidth', command: '2', image: 'pen-width-2', shortcut: '2', data: 2, callback: setPenWidth },
-        { group: 'penWidth', command: '3', image: 'pen-width-3', shortcut: '3', data: 3, callback: setPenWidth },
-        { group: 'penWidth', command: '4', image: 'pen-width-4', shortcut: '4', data: 4, callback: setPenWidth },
-        { group: 'penWidth', command: '5', image: 'pen-width-5', shortcut: '5', data: 5, callback: setPenWidth },
-        { group: 'penWidth', command: '6', image: 'pen-width-6', shortcut: '6', data: 6, callback: setPenWidth },
+        { group: 'penWidth', command: '1', image: 'pen-width-1n', shortcut: '1', data: 1, callback: setPenWidth },
+        { group: 'penWidth', command: '2', image: 'pen-width-2n', shortcut: '2', data: 2, callback: setPenWidth },
+        { group: 'penWidth', command: '3', image: 'pen-width-3n', shortcut: '3', data: 3, callback: setPenWidth },
+        { group: 'penWidth', command: '4', image: 'pen-width-4n', shortcut: '4', data: 4, callback: setPenWidth },
+        { group: 'penWidth', command: '5', image: 'pen-width-5n', shortcut: '5', data: 5, callback: setPenWidth },
+        { group: 'penWidth', command: '6', image: 'pen-width-6n', shortcut: '6', data: 6, callback: setPenWidth },
     ];
     tool_menu_items.sprites = tool_menu_items.sprites.map(function (x) {
         if (!x.callback)
