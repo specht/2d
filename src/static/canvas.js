@@ -754,11 +754,19 @@ class Canvas {
         let pattern = this.penPattern(this.pen_width);
         let s = this.get_sprite_point_from_last_mouse();
         this.clear(this.selection_bitmap);
-        if (!(this.is_touch && !this.mouse_down)) {
+        if (this.mouse_down) {
             if (this.menu.get('tool') === 'tool/select-rect') {
-                if (this.mouse_in_canvas) {
-                    for (let p of pattern)
-                        this.set_pixel(this.selection_bitmap, s[0] + p[0], s[1] + p[1], use_color);
+                let line_pattern = this.patternForTool(this.mouse_down_point, s, 'tool/fill-rect');
+                let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
+                this.set_pixels(this.selection_bitmap, mask, use_color);
+            }
+        } else {
+            if (!(this.is_touch && !this.mouse_down)) {
+                if (this.menu.get('tool') === 'tool/select-rect') {
+                    if (this.mouse_in_canvas) {
+                        for (let p of pattern)
+                            this.set_pixel(this.selection_bitmap, s[0] + p[0], s[1] + p[1], use_color);
+                    }
                 }
             }
         }
