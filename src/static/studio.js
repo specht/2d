@@ -48,6 +48,7 @@ function handleResize() {
 function setPenWidth(menu_item) {
     canvas.pen_width = menu_item.data;
     canvas.update_overlay_brush();
+    canvas.update_selection_brush();
 }
 
 function setCurrentColor(color) {
@@ -143,10 +144,10 @@ function activateTool(item) {
             window.revert_to_tool = item.key;
         canvas.setShowPen(['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
             'tool/spray', 'tool/fill', 'tool/gradient', 'tool/fill-rect',
-            'tool/fill-ellipse', 'tool/picker'].indexOf(item.key) >= 0);
+            'tool/fill-ellipse', 'tool/picker', 'tool/select-rect'].indexOf(item.key) >= 0);
         canvas.setModifierCtrl(false);
         canvas.setModifierShift(false);
-        if (['tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient'].indexOf(item.key) >= 0)
+        if (['tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient', 'tool/select-rect'].indexOf(item.key) >= 0)
             menus.sprites.handle_click('penWidth/1');
     }
 }

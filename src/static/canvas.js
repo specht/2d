@@ -35,11 +35,15 @@ class Canvas {
         this.bitmap = document.createElement('canvas');
         this.overlay_bitmap = document.createElement('canvas');
         this.overlay_bitmap_outline = document.createElement('canvas');
+        this.selection_bitmap = document.createElement('canvas');
+        this.selection_bitmap_outline = document.createElement('canvas');
         this.overlay_grid = document.createElement('canvas');
         this.bitmap.width = DEFAULT_WIDTH;
         this.bitmap.height = DEFAULT_HEIGHT;
         this.overlay_bitmap.width = DEFAULT_WIDTH;
         this.overlay_bitmap.height = DEFAULT_HEIGHT;
+        this.selection_bitmap.width = DEFAULT_WIDTH;
+        this.selection_bitmap.height = DEFAULT_HEIGHT;
         this.current_color = 0xff0000ff;
         this.pen_width = 1;
         this.last_touch_distance = null;
@@ -76,13 +80,19 @@ class Canvas {
         $(this.overlay_bitmap).css('image-rendering', 'pixelated');
         $(this.overlay_bitmap).css('opacity', 0.9);
         $(this.overlay_bitmap_outline).css('position', 'absolute');
+        $(this.selection_bitmap).css('position', 'absolute');
+        $(this.selection_bitmap).css('image-rendering', 'pixelated');
+        $(this.selection_bitmap).css('opacity', 0.9);
+        $(this.selection_bitmap_outline).css('position', 'absolute');
         $(this.overlay_grid).css('position', 'absolute');
         this.element.append(this.backdrop_color);
         this.element.append(this.backdrop);
         this.element.append(this.bitmap);
         this.element.append(this.overlay_bitmap);
+        this.element.append(this.selection_bitmap);
         this.element.append(this.overlay_grid);
         this.element.append(this.overlay_bitmap_outline);
+        this.element.append(this.selection_bitmap_outline);
 
         this.offset_x = 0;
         this.offset_y = 0;
@@ -628,6 +638,7 @@ class Canvas {
         this.mouse_down_point = null;
         this.mouse_down_button = null;
         this.update_overlay_brush();
+        this.update_selection_brush();
         this.stop_ticker();
     }
 
@@ -639,34 +650,37 @@ class Canvas {
     setShowPen(flag) {
         this.show_pen = flag;
         this.update_overlay_brush();
+        this.update_selection_brush();
     }
 
-    update_overlay_outline() {
-        // return;
-        let overlay_context = this.overlay_bitmap.getContext('2d');
-        let outline_context = this.overlay_bitmap_outline.getContext('2d');
-        let overlay_width = this.overlay_bitmap.width;
-        let overlay_height = this.overlay_bitmap.height;
-        let outline_width = this.overlay_bitmap_outline.width;
-        let outline_height = this.overlay_bitmap_outline.height;
+    update_outline(bitmap, bitmap_outline) {
+        let context = bitmap.getContext('2d');
+        let outline_context = bitmap_outline.getContext('2d');
+        let width = bitmap.width;
+        let height = bitmap.height;
+        let outline_width = bitmap_outline.width;
+        let outline_height = bitmap_outline.height;
         outline_context.clearRect(0, 0, outline_width, outline_height);
         if (!((this.mouse_down || this.mouse_in_canvas) && this.show_pen))
             return;
-        let data = overlay_context.getImageData(0, 0, overlay_width, overlay_height).data;
+        let data = context.getImageData(0, 0, width, height).data;
         outline_context.beginPath();
         outline_context.strokeStyle = '#ffffff';
         // outline_context.setLineDash([4, 4]);
         outline_context.lineWidth = 1;
         // TODO: This code is really slow on a large sprite
-        for (let y = 0; y < overlay_height; y++) {
-            for (let x = 0; x < overlay_width; x++) {
-                let offset = (y * overlay_width + x) * 4;
+        // outline_context.moveTo(0, 0);
+        // outline_context.lineTo(100, 200);
+        // outline_context.stroke();
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let offset = (y * width + x) * 4;
                 let sx = x * this.scale + Math.min(this.offset_x, 0) - (Math.min(this.offset_x, 0) % this.scale);
                 let sy = y * this.scale + Math.min(this.offset_y, 0) - (Math.min(this.offset_y, 0) % this.scale);
                 let p0 = data[offset + 3] > 0;
                 let px = data[offset + 4 + 3] > 0;
-                let py = data[offset + overlay_width * 4 + 3] > 0;
-                if (x < overlay_width - 1) {
+                let py = data[offset + width * 4 + 3] > 0;
+                if (x < width - 1) {
                     if (p0 && !px) {
                         outline_context.moveTo(Math.round(sx + this.scale) - 0.5, Math.round(sy) + 1.5);
                         outline_context.lineTo(Math.round(sx + this.scale) - 0.5, Math.round(sy + this.scale) - 0.5);
@@ -676,7 +690,7 @@ class Canvas {
                         outline_context.lineTo(Math.round(sx + this.scale) + 0.5, Math.round(sy + this.scale) - 0.5);
                     }
                 }
-                if (y < overlay_height - 1) {
+                if (y < height - 1) {
                     if (p0 && !py) {
                         outline_context.moveTo(Math.round(sx) + 1.5, Math.round(sy + this.scale) - 0.5);
                         outline_context.lineTo(Math.round(sx + this.scale) - 0.5, Math.round(sy + this.scale) - 0.5);
@@ -689,6 +703,11 @@ class Canvas {
             }
         }
         outline_context.stroke();
+
+    }
+
+    update_overlay_outline() {
+        this.update_outline(this.overlay_bitmap, this.overlay_bitmap_outline);
     }
 
     update_overlay_brush() {
@@ -722,6 +741,28 @@ class Canvas {
             }
         }
         this.update_overlay_outline();
+    }
+
+    update_selection_outline() {
+        this.update_outline(this.selection_bitmap, this.selection_bitmap_outline);
+    }
+
+    update_selection_brush() {
+        if (this.last_mouse_x === null || this.last_mouse_y === null)
+            return;
+        let use_color = (this.mouse_down_button == 2) ? 0x00000000 : 0x00000001;
+        let pattern = this.penPattern(this.pen_width);
+        let s = this.get_sprite_point_from_last_mouse();
+        this.clear(this.selection_bitmap);
+        if (!(this.is_touch && !this.mouse_down)) {
+            if (this.menu.get('tool') === 'tool/select-rect') {
+                if (this.mouse_in_canvas) {
+                    for (let p of pattern)
+                        this.set_pixel(this.selection_bitmap, s[0] + p[0], s[1] + p[1], use_color);
+                }
+            }
+        }
+        this.update_selection_outline();
     }
 
     handle_move(e) {
@@ -764,6 +805,8 @@ class Canvas {
                     this.moving_y = p[1];
                     this.handleResize();
                 }
+            } else if (this.menu.get('tool') === 'tool/select-rect') {
+                this.update_selection_brush();
             } else {
                 this.update_overlay_brush();
                 if (PERFORM_ON_MOUSE_MOVE_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
@@ -795,11 +838,15 @@ class Canvas {
             self.bitmap.height = drawing.height;
             self.overlay_bitmap.width = drawing.width;
             self.overlay_bitmap.height = drawing.height;
+            self.selection_bitmap.width = drawing.width;
+            self.selection_bitmap.height = drawing.height;
             context.drawImage(drawing, 0, 0);
             $(self.bitmap).css('width', `${self.bitmap.width * self.scale}px`);
             $(self.bitmap).css('height', `${self.bitmap.height * self.scale}px`);
             $(self.overlay_bitmap).css('width', `${self.bitmap.width * self.scale}px`);
             $(self.overlay_bitmap).css('height', `${self.bitmap.height * self.scale}px`);
+            $(self.selection_bitmap).css('width', `${self.bitmap.width * self.scale}px`);
+            $(self.selection_bitmap).css('height', `${self.bitmap.height * self.scale}px`);
             self.autoFit();
             self.write_frame_to_game_data();
             if (add_to_undo_stack)
@@ -1025,6 +1072,8 @@ class Canvas {
         this.overlay_grid.height = Math.min(this.bitmap.height * this.scale, this.size + 2 * this.scale) + 1;
         this.overlay_bitmap_outline.width = Math.min(this.bitmap.width * this.scale, this.size + 2 * this.scale) + 1;
         this.overlay_bitmap_outline.height = Math.min(this.bitmap.height * this.scale, this.size + 2 * this.scale) + 1;
+        this.selection_bitmap_outline.width = Math.min(this.bitmap.width * this.scale, this.size + 2 * this.scale) + 1;
+        this.selection_bitmap_outline.height = Math.min(this.bitmap.height * this.scale, this.size + 2 * this.scale) + 1;
         let context = this.overlay_grid.getContext('2d');
 
         // render grid lines (white)
@@ -1081,26 +1130,34 @@ class Canvas {
         $(this.overlay_bitmap).css('height', `${this.bitmap.height * this.scale}px`);
         $(this.overlay_bitmap).css('left', `${this.offset_x}px`);
         $(this.overlay_bitmap).css('top', `${this.offset_y}px`);
+        $(this.selection_bitmap).css('width', `${this.bitmap.width * this.scale}px`);
+        $(this.selection_bitmap).css('height', `${this.bitmap.height * this.scale}px`);
+        $(this.selection_bitmap).css('left', `${this.offset_x}px`);
+        $(this.selection_bitmap).css('top', `${this.offset_y}px`);
 
         if (this.scrollable_x) {
             $(this.overlay_grid).css('left', `${this.offset_x % this.scale}px`);
             $(this.overlay_bitmap_outline).css('left', `${this.offset_x % this.scale}px`);
+            $(this.selection_bitmap_outline).css('left', `${this.offset_x % this.scale}px`);
             $(this.backdrop_color).css('left', `${this.offset_x % 16}px`);
             $(this.backdrop).css('left', `${this.offset_x % 16}px`);
         } else {
             $(this.overlay_grid).css('left', `${this.offset_x}px`);
             $(this.overlay_bitmap_outline).css('left', `${this.offset_x}px`);
+            $(this.selection_bitmap_outline).css('left', `${this.offset_x}px`);
             $(this.backdrop_color).css('left', `${this.offset_x}px`);
             $(this.backdrop).css('left', `${this.offset_x}px`);
         }
         if (this.scrollable_y) {
             $(this.overlay_grid).css('top', `${this.offset_y % this.scale}px`);
             $(this.overlay_bitmap_outline).css('top', `${this.offset_y % this.scale}px`);
+            $(this.selection_bitmap_outline).css('top', `${this.offset_y % this.scale}px`);
             $(this.backdrop_color).css('top', `${this.offset_y % 16}px`);
             $(this.backdrop).css('top', `${this.offset_y % 16}px`);
         } else {
             $(this.overlay_grid).css('top', `${this.offset_y}px`);
             $(this.overlay_bitmap_outline).css('top', `${this.offset_y}px`);
+            $(this.selection_bitmap_outline).css('top', `${this.offset_y}px`);
             $(this.backdrop_color).css('top', `${this.offset_y}px`);
             $(this.backdrop).css('top', `${this.offset_y}px`);
         }
