@@ -48,7 +48,7 @@ function handleResize() {
 function setPenWidth(menu_item) {
     canvas.pen_width = menu_item.data;
     canvas.update_overlay_brush();
-    canvas.update_selection_brush();
+    // canvas.update_selection_brush();
 }
 
 function setCurrentColor(color) {
@@ -139,6 +139,7 @@ function setCurrentColor(color) {
 }
 
 function activateTool(item) {
+    canvas.clearSelection();
     if (item.key.substr(0, 5) === 'tool/') {
         if (item.key !== 'tool/picker')
             window.revert_to_tool = item.key;
@@ -146,6 +147,7 @@ function activateTool(item) {
             'tool/spray', 'tool/fill', 'tool/gradient', 'tool/fill-rect',
             'tool/fill-ellipse', 'tool/picker', 'tool/select-rect'].indexOf(item.key) >= 0);
         canvas.setModifierCtrl(false);
+        canvas.setModifierAlt(false);
         canvas.setModifierShift(false);
         if (['tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient', 'tool/select-rect'].indexOf(item.key) >= 0)
             menus.sprites.handle_click('penWidth/1');
@@ -272,7 +274,11 @@ document.addEventListener("DOMContentLoaded", function (event) {
                 { key: 'Shift', label: 'auch auf anderen Farben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
             ]
         },
-        { group: 'tool', command: 'select-rect', image: 'select-rect-44', shortcut: 'Y', label: 'Rechteck auswählen' },
+        { group: 'tool', command: 'select-rect', image: 'select-rect-44', shortcut: 'Y', label: 'Rechteck auswählen', hints: [
+            { key: 'Control', label: 'Auswahl erweitern', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
+            { key: 'Alt', label: 'Auswahl verkleinern', type: 'checkbox', callback: function (x) { canvas.setModifierAlt(x); } },
+            { key: 'Shift', label: 'Klonen', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
+        ] },
         { group: 'tool', command: 'fill', image: 'color-fill-44', shortcut: 'A', label: 'Fläche füllen' },
         {
             group: 'tool', command: 'gradient', image: 'color-gradient', shortcut: 'S', label: 'Farbverlauf', hints: [

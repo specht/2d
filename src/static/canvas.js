@@ -1,9 +1,9 @@
 const DEFAULT_WIDTH = 24;
 const DEFAULT_HEIGHT = 24;
 const PEN_SHAPE_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse',
-    'tool/fill-rect', 'tool/fill-ellipse', 'tool/picker', 'tool/spray', 'tool/fill'];
+    'tool/fill-rect', 'tool/fill-ellipse', 'tool/picker', 'tool/spray', 'tool/fill', 'select-rect'];
 const TWO_POINT_TOOLS = ['tool/line', 'tool/rect', 'tool/ellipse',
-    'tool/fill-rect', 'tool/fill-ellipse', 'tool/gradient'];
+    'tool/fill-rect', 'tool/fill-ellipse', 'tool/gradient', 'tool/select-rect'];
 const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse', 'tool/move',
     'tool/fill-rect', 'tool/fill-ellipse', 'tool/spray', 'tool/fill', 'tool/gradient'];
 const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient'];
@@ -37,6 +37,7 @@ class Canvas {
         this.overlay_bitmap_outline = document.createElement('canvas');
         this.selection_bitmap = document.createElement('canvas');
         this.selection_bitmap_outline = document.createElement('canvas');
+        this.stamp_bitmap = document.createElement('canvas');
         this.overlay_grid = document.createElement('canvas');
         this.bitmap.width = DEFAULT_WIDTH;
         this.bitmap.height = DEFAULT_HEIGHT;
@@ -44,6 +45,8 @@ class Canvas {
         this.overlay_bitmap.height = DEFAULT_HEIGHT;
         this.selection_bitmap.width = DEFAULT_WIDTH;
         this.selection_bitmap.height = DEFAULT_HEIGHT;
+        this.stamp_bitmap.width = DEFAULT_WIDTH;
+        this.stamp_bitmap.height = DEFAULT_HEIGHT;
         this.current_color = 0xff0000ff;
         this.pen_width = 1;
         this.last_touch_distance = null;
@@ -55,6 +58,7 @@ class Canvas {
         this.mouse_down_point = null;
         this.mouse_down_button = null;
         this.mouse_down_pixels = null;
+        this.mouse_down_in_selection = false;
         this.modifier_ctrl = false;
         this.modifier_alt = false;
         this.modifier_shift = false;
@@ -88,11 +92,11 @@ class Canvas {
         this.element.append(this.backdrop_color);
         this.element.append(this.backdrop);
         this.element.append(this.bitmap);
-        this.element.append(this.overlay_bitmap);
         this.element.append(this.selection_bitmap);
+        this.element.append(this.overlay_bitmap);
         this.element.append(this.overlay_grid);
-        this.element.append(this.overlay_bitmap_outline);
         this.element.append(this.selection_bitmap_outline);
+        this.element.append(this.overlay_bitmap_outline);
 
         this.offset_x = 0;
         this.offset_y = 0;
@@ -188,6 +192,23 @@ class Canvas {
         this.last_mouse_y = p[1] - this.element.position().top;
         this.mouse_down = true;
         this.mouse_down_point = this.get_sprite_point_from_last_mouse();
+        this.mouse_down_in_selection = this.get_pixel(this.selection_bitmap, this.mouse_down_point[0], this.mouse_down_point[1])[3] > 0;
+        if (this.menu.get('tool') === 'tool/select-rect' && this.mouse_down_in_selection) {
+            this.clear(this.stamp_bitmap);
+            let context = this.stamp_bitmap.getContext('2d');
+            context.drawImage(this.bitmap, 0, 0);
+            // TODO: This is terribly slow
+            for (let y = 0; y < this.bitmap.height; y++) {
+                for (let x = 0; x < this.bitmap.width; x++) {
+                    if (this.get_pixel(this.selection_bitmap, x, y)[3] === 0) {
+                        this.set_pixel(this.stamp_bitmap, x, y, 0x00000001);
+                    } else {
+                        if (!this.modifier_shift)
+                            this.set_pixel(this.bitmap, x, y, 0x00000000);
+                    }
+                }
+            }
+        }
         this.mouse_down_button = e.button;
         this.spray_pixels = null;
         if (this.menu) {
@@ -199,6 +220,8 @@ class Canvas {
                 this.perform_drawing_action();
             }
         }
+        if (this.menu.get('tool') === 'tool/select-rect' && this.mouse_down_in_selection)
+            this.handle_move(e);
     }
 
     get_sprite_point_from_last_mouse() {
@@ -242,7 +265,7 @@ class Canvas {
         let x0 = p0[0], y0 = p0[1], x1 = p1[0], y1 = p1[1];
         if (x1 < x0) { let t = x0; x0 = x1; x1 = t; }
         if (y1 < y0) { let t = y0; y0 = y1; y1 = t; }
-        if (this.modifier_ctrl) {
+        if ((this.menu.get('tool') !== 'tool/select-rect') && this.modifier_ctrl) {
             let s = Math.max(x1 - x0, y1 - y0);
             x1 = x0 + s;
             y1 = y0 + s;
@@ -278,7 +301,7 @@ class Canvas {
 
     fillRectPattern(p0, p1) {
         let [x0, y0, x1, y1] = this.prepare_2_point_coordinates(p0, p1)
-        if (this.modifier_ctrl) {
+        if ((this.menu.get('tool') !== 'tool/select-rect') && this.modifier_ctrl) {
             let s = Math.max(x1 - x0, y1 - y0);
             x1 = x0 + s;
             y1 = y0 + s;
@@ -370,6 +393,8 @@ class Canvas {
             return this.ellipsePattern(p0, p1);
         else if (tool === 'tool/fill-ellipse')
             return this.fillEllipsePattern(p0, p1);
+        else if (tool === 'tool/select-rect')
+            return this.fillRectPattern(p0, p1);
     }
 
     mask_for_pen_and_pattern(pen_mask, shape_mask) {
@@ -454,6 +479,28 @@ class Canvas {
                     }
                     this.set_pixel(this.bitmap, p[0], p[1], draw_color);
                 }
+            } else if (this.menu.get('tool') === 'tool/select-rect') {
+                if (!this.mouse_down_in_selection) {
+                    let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
+                    let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
+                    if (!(this.modifier_ctrl || this.modifier_alt)) this.clear(this.selection_bitmap);
+                    this.set_pixels(this.selection_bitmap, mask, this.modifier_alt ? 0x0: 0x1);
+                    this.update_selection_outline();
+                } else {
+                    this.append_to_undo_stack();
+                    // put stamp in final position
+                    let bitmap_context = this.bitmap.getContext('2d');
+                    bitmap_context.drawImage(this.stamp_bitmap, s[0] - this.mouse_down_point[0], s[1] - this.mouse_down_point[1]);
+                    this.write_frame_to_game_data();
+                    // move selection
+                    let stamp_context = this.stamp_bitmap.getContext('2d');
+                    stamp_context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
+                    stamp_context.drawImage(this.selection_bitmap, s[0] - this.mouse_down_point[0], s[1] - this.mouse_down_point[1]);
+                    let selection_context = this.selection_bitmap.getContext('2d');
+                    selection_context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
+                    selection_context.drawImage(this.stamp_bitmap, 0, 0);
+                    this.update_selection_outline();
+                }
             } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
                 let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
@@ -522,6 +569,11 @@ class Canvas {
                 }
             }
         }
+    }
+
+    clearSelection() {
+        this.clear(this.selection_bitmap);
+        this.clear(this.selection_bitmap_outline);
     }
 
     _flood_fill(p, color) {
@@ -653,7 +705,8 @@ class Canvas {
         this.update_selection_brush();
     }
 
-    update_outline(bitmap, bitmap_outline) {
+    update_outline(bitmap, bitmap_outline, extra_stroke) {
+        if (typeof(extra_stroke) === 'undefined') extra_stroke = false;
         let context = bitmap.getContext('2d');
         let outline_context = bitmap_outline.getContext('2d');
         let width = bitmap.width;
@@ -661,13 +714,21 @@ class Canvas {
         let outline_width = bitmap_outline.width;
         let outline_height = bitmap_outline.height;
         outline_context.clearRect(0, 0, outline_width, outline_height);
-        if (!((this.mouse_down || this.mouse_in_canvas) && this.show_pen))
-            return;
+        if (bitmap !== this.selection_bitmap) {
+            if (!((this.mouse_down || this.mouse_in_canvas) && this.show_pen))
+                return;
+            if (this.mouse_down && this.mouse_down_in_selection)
+                return;
+        }
         let data = context.getImageData(0, 0, width, height).data;
         outline_context.beginPath();
         outline_context.strokeStyle = '#ffffff';
         // outline_context.setLineDash([4, 4]);
         outline_context.lineWidth = 1;
+        if (extra_stroke) {
+            outline_context.lineWidth = 5;
+            outline_context.strokeStyle = '#000';
+        }
         // TODO: This code is really slow on a large sprite
         // outline_context.moveTo(0, 0);
         // outline_context.lineTo(100, 200);
@@ -682,32 +743,37 @@ class Canvas {
                 let py = data[offset + width * 4 + 3] > 0;
                 if (x < width - 1) {
                     if (p0 && !px) {
-                        outline_context.moveTo(Math.round(sx + this.scale) - 0.5, Math.round(sy) + 1.5);
+                        outline_context.moveTo(Math.round(sx + this.scale) - 0.5, Math.round(sy) - 0.5);
                         outline_context.lineTo(Math.round(sx + this.scale) - 0.5, Math.round(sy + this.scale) - 0.5);
                     }
                     if (!p0 && px) {
-                        outline_context.moveTo(Math.round(sx + this.scale) + 0.5, Math.round(sy) + 1.5);
+                        outline_context.moveTo(Math.round(sx + this.scale) + 0.5, Math.round(sy) - 0.5);
                         outline_context.lineTo(Math.round(sx + this.scale) + 0.5, Math.round(sy + this.scale) - 0.5);
                     }
                 }
                 if (y < height - 1) {
                     if (p0 && !py) {
-                        outline_context.moveTo(Math.round(sx) + 1.5, Math.round(sy + this.scale) - 0.5);
+                        outline_context.moveTo(Math.round(sx) - 0.5, Math.round(sy + this.scale) - 0.5);
                         outline_context.lineTo(Math.round(sx + this.scale) - 0.5, Math.round(sy + this.scale) - 0.5);
                     }
                     if (!p0 && py) {
-                        outline_context.moveTo(Math.round(sx) + 1.5, Math.round(sy + this.scale) + 0.5);
+                        outline_context.moveTo(Math.round(sx) - 0.5, Math.round(sy + this.scale) + 0.5);
                         outline_context.lineTo(Math.round(sx + this.scale) - 0.5, Math.round(sy + this.scale) + 0.5);
                     }
                 }
             }
         }
         outline_context.stroke();
+        if (extra_stroke) {
+            outline_context.strokeStyle = '#ffffff';
+            outline_context.lineWidth = 2;
+            outline_context.stroke();
+        }
 
     }
 
-    update_overlay_outline() {
-        this.update_outline(this.overlay_bitmap, this.overlay_bitmap_outline);
+    update_overlay_outline(extra_stroke) {
+        this.update_outline(this.overlay_bitmap, this.overlay_bitmap_outline, extra_stroke);
     }
 
     update_overlay_brush() {
@@ -716,6 +782,22 @@ class Canvas {
         let use_color = (this.mouse_down_button == 2) ? 0x00000000 : this.current_color;
         let pattern = this.penPattern(this.pen_width);
         let s = this.get_sprite_point_from_last_mouse();
+        let extra_stroke = false;
+        if (this.menu.get('tool') === 'tool/select-rect') {
+            use_color = 1;
+            if (!this.mouse_down) {
+                let selection_pixel = this.get_pixel(this.selection_bitmap, s[0], s[1])[3];
+                if (selection_pixel === 0) {
+                    $(this.element).css('cursor', 'crosshair');
+                } else {
+                    $(this.element).css('cursor', 'move');
+                    extra_stroke = true;
+                    use_color = 0;
+                }
+            } else {
+                $(this.element).css('cursor', 'crosshair');
+            }
+        }
         this.clear(this.overlay_bitmap);
         if (!(this.is_touch && !this.mouse_down)) {
             if (this.menu.get('tool') === 'tool/pen') {
@@ -724,16 +806,32 @@ class Canvas {
                         this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, use_color));
                 }
             } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
-                if (this.mouse_down) {
-                    if (this.menu.get('tool') === 'tool/gradient') {
+                if (this.menu.get('tool') === 'tool/select-rect') {
+                    if (this.mouse_down) {
+                        if (!this.mouse_down_in_selection) {
+                            let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
+                            let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
+                            this.set_pixels(this.overlay_bitmap, mask, use_color);
+                        } else {
+                            let overlay_context = this.overlay_bitmap.getContext('2d');
+                            overlay_context.drawImage(this.stamp_bitmap, s[0] - this.mouse_down_point[0], s[1] - this.mouse_down_point[1]);
+                        }
                     } else {
-                        let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
-                        let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
-                        this.set_pixels(this.overlay_bitmap, mask, Math.max(1, use_color));
+                        for (let p of pattern)
+                            this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], use_color);
                     }
                 } else {
-                    for (let p of pattern)
-                        this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, use_color));
+                    if (this.mouse_down) {
+                        if (this.menu.get('tool') === 'tool/gradient') {
+                        } else {
+                            let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
+                            let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
+                            this.set_pixels(this.overlay_bitmap, mask, Math.max(1, use_color));
+                        }
+                    } else {
+                        for (let p of pattern)
+                            this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, use_color));
+                    }
                 }
             } else if (PEN_SHAPE_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 for (let p of pattern)
@@ -741,35 +839,16 @@ class Canvas {
             }
         }
         this.update_overlay_outline();
+        if (this.menu.get('tool') === 'tool/select-rect') {
+            this.update_selection_outline(extra_stroke);
+        }
     }
 
-    update_selection_outline() {
-        this.update_outline(this.selection_bitmap, this.selection_bitmap_outline);
+    update_selection_outline(extra_stroke) {
+        this.update_outline(this.selection_bitmap, this.selection_bitmap_outline, extra_stroke);
     }
 
     update_selection_brush() {
-        if (this.last_mouse_x === null || this.last_mouse_y === null)
-            return;
-        let use_color = (this.mouse_down_button == 2) ? 0x00000000 : 0x00000001;
-        let pattern = this.penPattern(this.pen_width);
-        let s = this.get_sprite_point_from_last_mouse();
-        this.clear(this.selection_bitmap);
-        if (this.mouse_down) {
-            if (this.menu.get('tool') === 'tool/select-rect') {
-                let line_pattern = this.patternForTool(this.mouse_down_point, s, 'tool/fill-rect');
-                let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
-                this.set_pixels(this.selection_bitmap, mask, use_color);
-            }
-        } else {
-            if (!(this.is_touch && !this.mouse_down)) {
-                if (this.menu.get('tool') === 'tool/select-rect') {
-                    if (this.mouse_in_canvas) {
-                        for (let p of pattern)
-                            this.set_pixel(this.selection_bitmap, s[0] + p[0], s[1] + p[1], use_color);
-                    }
-                }
-            }
-        }
         this.update_selection_outline();
     }
 
@@ -813,8 +892,8 @@ class Canvas {
                     this.moving_y = p[1];
                     this.handleResize();
                 }
-            } else if (this.menu.get('tool') === 'tool/select-rect') {
-                this.update_selection_brush();
+            // } else if (this.menu.get('tool') === 'tool/select-rect') {
+            //     this.update_selection_brush();
             } else {
                 this.update_overlay_brush();
                 if (PERFORM_ON_MOUSE_MOVE_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
@@ -848,6 +927,8 @@ class Canvas {
             self.overlay_bitmap.height = drawing.height;
             self.selection_bitmap.width = drawing.width;
             self.selection_bitmap.height = drawing.height;
+            self.stamp_bitmap.width = drawing.width;
+            self.stamp_bitmap.height = drawing.height;
             context.drawImage(drawing, 0, 0);
             $(self.bitmap).css('width', `${self.bitmap.width * self.scale}px`);
             $(self.bitmap).css('height', `${self.bitmap.height * self.scale}px`);
@@ -1169,6 +1250,7 @@ class Canvas {
             $(this.backdrop_color).css('top', `${this.offset_y}px`);
             $(this.backdrop).css('top', `${this.offset_y}px`);
         }
+        this.update_selection_outline();
     }
 
     setModifierCtrl(flag) {
