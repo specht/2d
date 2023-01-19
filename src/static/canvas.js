@@ -8,7 +8,7 @@ const UNDO_TOOLS = ['tool/pen', 'tool/line', 'tool/rect', 'tool/ellipse', 'tool/
     'tool/fill-rect', 'tool/fill-ellipse', 'tool/spray', 'tool/fill', 'tool/gradient'];
 const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient'];
 const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker', 'tool/move', 'tool/gradient'];
-const MAX_UNDO_STACK_SIZE = 32;
+const MAX_UNDO_STACK_SIZE = 64;
 const MAX_DIMENSION = 512;
 const MIN_ZOOM = 2;
 const MAX_ZOOM = 64;
@@ -1305,7 +1305,10 @@ class Canvas {
                 if (entry.width === self.game.data.sprites[self.sprite_index].width &&
                     entry.height === self.game.data.sprites[self.sprite_index].height) {
                     let src = $(e.target).attr('src');
-                    self.loadFromUrl(src, false);
+                    self.loadFromUrl(src, false, function() {
+                        self.append_to_undo_stack();
+                    });
+                    
                 } else {
                     console.log('nope');
                 }

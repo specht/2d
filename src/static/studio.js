@@ -670,10 +670,10 @@ document.addEventListener("DOMContentLoaded", function (event) {
     }
 
     $('.scroll_helper_horizontal').on('wheel', function(e) {
-        let oe = e.originalEvent;
-        oe.deltaX = oe.deltaY;
-        oe.deltaY = 0;
-        $(e.target)[0].dispatchEvent(oe);
+        if (e.originalEvent.deltaX === 0) {
+            let t = $(e.target).closest('.scroll_helper_horizontal');
+            t[0].scrollLeft += e.originalEvent.deltaY;
+        }
     });
 
     $('.modal-container').click(function (e) {
