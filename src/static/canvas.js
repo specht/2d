@@ -417,6 +417,35 @@ class Canvas {
         return Object.values(mask_hash);
     }
 
+    async move_frames(dx, dy) {
+        let temp = document.createElement('canvas');
+        temp.width = this.bitmap.width;
+        temp.height = this.bitmap.height;
+        let context = temp.getContext('2d');
+        let temp2 = document.createElement('canvas');
+        temp2.width = this.bitmap.width;
+        temp2.height = this.bitmap.height;
+        let context2 = temp2.getContext('2d');
+        for (let fi = 0; fi < this.game.data.sprites[this.sprite_index].states[this.state_index].frames.length; fi++) {
+            let frame = this.game.data.sprites[this.sprite_index].states[this.state_index].frames[fi];
+            let bitmap = await loadImage(frame.src);
+            context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
+            context.drawImage(bitmap, 0, 0);
+            let temp3 = temp2;
+            let context3 = context2;
+            if (fi === this.frame_index) {
+                temp3 = this.bitmap;
+                context3 = this.bitmap.getContext('2d');
+            }
+            context3.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
+            context3.drawImage(temp, dx, dy);
+            context3.drawImage(temp, dx - this.bitmap.width, dy);
+            context3.drawImage(temp, dx, dy - this.bitmap.height);
+            context3.drawImage(temp, dx - this.bitmap.width, dy - this.bitmap.height);
+            this.game.data.sprites[this.sprite_index].states[this.state_index].frames[fi].src = temp3.toDataURL('image/png');;
+        }
+        this.game.refresh_frames_on_screen();
+    }
 
     perform_drawing_action() {
         let s = this.get_sprite_point_from_last_mouse();
@@ -551,21 +580,8 @@ class Canvas {
                 dx %= this.bitmap.width;
                 dy %= this.bitmap.height;
                 if (dx !== 0 || dy !== 0) {
-                    let temp = document.createElement('canvas');
-                    temp.width = this.bitmap.width;
-                    temp.height = this.bitmap.height;
-                    let context = temp.getContext('2d');
-                    context.drawImage(this.bitmap, 0, 0);
-                    context = this.bitmap.getContext('2d');
-                    context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
-                    // context.translate(dx, dy);
-                    context.drawImage(temp, dx, dy);
-                    context.drawImage(temp, dx - this.bitmap.width, dy);
-                    context.drawImage(temp, dx, dy - this.bitmap.height);
-                    context.drawImage(temp, dx - this.bitmap.width, dy - this.bitmap.height);
+                    this.move_frames(dx, dy);
                     this.mouse_down_point = s;
-                    // this.append_to_undo_stack();
-                    this.write_frame_to_game_data();
                 }
             }
         }
@@ -1566,3 +1582,18 @@ load_img_from_src = async (src) => {
         img.src = src;
     });
 };
+
+loadImage = path => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.src = path;
+        img.onload = () => {
+            resolve(img);
+        }
+        img.onerror = e => {
+            reject(e);
+        }
+    });
+}
+
