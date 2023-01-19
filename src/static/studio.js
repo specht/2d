@@ -552,7 +552,8 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                 let sti = canvas.state_index;
                                 let fi = canvas.frame_index;
                                 console.log(si, sti, fi);
-                                if ((this.game.data.sprites[si].states.length === 1 && this.game.data.sprites[si].states[sti].length === 1) ||
+                                if ((this.game.data.sprites[si].states.length === 1 && 
+                                    this.game.data.sprites[si].states[sti].length === 1) ||
                                     (this.game.data.sprites[si].width === image.width &&
                                     this.game.data.sprites[si].height === image.height))
                                 {
@@ -667,6 +668,13 @@ document.addEventListener("DOMContentLoaded", function (event) {
             });
         });
     }
+
+    $('.scroll_helper_horizontal').on('wheel', function(e) {
+        let oe = e.originalEvent;
+        oe.deltaX = oe.deltaY;
+        oe.deltaY = 0;
+        $(e.target)[0].dispatchEvent(oe);
+    });
 
     $('.modal-container').click(function (e) {
         close_modal();
