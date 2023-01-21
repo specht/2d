@@ -1308,7 +1308,6 @@ class Canvas {
                     self.loadFromUrl(src, false, function() {
                         self.append_to_undo_stack();
                     });
-                    
                 } else {
                     console.log('nope');
                 }

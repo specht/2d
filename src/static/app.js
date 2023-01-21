@@ -26,97 +26,29 @@ class Character {
 			this.follow_camera = true;
 		}
 
-		for (let state of ['stand', 'walk', 'jump', 'fall']) {
-			this.sti_for_state[state] ??= {};
+		let state_prefixes = ['stand', 'walk', 'jump', 'fall'];
+
+		for (let sp of state_prefixes) {
+			this.sti_for_state[sp] ??= {};
 		}
 
-		// // fall
-		// for (let sti = 0; sti < this.sprite.states.length; sti++) {
-		// 	let state = this.sprite.states[sti];
-		// 	let state_traits = state.traits[this.character_trait] ?? {};
-		// 	let prefix = 'fall_';
-		// 	for (let s of ['fall']) {
-		// 		for (let d of ['front', 'back', 'left', 'right']) {
-		// 			if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
-		// 		}
-		// 	}
-		// }
-
-		// // jump
-		// for (let sti = 0; sti < this.sprite.states.length; sti++) {
-		// 	let state = this.sprite.states[sti];
-		// 	let state_traits = state.traits[this.character_trait] ?? {};
-		// 	let prefix = 'jump_';
-		// 	for (let s of ['jump']) {
-		// 		for (let d of ['front', 'back', 'left', 'right']) {
-		// 			if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
-		// 		}
-		// 	}
-		// }
-
-		// walk
-		// for (let sti = 0; sti < this.sprite.states.length; sti++) {
-		// 	let state = this.sprite.states[sti];
-		// 	let state_traits = state.traits[this.character_trait] ?? {};
-		// 	let prefix = 'walk_';
-		// 	for (let s of ['walk']) {
-		// 		for (let d of ['front', 'back', 'left', 'right']) {
-		// 			if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] = sti;
-		// 		}
-		// 	}
-		// 	for (let s of ['walk']) {
-		// 		for (let d of ['front', 'back', 'left', 'right']) {
-		// 			if (`${prefix}${d}` in state_traits) this.sti_for_state[s][d] ??= sti;
-		// 		}
-		// 	}
-		// }
-
-		// stand
-		for (let sti = 0; sti < this.sprite.states.length; sti++) {
-			let state = this.sprite.states[sti];
-			let state_traits = state.traits[this.character_trait] ?? {};
-			let prefix = '';
-			for (let d of ['front', 'back', 'left', 'right']) {
-				if (`${prefix}${d}` in state_traits) {
-					this.assign_sti('stand', d, sti, 100, false);
+		console.log(this.sprite.states);
+		for (let spi = 0; spi < state_prefixes.length; spi++) {
+			let sp = state_prefixes[spi];
+			let remaining_sp = state_prefixes.slice(spi + 1);
+			for (let sti = 0; sti < this.sprite.states.length; sti++) {
+				let state = this.sprite.states[sti];
+				let state_traits = (state.traits ?? {})[this.character_trait] ?? {};
+				let prefix = sp === 'stand' ? '' : sp + '_';
+				for (let d of ['front', 'back', 'left', 'right']) {
+					if (`${prefix}${d}` in state_traits) {
+						this.assign_sti(sp, d, sti, 100, false);
+						for (let rsp of remaining_sp)
+							this.assign_sti(rsp, d, sti, 10, false);
+					}
 				}
 			}
-		}
-
-		// walk
-		for (let sti = 0; sti < this.sprite.states.length; sti++) {
-			let state = this.sprite.states[sti];
-			let state_traits = state.traits[this.character_trait] ?? {};
-			let prefix = 'walk_';
-			for (let d of ['front', 'back', 'left', 'right']) {
-				if (`${prefix}${d}` in state_traits) {
-					this.assign_sti('walk', d, sti, 100, false);
-				}
-			}
-		}
-
-		// jump
-		for (let sti = 0; sti < this.sprite.states.length; sti++) {
-			let state = this.sprite.states[sti];
-			let state_traits = state.traits[this.character_trait] ?? {};
-			let prefix = 'jump_';
-			for (let d of ['front', 'back', 'left', 'right']) {
-				if (`${prefix}${d}` in state_traits) {
-					this.assign_sti('jump', d, sti, 100, false);
-				}
-			}
-		}
-
-		// fall
-		for (let sti = 0; sti < this.sprite.states.length; sti++) {
-			let state = this.sprite.states[sti];
-			let state_traits = state.traits[this.character_trait] ?? {};
-			let prefix = 'fall_';
-			for (let d of ['front', 'back', 'left', 'right']) {
-				if (`${prefix}${d}` in state_traits) {
-					this.assign_sti('fall', d, sti, 100, false);
-				}
-			}
+			// console.log(`after ${sp}:`, JSON.parse(JSON.stringify(this.sti_for_state)));
 		}
 
 		// assign default states
@@ -126,7 +58,7 @@ class Character {
 			}
 		}
 
-		// try to assigne flipped states
+		// try to assign flipped states
 		for (let state of ['stand', 'walk', 'jump', 'fall']) {
 			this.assign_sti(state, 'left', this.sti_for_state[state].right.sti, 1, true);
 			this.assign_sti(state, 'right', this.sti_for_state[state].left.sti, 1, true);
@@ -140,8 +72,10 @@ class Character {
 	assign_sti(state, direction, sti, confidence, flipped) {
 		this.sti_for_state[state] ??= {};
 		this.sti_for_state[state][direction] ??= {sti: sti, confidence: confidence, flipped: flipped};
-		if (confidence > this.sti_for_state[state][direction].confidence)
+		if (confidence > this.sti_for_state[state][direction].confidence) {
+			console.log(`assigning ${state}.${direction} = ${sti}/${flipped} @ ${confidence}`);
 			this.sti_for_state[state][direction] = {sti: sti, confidence: confidence, flipped: flipped};
+		}
 	}
 
 	has_trait_at(trait_or_traits, dx0, dx1, dy0, dy1) {
