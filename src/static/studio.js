@@ -38,9 +38,9 @@ function handleResize() {
 
     $('#main_div_level .left_menu_container').css('left', '10px');
     $('#main_div_level .left_menu_container').css('width', '174px');
-    $('#level').css('left', '240px');
+    $('#level').css('left', '260px');
     $('#level').css('top', '50px');
-    $('#level').css('width', `${window.innerWidth - 496}px`);
+    $('#level').css('width', `${window.innerWidth - 516}px`);
     $('#level').css('height', `${window.innerHeight - 100}px`);
     if (game != null && game.level_editor != null) game.level_editor.handleResize();
 }
@@ -418,8 +418,9 @@ document.addEventListener("DOMContentLoaded", function (event) {
                 }
             });
         } else {
-            if ($('#play_iframe')[0].contentWindow.yt_player !== null)
+            try {
                 $('#play_iframe')[0].contentWindow.yt_player.pauseVideo();
+            } catch {}
         }
     })
 

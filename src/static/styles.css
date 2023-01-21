@@ -132,7 +132,7 @@ body {
     position: absolute;
     top: 50px;
     left: 0px;
-    width: 202px;
+    width: 222px;
 }
 
 .menu_sprite_item {
@@ -397,7 +397,7 @@ body {
 .button-3 {
     width: 48px;
     height: 48px;
-    margin: 2px;
+    margin: 1px;
 }
 
 .button-5 {
