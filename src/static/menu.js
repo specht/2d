@@ -222,23 +222,28 @@ class Menu {
             );
         }
         hints.push({
-            key: 'Alt+1', visible: false, global: true, label: 'Sprites', callback: function () {
+            key: 'Alt+1', visible: true, global: true, label: 'Sprites', callback: function () {
                 $('#mi_sprites').click();
             }
         });
         hints.push({
-            key: 'Alt+2', visible: false, global: true, label: 'Level', callback: function () {
+            key: 'Alt+2', visible: true, global: true, label: 'Level', callback: function () {
                 $('#mi_level').click();
             }
         });
         hints.push({
-            key: 'Alt+3', visible: false, global: true, label: 'Einstellungen', callback: function () {
+            key: 'Alt+3', visible: true, global: true, label: 'Einstellungen', callback: function () {
                 $('#mi_settings').click();
             }
         });
         hints.push({
-            key: 'Alt+4', visible: false, global: true, label: 'Spielen', callback: function () {
+            key: 'Alt+4', visible: true, global: true, label: 'Spielen', callback: function () {
                 $('#mi_play').click();
+            }
+        });
+        hints.push({
+            key: 'Alt+5', visible: true, global: true, label: 'Hilfe', callback: function () {
+                $('#mi_help').click();
             }
         });
         hints.push({
