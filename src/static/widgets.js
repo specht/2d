@@ -553,7 +553,7 @@ class NumberWidget {
         this.container = data.container;
         let div = $(`<div class='item'>`);
         let subdiv = $('<div>').css('display', 'flex').css('align-items', 'center');
-        let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
+        let label = $(`<div style='margin-right: 1em;'>`).html(data.label);
         div.append(label);
         this.input = [];
         let v = data.get();

@@ -185,7 +185,11 @@ class Character {
 
 	try_move_y(dy) {
 		if (dy < 0) {
-			dy = this.intersect_y_with_trait(dy, ['block_above'], -0.5, 0.5, dy, 0.0);
+			if (this.has_trait_at('ladder'), -0.5, 0.5, 0.1, 1.1) {
+				dy = this.intersect_y_with_trait(dy, ['block_above'], -0.5, 0.5, dy, 0.0);
+			} else {
+				dy = this.intersect_y_with_trait(dy, ['block_above', 'ladder'], -0.5, 0.5, dy, 0.0);
+			}
 		} else if (dy > 0) {
 			let tb = this.traits.ex_top * this.sprite.height;
 			dy = this.intersect_y_with_trait(dy, ['block_below'], -0.5, 0.5, tb + 0.1, tb + dy + 0.1);
@@ -219,6 +223,10 @@ class Character {
 
 	standing_on_ground() {
 		return this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0);
+	} 
+
+	center_on_entry(entry) {
+		this.mesh.position.x = entry.mesh.position.x;
 	}
 
 	simulation_step() {
@@ -238,16 +246,26 @@ class Character {
 		if (dx > 0) direction = 'right';
 		if (dx < 0) direction = 'left';
 
-		// let dy = 0;
-		// if (this.has_trait_at(['ladder'], -0.5, 0.5, 0, 1)) {
-		// 	if (this.game.pressed_keys[KEY_UP]) dy += this.traits.vrun;
-		// }
-		// if (this.has_trait_at(['ladder'], -0.5, 0.5, -1, 0)) {
-		// 	if (this.game.pressed_keys[KEY_DOWN]) dy -= this.traits.vrun;
-		// }
-		// dy = this.try_move_y(dy);
-		// if (Math.abs(dy) > 0.1)
-		// 	direction = 'back';
+		let dy = 0;
+		let entry = this.has_trait_at(['ladder'], -0.5, 0.5, 0.1, 1.1);
+		if (entry) {
+			if (this.game.pressed_keys[KEY_UP]) {
+				dy += this.traits.vrun;
+				if (this.game.data.sprites[entry.sprite_index].traits.ladder.center)
+					this.center_on_entry(entry);
+			}
+		}
+		entry = this.has_trait_at(['ladder'], -0.5, 0.5, -1.1, -0.1);
+		if (entry) {
+			if (this.game.pressed_keys[KEY_DOWN]) {
+				dy -= this.traits.vrun;
+				if (this.game.data.sprites[entry.sprite_index].traits.ladder.center)
+					this.center_on_entry(entry);
+			}
+		}
+		dy = this.try_move_y(dy);
+		if (Math.abs(dy) > 0.1)
+			direction = 'back';
 
 		// if we're standing, we can jump
 		if (this.sprite.traits[this.character_trait].can_jump) {
@@ -333,6 +351,7 @@ class Game {
 		this.level_index = 0;
 		this.layers = [];
 		this.meshes_for_sprite = [];
+		this.state_for_mesh = {};
 		this.geometry_and_material_for_frame = [];
 		this.animated_sprites = [];
 		this.interval_tree_x = new IntervalTree();
@@ -511,6 +530,7 @@ class Game {
 					let placed = layer.sprites[spi];
 					let si = placed[0];
 					let mesh = this.mesh_catalogue[si].clone();
+					mesh.geometry = mesh.geometry.clone();
 					let sprite = this.data.sprites[si];
 					let effective_collision_detection = layer.properties.collision_detection && (Math.abs(layer.properties.parallax) < 0.0001);
 					if (effective_collision_detection) {
@@ -540,6 +560,11 @@ class Game {
 					}
 					mesh.position.set(placed[1], placed[2], 0);
 					this.meshes_for_sprite[si].push(mesh);
+					let fx = 0.0;
+					let fy = 0.0;
+					let fr = 1.0;
+					let fo = Math.floor((mesh.position.x / sprite.width) * fx + (mesh.position.y / sprite.height) * fy + Math.random() * 1024 * fr);
+					this.state_for_mesh[mesh.uuid] = {state_index: 0, frame_offset: fo};
 					game_layer.add(mesh);
 				}
 			} else if (layer.type === 'backdrop') {
@@ -667,19 +692,22 @@ class Game {
 
 		for (let si of this.animated_sprites) {
 			let sprite = this.data.sprites[si];
-			let sti = 0;
-			let fps = sprite.states[sti].properties.fps ?? 8;
-			let fi = Math.floor(this.clock.getElapsedTime() * fps) % sprite.states[sti].frames.length;
 			for (let mesh of this.meshes_for_sprite[si]) {
+				let mesh_state = this.state_for_mesh[mesh.uuid];
+				let sti = mesh_state.state_index;
+				let fps = sprite.states[sti].properties.fps ?? 8;
+				let fi = Math.floor((this.clock.getElapsedTime() * fps) + mesh_state.frame_offset) % sprite.states[sti].frames.length;
+				if (fi < 0) fi += sprite.states[sti].frames.length;
 				let uv = mesh.geometry.attributes.uv;
 				let tw = this.spritesheet_info.width;
 				let th = this.spritesheet_info.height;
-				let tile_info = this.spritesheet_info.tiles[si][0][fi];
+				let tile_info = this.spritesheet_info.tiles[si][sti][fi];
 				uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
 				uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
 				uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
 				uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
 				uv.needsUpdate = true;
+				mesh.needsUpdate = true;
 			}
 		}
 

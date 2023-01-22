@@ -135,6 +135,13 @@ var SPRITE_TRAITS = {
     },
     ladder: {
         label: 'man kann dran hoch- und runterklettern',
+        properties: {
+            center: {
+                label: 'Figur zentrieren',
+                type: 'bool',
+                default: true,
+            },
+        },
     },
 };
 

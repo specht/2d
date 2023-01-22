@@ -99,6 +99,9 @@ class Game {
                 this.data.sprites[si].states[sti].properties ??= {};
                 this.data.sprites[si].states[sti].properties.name ??= '';
                 this.data.sprites[si].states[sti].properties.fps ??= 8;
+                this.data.sprites[si].states[sti].properties.phase_x ??= 0.0;
+                this.data.sprites[si].states[sti].properties.phase_y ??= 0.0;
+                this.data.sprites[si].states[sti].properties.phase_r ??= 1.0;
                 // this.data.sprites[si].states[sti].properties.hitboxes ??= {};
                 this.data.sprites[si].states[sti].frames ??= [];
                 if (this.data.sprites[si].states[sti].frames.length === 0)
@@ -556,6 +559,24 @@ class Game {
             get: () => self.data.sprites[si].states[sti].properties.fps,
             set: (x) => {
                 self.data.sprites[si].states[sti].properties.fps = x;
+            },
+        });
+        new NumberWidget({
+            container: $('#menu_state_properties_fixed'),
+            label: "Phase <span style='font-size: 80%;'>XY/R</span>",
+            width: '1.4em',
+            count: 3,
+            min: [0.0, 0.0, 0.0],
+            max: [1.0, 1.0, 1.0],
+            step: 0.1,
+            decimalPlaces: 1,
+            get: () => [self.data.sprites[si].states[sti].properties.phase_x,
+            self.data.sprites[si].states[sti].properties.phase_y,
+            self.data.sprites[si].states[sti].properties.phase_r],
+            set: (x, y, r) => {
+                self.data.sprites[si].states[sti].properties.phase_x = x;
+                self.data.sprites[si].states[sti].properties.phase_y = y;
+                self.data.sprites[si].states[sti].properties.phase_r = r;
             },
         });
 
