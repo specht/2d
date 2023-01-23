@@ -401,17 +401,26 @@ class Character {
 			entry = this.has_trait_at(['pickup'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
 			if (entry) {
-				let x = entry.mesh.position.x;
-				let y = entry.mesh.position.y;
-				let sprite = this.game.data.sprites[entry.sprite_index];
-				let x0 = x - sprite.width / 2;
-				let x1 = x + sprite.width / 2;
-				let y0 = y;
-				let y1 = y + sprite.height;
-				this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
-				this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
-				this.game.transitioning_sprites['pickup'] ??= {};
-				this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+				let entry_lives = this.game.data.sprites[entry.sprite_index].traits.pickup.lives;
+				if (!(entry_lives > 0 && this.game.lives >= this.game.data.properties.max_lives)) {
+					let x = entry.mesh.position.x;
+					let y = entry.mesh.position.y;
+					let sprite = this.game.data.sprites[entry.sprite_index];
+					let x0 = x - sprite.width / 2;
+					let x1 = x + sprite.width / 2;
+					let y0 = y;
+					let y1 = y + sprite.height;
+					this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
+					this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
+					this.game.transitioning_sprites['pickup'] ??= {};
+					this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+					this.game.points += this.game.data.sprites[entry.sprite_index].traits.pickup.points ?? 0;
+					this.game.lives += this.game.data.sprites[entry.sprite_index].traits.pickup.lives ?? 0;
+					if (this.game.lives > this.game.data.properties.max_lives)
+						this.game.lives = this.game.data.properties.max_lives;
+					$('.la_points').text(`Punkte: ${this.game.points}`);
+					$('.la_lives').text(`Leben: ${this.game.lives}`);
+				}
 			}
 
 			if (this.follow_camera) {
@@ -553,6 +562,7 @@ class Game {
 		$('#game_title').text(this.data.properties.title);
 		$('#game_author').text(this.data.properties.author);
 		this.setup();
+		$('#stats').removeClass('showing');
 		// if (window.location.host.substring(0, 9) === 'localhost') {
 		// 	this.run();
 		// 	// $('#touch_controls').show();
@@ -599,6 +609,13 @@ class Game {
 		this.interval_tree_y.clear();
 		this.active_level_sprites = [];
 
+		this.points = 0;
+		this.lives = 1;
+
+		$('.la_points').text(`Punkte: ${this.points}`);
+		$('.la_lives').text(`Leben: ${this.lives}`);
+		$('.la_level').text(`Level: ${this.level_index + 1}`);
+
 		$('#screen').empty();
 		$('#screen').append(this.renderer.domElement);
 		this.mesh_catalogue = [];
@@ -607,6 +624,7 @@ class Game {
 		if (this.data === null)
 			return;
 
+		this.lives = this.data.properties.lives_at_begin;
 		this.screen_pixel_height = this.data.properties.screen_pixel_height;
 		this.screen_safe_zone_x = this.data.properties.safe_zone_x;
 		this.screen_safe_zone_y = this.data.properties.safe_zone_y;
@@ -1103,6 +1121,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
 
 	$('#mi_start').click(function(e) {
 		window.game.run();
+		$('#stats').addClass('showing');
 	});
 });
 

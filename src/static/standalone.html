@@ -79,6 +79,31 @@
         right: 0;
         bottom: 0;
       }
+      #stats {
+        position: absolute;
+        font-family: 'Bebas Neue', sans-serif;
+        font-size: 6vh;
+        pointer-events: none;
+        left: 0;
+        right: 0;
+        top: 0;
+        transition: none;
+        transform: translate(0, -16vh);
+        text-align: center;
+        background-color: rgba(0, 0, 0, 0.8);
+        box-shadow: 0 0 10px rgb(0 0 0 / 50%);
+        color: #fff;
+        padding-top: 1vh;
+      }
+      #stats.showing {
+        transform: translate(0, 0);
+        transition: transform 0.5s ease;
+      }
+      #stats .item {
+        width: 25vw;
+        display: inline-block;
+        text-align: center;
+      }
       #console {
         position: absolute;
         font-family: 'IBM Plex Mono', 'Roboto Mono', monospace;
@@ -194,6 +219,14 @@
             <div class='item' id="mi_start">Start</div>
             <div class='item'>Highscores</div>
             <div class='item'>Hilfe</div>
+          </div>
+        </div>
+        <div id="stats">
+          <div class="item la_level">
+          </div>
+          <div class="item la_points">
+          </div>
+          <div class="item la_lives">
           </div>
         </div>
         <div id="console">

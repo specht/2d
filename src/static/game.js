@@ -59,10 +59,12 @@ class Game {
         this.data.properties.title ??= '';
         this.data.properties.author ??= '';
         this.data.properties.yt_tag ??= '';
+        this.data.properties.lives_at_begin ??= 5;
+        this.data.properties.max_lives ??= 5;
         this.data.properties.screen_pixel_height ??= 240.0;
         this.data.properties.gravity ??= 0.5;
         this.data.properties.safe_zone_x ??= 0.4;
-        this.data.properties.safe_zone_y ??= 0.4;
+        this.data.properties.safe_zone_y ??= 0.3;
         this.data.parent ??= null;
         this.data.sprites ??= [];
         if (this.data.sprites.length === 0) {
@@ -301,6 +303,10 @@ class Game {
 
         $('#game-settings-here').empty();
 
+        new SeparatorWidget({
+            container: $('#game-settings-here'),
+            label: 'Spiel',
+        });
         new LineEditWidget({
             container: $('#game-settings-here'),
             label: 'Titel:',
@@ -315,6 +321,46 @@ class Game {
             get: () => self.data.properties.author,
             set: (x) => {
                 self.data.properties.author = x;
+            },
+        });
+        new NumberWidget({
+            container: $('#game-settings-here'),
+            label: 'Leben am Anfang:',
+            min: 1,
+            max: 1000,
+            step: 1,
+            decimalPlaces: 0,
+            get: () => self.data.properties.lives_at_begin,
+            set: (x) => {
+                self.data.properties.lives_at_begin = x;
+            },
+        });
+        new NumberWidget({
+            container: $('#game-settings-here'),
+            label: 'Leben maximal:',
+            min: 1,
+            max: 1000,
+            step: 1,
+            decimalPlaces: 0,
+            get: () => self.data.properties.max_lives,
+            set: (x) => {
+                self.data.properties.max_lives = x;
+            },
+        });
+        new SeparatorWidget({
+            container: $('#game-settings-here'),
+            label: 'Physik',
+        });
+        new NumberWidget({
+            container: $('#game-settings-here'),
+            label: 'Gravitation:',
+            min: 0,
+            max: 100,
+            step: 0.1,
+            decimalPlaces: 2,
+            get: () => self.data.properties.gravity,
+            set: (x) => {
+                self.data.properties.gravity = x;
             },
         });
         new SeparatorWidget({
@@ -356,22 +402,6 @@ class Game {
             get: () => self.data.properties.yt_tag,
             set: (x) => {
                 self.data.properties.yt_tag = x;
-            },
-        });
-        new SeparatorWidget({
-            container: $('#game-settings-here'),
-            label: 'Physik',
-        });
-        new NumberWidget({
-            container: $('#game-settings-here'),
-            label: 'Gravitation:',
-            min: 0,
-            max: 100,
-            step: 0.1,
-            decimalPlaces: 2,
-            get: () => self.data.properties.gravity,
-            set: (x) => {
-                self.data.properties.gravity = x;
             },
         });
         if (typeof(this.data.parent) !== 'undefined') {
