@@ -557,6 +557,7 @@ class NumberWidget {
         div.append(label);
         this.input = [];
         let v = data.get();
+        console.log(data.label, v);
         if (!Array.isArray(v)) v = [v];
         for (let i = 0; i < data.count; i++) {
             this.input.push($(`<input type='text' style='text-align: center; width: ${this.data.width};'>`));
@@ -721,5 +722,16 @@ class SelectWidget {
     update() {
         if (this.data.get() !== this.select.val())
             this.data.set(this.select.val());
+    }
+}
+
+class SeparatorWidget {
+    constructor(data) {
+        this.data = data;
+        this.container = data.container;
+        let div = $(`<div class='item'>`);
+        let label = $(`<div' class='separator'>`).text(data.label);
+        div.append(label);
+        this.container.append(div);
     }
 }

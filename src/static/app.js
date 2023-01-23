@@ -19,11 +19,20 @@ class Character {
 		this.direction = 'front';
 		this.t0 = 0.0;
 		this.sti_for_state = {};
+		this.pressed_keys = {};
+		this.intention = null;
 
 		if ('actor' in this.sprite.traits) {
 			this.character_trait = 'actor';
 			this.traits = this.sprite.traits[this.character_trait];
 			this.follow_camera = true;
+		}
+		else if ('baddie' in this.sprite.traits) {
+			this.character_trait = 'baddie';
+			this.traits = this.sprite.traits[this.character_trait];
+			this.traits.ex_top ??= 1.0;
+			this.traits.ex_left ??= 1.0;
+			this.traits.ex_right ??= 1.0;
 		}
 
 		let state_prefixes = ['stand', 'walk', 'jump', 'fall'];
@@ -227,18 +236,115 @@ class Character {
 
 	standing_on_ground() {
 		return this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0);
-	} 
+	}
 
 	center_on_entry(entry) {
 		this.mesh.position.x = entry.mesh.position.x;
 	}
 
-	simulation_step(t) {
+	patrol_direction() {
+		if (this.traits.start_dir === 'left') return 'left';
+		if (this.traits.start_dir === 'right') return 'right';
+		return ['left', 'right'][Math.floor(Math.random() * 2.0)];
+	}
 
+	patrol_duration() {
+		console.log(this.traits);
+		if (this.traits.takes_breaks[0] !== 0 || this.traits.takes_breaks[1] !== 0) {
+			return (Math.random() * (this.traits.takes_breaks[1] - this.traits.takes_breaks[0]) + this.traits.takes_breaks[0]) * SIMULATION_RATE;
+		}
+		return null;
+	}
+
+	break_duration() {
+		return (Math.random() * (this.traits.break_length[1] - this.traits.break_length[0]) + this.traits.break_length[0]) * SIMULATION_RATE;
+	}
+
+	simulate_movement() {
+
+		if (this.traits.patrols) {
+			this.intention ??= {
+				direction: this.patrol_direction(),
+				duration: this.patrol_duration(),
+			};
+
+			if (this.intention.duration !== null) {
+				this.intention.duration -= 1;
+				if (this.intention.duration <= 0) {
+					if (this.intention.direction === 'stay') {
+						this.intention.direction = this.intention.old_direction;
+						this.intention.duration = this.patrol_duration();
+					} else {
+						this.intention.old_direction = this.intention.direction;
+						this.intention.direction = 'stay';
+						this.intention.duration = this.break_duration();
+					}
+				}
+			}
+
+			if (this.standing_on_ground()) {
+				this.pressed_keys[KEY_LEFT] = false;
+				this.pressed_keys[KEY_RIGHT] = false;
+				this.pressed_keys[KEY_UP] = false;
+				this.pressed_keys[KEY_DOWN] = false;
+				this.pressed_keys[KEY_JUMP] = false;
+				if (this.intention.direction === 'left') {
+					if (this.has_trait_at(['block_above'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, -1.0, 0.0)) {
+						if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
+							this.intention.direction = 'right';
+						} else {
+							this.pressed_keys[KEY_LEFT] = true;
+						}
+					} else {
+						if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
+							this.intention.direction = 'right';
+						} else {
+							if (this.traits.jumps_from_platforms) {
+								this.pressed_keys[KEY_LEFT] = true;
+								this.pressed_keys[KEY_JUMP] = true;
+							} else {
+								this.intention.direction = 'right';
+							}
+						}
+					}
+				} else if (this.intention.direction === 'right') {
+					if (this.has_trait_at(['block_above'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, -1.0, 0.0)) {
+						if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
+							this.intention.direction = 'left';
+						} else {
+							this.pressed_keys[KEY_RIGHT] = true;
+						}
+					} else {
+						if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
+							this.intention.direction = 'left';
+						} else {
+							if (this.traits.jumps_from_platforms) {
+								this.pressed_keys[KEY_RIGHT] = true;
+								this.pressed_keys[KEY_JUMP] = true;
+							} else {
+								this.intention.direction = 'left';
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	simulation_step(t) {
 		// move left / right
+
+		if (this.character_trait === 'baddie')
+			this.simulate_movement();
+
+		if (this.character_trait === 'actor')
+			this.pressed_keys = this.game.pressed_keys;
+
 		let dx = 0;
-		if (this.game.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun;
-		if (this.game.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun;
+		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun;
+		if (this.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun;
+		// if (this.character_trait === 'baddie')
+		// 	dx *= (1.0) + ((Math.random() - 0.5) * 2.0) * 3;
 		dx = this.try_move_x(dx);
 		let state = 'stand';
 		if (this.standing_on_ground()) {
@@ -253,7 +359,7 @@ class Character {
 		let dy = 0;
 		let entry = this.has_trait_at(['ladder'], -0.5, 0.5, 0.1, 1.1);
 		if (entry) {
-			if (this.game.pressed_keys[KEY_UP]) {
+			if (this.pressed_keys[KEY_UP]) {
 				dy += this.traits.vrun;
 				if (this.game.data.sprites[entry.sprite_index].traits.ladder.center)
 					this.center_on_entry(entry);
@@ -261,7 +367,7 @@ class Character {
 		}
 		entry = this.has_trait_at(['ladder'], -0.5, 0.5, -1.1, -0.1);
 		if (entry) {
-			if (this.game.pressed_keys[KEY_DOWN]) {
+			if (this.pressed_keys[KEY_DOWN]) {
 				dy -= this.traits.vrun;
 				if (this.game.data.sprites[entry.sprite_index].traits.ladder.center)
 					this.center_on_entry(entry);
@@ -272,10 +378,10 @@ class Character {
 			direction = 'back';
 
 		// if we're standing, we can jump
-		if (this.sprite.traits[this.character_trait].can_jump) {
+		if (this.character_trait === 'baddie' || this.sprite.traits[this.character_trait].can_jump) {
 			if (this.standing_on_ground()) {
 				this.vy = 0;
-				if (this.game.pressed_keys[KEY_JUMP])
+				if (this.pressed_keys[KEY_JUMP])
 					this.vy = this.traits.vjump;
 			}
 		}
@@ -291,32 +397,34 @@ class Character {
 
 		this.update_state_and_direction(state, direction);
 
-		entry = this.has_trait_at(['pickup'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
-			this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
-		if (entry) {
-			let x = entry.mesh.position.x;
-			let y = entry.mesh.position.y;
-			let sprite = this.game.data.sprites[entry.sprite_index];
-			let x0 = x - sprite.width / 2;
-			let x1 = x + sprite.width / 2;
-			let y0 = y;
-			let y1 = y + sprite.height;
-			this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
-			this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
-			this.game.transitioning_sprites['pickup'] ??= {};
-			this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
-		}
+		if (this.character_trait === 'actor') {
+			entry = this.has_trait_at(['pickup'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
+				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
+			if (entry) {
+				let x = entry.mesh.position.x;
+				let y = entry.mesh.position.y;
+				let sprite = this.game.data.sprites[entry.sprite_index];
+				let x0 = x - sprite.width / 2;
+				let x1 = x + sprite.width / 2;
+				let y0 = y;
+				let y1 = y + sprite.height;
+				this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
+				this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
+				this.game.transitioning_sprites['pickup'] ??= {};
+				this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+			}
 
-		if (this.follow_camera) {
-			let scale = this.game.height / this.game.screen_pixel_height;
-			let safe_zone_x0 = this.mesh.position.x - (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
-			let safe_zone_x1 = this.mesh.position.x + (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
-			let safe_zone_y0 = this.mesh.position.y - (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
-			let safe_zone_y1 = this.mesh.position.y + (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
-			if (this.game.camera_x < safe_zone_x0) this.game.camera_x = safe_zone_x0;
-			if (this.game.camera_x > safe_zone_x1) this.game.camera_x = safe_zone_x1;
-			if (this.game.camera_y < safe_zone_y0) this.game.camera_y = safe_zone_y0;
-			if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
+			if (this.follow_camera) {
+				let scale = this.game.height / this.game.screen_pixel_height;
+				let safe_zone_x0 = this.mesh.position.x - (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
+				let safe_zone_x1 = this.mesh.position.x + (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
+				let safe_zone_y0 = this.mesh.position.y - (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
+				let safe_zone_y1 = this.mesh.position.y + (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
+				if (this.game.camera_x < safe_zone_x0) this.game.camera_x = safe_zone_x0;
+				if (this.game.camera_x > safe_zone_x1) this.game.camera_x = safe_zone_x1;
+				if (this.game.camera_y < safe_zone_y0) this.game.camera_y = safe_zone_y0;
+				if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
+			}
 		}
 	}
 }
@@ -414,7 +522,9 @@ class Game {
 		// load game json
 		this.reset();
 		if (window.yt_player !== null) {
-			window.yt_player.pauseVideo();
+			try {
+				window.yt_player.pauseVideo();
+			} catch {}
 		}
 
 		this.data = await (await fetch(`/gen/games/${tag}.json`)).json();
@@ -473,6 +583,7 @@ class Game {
 		this.animated_sprites = [];
 		this.meshes_for_sprite = [];
 		this.player_character = null;
+		this.baddies = [];
 		this.geometry_and_material_for_frame = [];
 		this.animated_sprites = [];
 		this.transitioning_sprites = {};
@@ -526,7 +637,7 @@ class Game {
 						this.mesh_catalogue.push(mesh);
 						this.meshes_for_sprite.push([]);
 						if (sprite.states[0].frames.length > 1) {
-							if (!('actor' in sprite.traits))
+							if (!('actor' in sprite.traits || 'baddie' in sprite.traits))
 								this.animated_sprites.push(si);
 						}
 					}
@@ -570,7 +681,7 @@ class Game {
 						if (x1 > this.maxx) this.maxx = x1;
 						if (y0 < this.miny) this.miny = y0;
 						if (y1 > this.maxy) this.maxy = y1;
-						if (!('actor' in sprite.traits))
+						if (!('actor' in sprite.traits || 'baddie' in sprite.traits))
 						{
 							this.interval_tree_x.insert([x0, x1], this.active_level_sprites.length);
 							this.interval_tree_y.insert([y0, y1], this.active_level_sprites.length);
@@ -579,16 +690,19 @@ class Game {
 					}
 					if ('actor' in sprite.traits)
 					{
-						console.log(sprite.traits);
 						this.player_character = new Character(this, si, mesh);
 						this.camera_x = placed[1];
 						this.camera_y = placed[2] + this.data.properties.screen_pixel_height * 0.3;
 					}
+					else if ('baddie' in sprite.traits)
+					{
+						this.baddies.push(new Character(this, si, mesh));
+					}
 					mesh.position.set(placed[1], placed[2], 0);
 					this.meshes_for_sprite[si].push(mesh);
-					let fx = 0.0;
-					let fy = 0.0;
-					let fr = 1.0;
+					let fx = sprite.states[0].properties.phase_x;
+					let fy = sprite.states[0].properties.phase_y;
+					let fr = sprite.states[0].properties.phase_r;
 					let fo = Math.floor((mesh.position.x / sprite.width) * fx + (mesh.position.y / sprite.height) * fy + Math.random() * 1024 * fr);
 					this.state_for_mesh[mesh.uuid] = {state_index: 0, frame_offset: fo};
 					game_layer.add(mesh);
@@ -745,8 +859,9 @@ class Game {
 		for (let pi in (this.transitioning_sprites ?? {}).pickup ?? {}) {
 			let entry = this.active_level_sprites[pi];
 			let sprite = this.data.sprites[entry.sprite_index];
-			let dt = (t1 - this.transitioning_sprites.pickup[pi].t0) / sprite.traits.pickup.duration;
-			entry.mesh.position.y = this.transitioning_sprites.pickup[pi].y0 + (t1 - this.transitioning_sprites.pickup[pi].t0) * sprite.traits.pickup.move_up;
+			let dt0 = (t1 - this.transitioning_sprites.pickup[pi].t0);
+			let dt = dt0 / sprite.traits.pickup.duration;
+			entry.mesh.position.y = this.transitioning_sprites.pickup[pi].y0 + dt0 * sprite.traits.pickup.move_up;
 			let t = 1.0 - dt;
 			if (t > 1.0) t = 1.0;
 			if (t < 0.0) t = 0.0;
@@ -859,6 +974,8 @@ class Game {
 	simulation_step(t) {
 		if (this.player_character !== null)
 			this.player_character.simulation_step(t);
+		for (let baddie of this.baddies)
+			baddie.simulation_step(t);
 	}
 
 	simulate() {

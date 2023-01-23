@@ -317,13 +317,9 @@ class Game {
                 self.data.properties.author = x;
             },
         });
-        new LineEditWidget({
+        new SeparatorWidget({
             container: $('#game-settings-here'),
-            label: 'Youtube ID:',
-            get: () => self.data.properties.yt_tag,
-            set: (x) => {
-                self.data.properties.yt_tag = x;
-            },
+            label: 'Kamera',
         });
         new NumberWidget({
             container: $('#game-settings-here'),
@@ -337,6 +333,37 @@ class Game {
         });
         new NumberWidget({
             container: $('#game-settings-here'),
+            label: 'Kamera Safe Zone (Breite &times; Höhe):',
+            count: 2,
+            connector: '&times;',
+            min: [0.0, 0.0],
+            max: [1.0, 1.0],
+            step: 0.1,
+            decimalPlaces: 1,
+            get: () => [self.data.properties.safe_zone_x, self.data.properties.safe_zone_y],
+            set: (x, y) => {
+                self.data.properties.safe_zone_x = x;
+                self.data.properties.safe_zone_y = y;
+            },
+        });
+        new SeparatorWidget({
+            container: $('#game-settings-here'),
+            label: 'Musik',
+        });
+        new LineEditWidget({
+            container: $('#game-settings-here'),
+            label: 'Youtube ID:',
+            get: () => self.data.properties.yt_tag,
+            set: (x) => {
+                self.data.properties.yt_tag = x;
+            },
+        });
+        new SeparatorWidget({
+            container: $('#game-settings-here'),
+            label: 'Physik',
+        });
+        new NumberWidget({
+            container: $('#game-settings-here'),
             label: 'Gravitation:',
             min: 0,
             max: 100,
@@ -345,30 +372,6 @@ class Game {
             get: () => self.data.properties.gravity,
             set: (x) => {
                 self.data.properties.gravity = x;
-            },
-        });
-        new NumberWidget({
-            container: $('#game-settings-here'),
-            label: 'Kamera Safe Zone (Breite):',
-            min: 0.0,
-            max: 1.0,
-            step: 0.1,
-            decimalPlaces: 1,
-            get: () => self.data.properties.safe_zone_x,
-            set: (x) => {
-                self.data.properties.safe_zone_x = x;
-            },
-        });
-        new NumberWidget({
-            container: $('#game-settings-here'),
-            label: 'Kamera Safe Zone (Höhe):',
-            min: 0.0,
-            max: 1.0,
-            step: 0.1,
-            decimalPlaces: 1,
-            get: () => self.data.properties.safe_zone_y,
-            set: (x) => {
-                self.data.properties.safe_zone_y = x;
             },
         });
         if (typeof(this.data.parent) !== 'undefined') {
@@ -474,11 +477,13 @@ class Game {
                     decimalPlaces: property.decimalPlaces ?? null,
                     width: property.width ?? null,
                     suffix: property.suffix ?? null,
+                    count: property.count ?? null,
+                    connector: property.connector ?? null,
                     onfocus: property.onfocus ?? null,
                     onblur: property.onblur ?? null,
                     onchange: property.onchange ?? null,
                     get: () => self.data.sprites[si].traits[trait][key],
-                    set: (x) => {
+                    set: (...x) => {
                         self.data.sprites[si].traits[trait][key] = x;
                     },
                 });
@@ -486,6 +491,16 @@ class Game {
                 new CheckboxWidget({
                     container: div,
                     label: property.label ?? key,
+                    get: () => self.data.sprites[si].traits[trait][key],
+                    set: (x) => {
+                        self.data.sprites[si].traits[trait][key] = x;
+                    },
+                });
+            } else if (property.type === 'select') {
+                new SelectWidget({
+                    container: div,
+                    label: property.label ?? key,
+                    options: property.options ?? null,
                     get: () => self.data.sprites[si].traits[trait][key],
                     set: (x) => {
                         self.data.sprites[si].traits[trait][key] = x;
