@@ -557,7 +557,6 @@ class NumberWidget {
         div.append(label);
         this.input = [];
         let v = data.get();
-        console.log(data.label, v);
         if (!Array.isArray(v)) v = [v];
         for (let i = 0; i < data.count; i++) {
             this.input.push($(`<input type='text' style='text-align: center; width: ${this.data.width};'>`));

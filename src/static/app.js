@@ -21,6 +21,9 @@ class Character {
 		this.sti_for_state = {};
 		this.pressed_keys = {};
 		this.intention = null;
+		this.invincible_until = 0;
+		this.initial_position = [mesh.position.x, mesh.position.y];
+		console.log(this.initial_position);
 
 		if ('actor' in this.sprite.traits) {
 			this.character_trait = 'actor';
@@ -73,7 +76,17 @@ class Character {
 			this.assign_sti(state, 'right', this.sti_for_state[state].left.sti, 1, true);
 		}
 
+		for (let sti = 0; sti < this.sprite.states.length; sti++) {
+			let state = this.sprite.states[sti];
+			let state_traits = (state.traits ?? {})[this.character_trait] ?? {};
+			if ('dead' in state_traits) {
+				for (let d of ['front', 'back', 'left', 'right']) {
+					this.assign_sti('dead', d, sti, 200, false);
+				}
+			}
+		}
 		console.log(this.sti_for_state);
+
 
 		this.vy = 0;
 	}
@@ -82,7 +95,6 @@ class Character {
 		this.sti_for_state[state] ??= {};
 		this.sti_for_state[state][direction] ??= {sti: sti, confidence: confidence, flipped: flipped};
 		if (confidence > this.sti_for_state[state][direction].confidence) {
-			console.log(`assigning ${state}.${direction} = ${sti}/${flipped} @ ${confidence}`);
 			this.sti_for_state[state][direction] = {sti: sti, confidence: confidence, flipped: flipped};
 		}
 	}
@@ -112,6 +124,45 @@ class Character {
 					return r;
 				}
 			}
+		}
+		return null;
+	}
+
+	has_baddie_at(dx0, dx1, dy0, dy1) {
+
+		if (this.game.dynamic_interval_frame !== this.game.frame) {
+			// recreate baddie interval tree
+			this.game.dynamic_interval_tree_x.clear();
+			this.game.dynamic_interval_tree_y.clear();
+			for (let bi = 0; bi < this.game.baddies.length; bi++) {
+				let baddie = this.game.baddies[bi];
+				let x = baddie.mesh.position.x;
+				let y = baddie.mesh.position.y;
+				let x0 = x - baddie.sprite.width / 2;
+				let x1 = x + baddie.sprite.width / 2;
+				let y0 = y;
+				let y1 = y + baddie.sprite.height;
+				this.game.dynamic_interval_tree_x.insert([x0, x1], bi);
+				this.game.dynamic_interval_tree_y.insert([y0, y1], bi);
+			}
+		}
+
+		let trait_or_traits = ['baddie'];
+
+		let x0 = this.mesh.position.x + dx0;
+		let x1 = this.mesh.position.x + dx1;
+		let y0 = this.mesh.position.y + dy0;
+		let y1 = this.mesh.position.y + dy1;
+
+		let result_x = new Set();
+		for (let i of this.game.dynamic_interval_tree_x.search([x0, x1]))
+			result_x.add(i);
+		let result_y = new Set();
+		for (let i of this.game.dynamic_interval_tree_y.search([y0, y1]))
+			result_y.add(i);
+		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
+		for (let entry_index of result) {
+			return this.game.baddies[entry_index];
 		}
 		return null;
 	}
@@ -331,14 +382,25 @@ class Character {
 		}
 	}
 
+	invincible() {
+		return this.game.clock.getElapsedTime() < this.invincible_until;
+	}
+
+	dead() {
+		return (this.game.ts_zoom_actor >= 0) && (!this.game.reached_flag);
+	}
+
 	simulation_step(t) {
 		// move left / right
 
 		if (this.character_trait === 'baddie')
 			this.simulate_movement();
 
-		if (this.character_trait === 'actor')
+		if (this.character_trait === 'actor') {
 			this.pressed_keys = this.game.pressed_keys;
+			if (this.dead())
+				this.pressed_keys = {};
+		}
 
 		let dx = 0;
 		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun;
@@ -351,6 +413,10 @@ class Character {
 			state = (Math.abs(dx) > 0.1) ? 'walk' : 'stand';
 		} else {
 			state = (this.vy > 0) ? 'jump' : 'fall';
+		}
+		if (this.character_trait === 'actor') {
+			if (this.dead())
+				state = 'dead';
 		}
 		let direction = this.direction;
 		if (dx > 0) direction = 'right';
@@ -401,11 +467,11 @@ class Character {
 			entry = this.has_trait_at(['pickup'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
 			if (entry) {
-				let entry_lives = this.game.data.sprites[entry.sprite_index].traits.pickup.lives;
+				let sprite = this.game.data.sprites[entry.sprite_index];
+				let entry_lives = sprite.traits.pickup.lives;
 				if (!(entry_lives > 0 && this.game.lives >= this.game.data.properties.max_lives)) {
 					let x = entry.mesh.position.x;
 					let y = entry.mesh.position.y;
-					let sprite = this.game.data.sprites[entry.sprite_index];
 					let x0 = x - sprite.width / 2;
 					let x1 = x + sprite.width / 2;
 					let y0 = y;
@@ -414,12 +480,84 @@ class Character {
 					this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
 					this.game.transitioning_sprites['pickup'] ??= {};
 					this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
-					this.game.points += this.game.data.sprites[entry.sprite_index].traits.pickup.points ?? 0;
-					this.game.lives += this.game.data.sprites[entry.sprite_index].traits.pickup.lives ?? 0;
+					this.game.points += sprite.traits.pickup.points ?? 0;
+					this.game.lives += sprite.traits.pickup.lives ?? 0;
 					if (this.game.lives > this.game.data.properties.max_lives)
 						this.game.lives = this.game.data.properties.max_lives;
 					$('.la_points').text(`Punkte: ${this.game.points}`);
 					$('.la_lives').text(`Leben: ${this.game.lives}`);
+				}
+			}
+
+			entry = this.has_trait_at(['checkpoint'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
+				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
+			if (entry) {
+				let sprite = this.game.data.sprites[entry.sprite_index];
+				this.initial_position = [entry.mesh.position.x, entry.mesh.position.y];
+				for (let sti = 0; sti < sprite.states.length; sti++) {
+					if ('active' in sprite.states[sti].traits.checkpoint)
+						this.game.state_for_mesh[entry.mesh.uuid].state_index = sti;
+				}
+			}
+
+			if (!this.game.reached_flag) {
+				entry = this.has_trait_at(['level_complete'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
+					this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
+				if (entry) {
+					this.game.reached_flag = true;
+					this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
+					let self = this;
+					if (self.game.get_next_level_index() < self.game.data.levels.length) {
+						this.game.curtain.show('LEVEL COMPLETE', function() {
+							self.game.level_index = self.game.get_next_level_index();
+							self.game.setup();
+							self.game.run();
+						});
+					} else {
+						this.game.curtain.show('THE END', function() {
+							self.game.stop();
+						});
+					}
+				// let sprite = this.game.data.sprites[entry.sprite_index];
+					// for (let sti = 0; sti < sprite.states.length; sti++) {
+					// 	if ('active' in sprite.states[sti].traits.checkpoint)
+					// 		this.game.state_for_mesh[entry.mesh.uuid].state_index = sti;
+					// }
+				}
+			}
+
+			if (!(this.invincible() || this.dead())) {
+				entry = this.has_baddie_at(-this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
+					this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
+				if (entry) {
+					// this.game.transitioning_sprites[''] ??= {};
+					// this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+					let sprite = entry.sprite;
+					this.game.energy -= sprite.traits.baddie.damage;
+					if (this.game.energy < 0) this.game.energy = 0;
+					$('.la_energy').text(`Energie: ${this.game.energy}`);
+					if (this.game.energy === 0) {
+						this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
+						this.game.lives -= 1;
+						if (this.game.lives < 0) this.game.lives = 0;
+						$('.la_lives').text(`Leben: ${this.game.lives}`);
+						let self = this;
+						setTimeout(function() {
+							if (this.game.lives === 0) {
+								this.game.curtain.show('GAME OVER', function() {
+
+								});
+							} else {
+								this.game.curtain.show('Drück eine Taste, um fortzufahren', function() {
+									self.mesh.position.x = self.initial_position[0];
+									self.mesh.position.y = self.initial_position[1];
+									self.invincible_until = self.game.clock.getElapsedTime() + sprite.traits.baddie.damage_cool_down;
+								});
+							}
+						}, 750);
+					} else {
+						this.invincible_until = this.game.clock.getElapsedTime() + sprite.traits.baddie.damage_cool_down;
+					}
 				}
 			}
 
@@ -472,10 +610,33 @@ class VariableClock {
 	}
 }
 
+class Curtain {
+	constructor(game) {
+		this.game = game;
+		this.oncomplete = null;
+		this.showing = false;
+	}
+
+	show(html, oncomplete) {
+		$('#curtain_text').html(html).addClass('showing');
+		$('#curtain').addClass('showing');
+		this.oncomplete = oncomplete;
+		this.showing = true;
+	}
+
+	hide() {
+		$('#curtain_text').empty().removeClass('showing');
+		$('#curtain').removeClass('showing');
+		this.game.ts_zoom_actor = -1;
+		this.showing = false;
+	}
+}
+
 class Game {
 	constructor() {
 		let self = this;
 		this.data = null;
+		this.curtain = new Curtain(this);
 		console.log(window.location);
 		this.development = window.location.search.substring(0, 4) === '?dev';
 		this.spritesheet_info = null;
@@ -492,6 +653,10 @@ class Game {
 		this.transitioning_sprites = {};
 		this.interval_tree_x = new IntervalTree();
         this.interval_tree_y = new IntervalTree();
+		this.frame = 0;
+		this.dynamic_interval_frame = -1;
+		this.dynamic_interval_tree_x = new IntervalTree();
+		this.dynamic_interval_tree_y = new IntervalTree();
 		this.active_level_sprites = [];
 		this.reset();
 		window.addEventListener('resize', () => {
@@ -525,6 +690,19 @@ class Game {
 				bottom: '10vh',
 			},
 		});
+	}
+
+	reset() {
+		this.level_index = 0;
+		this.next_level_index = 0;
+		this.lives = null;
+		this.energy = null;
+		console.log('RESET', this.next_level_index);
+		this.handle_resize();
+		this.stop();
+		this.just_started = true;
+		$('#overlay').show();
+		$('#screen').hide();
 	}
 
 	async load(tag) {
@@ -562,6 +740,8 @@ class Game {
 		$('#game_title').text(this.data.properties.title);
 		$('#game_author').text(this.data.properties.author);
 		this.setup();
+		this.ts_zoom_actor = -1;
+		this.reached_flag = false;
 		$('#stats').removeClass('showing');
 		// if (window.location.host.substring(0, 9) === 'localhost') {
 		// 	this.run();
@@ -573,6 +753,13 @@ class Game {
 		if (window.yt_player !== null) {
 			window.yt_player.pauseVideo();
 		}
+	}
+
+	get_next_level_index() {
+		let li = this.level_index + 1;
+		while ((li < this.data.levels.length) && !this.data.levels[li].properties.use_level)
+			li += 1;
+		return li;
 	}
 
 	setup() {
@@ -607,14 +794,18 @@ class Game {
 
 		this.interval_tree_x.clear();
 		this.interval_tree_y.clear();
+		this.frame = 0;
+		this.dynamic_interval_frame = -1;
+		this.dynamic_interval_tree_x.clear();
+		this.dynamic_interval_tree_y.clear();
+
 		this.active_level_sprites = [];
 
 		this.points = 0;
 		this.lives = 1;
-
-		$('.la_points').text(`Punkte: ${this.points}`);
-		$('.la_lives').text(`Leben: ${this.lives}`);
-		$('.la_level').text(`Level: ${this.level_index + 1}`);
+		this.energy = 100;
+		this.ts_zoom_actor = -1;
+		this.reached_flag = false;
 
 		$('#screen').empty();
 		$('#screen').append(this.renderer.domElement);
@@ -624,10 +815,18 @@ class Game {
 		if (this.data === null)
 			return;
 
-		this.lives = this.data.properties.lives_at_begin;
+		this.lives ??= this.data.properties.lives_at_begin;
+		this.energy ??= this.data.properties.energy_at_begin;
+
+		$('.la_level').text(`Level: ${this.level_index + 1}`);
+		$('.la_points').text(`Punkte: ${this.points}`);
+		$('.la_lives').text(`Leben: ${this.lives}`);
+		$('.la_energy').text(`Energie: ${this.energy}`);
+
 		this.screen_pixel_height = this.data.properties.screen_pixel_height;
 		this.screen_safe_zone_x = this.data.properties.safe_zone_x;
 		this.screen_safe_zone_y = this.data.properties.safe_zone_y;
+		if (this.data.properties.show_energy) $('.la_energy').show(); else $('.la_energy').hide();
 
 		let tw = this.spritesheet_info.width;
 		let th = this.spritesheet_info.height;
@@ -654,7 +853,7 @@ class Game {
 						// mesh.scale.x *= -1;
 						this.mesh_catalogue.push(mesh);
 						this.meshes_for_sprite.push([]);
-						if (sprite.states[0].frames.length > 1) {
+						if (sprite.states[0].frames.length > 1 || sprite.states.length > 1) {
 							if (!('actor' in sprite.traits || 'baddie' in sprite.traits))
 								this.animated_sprites.push(si);
 						}
@@ -666,9 +865,9 @@ class Game {
 		if (this.level_index >= this.data.levels.length)
 			return;
 
-		this.scene.background = new THREE.Color(parse_html_color(this.data.levels[this.level_index].properties.background_color));
-
 		let level = this.data.levels[this.level_index];
+		this.scene.background = new THREE.Color(parse_html_color(level.properties.background_color));
+
 		this.minx = 0;
 		this.maxx = 0;
 		this.miny = 0;
@@ -685,7 +884,6 @@ class Game {
 					mesh.geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
 					// mesh.material = mesh.material.clone();
 					// console.log(mesh.material.uniforms.texture1);
-		
 					let sprite = this.data.sprites[si];
 					let effective_collision_detection = layer.properties.collision_detection && (Math.abs(layer.properties.parallax) < 0.0001);
 					if (effective_collision_detection) {
@@ -706,6 +904,8 @@ class Game {
 							this.active_level_sprites.push({layer_index: li, sprite_index: si, mesh: mesh});
 						}
 					}
+					mesh.position.set(placed[1], placed[2], 0);
+					this.meshes_for_sprite[si].push(mesh);
 					if ('actor' in sprite.traits)
 					{
 						this.player_character = new Character(this, si, mesh);
@@ -716,8 +916,6 @@ class Game {
 					{
 						this.baddies.push(new Character(this, si, mesh));
 					}
-					mesh.position.set(placed[1], placed[2], 0);
-					this.meshes_for_sprite[si].push(mesh);
 					let fx = sprite.states[0].properties.phase_x;
 					let fy = sprite.states[0].properties.phase_y;
 					let fr = sprite.states[0].properties.phase_r;
@@ -815,7 +1013,26 @@ class Game {
 		return t;
 	}
 
+	prepare_run() {
+		let self = this;
+		if (this.level_index < this.data.levels.length) {
+			let level = this.data.levels[this.level_index];
+			let level_title = level.properties.name.trim();
+			this.curtain.show(`<div>${level_title}</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, function() {
+				self.run();
+			});
+		} else {
+			this.curtain.show(`<div>THE END</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, function() {
+
+			});
+		}
+		$('#overlay').fadeOut();
+	}
+
 	run() {
+		// this.setup();
+		// this.prepare_run();
+		$('#stats').addClass('showing');
 		if (window.yt_player !== null) {
 			window.yt_player.pauseVideo();
 			let yt_tag = null;
@@ -831,9 +1048,8 @@ class Game {
 		}
 		if (this.running) return;
 		this.running = true;
-		$('#overlay').fadeOut();
-		$('#screen').fadeIn();
 
+		$('#screen').fadeIn();
 		requestAnimationFrame((t) => this.render());
 	}
 
@@ -842,11 +1058,22 @@ class Game {
 		this.running = false;
 		$('#overlay').fadeIn();
 		$('#screen').fadeOut();
+		$('#stats').removeClass('showing');
 	}
 
 	render() {
 		this.simulate();
 		let scale = this.height / this.screen_pixel_height;
+		if (this.ts_zoom_actor >= 0) {
+			let t = (this.clock.getElapsedTime() - this.ts_zoom_actor) / 3;
+			if (t < 0.0) t = 0.0;
+			if (t > 1.0) t = 1.0;
+			// t = 3 * t * t - 2 * t * t * t;
+			t = 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t);
+			scale *= (1.0 + t);
+			this.camera_x += (this.player_character.mesh.position.x - this.camera_x) * 0.1;
+			this.camera_y += (this.player_character.mesh.position.y - this.camera_y) * 0.1;
+		}
 
 		// handle animated sprites
 
@@ -871,7 +1098,7 @@ class Game {
 			}
 		}
 
-		// handle transitioning sprites
+		// handle transitioning sprites (pickup)
 		let t1 = this.clock.getElapsedTime();
 		let delete_keys = [];
 		for (let pi in (this.transitioning_sprites ?? {}).pickup ?? {}) {
@@ -894,6 +1121,14 @@ class Game {
 		}
 		for (let pi of delete_keys)
 			delete this.transitioning_sprites.pickup[pi];
+
+		if (this.player_character) {
+			if (this.player_character.invincible()) {
+				this.player_character.mesh.visible = (this.frame % 10) < 5;
+			} else {
+				this.player_character.mesh.visible = true;
+			}
+		}
 
         this.camera.left = this.camera_x - this.width * 0.5 / scale;
         this.camera.right = this.camera_x + this.width * 0.5 / scale;
@@ -936,12 +1171,14 @@ class Game {
 	        requestAnimationFrame((t) => this.render());
     }
 
-	reset() {
-		this.handle_resize();
-		this.stop();
-		$('#overlay').show();
-		$('#screen').hide();
-		this.setup();
+	resume_game() {
+		console.log("RESUME_GAME");
+		if (this.lives > 0) {
+			this.ts_zoom_actor = -1;
+			this.player_character.mesh.position.x = this.player_character.initial_position[0];
+			this.player_character.mesh.position.y = this.player_character.initial_position[1];
+			this.player_character.invincible_until = this.clock.getElapsedTime() + this.data.properties.respawn_invincible;
+		}
 	}
 
 	handle_resize() {
@@ -955,6 +1192,15 @@ class Game {
 	}
 
 	handle_key_down(key) {
+		if (((this.running && this.lives === 0) || (this.level_index >= this.data.levels.length)) && key === 'Escape') {
+			this.stop();
+			return;
+		}
+		if (this.curtain.showing) {
+			this.curtain.oncomplete();
+			this.curtain.hide();
+			return;
+		}
 		if (key === 'ArrowLeft')
 			this.pressed_keys[KEY_LEFT] = true;
 		if (key === 'ArrowRight')
@@ -1000,6 +1246,7 @@ class Game {
 		let simulate_to = Math.floor(this.clock.getElapsedTime() * 60.0);
 		while (this.simulated_to < simulate_to) {
 			this.simulation_step(this.simulated_to / SIMULATION_RATE);
+			this.frame++;
 			this.simulated_to++;
 		}
 	}
@@ -1120,8 +1367,10 @@ document.addEventListener("DOMContentLoaded", function (event) {
 	if (tag.length === 7) window.game.load(tag);
 
 	$('#mi_start').click(function(e) {
-		window.game.run();
-		$('#stats').addClass('showing');
+		window.game.level_index = 0;
+		window.game.reset();
+		window.game.setup();
+		window.game.prepare_run();
 	});
 });
 

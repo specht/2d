@@ -31,6 +31,13 @@ var SPRITE_TRAITS_ORDER = [
             'baddie',
         ],
     ],
+    [
+        'Level',
+        [
+            'level_complete',
+            'checkpoint',
+        ],
+    ],
 ];
 
 var STATE_TRAITS_ORDER = {
@@ -39,12 +46,16 @@ var STATE_TRAITS_ORDER = {
         ['Laufen', ['walk_front', 'walk_back', 'walk_left', 'walk_right']],
         ['Springen', ['jump_front', 'jump_back', 'jump_left', 'jump_right']],
         ['Fallen', ['fall_front', 'fall_back', 'fall_left', 'fall_right']],
+        'dead',
     ],
     baddie: [
         ['Stehen', ['front', 'back', 'left', 'right']],
         ['Laufen', ['walk_front', 'walk_back', 'walk_left', 'walk_right']],
         ['Springen', ['jump_front', 'jump_back', 'jump_left', 'jump_right']],
         ['Fallen', ['fall_front', 'fall_back', 'fall_left', 'fall_right']],
+    ],
+    checkpoint: [
+        'active',
     ],
 };
 
@@ -209,6 +220,31 @@ var SPRITE_TRAITS = {
     baddie: {
         label: 'Gegner',
         properties: {
+            damage: {
+                label: 'Schaden',
+                type: 'float',
+                default: 100,
+                min: 0,
+                max: 1000,
+            },
+            damage_cool_down: {
+                label: 'Cooldown',
+                type: 'float',
+                default: 1.0,
+                suffix: 's',
+                decimalPlaces: 1,
+                step: 0.1,
+                min: 0.0,
+                max: 10.0,
+            },
+            // knockback: {
+            //     label: 'Knockback',
+            //     type: 'float',
+            //     default: 0.0,
+            //     step: 1.0,
+            //     min: 0.0,
+            //     max: 100.0,
+            // },
             vrun: {
                 label: 'Geschwindigkeit',
                 type: 'float',
@@ -280,6 +316,12 @@ var SPRITE_TRAITS = {
             },
         },
     },
+    level_complete: {
+        label: 'Ab ins nächste Level!',
+    },
+    checkpoint: {
+        label: 'Checkpoint'
+    },
 };
 
 var STATE_TRAITS = {
@@ -300,6 +342,7 @@ var STATE_TRAITS = {
         fall_back: {label: 'Spielfigur fällt nach hinten'},
         fall_left: {label: 'Spielfigur fällt nach links'},
         fall_right: {label: 'Spielfigur fällt nach rechts'},
+        dead: {label: 'Spielfigur tot'}
     },
     baddie: {
         front: {label: 'Gegner schaut nach vorn'},
@@ -319,4 +362,7 @@ var STATE_TRAITS = {
         fall_left: {label: 'Gegner fällt nach links'},
         fall_right: {label: 'Gegner fällt nach rechts'},
     },
+    checkpoint: {
+        active: {label: 'Checkpoint aktiviert'},
+    }
 };

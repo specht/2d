@@ -314,6 +314,7 @@ class LevelEditor {
                 let level_label = $(`<div>`);
                 level_div.append(level_label);
                 this.label_for_level[index] = level_label;
+                this.update_level_label(index);
                 return level_div;
             },
             onclick: (e, index) => {
@@ -591,16 +592,17 @@ class LevelEditor {
         });
     }
 
-    update_level_label() {
-        let label = $('<div>').text(this.game.data.levels[this.level_index].properties.name);
-        if (!this.game.data.levels[this.level_index].properties.use_level) {
+    update_level_label(li) {
+        if (typeof(li) === 'undefined') li = this.level_index;
+        let label = $('<div>').text(this.game.data.levels[li].properties.name);
+        if (!this.game.data.levels[li].properties.use_level) {
             label.css('text-decoration', 'line-through');
             label.css('opacity', 0.6);
         }
         label.css('white-space', 'nowrap');
         label.css('margin', '6px 5px');
         label.css('pointer-events', 'none');
-        this.label_for_level[this.level_index].empty().append(label);
+        this.label_for_level[li].empty().append(label);
     }
 
     get_touch_point(e) {

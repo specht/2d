@@ -61,6 +61,10 @@ class Game {
         this.data.properties.yt_tag ??= '';
         this.data.properties.lives_at_begin ??= 5;
         this.data.properties.max_lives ??= 5;
+        this.data.properties.show_energy ??= true;
+        this.data.properties.energy_at_begin ??= 100;
+        this.data.properties.max_energy ??= 100;
+        this.data.properties.respawn_invincible ??= 3;
         this.data.properties.screen_pixel_height ??= 240.0;
         this.data.properties.gravity ??= 0.5;
         this.data.properties.safe_zone_x ??= 0.4;
@@ -323,6 +327,10 @@ class Game {
                 self.data.properties.author = x;
             },
         });
+        new SeparatorWidget({
+            container: $('#game-settings-here'),
+            label: 'Gesundheit',
+        });
         new NumberWidget({
             container: $('#game-settings-here'),
             label: 'Leben am Anfang:',
@@ -345,6 +353,52 @@ class Game {
             get: () => self.data.properties.max_lives,
             set: (x) => {
                 self.data.properties.max_lives = x;
+            },
+        });
+        new CheckboxWidget({
+            container: $('#game-settings-here'),
+            label: 'Energie anzeigen:',
+            default: true,
+            get: () => self.data.properties.show_energy,
+            set: (x) => {
+                self.data.properties.show_energy = x;
+            },
+        });
+        new NumberWidget({
+            container: $('#game-settings-here'),
+            label: 'Energie am Anfang:',
+            min: 1,
+            max: 1000,
+            step: 1,
+            decimalPlaces: 0,
+            get: () => self.data.properties.energy_at_begin,
+            set: (x) => {
+                self.data.properties.energy_at_begin = x;
+            },
+        });
+        new NumberWidget({
+            container: $('#game-settings-here'),
+            label: 'Energie maximal:',
+            min: 1,
+            max: 1000,
+            step: 1,
+            decimalPlaces: 0,
+            get: () => self.data.properties.max_energy,
+            set: (x) => {
+                self.data.properties.max_energy = x;
+            },
+        });
+        new NumberWidget({
+            container: $('#game-settings-here'),
+            label: 'Unverwundbar nach Respawn:',
+            min: 0,
+            max: 60,
+            step: 1,
+            decimalPlaces: 1,
+            suffix: 's',
+            get: () => self.data.properties.respawn_invincible,
+            set: (x) => {
+                self.data.properties.respawn_invincible = x;
             },
         });
         new SeparatorWidget({
@@ -514,7 +568,9 @@ class Game {
                     onchange: property.onchange ?? null,
                     get: () => self.data.sprites[si].traits[trait][key],
                     set: (...x) => {
-                        self.data.sprites[si].traits[trait][key] = x;
+                        let y = x;
+                        if (y.length === 1) y = y[0];
+                        self.data.sprites[si].traits[trait][key] = y;
                     },
                 });
             } else if (property.type === 'bool') {
