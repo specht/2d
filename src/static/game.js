@@ -472,6 +472,8 @@ class Game {
                     max: property.max ?? null,
                     step: property.step ?? null,
                     decimalPlaces: property.decimalPlaces ?? null,
+                    width: property.width ?? null,
+                    suffix: property.suffix ?? null,
                     onfocus: property.onfocus ?? null,
                     onblur: property.onblur ?? null,
                     onchange: property.onchange ?? null,

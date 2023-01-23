@@ -19,6 +19,12 @@ var SPRITE_TRAITS_ORDER = [
             'ladder',
         ],
     ],
+    [
+        'Aufheben',
+        [
+            'pickup',
+        ],
+    ],
 ];
 
 var STATE_TRAITS_ORDER = {
@@ -140,6 +146,33 @@ var SPRITE_TRAITS = {
                 label: 'Figur zentrieren',
                 type: 'bool',
                 default: true,
+            },
+        },
+    },
+    pickup: {
+        label: 'man kann es aufheben',
+        properties: {
+            duration: {
+                label: 'Ausblenden',
+                type: 'float',
+                suffix: 's',
+                width: '3.2em',
+                min: 0.0,
+                max: 10.0,
+                step: 0.1,
+                decimalPlaces: 1,
+                default: 0.5,
+            },
+            move_up: {
+                label: 'Bewegung',
+                type: 'float',
+                suffix: 'px/s',
+                width: '1.8em',
+                min: 0,
+                max: 1000,
+                step: 1,
+                decimalPlaces: 0,
+                default: 0,
             },
         },
     },

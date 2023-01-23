@@ -96,9 +96,13 @@ class Character {
 		for (let entry_index of result) {
 			let entry = this.game.active_level_sprites[entry_index];
 			let sprite = this.game.data.sprites[entry.sprite_index];
-			for (let trait of trait_or_traits)
-				if (trait in sprite.traits)
-					return entry;
+			for (let trait of trait_or_traits) {
+				if (trait in sprite.traits) {
+					let r = {...entry};
+					r.entry_index = entry_index;
+					return r;
+				}
+			}
 		}
 		return null;
 	}
@@ -229,7 +233,7 @@ class Character {
 		this.mesh.position.x = entry.mesh.position.x;
 	}
 
-	simulation_step() {
+	simulation_step(t) {
 
 		// move left / right
 		let dx = 0;
@@ -281,13 +285,27 @@ class Character {
 			if (Math.abs(dy) < 0.01) this.vy = 0;
 		}
 
-		// if (!this.has_trait_at(['ladder'], -0.5, 0.5, -1.0, 0.0)) {
-			this.vy -= this.game.data.properties.gravity;
-			if (this.vy < -10)
-				this.vy = -10;
-		// }
+		this.vy -= this.game.data.properties.gravity;
+		if (this.vy < -10)
+			this.vy = -10;
 
 		this.update_state_and_direction(state, direction);
+
+		entry = this.has_trait_at(['pickup'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
+			this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
+		if (entry) {
+			let x = entry.mesh.position.x;
+			let y = entry.mesh.position.y;
+			let sprite = this.game.data.sprites[entry.sprite_index];
+			let x0 = x - sprite.width / 2;
+			let x1 = x + sprite.width / 2;
+			let y0 = y;
+			let y1 = y + sprite.height;
+			this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
+			this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
+			this.game.transitioning_sprites['pickup'] ??= {};
+			this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+		}
 
 		if (this.follow_camera) {
 			let scale = this.game.height / this.game.screen_pixel_height;
@@ -354,6 +372,7 @@ class Game {
 		this.state_for_mesh = {};
 		this.geometry_and_material_for_frame = [];
 		this.animated_sprites = [];
+		this.transitioning_sprites = {};
 		this.interval_tree_x = new IntervalTree();
         this.interval_tree_y = new IntervalTree();
 		this.active_level_sprites = [];
@@ -455,6 +474,8 @@ class Game {
 		this.meshes_for_sprite = [];
 		this.player_character = null;
 		this.geometry_and_material_for_frame = [];
+		this.animated_sprites = [];
+		this.transitioning_sprites = {};
 
 		this.minx = 0;
 		this.miny = 0;
@@ -690,6 +711,8 @@ class Game {
 		this.simulate();
 		let scale = this.height / this.screen_pixel_height;
 
+		// handle animated sprites
+
 		for (let si of this.animated_sprites) {
 			let sprite = this.data.sprites[si];
 			for (let mesh of this.meshes_for_sprite[si]) {
@@ -710,6 +733,26 @@ class Game {
 				mesh.needsUpdate = true;
 			}
 		}
+
+		// handle transitioning sprites
+		let t1 = this.clock.getElapsedTime();
+		let delete_keys = [];
+		for (let pi in (this.transitioning_sprites ?? {}).pickup ?? {}) {
+			let entry = this.active_level_sprites[pi];
+			let sprite = this.data.sprites[entry.sprite_index];
+			let dt = (t1 - this.transitioning_sprites.pickup[pi].t0) / sprite.traits.pickup.duration;
+			entry.mesh.position.y = this.transitioning_sprites.pickup[pi].y0 + (t1 - this.transitioning_sprites.pickup[pi].t0) * sprite.traits.pickup.move_up;
+			entry.mesh.material.opacity = 1.0 - dt;
+			if (dt > 1.0) {
+				delete_keys.push(pi);
+				entry.mesh.visible = false;
+				// entry.mesh.geometry.dispose();
+				// entry.mesh.material.dispose();
+				// this.scene.remove(entry.mesh);
+			}
+		}
+		for (let pi of delete_keys)
+			delete this.transitioning_sprites.pickup[pi];
 
         this.camera.left = this.camera_x - this.width * 0.5 / scale;
         this.camera.right = this.camera_x + this.width * 0.5 / scale;
@@ -805,15 +848,15 @@ class Game {
 	}
 
 	// handle simulation at fixed rate
-	simulation_step() {
+	simulation_step(t) {
 		if (this.player_character !== null)
-			this.player_character.simulation_step();
+			this.player_character.simulation_step(t);
 	}
 
 	simulate() {
 		let simulate_to = Math.floor(this.clock.getElapsedTime() * 60.0);
 		while (this.simulated_to < simulate_to) {
-			this.simulation_step();
+			this.simulation_step(this.simulated_to / SIMULATION_RATE);
 			this.simulated_to++;
 		}
 	}
