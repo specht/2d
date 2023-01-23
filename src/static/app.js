@@ -510,6 +510,7 @@ class Game {
 				let state = sprite.states[sti];
 				for (let fi = 0; fi < state.frames.length; fi++) {
 					let geometry = new THREE.PlaneGeometry(sprite.width, sprite.height);
+					geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
 					geometry.translate(0, sprite.height / 2, 0);
 					let tile_info = this.spritesheet_info.tiles[si][sti][fi];
 					let uv = geometry.attributes.uv;
@@ -517,10 +518,10 @@ class Game {
 					uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
 					uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
 					uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
-					this.geometry_and_material_for_frame[si][sti][fi] = {geometry: geometry, material: this.spritesheets[tile_info[0]]}
-
+					let material = this.spritesheets[tile_info[0]];
+					this.geometry_and_material_for_frame[si][sti][fi] = {geometry: geometry, material: material}
 					if (sti === 0 && fi === 0) {
-						let mesh = new THREE.Mesh(geometry, this.spritesheets[tile_info[fi]]);
+						let mesh = new THREE.Mesh(geometry, material);
 						// mesh.scale.x *= -1;
 						this.mesh_catalogue.push(mesh);
 						this.meshes_for_sprite.push([]);
@@ -552,6 +553,10 @@ class Game {
 					let si = placed[0];
 					let mesh = this.mesh_catalogue[si].clone();
 					mesh.geometry = mesh.geometry.clone();
+					mesh.geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
+					// mesh.material = mesh.material.clone();
+					// console.log(mesh.material.uniforms.texture1);
+		
 					let sprite = this.data.sprites[si];
 					let effective_collision_detection = layer.properties.collision_detection && (Math.abs(layer.properties.parallax) < 0.0001);
 					if (effective_collision_detection) {
@@ -742,7 +747,10 @@ class Game {
 			let sprite = this.data.sprites[entry.sprite_index];
 			let dt = (t1 - this.transitioning_sprites.pickup[pi].t0) / sprite.traits.pickup.duration;
 			entry.mesh.position.y = this.transitioning_sprites.pickup[pi].y0 + (t1 - this.transitioning_sprites.pickup[pi].t0) * sprite.traits.pickup.move_up;
-			entry.mesh.material.opacity = 1.0 - dt;
+			let t = 1.0 - dt;
+			if (t > 1.0) t = 1.0;
+			if (t < 0.0) t = 0.0;
+			entry.mesh.geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([t, t, t, t]), 1));
 			if (dt > 1.0) {
 				delete_keys.push(pi);
 				entry.mesh.visible = false;

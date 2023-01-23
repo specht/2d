@@ -20,7 +20,7 @@ var SPRITE_TRAITS_ORDER = [
         ],
     ],
     [
-        'Aufheben',
+        'Einsammeln',
         [
             'pickup',
         ],
@@ -150,7 +150,7 @@ var SPRITE_TRAITS = {
         },
     },
     pickup: {
-        label: 'man kann es aufheben',
+        label: 'man kann es einsammeln',
         properties: {
             duration: {
                 label: 'Ausblenden',
@@ -172,7 +172,7 @@ var SPRITE_TRAITS = {
                 max: 1000,
                 step: 1,
                 decimalPlaces: 0,
-                default: 0,
+                default: 100,
             },
         },
     },
