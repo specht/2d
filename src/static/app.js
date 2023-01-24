@@ -253,7 +253,8 @@ class Character {
 
 	try_move_y(dy) {
 		if (dy < 0) {
-			if (this.has_trait_at('ladder'), -0.5, 0.5, 0.1, 1.1) {
+			// if (this.has_trait_at('ladder'), -0.5, 0.5, 0.1, 1.1) {
+			if (this.pressed_keys[KEY_DOWN]) {
 				dy = this.intersect_y_with_trait(dy, ['block_above'], -0.5, 0.5, dy, 0.0);
 			} else {
 				dy = this.intersect_y_with_trait(dy, ['block_above', 'ladder'], -0.5, 0.5, dy, 0.0);
