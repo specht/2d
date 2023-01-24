@@ -472,8 +472,9 @@ class ColorWidget {
         let div = $(`<div class='item'>`);
         let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
         div.append(label);
-        this.color_button = $(`<input type='text' data-coloris class='color-dot' style='background-color: ${data.get()}'>`);
+        this.color_button = $(`<input type='text' data-coloris value='${data.get()}' class='color-dot' style='background-color: ${data.get()}'>`);
         this.color_button.click(function(e) {
+            console.log(data.get());
             Coloris({
                 themeMode: 'dark',
                 alpha: data.alpha ?? false,
@@ -481,10 +482,11 @@ class ColorWidget {
                 selectInput: false,
                 theme: 'large',
                 defaultColor: data.get(),
+                // inline: true,
                 swatches: current_palette_rgb.map(function(x) {
                     return `#${Number(x[0]).toString(16).padStart(2, '0')}${Number(x[1]).toString(16).padStart(2, '0')}${Number(x[2]).toString(16).padStart(2, '0')}`;
                 }),
-              });
+            });
         });
         // label.click(function(e) {
         //     self.color_button.click();

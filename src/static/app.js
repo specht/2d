@@ -262,7 +262,6 @@ class Character {
 				if (this.character_trait === 'baddie' && old_dy != dy) {
 					this.game.ts_camera_shake = this.game.clock.getElapsedTime();
 					this.game.camera_shake_strength = this.traits.camera_shake_on_land ?? 0;
-					console.log(this.game.ts_camera_shake, this.game.camera_shake_strength);
 				}
 			}
 		} else if (dy > 0) {
