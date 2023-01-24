@@ -64,7 +64,7 @@ class Character {
 		}
 
 		// assign default states
-		for (let state of ['stand', 'walk', 'jump', 'fall']) {
+		for (let state of ['stand', 'walk', 'jump', 'fall', 'dead']) {
 			for (let d of ['front', 'back', 'left', 'right']) {
 				this.assign_sti(state, d, 0, 0, false);
 			}
