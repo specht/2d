@@ -398,7 +398,7 @@ class Character {
 
 		if (this.character_trait === 'actor') {
 			this.pressed_keys = this.game.pressed_keys;
-			if (this.dead())
+			if (this.game.curtain.showing)
 				this.pressed_keys = {};
 		}
 
@@ -508,13 +508,13 @@ class Character {
 					this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
 					let self = this;
 					if (self.game.get_next_level_index() < self.game.data.levels.length) {
-						this.game.curtain.show('LEVEL COMPLETE', function() {
+						this.game.curtain.show('LEVEL COMPLETE', 1.0, function() {
 							self.game.level_index = self.game.get_next_level_index();
 							self.game.setup();
 							self.game.run();
 						});
 					} else {
-						this.game.curtain.show('THE END', function() {
+						this.game.curtain.show('THE END', 2.0, function() {
 							self.game.stop();
 						});
 					}
@@ -544,11 +544,11 @@ class Character {
 						let self = this;
 						setTimeout(function() {
 							if (this.game.lives === 0) {
-								this.game.curtain.show('GAME OVER', function() {
+								this.game.curtain.show('GAME OVER', 2.0, function() {
 
 								});
 							} else {
-								this.game.curtain.show('Drück eine Taste, um fortzufahren', function() {
+								this.game.curtain.show('Drück eine Taste, um fortzufahren', 0.0, function() {
 									self.mesh.position.x = self.initial_position[0];
 									self.mesh.position.y = self.initial_position[1];
 									self.invincible_until = self.game.clock.getElapsedTime() + sprite.traits.baddie.damage_cool_down;
@@ -615,13 +615,15 @@ class Curtain {
 		this.game = game;
 		this.oncomplete = null;
 		this.showing = false;
+		this.ts_continue = 0;
 	}
 
-	show(html, oncomplete) {
+	show(html, delay, oncomplete) {
 		$('#curtain_text').html(html).addClass('showing');
 		$('#curtain').addClass('showing');
 		this.oncomplete = oncomplete;
 		this.showing = true;
+		this.ts_continue = this.game.clock.getElapsedTime() + delay;
 	}
 
 	hide() {
@@ -629,6 +631,7 @@ class Curtain {
 		$('#curtain').removeClass('showing');
 		this.game.ts_zoom_actor = -1;
 		this.showing = false;
+		this.ts_continue = 0;
 	}
 }
 
@@ -703,6 +706,19 @@ class Game {
 		this.just_started = true;
 		$('#overlay').show();
 		$('#screen').hide();
+		this.curtain.hide();
+
+		this.points = 0;
+		this.lives = 1;
+		this.energy = 100;
+
+		if (this.data === null)
+			return;
+
+		this.lives = this.data.properties.lives_at_begin;
+		this.energy = this.data.properties.energy_at_begin;
+		this.points = 0;
+
 	}
 
 	async load(tag) {
@@ -801,9 +817,6 @@ class Game {
 
 		this.active_level_sprites = [];
 
-		this.points = 0;
-		this.lives = 1;
-		this.energy = 100;
 		this.ts_zoom_actor = -1;
 		this.reached_flag = false;
 
@@ -812,11 +825,11 @@ class Game {
 		this.mesh_catalogue = [];
 		this.layers = [];
 
+		this.points = 0;
+		this.lives = 1;
+		this.energy = 100;
 		if (this.data === null)
 			return;
-
-		this.lives ??= this.data.properties.lives_at_begin;
-		this.energy ??= this.data.properties.energy_at_begin;
 
 		$('.la_level').text(`Level: ${this.level_index + 1}`);
 		$('.la_points').text(`Punkte: ${this.points}`);
@@ -1018,11 +1031,11 @@ class Game {
 		if (this.level_index < this.data.levels.length) {
 			let level = this.data.levels[this.level_index];
 			let level_title = level.properties.name.trim();
-			this.curtain.show(`<div>${level_title}</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, function() {
+			this.curtain.show(`<div>${level_title}</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, 0.0, function() {
 				self.run();
 			});
 		} else {
-			this.curtain.show(`<div>THE END</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, function() {
+			this.curtain.show(`<div>THE END</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, 0.0, function() {
 
 			});
 		}
@@ -1197,8 +1210,10 @@ class Game {
 			return;
 		}
 		if (this.curtain.showing) {
-			this.curtain.oncomplete();
-			this.curtain.hide();
+			if (this.clock.getElapsedTime() > this.curtain.ts_continue) {
+				this.curtain.oncomplete();
+				this.curtain.hide();
+			}
 			return;
 		}
 		if (key === 'ArrowLeft')
