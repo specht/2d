@@ -411,6 +411,7 @@ class Character {
 	}
 
 	die(sprite, trait) {
+		if ((!this.game.running) || this.dead()) return;
 		this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
 		this.game.lives -= 1;
 		if (this.game.lives < 0) this.game.lives = 0;
@@ -419,6 +420,7 @@ class Character {
 		if (this.game.lives === 0) {
 			this.game.curtain.show('GAME OVER', 0.5, 2.0, function() {
 				self.game.stop();
+				$('#screen').hide();
 			});
 		} else {
 			this.game.curtain.show('Drück eine Taste, um fortzufahren', 0.5, 1.0, function() {
@@ -586,6 +588,7 @@ class Character {
 					} else {
 						this.game.curtain.show('THE END', 0.5, 2.0, function() {
 							self.game.stop();
+							$('#screen').hide();
 						});
 					}
 				// let sprite = this.game.data.sprites[entry.sprite_index];
