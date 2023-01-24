@@ -496,10 +496,14 @@ class Canvas {
                     draw_color = ((r & 0xff) << 24) | ((g & 0xff) << 16) | ((b & 0xff) << 8) | (a & 0xff);
                     if (this.modifier_ctrl) {
                         let c = tinycolor({r: r, g: g, b: b, a: 1.0});
-                        if (Math.random() < 0.5)
-                            c = c.brighten(Math.random() * 10);
-                        else
-                            c = c.darken(Math.random() * 10);
+                        let t = c.getBrightness() / 255.0;
+                        t = Math.pow(t, 0.5);
+                        t = t * 255.0;
+                        if (Math.random() < 0.5) {
+                            c = c.brighten(Math.random() * (t / 20.0));
+                        } else {
+                            c = c.darken(Math.random() * (t / 20.0));
+                        }
                         let rgb = c.toRgb();
                         r = rgb.r;
                         g = rgb.g;

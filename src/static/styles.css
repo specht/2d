@@ -355,8 +355,9 @@ body {
 .menu hr {
     margin: 5px 0;
     border: none;
-    height: 1px;
-    border-top: 1px solid rgba(255, 255, 255, 0.4);
+    height: 0px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.8);
 }
 
 .menu_container select {
