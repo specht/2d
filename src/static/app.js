@@ -23,7 +23,7 @@ class Character {
 		this.intention = null;
 		this.invincible_until = 0;
 		this.initial_position = [mesh.position.x, mesh.position.y];
-		this.simulate_this = false;
+		this.simulate_this = true;
 		console.log(this.initial_position);
 
 		if ('actor' in this.sprite.traits) {
