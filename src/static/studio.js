@@ -419,6 +419,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
             });
         } else {
             try {
+                $('#play_iframe')[0].contentWindow.game.stop();
                 $('#play_iframe')[0].contentWindow.yt_player.pauseVideo();
             } catch {}
         }

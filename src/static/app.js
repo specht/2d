@@ -300,7 +300,6 @@ class Character {
 	}
 
 	patrol_duration() {
-		console.log(this.traits);
 		if (this.traits.takes_breaks[0] !== 0 || this.traits.takes_breaks[1] !== 0) {
 			return (Math.random() * (this.traits.takes_breaks[1] - this.traits.takes_breaks[0]) + this.traits.takes_breaks[0]) * SIMULATION_RATE;
 		}
@@ -448,8 +447,9 @@ class Character {
 	simulation_step(t) {
 		// move left / right
 
-		if (this.character_trait === 'baddie')
+		if (this.character_trait === 'baddie') {
 			this.simulate_movement();
+		}
 
 		if (this.character_trait === 'actor') {
 			this.pressed_keys = this.game.pressed_keys;
@@ -639,6 +639,10 @@ class VariableClock {
 
 	getElapsedTime() {
 		return this.t0 + (this.clock.getElapsedTime() - this.t1) * this.speed;
+	}
+
+	start() {
+		this.clock.start();
 	}
 
 	delta(d) {
@@ -1079,6 +1083,8 @@ class Game {
 			let level = this.data.levels[this.level_index];
 			let level_title = level.properties.name.trim();
 			this.curtain.show(`<div>${level_title}</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, 0.0, 0.0, function() {
+				self.frame = 0;
+				self.clock.start();
 				self.run();
 			});
 		} else {
