@@ -333,49 +333,70 @@ class Character {
 				}
 			}
 
-			if (this.standing_on_ground()) {
+			if (this.traits.affected_by_gravity) {
+				if (this.standing_on_ground()) {
+					this.pressed_keys[KEY_LEFT] = false;
+					this.pressed_keys[KEY_RIGHT] = false;
+					this.pressed_keys[KEY_UP] = false;
+					this.pressed_keys[KEY_DOWN] = false;
+					this.pressed_keys[KEY_JUMP] = false;
+					if (this.intention.direction === 'left') {
+						if (this.has_trait_at(['block_above'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, -1.0, 0.0)) {
+							if (this.has_trait_at(['block_sides'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
+								this.intention.direction = 'right';
+							} else {
+								this.pressed_keys[KEY_LEFT] = true;
+							}
+						} else {
+							if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
+								this.intention.direction = 'right';
+							} else {
+								if (this.traits.jumps_from_platforms) {
+									this.pressed_keys[KEY_LEFT] = true;
+									this.pressed_keys[KEY_JUMP] = true;
+								} else {
+									this.intention.direction = 'right';
+								}
+							}
+						}
+					} else if (this.intention.direction === 'right') {
+						if (this.has_trait_at(['block_above'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, -1.0, 0.0)) {
+							if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
+								this.intention.direction = 'left';
+							} else {
+								this.pressed_keys[KEY_RIGHT] = true;
+							}
+						} else {
+							if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
+								this.intention.direction = 'left';
+							} else {
+								if (this.traits.jumps_from_platforms) {
+									this.pressed_keys[KEY_RIGHT] = true;
+									this.pressed_keys[KEY_JUMP] = true;
+								} else {
+									this.intention.direction = 'left';
+								}
+							}
+						}
+					}
+				}
+			} else {
 				this.pressed_keys[KEY_LEFT] = false;
 				this.pressed_keys[KEY_RIGHT] = false;
 				this.pressed_keys[KEY_UP] = false;
 				this.pressed_keys[KEY_DOWN] = false;
 				this.pressed_keys[KEY_JUMP] = false;
 				if (this.intention.direction === 'left') {
-					if (this.has_trait_at(['block_above'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, -1.0, 0.0)) {
-						if (this.has_trait_at(['block_sides'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
-							this.intention.direction = 'right';
-						} else {
-							this.pressed_keys[KEY_LEFT] = true;
-						}
+					if (this.has_trait_at(['block_sides'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
+						this.intention.direction = 'right';
 					} else {
-						if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
-							this.intention.direction = 'right';
-						} else {
-							if (this.traits.jumps_from_platforms) {
-								this.pressed_keys[KEY_LEFT] = true;
-								this.pressed_keys[KEY_JUMP] = true;
-							} else {
-								this.intention.direction = 'right';
-							}
-						}
+						this.pressed_keys[KEY_LEFT] = true;
 					}
 				} else if (this.intention.direction === 'right') {
-					if (this.has_trait_at(['block_above'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, -1.0, 0.0)) {
-						if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
-							this.intention.direction = 'left';
-						} else {
-							this.pressed_keys[KEY_RIGHT] = true;
-						}
+					if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
+						this.intention.direction = 'left';
 					} else {
-						if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
-							this.intention.direction = 'left';
-						} else {
-							if (this.traits.jumps_from_platforms) {
-								this.pressed_keys[KEY_RIGHT] = true;
-								this.pressed_keys[KEY_JUMP] = true;
-							} else {
-								this.intention.direction = 'left';
-							}
-						}
+						this.pressed_keys[KEY_RIGHT] = true;
 					}
 				}
 			}
