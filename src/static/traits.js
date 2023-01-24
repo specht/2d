@@ -341,6 +341,15 @@ var SPRITE_TRAITS = {
                 default: 0,
                 suffix: 'px',
             },
+            camera_shake_max_dist: {
+                label: 'Camera Shake max. Entfernung',
+                type: 'float',
+                min: 0.0,
+                max: 1000,
+                decimalPlaces: 0,
+                default: 200,
+                suffix: 'px',
+            },
             wait_until_seen: {
                 label: 'bleibt stehen, solange nicht zu sehen',
                 type: 'bool',

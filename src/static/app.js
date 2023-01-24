@@ -260,7 +260,11 @@ class Character {
 				dy = this.intersect_y_with_trait(dy, ['block_above', 'ladder'], -0.5, 0.5, dy, 0.0);
 				if (this.character_trait === 'baddie' && old_dy != dy) {
 					this.game.ts_camera_shake = this.game.clock.getElapsedTime();
-					this.game.camera_shake_strength = this.traits.camera_shake_on_land ?? 0;
+					let dx = this.mesh.position.x - this.game.player_character.mesh.position.x;
+					let dy = this.mesh.position.y - this.game.player_character.mesh.position.y;
+					let dist = 1.0 - Math.pow(dx * dx + dy * dy, 0.5) / this.traits.camera_shake_max_dist;
+					if (dist < 0.0) dist = 0.0;
+					this.game.camera_shake_strength = dist * this.traits.camera_shake_on_land ?? 0;
 				}
 			}
 		} else if (dy > 0) {
