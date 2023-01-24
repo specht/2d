@@ -572,8 +572,13 @@ class Character {
 					this.game.reached_flag = true;
 					this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
 					let self = this;
-					if (self.game.get_next_level_index() < self.game.data.levels.length) {
-						this.game.curtain.show('LEVEL COMPLETE', 0.5, 1.0, function() {
+					let next_level_index = self.game.get_next_level_index();
+					if (next_level_index < self.game.data.levels.length) {
+						let next_level_title = self.game.data.levels[next_level_index].properties.name.trim();
+						if (next_level_title.length > 0) {
+							next_level_title = `<div><span style='color: #aaa;'>Next up:</span> ${next_level_title}</div>`;
+						}
+						this.game.curtain.show(`LEVEL COMPLETE!${next_level_title}`, 0.5, 1.0, function() {
 							self.game.level_index = self.game.get_next_level_index();
 							self.game.setup();
 							self.game.run();

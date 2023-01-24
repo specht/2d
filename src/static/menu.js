@@ -67,7 +67,12 @@ class Menu {
         }
         let self = this;
         $(window).keydown(function (e) {
-            if ($(e.target).is('input')) return;
+            if (e.ctrlKey && (e.key === 'o' || e.key === 's')) {
+                e.stopPropagation();
+                e.preventDefault();
+            } else {
+                if ($(e.target).is('input')) return;
+            }
             let k = self.parseKeyEvent(e);
             if (k in self.shortcuts) {
                 if (self.shortcuts[k].global || self.pane === current_pane) {
