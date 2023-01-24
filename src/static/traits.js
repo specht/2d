@@ -324,6 +324,14 @@ var SPRITE_TRAITS = {
                 default: 0,
                 suffix: '%',
             },
+            jump_vfactor: {
+                label: 'Sprungfaktor',
+                type: 'float',
+                min: 0.0,
+                max: 100,
+                decimalPlaces: 1,
+                default: 3.0,
+            },
             camera_shake_on_land: {
                 label: 'Camera Shake bei Landung',
                 type: 'float',

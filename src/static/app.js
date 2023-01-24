@@ -487,7 +487,7 @@ class Character {
 
 		let dx = 0;
 		let factor = 1;
-		if (this.character_trait === 'baddie' && this.pressed_keys[KEY_JUMP]) factor = 3;
+		if (this.character_trait === 'baddie' && this.pressed_keys[KEY_JUMP]) factor = this.traits.jump_vfactor;
 		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun * factor;
 		if (this.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun * factor;
 		// if (this.character_trait === 'baddie')
