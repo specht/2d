@@ -175,6 +175,7 @@ class LevelEditor {
         this.modifier_shift = false;
         this.game = game;
         this.level_index = 0;
+        this.auto_adjust_camera = true;
         this.layer_index = 0;
         this.clock = new THREE.Clock(true);
         this.scene = new THREE.Scene();
@@ -321,6 +322,7 @@ class LevelEditor {
                 self.clear_selection();
                 self.level_index = index;
                 self.layer_index = 0;
+                self.auto_adjust_camera = true;
 
                 self.layer_structs = [];
                 for (let layer of self.game.data.levels[self.level_index].layers) {
@@ -933,8 +935,8 @@ class LevelEditor {
 
     fix_scale() {
         this.scale = this.height / this.visible_pixels;
-        if (this.scale < 0.2) {
-            this.scale = 0.2;
+        if (this.scale < 0.05) {
+            this.scale = 0.05;
             this.visible_pixels = this.height / this.scale;
         }
         if (this.scale > 8) {
@@ -1008,6 +1010,30 @@ class LevelEditor {
     render() {
 
         let layer = this.game.data.levels[this.level_index].layers[this.layer_index];
+
+        if (this.auto_adjust_camera) {
+            this.auto_adjust_camera = false;
+            let aabb = new THREE.Box3();
+            for (let lyi = 0; lyi < this.game.data.levels[this.level_index].layers.length; lyi++) {
+                try {
+                    aabb.expandByObject(this.layer_structs[lyi].group, true);
+                    console.log(aabb.min, aabb.max);
+                } catch {
+                }
+            }
+            let center = aabb.getCenter();
+            let size = aabb.getSize();
+            console.log('auto adjusting camera!', size);
+            this.camera_x = center.x;
+            this.camera_y = center.y;
+            if (isFinite(size.x) && isFinite(size.y) && size.x > 0 && size.y > 0) {
+                this.scale = Math.min(0.95 * this.width / size.x, 0.95 * this.height / size.y);
+            }
+            // console.log(aabb);
+            // this.camera_x = (aabb.min.x + aabb.max.x) * 0.5;
+            // this.camera_y = (aabb.min.y + aabb.max.y) * 0.5;
+            // console.log(this.camera_x, this.camera_y);
+        }
 
         this.selection_group.position.x = this.camera_x * layer.properties.parallax;
         this.selection_group.position.y = this.camera_y * layer.properties.parallax;
