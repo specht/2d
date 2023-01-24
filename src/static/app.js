@@ -1368,6 +1368,13 @@ class TouchControl {
     }
 
 	handle_touch(e) {
+		if (this.options.game.curtain.showing) {
+			if (this.options.game.clock.getElapsedTime() > this.options.game.curtain.ts_continue) {
+				this.options.game.curtain.oncomplete();
+				this.options.game.curtain.hide();
+			}
+			return;
+		}
 		let self = this;
 		let touch = e.touches[0];
 		let width = self.bg_element.width();
