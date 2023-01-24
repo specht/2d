@@ -341,7 +341,7 @@ class Character {
 				this.pressed_keys[KEY_JUMP] = false;
 				if (this.intention.direction === 'left') {
 					if (this.has_trait_at(['block_above'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, -1.0, 0.0)) {
-						if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
+						if (this.has_trait_at(['block_sides'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
 							this.intention.direction = 'right';
 						} else {
 							this.pressed_keys[KEY_LEFT] = true;
@@ -578,7 +578,7 @@ class Character {
 				if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
 			}
 			if (!this.dead()) {
-				if (this.mesh.position.y < this.game.miny) this.die(null);
+				if (this.mesh.position.y < this.game.miny - this.game.screen_pixel_height * 1.5) this.die(null);
 			}
 		}
 	}
