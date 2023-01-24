@@ -321,6 +321,20 @@ document.addEventListener("DOMContentLoaded", function (event) {
         { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Z', label: 'Farbe auswählen' },
         { group: 'tool', command: 'move', image: 'transform-move', shortcut: 'X', label: 'Sprite verschieben', hints: [
             { key: 'Shift', label: 'nur diesen Frame verschieben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
+            {
+                type: 'group', keys: ['Control', `<i style='font-size: 90%;' class='fa fa-chevron-left'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-right'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-up'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-down'></i>`], label: 'Verschieben', shortcuts: [
+                    { key: 'Control+ArrowLeft', label: 'Links', callback: () => canvas.move_frames(-1, 0) },
+                    { key: 'Control+ArrowRight', label: 'Rechts', callback: () => canvas.move_frames(+1, 0) },
+                    { key: 'Control+ArrowUp', label: 'Pos1', callback: () => canvas.move_frames(0, -1) },
+                    { key: 'Control+ArrowDown', label: 'Ende', callback: () => canvas.move_frames(0, +1) },
+                    // we need to specify the Control+Shift variants as well or it wouldn't work if Shift is pressed
+                    { key: 'Control+Shift+ArrowLeft', label: 'Links', callback: () => canvas.move_frames(-1, 0) },
+                    { key: 'Control+Shift+ArrowRight', label: 'Rechts', callback: () => canvas.move_frames(+1, 0) },
+                    { key: 'Control+Shift+ArrowUp', label: 'Pos1', callback: () => canvas.move_frames(0, -1) },
+                    { key: 'Control+Shift+ArrowDown', label: 'Ende', callback: () => canvas.move_frames(0, +1) },
+                ]
+            },
+
         ] },
         { command: 'rotate-left', image: 'transform-rotate-left', shortcut: 'C', callback: () => canvas.rotateLeft() },
         { command: 'rotate-right', image: 'transform-rotate-right', shortcut: 'V', callback: () => canvas.rotateRight() },
