@@ -319,7 +319,9 @@ document.addEventListener("DOMContentLoaded", function (event) {
         },
         { command: 'clear', image: 'document-new', callback: () => canvas.clearFrame(), label: 'Frame löschen' },
         { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Z', label: 'Farbe auswählen' },
-        { group: 'tool', command: 'move', image: 'transform-move', shortcut: 'X', label: 'Sprite verschieben' },
+        { group: 'tool', command: 'move', image: 'transform-move', shortcut: 'X', label: 'Sprite verschieben', hints: [
+            { key: 'Shift', label: 'nur diesen Frame verschieben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
+        ] },
         { command: 'rotate-left', image: 'transform-rotate-left', shortcut: 'C', callback: () => canvas.rotateLeft() },
         { command: 'rotate-right', image: 'transform-rotate-right', shortcut: 'V', callback: () => canvas.rotateRight() },
         { command: 'flip-h', image: 'transform-flip-h', shortcut: 'B', callback: () => canvas.flipHorizontal() },

@@ -427,6 +427,7 @@ class Canvas {
         temp2.height = this.bitmap.height;
         let context2 = temp2.getContext('2d');
         for (let fi = 0; fi < this.game.data.sprites[this.sprite_index].states[this.state_index].frames.length; fi++) {
+            if (this.modifier_shift && fi !== this.frame_index) continue;
             let frame = this.game.data.sprites[this.sprite_index].states[this.state_index].frames[fi];
             let bitmap = await loadImage(frame.src);
             context.clearRect(0, 0, this.bitmap.width, this.bitmap.height);
