@@ -345,7 +345,7 @@ var SPRITE_TRAITS = {
                 label: 'Camera Shake max. Entfernung',
                 type: 'float',
                 min: 0.0,
-                max: 1000,
+                max: 10000,
                 decimalPlaces: 0,
                 default: 200,
                 suffix: 'px',
