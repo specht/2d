@@ -252,12 +252,18 @@ class Character {
 	}
 
 	try_move_y(dy) {
+		let old_dy = dy;
 		if (dy < 0) {
 			// if (this.has_trait_at('ladder'), -0.5, 0.5, 0.1, 1.1) {
 			if (this.pressed_keys[KEY_DOWN]) {
 				dy = this.intersect_y_with_trait(dy, ['block_above'], -0.5, 0.5, dy, 0.0);
 			} else {
 				dy = this.intersect_y_with_trait(dy, ['block_above', 'ladder'], -0.5, 0.5, dy, 0.0);
+				if (this.character_trait === 'baddie' && old_dy != dy) {
+					this.game.ts_camera_shake = this.game.clock.getElapsedTime();
+					this.game.camera_shake_strength = this.traits.camera_shake_on_land ?? 0;
+					console.log(this.game.ts_camera_shake, this.game.camera_shake_strength);
+				}
 			}
 		} else if (dy > 0) {
 			let tb = this.traits.ex_top * this.sprite.height;
@@ -884,6 +890,8 @@ class Game {
 		this.geometry_and_material_for_frame = [];
 		this.animated_sprites = [];
 		this.transitioning_sprites = {};
+		this.ts_camera_shake = -1;
+		this.camera_shake_strength = 0;
 
 		this.minx = 0;
 		this.miny = 0;
@@ -1252,10 +1260,24 @@ class Game {
 			this.camera_y = (this.miny + this.maxy) * 0.5;
 		}
 
-		this.camera.left = this.camera_x - this.width * 0.5 / scale;
-		this.camera.right = this.camera_x + this.width * 0.5 / scale;
-		this.camera.top = this.camera_y + this.height * 0.5 / scale;
-		this.camera.bottom = this.camera_y - this.height * 0.5 / scale;
+		let cx = this.camera_x;
+		let cy = this.camera_y;
+		if (this.ts_camera_shake >= 0) {
+			let t = (this.clock.getElapsedTime() - this.ts_camera_shake) / 1.0;
+			if (t < 0.0) t = 0.0;
+			if (t > 1.0) {
+				t = 1.0;
+				this.ts_camera_shake = -1.0;
+			}
+			t = 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t);
+			cx += (Math.random() * 2.0 - 1.0) * this.camera_shake_strength * (1.0 - t);
+			cy += (Math.random() * 2.0 - 1.0) * this.camera_shake_strength * (1.0 - t);
+		}
+
+		this.camera.left = cx - this.width * 0.5 / scale;
+		this.camera.right = cx + this.width * 0.5 / scale;
+		this.camera.top = cy + this.height * 0.5 / scale;
+		this.camera.bottom = cy - this.height * 0.5 / scale;
 
 		for (let i = 0; i < this.layers.length; i++) {
 			this.layers[i].position.x = this.camera_x * this.data.levels[this.level_index].layers[i].properties.parallax;
@@ -1322,6 +1344,9 @@ class Game {
 			}
 			if (key === 'Period') {
 				this.clock.delta(0.1);
+			}
+			if (key === 'KeyS') {
+				this.ts_camera_shake = this.clock.getElapsedTime();
 			}
 		}
 	}

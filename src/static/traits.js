@@ -324,6 +324,15 @@ var SPRITE_TRAITS = {
                 default: 0,
                 suffix: '%',
             },
+            camera_shake_on_land: {
+                label: 'Camera Shake bei Landung',
+                type: 'float',
+                min: 0.0,
+                max: 100,
+                decimalPlaces: 0,
+                default: 0,
+                suffix: 'px',
+            },
             wait_until_seen: {
                 label: 'bleibt stehen, solange nicht zu sehen',
                 type: 'bool',
