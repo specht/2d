@@ -935,14 +935,11 @@ class LevelEditor {
 
     fix_scale() {
         this.scale = this.height / this.visible_pixels;
-        if (this.scale < 0.05) {
+        if (this.scale < 0.05)
             this.scale = 0.05;
-            this.visible_pixels = this.height / this.scale;
-        }
-        if (this.scale > 8) {
+        if (this.scale > 8)
             this.scale = 8;
-            this.visible_pixels = this.height / this.scale;
-        }
+        this.visible_pixels = this.height / this.scale;
     }
 
     zoom_at_point(delta, cx, cy) {
@@ -1017,7 +1014,6 @@ class LevelEditor {
             for (let lyi = 0; lyi < this.game.data.levels[this.level_index].layers.length; lyi++) {
                 try {
                     aabb.expandByObject(this.layer_structs[lyi].group, true);
-                    console.log(aabb.min, aabb.max);
                 } catch {
                 }
             }
@@ -1027,7 +1023,8 @@ class LevelEditor {
             this.camera_x = center.x;
             this.camera_y = center.y;
             if (isFinite(size.x) && isFinite(size.y) && size.x > 0 && size.y > 0) {
-                this.scale = Math.min(0.95 * this.width / size.x, 0.95 * this.height / size.y);
+                this.visible_pixels = Math.max(size.x * (this.height / this.width) * 1.05, size.y * 1.05);
+                this.fix_scale();
             }
             // console.log(aabb);
             // this.camera_x = (aabb.min.x + aabb.max.x) * 0.5;
