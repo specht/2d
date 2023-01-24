@@ -324,6 +324,11 @@ var SPRITE_TRAITS = {
                 default: 0,
                 suffix: '%',
             },
+            wait_until_seen: {
+                label: 'bleibt stehen, solange nicht zu sehen',
+                type: 'bool',
+                default: true,
+            },
             takes_breaks: {
                 label: 'Pausen alle',
                 type: 'float',

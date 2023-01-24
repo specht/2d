@@ -23,12 +23,14 @@ class Character {
 		this.intention = null;
 		this.invincible_until = 0;
 		this.initial_position = [mesh.position.x, mesh.position.y];
+		this.simulate_this = false;
 		console.log(this.initial_position);
 
 		if ('actor' in this.sprite.traits) {
 			this.character_trait = 'actor';
 			this.traits = this.sprite.traits[this.character_trait];
 			this.follow_camera = true;
+			this.simulate_this = true;
 		}
 		else if ('baddie' in this.sprite.traits) {
 			this.character_trait = 'baddie';
@@ -36,6 +38,8 @@ class Character {
 			this.traits.ex_top ??= 1.0;
 			this.traits.ex_left ??= 1.0;
 			this.traits.ex_right ??= 1.0;
+			if (!this.traits.wait_until_seen)
+				this.simulate_this = false;
 		}
 
 		let state_prefixes = ['stand', 'walk', 'jump', 'fall'];
@@ -447,6 +451,22 @@ class Character {
 	}
 
 	simulation_step(t) {
+		if (!this.simulate_this) {
+			let x0 = this.mesh.position.x - this.sprite.width * 0.5 * this.traits.ex_left;
+			let x1 = this.mesh.position.x + this.sprite.width * 0.5 * this.traits.ex_right;
+			let y0 = this.mesh.position.y;
+			let y1 = this.mesh.position.y + this.sprite.height * this.traits.ex_top;
+			let c = this.game.camera;
+			if ((x0 >= c.left && x0 <= c.right && y0 >= c.bottom && y0 <= c.top) ||
+				(x1 >= c.left && x1 <= c.right && y0 >= c.bottom && y0 <= c.top) ||
+				(x0 >= c.left && x0 <= c.right && y1 >= c.bottom && y1 <= c.top) ||
+				(x1 >= c.left && x1 <= c.right && y1 >= c.bottom && y1 <= c.top)) {
+					console.log('starting simulation');
+					this.simulate_this = true;
+				}
+		}
+
+		if (!this.simulate_this) return;
 		// move left / right
 
 		if (this.character_trait === 'baddie') {
