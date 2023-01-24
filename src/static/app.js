@@ -390,6 +390,29 @@ class Character {
 		return (this.game.ts_zoom_actor >= 0) && (!this.game.reached_flag);
 	}
 
+	die(sprite) {
+		this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
+		this.game.lives -= 1;
+		if (this.game.lives < 0) this.game.lives = 0;
+		this.game.update_stats();
+		let self = this;
+		if (this.game.lives === 0) {
+			this.game.curtain.show('GAME OVER', 0.5, 2.0, function() {
+				self.game.stop();
+			});
+		} else {
+			this.game.curtain.show('Drück eine Taste, um fortzufahren', 0.5, 1.0, function() {
+				self.mesh.position.x = self.initial_position[0];
+				self.mesh.position.y = self.initial_position[1];
+				if (sprite !== null) {
+					self.invincible_until = self.game.clock.getElapsedTime() + sprite.traits.baddie.damage_cool_down;
+				}
+				self.game.energy = self.game.data.properties.energy_at_begin;
+				self.game.update_stats();
+			});
+		}
+	}
+
 	simulation_step(t) {
 		// move left / right
 
@@ -484,8 +507,7 @@ class Character {
 					this.game.lives += sprite.traits.pickup.lives ?? 0;
 					if (this.game.lives > this.game.data.properties.max_lives)
 						this.game.lives = this.game.data.properties.max_lives;
-					$('.la_points').text(`Punkte: ${this.game.points}`);
-					$('.la_lives').text(`Leben: ${this.game.lives}`);
+					this.game.update_stats();
 				}
 			}
 
@@ -508,13 +530,13 @@ class Character {
 					this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
 					let self = this;
 					if (self.game.get_next_level_index() < self.game.data.levels.length) {
-						this.game.curtain.show('LEVEL COMPLETE', 1.0, function() {
+						this.game.curtain.show('LEVEL COMPLETE', 0.5, 1.0, function() {
 							self.game.level_index = self.game.get_next_level_index();
 							self.game.setup();
 							self.game.run();
 						});
 					} else {
-						this.game.curtain.show('THE END', 2.0, function() {
+						this.game.curtain.show('THE END', 0.5, 2.0, function() {
 							self.game.stop();
 						});
 					}
@@ -535,26 +557,9 @@ class Character {
 					let sprite = entry.sprite;
 					this.game.energy -= sprite.traits.baddie.damage;
 					if (this.game.energy < 0) this.game.energy = 0;
-					$('.la_energy').text(`Energie: ${this.game.energy}`);
+					this.game.update_stats();
 					if (this.game.energy === 0) {
-						this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
-						this.game.lives -= 1;
-						if (this.game.lives < 0) this.game.lives = 0;
-						$('.la_lives').text(`Leben: ${this.game.lives}`);
-						let self = this;
-						setTimeout(function() {
-							if (this.game.lives === 0) {
-								this.game.curtain.show('GAME OVER', 2.0, function() {
-
-								});
-							} else {
-								this.game.curtain.show('Drück eine Taste, um fortzufahren', 0.0, function() {
-									self.mesh.position.x = self.initial_position[0];
-									self.mesh.position.y = self.initial_position[1];
-									self.invincible_until = self.game.clock.getElapsedTime() + sprite.traits.baddie.damage_cool_down;
-								});
-							}
-						}, 750);
+						this.die(sprite);
 					} else {
 						this.invincible_until = this.game.clock.getElapsedTime() + sprite.traits.baddie.damage_cool_down;
 					}
@@ -571,6 +576,9 @@ class Character {
 				if (this.game.camera_x > safe_zone_x1) this.game.camera_x = safe_zone_x1;
 				if (this.game.camera_y < safe_zone_y0) this.game.camera_y = safe_zone_y0;
 				if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
+			}
+			if (!this.dead()) {
+				if (this.mesh.position.y < this.game.miny) this.die(null);
 			}
 		}
 	}
@@ -618,12 +626,14 @@ class Curtain {
 		this.ts_continue = 0;
 	}
 
-	show(html, delay, oncomplete) {
-		$('#curtain_text').html(html).addClass('showing');
+	show(html, text_delay, key_delay, oncomplete) {
+		setTimeout(function() {
+			$('#curtain_text').html(html).addClass('showing');
+		}, text_delay * 1000.0);
 		$('#curtain').addClass('showing');
 		this.oncomplete = oncomplete;
 		this.showing = true;
-		this.ts_continue = this.game.clock.getElapsedTime() + delay;
+		this.ts_continue = this.game.clock.getElapsedTime() + key_delay;
 	}
 
 	hide() {
@@ -698,8 +708,8 @@ class Game {
 	reset() {
 		this.level_index = 0;
 		this.next_level_index = 0;
-		this.lives = null;
-		this.energy = null;
+		this.lives = 5;
+		this.energy = 100;
 		console.log('RESET', this.next_level_index);
 		this.handle_resize();
 		this.stop();
@@ -709,8 +719,6 @@ class Game {
 		this.curtain.hide();
 
 		this.points = 0;
-		this.lives = 1;
-		this.energy = 100;
 
 		if (this.data === null)
 			return;
@@ -778,6 +786,13 @@ class Game {
 		return li;
 	}
 
+	update_stats() {
+		$('.la_level').html(`Level: ${this.level_index + 1}`);
+		$('.la_points').html(`Punkte: ${this.points}`);
+		$('.la_lives').html(`Leben: ${this.lives}`);
+		$('.la_energy').html(`Energie: ${this.energy}`);
+	}
+
 	setup() {
 		this.running = false;
         this.clock = new VariableClock();
@@ -825,16 +840,15 @@ class Game {
 		this.mesh_catalogue = [];
 		this.layers = [];
 
-		this.points = 0;
 		this.lives = 1;
 		this.energy = 100;
 		if (this.data === null)
 			return;
 
-		$('.la_level').text(`Level: ${this.level_index + 1}`);
-		$('.la_points').text(`Punkte: ${this.points}`);
-		$('.la_lives').text(`Leben: ${this.lives}`);
-		$('.la_energy').text(`Energie: ${this.energy}`);
+		this.lives = this.data.properties.lives_at_begin;
+		this.energy = this.data.properties.energy_at_begin;
+
+		this.update_stats();
 
 		this.screen_pixel_height = this.data.properties.screen_pixel_height;
 		this.screen_safe_zone_x = this.data.properties.safe_zone_x;
@@ -1031,12 +1045,12 @@ class Game {
 		if (this.level_index < this.data.levels.length) {
 			let level = this.data.levels[this.level_index];
 			let level_title = level.properties.name.trim();
-			this.curtain.show(`<div>${level_title}</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, 0.0, function() {
+			this.curtain.show(`<div>${level_title}</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, 0.0, 0.0, function() {
 				self.run();
 			});
 		} else {
-			this.curtain.show(`<div>THE END</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, 0.0, function() {
-
+			this.curtain.show(`<div>THE END</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, 0.0, 0.0, function() {
+				self.stop();
 			});
 		}
 		$('#overlay').fadeOut();
@@ -1069,6 +1083,7 @@ class Game {
 	stop() {
 		if (!this.running) return;
 		this.running = false;
+		this.curtain.hide();
 		$('#overlay').fadeIn();
 		$('#screen').fadeOut();
 		$('#stats').removeClass('showing');
@@ -1214,6 +1229,10 @@ class Game {
 				this.curtain.oncomplete();
 				this.curtain.hide();
 			}
+			return;
+		}
+		if (this.running && key === 'Escape') {
+			this.stop();
 			return;
 		}
 		if (key === 'ArrowLeft')
