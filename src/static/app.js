@@ -421,7 +421,7 @@ class Character {
 	}
 
 	die(sprite, trait) {
-		if ((!this.game.running) || this.dead()) return;
+		if ((!this.game.running) || this.dead() || this.game.reached_flag) return;
 		this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
 		this.game.lives -= 1;
 		if (this.game.lives < 0) this.game.lives = 0;
@@ -446,6 +446,7 @@ class Character {
 	}
 
 	take_damage_from_sprite(sprite, trait) {
+		if ((!this.game.running) || this.dead() || this.game.reached_flag) return;
 		this.game.energy -= sprite.traits[trait].damage;
 		if (this.game.energy < 0) this.game.energy = 0;
 		this.game.update_stats();
