@@ -199,7 +199,7 @@ var SPRITE_TRAITS = {
                 default: 100,
             },
             points: {
-                label: 'Punkte',
+                label: 'gibt Punkte',
                 type: 'float',
                 min: 0,
                 max: 100,
@@ -208,7 +208,16 @@ var SPRITE_TRAITS = {
                 default: 0,
             },
             lives: {
-                label: 'Leben',
+                label: 'gibt Leben',
+                type: 'float',
+                min: 0,
+                max: 100,
+                step: 1,
+                decimalPlaces: 0,
+                default: 0,
+            },
+            energy: {
+                label: 'gibt Energie',
                 type: 'float',
                 min: 0,
                 max: 100,

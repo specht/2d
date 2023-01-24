@@ -543,6 +543,9 @@ class Character {
 					this.game.lives += sprite.traits.pickup.lives ?? 0;
 					if (this.game.lives > this.game.data.properties.max_lives)
 						this.game.lives = this.game.data.properties.max_lives;
+					this.game.energy += sprite.traits.pickup.energy ?? 0;
+					if (this.game.energy > this.game.data.properties.max_energy)
+						this.game.energy = this.game.data.properties.max_energy;
 					this.game.update_stats();
 				}
 			}
