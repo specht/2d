@@ -38,8 +38,7 @@ class Character {
 			this.traits.ex_top ??= 1.0;
 			this.traits.ex_left ??= 1.0;
 			this.traits.ex_right ??= 1.0;
-			if (!this.traits.wait_until_seen)
-				this.simulate_this = false;
+			this.simulate_this = !this.traits.wait_until_seen;
 		}
 
 		let state_prefixes = ['stand', 'walk', 'jump', 'fall'];
