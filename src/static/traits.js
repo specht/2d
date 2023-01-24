@@ -306,13 +306,15 @@ var SPRITE_TRAITS = {
                 },
                 default: 'random',
             },
-            /*
-            jumps_from_platforms: {
+            jump_from_edge_probability: {
                 label: 'springt von Plattformen',
-                type: 'bool',
-                default: false,
+                type: 'float',
+                min: 0.0,
+                max: 100,
+                decimalPlaces: 0,
+                default: 0,
+                suffix: '%',
             },
-            */
             takes_breaks: {
                 label: 'Pausen alle',
                 type: 'float',

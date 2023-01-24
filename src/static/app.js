@@ -351,7 +351,7 @@ class Character {
 							if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
 								this.intention.direction = 'right';
 							} else {
-								if (this.traits.jumps_from_platforms) {
+								if (Math.random() < this.traits.jump_from_edge_probability / 100.0) {
 									this.pressed_keys[KEY_LEFT] = true;
 									this.pressed_keys[KEY_JUMP] = true;
 								} else {
@@ -370,7 +370,7 @@ class Character {
 							if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
 								this.intention.direction = 'left';
 							} else {
-								if (this.traits.jumps_from_platforms) {
+								if (Math.random() < this.traits.jump_from_edge_probability / 100.0) {
 									this.pressed_keys[KEY_RIGHT] = true;
 									this.pressed_keys[KEY_JUMP] = true;
 								} else {
@@ -458,8 +458,10 @@ class Character {
 		}
 
 		let dx = 0;
-		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun;
-		if (this.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun;
+		let factor = 1;
+		if (this.character_trait === 'baddie' && this.pressed_keys[KEY_JUMP]) factor = 3;
+		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun * factor;
+		if (this.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun * factor;
 		// if (this.character_trait === 'baddie')
 		// 	dx *= (1.0) + ((Math.random() - 0.5) * 2.0) * 3;
 		dx = this.try_move_x(dx);
