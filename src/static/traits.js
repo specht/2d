@@ -26,8 +26,9 @@ var SPRITE_TRAITS_ORDER = [
         ],
     ],
     [
-        'Gegner',
+        'Fallen und Gegner',
         [
+            'trap',
             'baddie',
         ],
     ],
@@ -214,6 +215,28 @@ var SPRITE_TRAITS = {
                 step: 1,
                 decimalPlaces: 0,
                 default: 0,
+            },
+        },
+    },
+    trap: {
+        label: 'Falle',
+        properties: {
+            damage: {
+                label: 'Schaden',
+                type: 'float',
+                default: 100,
+                min: 0,
+                max: 1000,
+            },
+            damage_cool_down: {
+                label: 'Cooldown',
+                type: 'float',
+                default: 1.0,
+                suffix: 's',
+                decimalPlaces: 1,
+                step: 0.1,
+                min: 0.0,
+                max: 10.0,
             },
         },
     },

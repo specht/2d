@@ -390,7 +390,7 @@ class Character {
 		return (this.game.ts_zoom_actor >= 0) && (!this.game.reached_flag);
 	}
 
-	die(sprite) {
+	die(sprite, trait) {
 		this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
 		this.game.lives -= 1;
 		if (this.game.lives < 0) this.game.lives = 0;
@@ -405,11 +405,22 @@ class Character {
 				self.mesh.position.x = self.initial_position[0];
 				self.mesh.position.y = self.initial_position[1];
 				if (sprite !== null) {
-					self.invincible_until = self.game.clock.getElapsedTime() + sprite.traits.baddie.damage_cool_down;
+					self.invincible_until = self.game.clock.getElapsedTime() + sprite.traits[trait].damage_cool_down;
 				}
 				self.game.energy = self.game.data.properties.energy_at_begin;
 				self.game.update_stats();
 			});
+		}
+	}
+
+	take_damage_from_sprite(sprite, trait) {
+		this.game.energy -= sprite.traits[trait].damage;
+		if (this.game.energy < 0) this.game.energy = 0;
+		this.game.update_stats();
+		if (this.game.energy === 0) {
+			this.die(sprite, trait);
+		} else {
+			this.invincible_until = this.game.clock.getElapsedTime() + sprite.traits[trait].damage_cool_down;
 		}
 	}
 
@@ -522,6 +533,15 @@ class Character {
 				}
 			}
 
+			if (!(this.invincible() || this.dead())) {
+				entry = this.has_trait_at(['trap'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
+					this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
+				if (entry) {
+					let sprite = this.game.data.sprites[entry.sprite_index];
+					this.take_damage_from_sprite(sprite, 'trap');
+				}
+			}
+
 			if (!this.game.reached_flag) {
 				entry = this.has_trait_at(['level_complete'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 					this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
@@ -552,17 +572,7 @@ class Character {
 				entry = this.has_baddie_at(-this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 					this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
 				if (entry) {
-					// this.game.transitioning_sprites[''] ??= {};
-					// this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
-					let sprite = entry.sprite;
-					this.game.energy -= sprite.traits.baddie.damage;
-					if (this.game.energy < 0) this.game.energy = 0;
-					this.game.update_stats();
-					if (this.game.energy === 0) {
-						this.die(sprite);
-					} else {
-						this.invincible_until = this.game.clock.getElapsedTime() + sprite.traits.baddie.damage_cool_down;
-					}
+					this.take_damage_from_sprite(entry.sprite, 'baddie');
 				}
 			}
 
@@ -578,7 +588,7 @@ class Character {
 				if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
 			}
 			if (!this.dead()) {
-				if (this.mesh.position.y < this.game.miny - this.game.screen_pixel_height * 1.5) this.die(null);
+				if (this.mesh.position.y < this.game.miny - this.game.screen_pixel_height * 1.5) this.die(null, null);
 			}
 		}
 	}
