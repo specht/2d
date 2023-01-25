@@ -1480,9 +1480,11 @@ class Canvas {
 
     switchToFrame(fi) {
         let frame_div = $('#menu_frames').find('._dnd_item').eq(fi).find('div').eq(0);
-        frame_div.click();
-        // adjust scoll position of container
-        frame_div.parent().scrollLeft(frame_div.position().left + frame_div.parent().scrollLeft() - Math.floor(frame_div.parent().width() / 2) + Math.floor(frame_div.width() / 2));
+        if (!frame_div.hasClass('.add')) {
+            frame_div.click();
+            // adjust scoll position of container
+            frame_div.parent().scrollLeft(frame_div.position().left + frame_div.parent().scrollLeft() - Math.floor(frame_div.parent().width() / 2) + Math.floor(frame_div.width() / 2));
+        }
     }
 
     switchToFrameDelta(delta) {
