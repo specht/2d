@@ -1313,3 +1313,21 @@ input.clr-color {
     background-color: rgba(255, 255, 255, 0.2);
     color: #fff;
 }
+
+.help-tiles-3 {
+    /* display: flex; */
+}
+
+.help-tiles-3 div {
+    width: calc(48% - 20px);
+    display: inline-block;
+    margin-bottom: 10px;
+    margin-right: 20px;
+}
+
+.help-tiles-3 div img {
+    display: block;
+    width: 100%;
+    margin-top: 5px;
+    border-radius: 10px;
+}
