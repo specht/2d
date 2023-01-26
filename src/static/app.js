@@ -784,6 +784,7 @@ class Game {
 	}
 
 	reset() {
+		this.old_yt_tag = null;
 		this.level_index = 0;
 		this.next_level_index = 0;
 		this.lives = 5;
@@ -1150,9 +1151,12 @@ class Game {
 			if ((window.game.data.levels[0].properties.yt_tag ?? '').length > 0)
 				yt_tag = window.game.data.levels[0].properties.yt_tag;
 			if (yt_tag !== null) {
-				let parts = yt_tag.split('#');
-				let s = this.parse_yt_timestamp(parts[1]);
-				window.yt_player.loadVideoById(parts[0], s);
+				if (yt_tag !== this.old_yt_tag) {
+					this.old_yt_tag = yt_tag;
+					let parts = yt_tag.split('#');
+					let s = this.parse_yt_timestamp(parts[1]);
+					window.yt_player.loadVideoById(parts[0], s);
+				}
 			}
 		}
 		if (this.running) return;
