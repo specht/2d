@@ -145,11 +145,18 @@ class Game {
                         this.data.levels[li].layers[lyi].sprites = [];
                     this.data.levels[li].layers[lyi].sprite_properties ??= {};
                 } else if (this.data.levels[li].layers[lyi].type === 'backdrop') {
-                    this.data.levels[li].layers[lyi].colors ??= [['#143b86', 0.5, 0.9], ['#c3def1', 0.5, 0.1]];
                     this.data.levels[li].layers[lyi].top ??= 0;
                     this.data.levels[li].layers[lyi].bottom ??= 0;
                     this.data.levels[li].layers[lyi].width ??= 100;
                     this.data.levels[li].layers[lyi].height ??= 100;
+                    this.data.levels[li].layers[lyi].backdrop_type ??= 'color'
+                    if (this.data.levels[li].layers[lyi].backdrop_type === 'color') {
+                        this.data.levels[li].layers[lyi].colors ??= [['#143b86', 0.5, 0.9], ['#c3def1', 0.5, 0.1]];
+                    }
+                    if (this.data.levels[li].layers[lyi].backdrop_type === 'effect') {
+                        this.data.levels[li].layers[lyi].effect ??= 'snow';
+                        this.data.levels[li].layers[lyi].scale ??= 1.0;
+                    }
                 }
             }
         }

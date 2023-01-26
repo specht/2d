@@ -819,7 +819,7 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     padding-top: 10px;
     border: none;
     display: flex;
-    flex-flow: row;
+    flex-flow: wrap;
     gap: 4px;
     justify-content: center;
     box-shadow: inset 0px 15px 10px -10px rgba(0, 0, 0, 1);
@@ -831,6 +831,7 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     background-color: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     display: inline-block;
+    white-space: nowrap;
 }
 
 ._dnd_item .add_choice:hover {

@@ -57,3 +57,25 @@ Fill rect with sprite
 Select placed sprites and delete
 Enable / disable grid
 Resize grid / move grid
+
+Feedback Expertentage
+
+Schlüssel und Türen
+Nahkampf und Fernkampf, Knockback und Damage, mit Upgrades (Fäuste, Schwert, etc.)
+Schlittern (Eisiger Untergrund)
+Multiplayer
+Teammates, Begleiter, NPC
+Leiter / Wednesday Bug mit mehreren Spritesheet
+Blöcke die runterfallen
+Block erscheint beim betreten
+Fahrstuhl / Plattformen
+Schutzschilder
+Sprechblasen triggern mit Sprites
+Missionen: Dinge einsammeln, NPC bringen
+Gleiten / flattern wenn man in der Luft ist
+physikverstellende Blöcke
+Parallaxe zu kompliziert: Layer komplett verschieben
+Shop-System: Münzen einsetzen und Upgrades kaufen
+
+Animationen sind besser und leichter zu nutzen
+Layer sind gut

@@ -23,6 +23,7 @@ class LayerStruct {
     // clear layer struct and apply layer from game data
     apply_layer(layer) {
         this.reset();
+        console.log(`apply_layer`, layer, this.layer_index);
         if (layer.type !== 'sprites') return;
         for (let i = 0; i < layer.sprites.length; i++) {
             let sprite = layer.sprites[i];
@@ -98,7 +99,8 @@ class LayerStruct {
             use_placed_sprite_index = force_placed_sprite_index;
 
         let pos = `${p[0]}/${p[1]}`;
-        if ((this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[this.placed_sprite_index_for_pos[pos]] ?? [])[0] !== sprite_index) {
+        // console.log('THIS', this.level_editor.layer_index, this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites);
+        if (((this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites ?? [])[this.placed_sprite_index_for_pos[pos]] ?? [])[0] !== sprite_index) {
             let sw = this.level_editor.game.data.sprites[sprite_index].width;
             let sh = this.level_editor.game.data.sprites[sprite_index].height;
             let x0 = p[0] - sw * 0.5;
@@ -118,9 +120,9 @@ class LayerStruct {
             this.interval_tree_x.insert([x0, x1], use_placed_sprite_index);
             this.interval_tree_y.insert([y0, y1], use_placed_sprite_index);
             if (force_placed_sprite_index === null) {
-                this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[use_placed_sprite_index] = [sprite_index, p[0], p[1]];
+                (this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites ?? [])[use_placed_sprite_index] = [sprite_index, p[0], p[1]];
             }
-            $(this.el_sprite_count).text(`${this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites.length}`);
+            $(this.el_sprite_count).text(`${(this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites ?? []).length}`);
         }
     }
 
@@ -533,43 +535,97 @@ class LevelEditor {
             let backdrop = layer;
             new SelectWidget({
                 container: $('#menu_layer_properties'),
-                label: `Farben`,
+                label: `Art`,
                 options: {
-                    '1': 'einfarbig',
-                    '2': 'zwei Farben',
-                    '4': 'vier Farben',
+                    'color': 'Farbe',
+                    'effect': 'Effekt',
                 },
                 get: () => {
-                    return `${backdrop.colors.length}`;
+                    return `${backdrop.backdrop_type}`;
                 },
                 set: (x) => {
-                    if (x === '1') {
-                        backdrop.colors = backdrop.colors.splice(0, 1);
-                    } else if (x === '2') {
-                        backdrop.colors = [['#143b86', 0.5, 0.9], ['#c3def1', 0.5, 0.1]];
-                    } else if (x === '4') {
-                        backdrop.colors = [['#e7e6e1', 0.1, 0.1], ['#c3def1', 0.9, 0.1], ['#12959f', 0.1, 0.9], ['#b296c7', 0.9, 0.9]];
-                    }
+                    backdrop.backdrop_type = x;
                     self.setup_layer_properties();
                     self.backdrop_controls_setup_for = null;
                     self.refresh();
                     self.render();
                 },
             });
-            for (let ci = 0; ci < backdrop.colors.length; ci++) {
-                new ColorWidget({
+            if (backdrop.backdrop_type === 'color') {
+                new SelectWidget({
                     container: $('#menu_layer_properties'),
-                    label: `Farbe ${ci + 1}`,
-                    alpha: true,
+                    label: `Farben`,
+                    options: {
+                        '1': 'einfarbig',
+                        '2': 'zwei Farben',
+                        '4': 'vier Farben',
+                    },
                     get: () => {
-                        let c = backdrop.colors[ci][0];
-                        if (c.length == 7) c += 'ff';
-                        return c;
+                        return `${backdrop.colors.length}`;
                     },
                     set: (x) => {
-                        if (`color_${ci}` in self.backdrop_move_elements)
-                            self.backdrop_move_elements[`color_${ci}`].css('background-color', x);
-                        backdrop.colors[ci][0] = x;
+                        if (x === '1') {
+                            backdrop.colors = backdrop.colors.splice(0, 1);
+                        } else if (x === '2') {
+                            backdrop.colors = [['#143b86', 0.5, 0.9], ['#c3def1', 0.5, 0.1]];
+                        } else if (x === '4') {
+                            backdrop.colors = [['#e7e6e1', 0.1, 0.1], ['#c3def1', 0.9, 0.1], ['#12959f', 0.1, 0.9], ['#b296c7', 0.9, 0.9]];
+                        }
+                        self.setup_layer_properties();
+                        self.backdrop_controls_setup_for = null;
+                        self.refresh();
+                        self.render();
+                    },
+                });
+                for (let ci = 0; ci < backdrop.colors.length; ci++) {
+                    new ColorWidget({
+                        container: $('#menu_layer_properties'),
+                        label: `Farbe ${ci + 1}`,
+                        alpha: true,
+                        get: () => {
+                            let c = backdrop.colors[ci][0];
+                            if (c.length == 7) c += 'ff';
+                            return c;
+                        },
+                        set: (x) => {
+                            if (`color_${ci}` in self.backdrop_move_elements)
+                                self.backdrop_move_elements[`color_${ci}`].css('background-color', x);
+                            backdrop.colors[ci][0] = x;
+                            self.refresh();
+                            self.render();
+                        },
+                    });
+                }
+            }
+            if (backdrop.backdrop_type === 'effect') {
+                new SelectWidget({
+                    container: $('#menu_layer_properties'),
+                    label: `Effekt`,
+                    options: {
+                        'snow': 'Schnee',
+                    },
+                    get: () => {
+                        return `${backdrop.effect}`;
+                    },
+                    set: (x) => {
+                        backdrop.effect = x;
+                        self.setup_layer_properties();
+                        self.backdrop_controls_setup_for = null;
+                        self.refresh();
+                        self.render();
+                    },
+                });
+                new NumberWidget({
+                    container: $('#menu_layer_properties'),
+                    label: 'Skalierung',
+                    min: 0.0,
+                    max: 20.0,
+                    step: 0.01,
+                    decimalPlaces: 2,
+                    get: () => self.game.data.levels[self.level_index].layers[self.layer_index].scale,
+                    set: (x) => {
+                        self.game.data.levels[self.level_index].layers[self.layer_index].scale = x;
+                        // self.update_layer_label();
                         self.refresh();
                         self.render();
                     },
@@ -1159,47 +1215,65 @@ class LevelEditor {
                     // geometry.translate(0, 0, -1);
                     let gradient_points = backdrop.colors;
                     let uniforms = {};
-                    if (gradient_points.length === 1) {
-                        uniforms = {
-                            n:  { value: 1 },
-                            ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                        };
-                    } else if (gradient_points.length === 2) {
-                        let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
-                        let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
-                        let l1 = 1.0 / l;
-                        d[0] *= l1; d[1] *= l1;
-                        uniforms = {
-                            n:  { value: 2 },
-                            ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                            cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-                            pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-                            pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-                            na: { value: [d[0], d[1]] },
-                            nb: { value: [-d[0], -d[1]] },
-                            la: { value: l },
-                            lb: { value: l },
-                        };
-                    } else if (gradient_points.length === 4) {
-                        uniforms = {
-                            n:  { value: 4 },
-                            ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                            cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-                            cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
-                            cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
-                            pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-                            pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-                            pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
-                            pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
-                        };
+                    let material = new THREE.LineBasicMaterial({transparent: true});
+                    material.opacity = 0;
+                    if (backdrop.backdrop_type === 'color') {
+                        if (gradient_points.length === 1) {
+                            uniforms = {
+                                n:  { value: 1 },
+                                ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+                            };
+                        } else if (gradient_points.length === 2) {
+                            let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
+                            let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
+                            let l1 = 1.0 / l;
+                            d[0] *= l1; d[1] *= l1;
+                            uniforms = {
+                                n:  { value: 2 },
+                                ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+                                cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+                                pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+                                pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+                                na: { value: [d[0], d[1]] },
+                                nb: { value: [-d[0], -d[1]] },
+                                la: { value: l },
+                                lb: { value: l },
+                            };
+                        } else if (gradient_points.length === 4) {
+                            uniforms = {
+                                n:  { value: 4 },
+                                ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+                                cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+                                cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
+                                cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
+                                pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+                                pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+                                pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
+                                pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
+                            };
+                        }
+                        material = new THREE.ShaderMaterial({
+                            uniforms: uniforms,
+                            transparent: true,
+                            vertexShader: document.getElementById('vertex-shader').textContent,
+                            fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
+                            side: THREE.DoubleSide,
+                        });
                     }
-                    let material = new THREE.ShaderMaterial({
-                        uniforms: uniforms,
-                        transparent: true,
-                        vertexShader: document.getElementById('vertex-shader').textContent,
-                        fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
-                        side: THREE.DoubleSide,
-                    });
+                    if (backdrop.backdrop_type === 'effect') {
+                        uniforms = {
+                            time: { value: 0 },
+                            resolution: { value: [backdrop.width, backdrop.height] },
+                            scale: {value: [backdrop.scale] },
+                        };
+                        material = new THREE.ShaderMaterial({
+                            uniforms: uniforms,
+                            transparent: true,
+                            vertexShader: document.getElementById('vertex-shader').textContent,
+                            fragmentShader: document.getElementById('fragment-shader-snow').textContent,
+                            side: THREE.DoubleSide,
+                        });
+                    }
                     let mesh = new THREE.Mesh(geometry, material);
                     this.scene.add(mesh);
                 }
@@ -1265,19 +1339,21 @@ class LevelEditor {
                 });
                 $(this.element).append(sc3);
 
-                if (backdrop.colors.length > 1) {
-                    for (let ci = 0; ci < backdrop.colors.length; ci++) {
-                        let c = backdrop.colors[ci];
-                        let swatch_control = $(`<div style='top: ${p0[1] + (p1[1] - p0[1]) * c[2] - 8}px; left: ${p0[0] + (p1[0] - p0[0]) * c[1] - 8}px; background-color: ${c[0]};'>`).addClass('backdrop-swatch');
-                        this.backdrop_controls.push(swatch_control);
-                        this.backdrop_move_elements[`color_${ci}`] = swatch_control;
-                        $(swatch_control).on('mousedown touchstart', function(e) {
-                            self.backdrop_move_point = `color_${ci}`;
-                            self.backdrop_move_point_old_coordinates = [c[1], c[2]];
-                            self.backdrop_move_element = swatch_control;
-                            self.handle_down(e);
-                        });
-                        $(this.element).append(swatch_control);
+                if (backdrop.backdrop_type === 'color') {
+                    if (backdrop.colors.length > 1) {
+                        for (let ci = 0; ci < backdrop.colors.length; ci++) {
+                            let c = backdrop.colors[ci];
+                            let swatch_control = $(`<div style='top: ${p0[1] + (p1[1] - p0[1]) * c[2] - 8}px; left: ${p0[0] + (p1[0] - p0[0]) * c[1] - 8}px; background-color: ${c[0]};'>`).addClass('backdrop-swatch');
+                            this.backdrop_controls.push(swatch_control);
+                            this.backdrop_move_elements[`color_${ci}`] = swatch_control;
+                            $(swatch_control).on('mousedown touchstart', function(e) {
+                                self.backdrop_move_point = `color_${ci}`;
+                                self.backdrop_move_point_old_coordinates = [c[1], c[2]];
+                                self.backdrop_move_element = swatch_control;
+                                self.handle_down(e);
+                            });
+                            $(this.element).append(swatch_control);
+                        }
                     }
                 }
             }

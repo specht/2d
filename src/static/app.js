@@ -785,6 +785,7 @@ class Game {
 
 	reset() {
 		this.old_yt_tag = null;
+		this.time_meshes = [];
 		this.level_index = 0;
 		this.next_level_index = 0;
 		this.lives = 5;
@@ -874,6 +875,7 @@ class Game {
 
 	setup() {
 		this.running = false;
+		this.time_meshes = [];
         this.clock = new VariableClock();
         this.scene = new THREE.Scene();
         this.camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
@@ -1040,48 +1042,69 @@ class Game {
 				// geometry.translate(0, 0, -1);
 				let gradient_points = backdrop.colors;
 				let uniforms = {};
-				if (gradient_points.length === 1) {
-					uniforms = {
-						n:  { value: 1 },
-						ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-					};
-				} else if (gradient_points.length === 2) {
-					let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
-					let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
-					let l1 = 1.0 / l;
-					d[0] *= l1; d[1] *= l1;
-					uniforms = {
-						n:  { value: 2 },
-						ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-						cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-						pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-						pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-						na: { value: [d[0], d[1]] },
-						nb: { value: [-d[0], -d[1]] },
-						la: { value: l },
-						lb: { value: l },
-					};
-				} else if (gradient_points.length === 4) {
-					uniforms = {
-						n:  { value: 4 },
-						ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-						cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-						cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
-						cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
-						pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-						pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-						pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
-						pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
-					};
+				let material = new THREE.LineBasicMaterial();
+				material.opacity = 0;
+
+				if (backdrop.backdrop_type === 'color') {
+					if (gradient_points.length === 1) {
+						uniforms = {
+							n:  { value: 1 },
+							ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+						};
+					} else if (gradient_points.length === 2) {
+						let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
+						let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
+						let l1 = 1.0 / l;
+						d[0] *= l1; d[1] *= l1;
+						uniforms = {
+							n:  { value: 2 },
+							ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+							cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+							pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+							pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+							na: { value: [d[0], d[1]] },
+							nb: { value: [-d[0], -d[1]] },
+							la: { value: l },
+							lb: { value: l },
+						};
+					} else if (gradient_points.length === 4) {
+						uniforms = {
+							n:  { value: 4 },
+							ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+							cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+							cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
+							cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
+							pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+							pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+							pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
+							pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
+						};
+					}
+					material = new THREE.ShaderMaterial({
+						uniforms: uniforms,
+						transparent: true,
+						vertexShader: document.getElementById('vertex-shader').textContent,
+						fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
+						side: THREE.DoubleSide,
+					});
 				}
-				let material = new THREE.ShaderMaterial({
-					uniforms: uniforms,
-					transparent: true,
-					vertexShader: document.getElementById('vertex-shader').textContent,
-					fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
-					side: THREE.DoubleSide,
-				});
+				if (backdrop.backdrop_type === 'effect') {
+					let uniforms = {
+						time:  { value: 0 },
+						resolution: { value: [backdrop.width, backdrop.height] },
+						scale: { value: backdrop.scale },
+					};
+					material = new THREE.ShaderMaterial({
+						transparent: true,
+						vertexShader: document.getElementById('vertex-shader').textContent,
+						fragmentShader: document.getElementById('fragment-shader-snow').textContent,
+						side: THREE.DoubleSide,
+						uniforms: uniforms,
+					});
+				}
 				let mesh = new THREE.Mesh(geometry, material);
+				if (backdrop.backdrop_type === 'effect')
+					this.time_meshes.push(mesh);
 				game_layer.add(mesh);
 			}
 			this.layers.push(game_layer);
@@ -1182,6 +1205,10 @@ class Game {
 
 	render() {
 		this.simulate();
+
+		for (let mesh of this.time_meshes) {
+			mesh.material.uniforms.time.value = this.clock.getElapsedTime();
+		}
 		let scale = this.height / this.screen_pixel_height;
 		if (this.ts_zoom_actor >= 0) {
 			let t = (this.clock.getElapsedTime() - this.ts_zoom_actor) / 3;
