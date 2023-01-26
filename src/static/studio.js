@@ -627,6 +627,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
         e.stopPropagation();
     });
     $(document).on('drop', function (e) {
+        return;
         if (!$('#mi_sprites').hasClass('active')) return;
         e.preventDefault();
         e.stopPropagation();

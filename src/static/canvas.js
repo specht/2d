@@ -1307,6 +1307,7 @@ class Canvas {
         for (let entry of this.undo_stack) {
             let image = $('<img>').attr('src', entry.url);
             image.click(function (e) {
+                console.log('restore from undo stack');
                 if (entry.width === self.game.data.sprites[self.sprite_index].width &&
                     entry.height === self.game.data.sprites[self.sprite_index].height) {
                     let src = $(e.target).attr('src');
