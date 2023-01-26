@@ -1144,7 +1144,7 @@ class Game {
 		// this.prepare_run();
 		$('#stats').addClass('showing');
 		if (window.yt_player !== null) {
-			window.yt_player.pauseVideo();
+			// window.yt_player.pauseVideo();
 			let yt_tag = null;
 			if ((window.game.data.properties.yt_tag ?? '').length > 0)
 				yt_tag = window.game.data.properties.yt_tag;
