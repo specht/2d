@@ -1212,12 +1212,15 @@ class Canvas {
         context.strokeStyle = `rgba(0, 0, 0, ${opacity * 0.5})`;
         context.stroke();
 
-        if (this.draw_ex && game != null && 'actor' in game.data.sprites[canvas.sprite_index].traits) {
+        if (this.draw_ex && game != null && ('actor' in game.data.sprites[canvas.sprite_index].traits || 'baddie' in game.data.sprites[canvas.sprite_index].traits)) {
             // render sprite collision extension lines
             context.beginPath();
-            let x0 = Math.round(this.bitmap.width * (0.5 - game.data.sprites[canvas.sprite_index].traits.actor.ex_left * 0.5) * this.scale);
-            let x1 = Math.round(this.bitmap.width * (0.5 + game.data.sprites[canvas.sprite_index].traits.actor.ex_right * 0.5) * this.scale);
-            let y = Math.round(this.bitmap.width * (1.0 - game.data.sprites[canvas.sprite_index].traits.actor.ex_top) * this.scale);
+            let trait = game.data.sprites[canvas.sprite_index].traits.actor;
+            if ('baddie' in game.data.sprites[canvas.sprite_index].traits)
+                trait = game.data.sprites[canvas.sprite_index].traits.baddie;
+            let x0 = Math.round(this.bitmap.width * (0.5 - trait.ex_left * 0.5) * this.scale);
+            let x1 = Math.round(this.bitmap.width * (0.5 + trait.ex_right * 0.5) * this.scale);
+            let y = Math.round(this.bitmap.width * (1.0 - trait.ex_top) * this.scale);
             context.moveTo(0 + 0.5, this.bitmap.height * this.scale + 0.5);
             context.lineTo(x0 + 0.5, this.bitmap.height * this.scale + 0.5);
             context.lineTo(x0 + 0.5, y + 0.5);

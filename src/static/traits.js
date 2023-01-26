@@ -379,6 +379,66 @@ var SPRITE_TRAITS = {
                 max: [1000, 1000],
                 step: 1,
             },
+            ex_left: {
+                label: 'Kollisionsbox links',
+                type: 'float',
+                min: 0,
+                max: 1,
+                step: 0.05,
+                decimalPlaces: 2,
+                default: 0.7,
+                onfocus: () => {
+                    canvas.draw_ex = true;
+                    canvas.handleResize();
+                },
+                onblur: () => {
+                    canvas.draw_ex = false;
+                    canvas.handleResize();
+                },
+                onchange: () => {
+                    canvas.handleResize();
+                }
+            },
+            ex_right: {
+                label: 'Kollisionsbox rechts',
+                type: 'float',
+                min: 0,
+                max: 1,
+                step: 0.05,
+                decimalPlaces: 2,
+                default: 0.7,
+                onfocus: () => {
+                    canvas.draw_ex = true;
+                    canvas.handleResize();
+                },
+                onblur: () => {
+                    canvas.draw_ex = false;
+                    canvas.handleResize();
+                },
+                onchange: () => {
+                    canvas.handleResize();
+                }
+            },
+            ex_top: {
+                label: 'Kollisionsbox oben',
+                type: 'float',
+                min: 0,
+                max: 1,
+                step: 0.05,
+                decimalPlaces: 2,
+                default: 1.0,
+                onfocus: () => {
+                    canvas.draw_ex = true;
+                    canvas.handleResize();
+                },
+                onblur: () => {
+                    canvas.draw_ex = false;
+                    canvas.handleResize();
+                },
+                onchange: () => {
+                    canvas.handleResize();
+                }
+            },
         },
     },
     level_complete: {
