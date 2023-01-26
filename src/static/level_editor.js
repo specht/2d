@@ -545,6 +545,7 @@ class LevelEditor {
                 },
                 set: (x) => {
                     backdrop.backdrop_type = x;
+                    self.game.fix_game_data();
                     self.setup_layer_properties();
                     self.backdrop_controls_setup_for = null;
                     self.refresh();
