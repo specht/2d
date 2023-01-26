@@ -1173,6 +1173,11 @@ class Game {
 		$('#overlay').fadeIn();
 		$('#screen').fadeOut();
 		$('#stats').removeClass('showing');
+		if (window.yt_player !== null) {
+			try {
+				window.yt_player.pauseVideo();
+			} catch {}
+		}
 	}
 
 	render() {
