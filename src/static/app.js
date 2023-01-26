@@ -661,9 +661,11 @@ class Character {
 class VariableClock {
 	constructor() {
         this.clock = new THREE.Clock(true);
-		this.speed = 1.0;
+		this.speed = 0.0;
 		this.t0 = 0.0;
 		this.t1 = 0.0;
+		this.setSpeed(1.0);
+		this.start();
 	}
 
 	getSpeed() {
@@ -672,9 +674,9 @@ class VariableClock {
 
 	setSpeed(speed) {
 		if (speed !== this.speed) {
-			this.speed = speed;
 			this.t0 = this.getElapsedTime();
 			this.t1 = this.clock.getElapsedTime();
+			this.speed = speed;
 		}
 	}
 
