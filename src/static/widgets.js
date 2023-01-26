@@ -122,11 +122,14 @@ class DragAndDropWidget {
         let drag_handle = $(`<div class='drag_handle'>`);
         item_subdiv.append(drag_handle);
         item_subdiv.append(item);
+        item.on('mousedown touchstart', function(e) {
+            e.preventDefault();
+        });
         item_subdiv.click((e) => {
             let element = $(e.target).closest('._dnd_item');
             self.options.onclick(element.children().eq(0)[0], element.index());
         });
-        drag_handle.on('mousedown touchstart', function (e) {
+        item_subdiv.on('mousedown touchstart', function (e) {
             e.stopPropagation();
             let item = $(e.target).closest('._dnd_item').children()[0];
             let div = $(item.closest('._dnd_item'));
