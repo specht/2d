@@ -620,6 +620,7 @@ class LevelEditor {
                 new ColorWidget({
                     container: $('#menu_layer_properties'),
                     label: 'Farbe',
+                    alpha: true,
                     get: () => self.game.data.levels[self.level_index].layers[self.layer_index].color ?? '#ffffffff',
                     set: (x) => {
                         self.game.data.levels[self.level_index].layers[self.layer_index].color = x;
@@ -637,6 +638,21 @@ class LevelEditor {
                     get: () => self.game.data.levels[self.level_index].layers[self.layer_index].scale,
                     set: (x) => {
                         self.game.data.levels[self.level_index].layers[self.layer_index].scale = x;
+                        // self.update_layer_label();
+                        self.refresh();
+                        self.render();
+                    },
+                });
+                new NumberWidget({
+                    container: $('#menu_layer_properties'),
+                    label: 'Geschwindigkeit',
+                    min: 0.0,
+                    max: 20.0,
+                    step: 0.01,
+                    decimalPlaces: 2,
+                    get: () => self.game.data.levels[self.level_index].layers[self.layer_index].speed,
+                    set: (x) => {
+                        self.game.data.levels[self.level_index].layers[self.layer_index].speed = x;
                         // self.update_layer_label();
                         self.refresh();
                         self.render();
@@ -1276,8 +1292,8 @@ class LevelEditor {
                         uniforms = {
                             time: { value: 0 },
                             resolution: { value: [backdrop.width, backdrop.height] },
-                            scale: {value: [backdrop.scale] },
-                            color: {value: parse_html_color_to_vec4(backdrop.color)}
+                            scale: { value: [backdrop.scale] },
+                            color: { value: parse_html_color_to_vec4(backdrop.color)}
                         };
                         material = new THREE.ShaderMaterial({
                             uniforms: uniforms,

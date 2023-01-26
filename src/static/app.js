@@ -1105,7 +1105,7 @@ class Game {
 				}
 				let mesh = new THREE.Mesh(geometry, material);
 				if (backdrop.backdrop_type === 'effect')
-					this.time_meshes.push(mesh);
+					this.time_meshes.push({mesh: mesh, speed: backdrop.speed});
 				game_layer.add(mesh);
 			}
 			this.layers.push(game_layer);
@@ -1208,7 +1208,7 @@ class Game {
 		this.simulate();
 
 		for (let mesh of this.time_meshes) {
-			mesh.material.uniforms.time.value = this.clock.getElapsedTime();
+			mesh.mesh.material.uniforms.time.value = this.clock.getElapsedTime() * mesh.speed;
 		}
 		let scale = this.height / this.screen_pixel_height;
 		if (this.ts_zoom_actor >= 0) {
