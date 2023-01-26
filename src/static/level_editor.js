@@ -447,6 +447,9 @@ class LevelEditor {
                             let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
                             let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
                             let y1 = Math.round(self.camera_y + self.height * 0.45 / self.scale);
+                            // let p;
+                            // p = this.snap(x0, y0); x0 = p[0]; y0 = p[1];
+                            // p = this.snap(x1, y1); x1 = p[0]; y1 = p[1];
                             let layer = { type: 'backdrop', left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 };
                             self.game.data.levels[self.level_index].layers.push(layer);
                             self.game.fix_game_data();
@@ -917,6 +920,8 @@ class LevelEditor {
                         let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
                         let dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
                         let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
+                        // dx = p[0] - this.mouse_down_position[0];
+                        // dy = p[1] - this.mouse_down_position[1];
                         let nx = this.backdrop_move_point_old_coordinates[0] + dx;
                         let ny = this.backdrop_move_point_old_coordinates[1] + dy;
                         if (this.backdrop_move_point === 'sc0') {
@@ -1034,6 +1039,12 @@ class LevelEditor {
         this.camera_x = cx - sx / this.scale;
         this.camera_y = cy - sy / this.scale;
         this.handleResize();
+    }
+
+    snap(wx, wy) {
+        wx = Math.round(Math.floor((wx + this.grid_width / 2) / this.grid_width) * this.grid_width + (this.grid_x % this.grid_width));
+        wy = Math.round(Math.floor((wy) / this.grid_height) * this.grid_height + (this.grid_y % this.grid_height));
+        return [wx, wy];
     }
 
     ui_to_world(p, snap) {
