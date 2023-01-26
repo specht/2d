@@ -400,6 +400,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
 
     menus.settings = new Menu($('#tool_menu_settings'), 'settings', [], null);
     menus.play = new Menu($('#tool_menu_play'), 'play', [], null);
+    menus.help = new Menu($('#tool_menu_help'), 'help', [], null);
 
     // menu.handle_click('tool/gradient');
     // menu.handle_click('penWidth/1');
