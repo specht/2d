@@ -156,6 +156,7 @@ class Game {
                     if (this.data.levels[li].layers[lyi].backdrop_type === 'effect') {
                         this.data.levels[li].layers[lyi].effect ??= 'snow';
                         this.data.levels[li].layers[lyi].scale ??= 1.0;
+                        this.data.levels[li].layers[lyi].color ??= '#ffffffff';
                     }
                 }
             }

@@ -1093,11 +1093,12 @@ class Game {
 						time:  { value: 0 },
 						resolution: { value: [backdrop.width, backdrop.height] },
 						scale: { value: backdrop.scale },
+						color: { value: parse_html_color_to_vec4(backdrop.color) },
 					};
 					material = new THREE.ShaderMaterial({
 						transparent: true,
 						vertexShader: document.getElementById('vertex-shader').textContent,
-						fragmentShader: document.getElementById('fragment-shader-snow').textContent,
+						fragmentShader: backdrop.effect === 'snow' ? document.getElementById('fragment-shader-snow').textContent : document.getElementById('fragment-shader-smoke').textContent,
 						side: THREE.DoubleSide,
 						uniforms: uniforms,
 					});

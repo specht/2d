@@ -604,6 +604,7 @@ class LevelEditor {
                     label: `Effekt`,
                     options: {
                         'snow': 'Schnee',
+                        'smoke': 'Rauch',
                     },
                     get: () => {
                         return `${backdrop.effect}`;
@@ -612,6 +613,16 @@ class LevelEditor {
                         backdrop.effect = x;
                         self.setup_layer_properties();
                         self.backdrop_controls_setup_for = null;
+                        self.refresh();
+                        self.render();
+                    },
+                });
+                new ColorWidget({
+                    container: $('#menu_layer_properties'),
+                    label: 'Farbe',
+                    get: () => self.game.data.levels[self.level_index].layers[self.layer_index].color ?? '#ffffffff',
+                    set: (x) => {
+                        self.game.data.levels[self.level_index].layers[self.layer_index].color = x;
                         self.refresh();
                         self.render();
                     },
@@ -1266,12 +1277,13 @@ class LevelEditor {
                             time: { value: 0 },
                             resolution: { value: [backdrop.width, backdrop.height] },
                             scale: {value: [backdrop.scale] },
+                            color: {value: parse_html_color_to_vec4(backdrop.color)}
                         };
                         material = new THREE.ShaderMaterial({
                             uniforms: uniforms,
                             transparent: true,
                             vertexShader: document.getElementById('vertex-shader').textContent,
-                            fragmentShader: document.getElementById('fragment-shader-snow').textContent,
+                            fragmentShader: backdrop.effect === 'snow' ? document.getElementById('fragment-shader-snow').textContent : document.getElementById('fragment-shader-smoke').textContent,
                             side: THREE.DoubleSide,
                         });
                     }
