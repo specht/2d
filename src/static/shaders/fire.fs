@@ -64,7 +64,7 @@ void main() {
     //ground fire and fire rain!
 	float dist = 3.5-sin(time*0.4)/1.89;
     
-    vec2 uv = vuv / 240.0;
+    vec2 uv = vuv / 240.0 / scale;
     vec2 p = uv.xy * dist;
     p.x -= time/1.1;
     float q = fbm(p - time * 0.01+1.0*sin(time)/10.0);
@@ -75,7 +75,7 @@ void main() {
     q = (q + qb - .4 * q2 -2.0*q3  + .6*q4)/3.8;
     vec2 r = vec2(fbm(p + q /2.0 + time * speed.x - p.x - p.y), fbm(p + q - time * speed.y));
     vec3 c = mix(c1, c2, fbm(p + r)) + mix(c3, c4, r.x) - mix(c5, c6, r.y);
-    vec3 color = vec3(c * cos(shift * uv.y));
+    vec3 color = vec3(c * 0.7);
     color += .05;
     color.r *= .8;
     vec3 hsv = rgb2hsv(color);
