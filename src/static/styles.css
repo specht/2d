@@ -1023,6 +1023,11 @@ table th {
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     padding: 4px 8px;
     text-align: left;
+    max-width: 12em;
+}
+
+table td.right, table th.right {
+    text-align: right;
 }
 
 table th {

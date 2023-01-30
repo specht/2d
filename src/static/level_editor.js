@@ -961,13 +961,13 @@ class LevelEditor {
                         let color_index = parseInt(this.backdrop_move_point.substr(6));
                         let dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
                         let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
-                        dx /= backdrop.width;
-                        dy /= backdrop.height;
+                        dx /= backdrop.rects[0].width;
+                        dy /= backdrop.rects[0].height;
                         let nx = Math.round((this.backdrop_move_point_old_coordinates[0] + dx) * 1000.0) / 1000.0;
                         let ny = Math.round((this.backdrop_move_point_old_coordinates[1] + dy) * 1000.0) / 1000.0;
                         backdrop.colors[color_index][1] = nx;
                         backdrop.colors[color_index][2] = ny;
-                        let p = this.world_to_ui([backdrop.left + backdrop.width * nx, backdrop.bottom + backdrop.height * ny]);
+                        let p = this.world_to_ui([backdrop.rects[0].left + backdrop.rects[0].width * nx, backdrop.rects[0].bottom + backdrop.rects[0].height * ny]);
                         this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
                         this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
                         this.refresh();
@@ -990,7 +990,7 @@ class LevelEditor {
                             this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
                             this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
                         } else {
-                            let p = this.world_to_ui([nx + backdrop.width - dx, ny + backdrop.height - dy]);
+                            let p = this.world_to_ui([nx + rect.width - dx, ny + rect.height - dy]);
                             rect.left = this.backdrop_move_point_old_coordinates[0];
                             rect.width = this.backdrop_move_point_old_size[0] + dx;
                             rect.bottom = this.backdrop_move_point_old_coordinates[1];
@@ -998,12 +998,14 @@ class LevelEditor {
                             this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
                             this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
                         }
-                        for (let ci = 0; ci < backdrop.colors.length; ci++) {
-                            if (`color_${ci}` in this.backdrop_move_elements) {
-                                let color = backdrop.colors[ci];
-                                let p = this.world_to_ui([backdrop.left + backdrop.width * color[1], backdrop.bottom + backdrop.height * color[2]]);
-                                this.backdrop_move_elements[`color_${ci}`].css('left', `${p[0] - 8}px`);
-                                this.backdrop_move_elements[`color_${ci}`].css('top', `${p[1] - 8}px`);
+                        if (this.rect_index === 0) {
+                            for (let ci = 0; ci < backdrop.colors.length; ci++) {
+                                if (`color_${ci}` in this.backdrop_move_elements) {
+                                    let color = backdrop.colors[ci];
+                                    let p = this.world_to_ui([rect.left + rect.width * color[1], rect.bottom + rect.height * color[2]]);
+                                    this.backdrop_move_elements[`color_${ci}`].css('left', `${p[0] - 8}px`);
+                                    this.backdrop_move_elements[`color_${ci}`].css('top', `${p[1] - 8}px`);
+                                }
                             }
                         }
                         this.refresh();
@@ -1314,8 +1316,8 @@ class LevelEditor {
                         material = new THREE.ShaderMaterial({
                             uniforms: uniforms,
                             transparent: true,
-                            vertexShader: document.getElementById('vertex-shader').textContent,
-                            fragmentShader: backdrop.effect === 'snow' ? document.getElementById('fragment-shader-snow').textContent : document.getElementById('fragment-shader-smoke').textContent,
+                            vertexShader: shaders.get('basic.vs'),
+                            fragmentShader: shaders.get(backdrop.effect === 'snow' ? 'snow.fs' : 'smoke.fs'),
                             side: THREE.DoubleSide,
                         });
                     }
@@ -1352,6 +1354,7 @@ class LevelEditor {
                                     la: { value: l },
                                     lb: { value: l },
                                 };
+                                console.log(ri, uniforms);
                             } else if (gradient_points.length === 4) {
                                 uniforms = {
                                     n:  { value: 4 },
@@ -1368,8 +1371,8 @@ class LevelEditor {
                             material = new THREE.ShaderMaterial({
                                 uniforms: uniforms,
                                 transparent: true,
-                                vertexShader: document.getElementById('vertex-shader').textContent,
-                                fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
+                                vertexShader: shaders.get('basic.vs'),
+                                fragmentShader: shaders.get('gradient.fs'),
                                 side: THREE.DoubleSide,
                             });
                         }
@@ -1394,10 +1397,10 @@ class LevelEditor {
             let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true });
 
             let points = [];
-            points.push(new THREE.Vector3(backdrop.left, backdrop.bottom));
-            points.push(new THREE.Vector3(backdrop.left + backdrop.width, backdrop.bottom));
-            points.push(new THREE.Vector3(backdrop.left + backdrop.width, backdrop.bottom + backdrop.height));
-            points.push(new THREE.Vector3(backdrop.left, backdrop.bottom + backdrop.height));
+            points.push(new THREE.Vector3(backdrop.rects[this.rect_index].left, backdrop.rects[this.rect_index].bottom));
+            points.push(new THREE.Vector3(backdrop.rects[this.rect_index].left + backdrop.rects[this.rect_index].width, backdrop.rects[this.rect_index].bottom));
+            points.push(new THREE.Vector3(backdrop.rects[this.rect_index].left + backdrop.rects[this.rect_index].width, backdrop.rects[this.rect_index].bottom + backdrop.rects[this.rect_index].height));
+            points.push(new THREE.Vector3(backdrop.rects[this.rect_index].left, backdrop.rects[this.rect_index].bottom + backdrop.rects[this.rect_index].height));
             let geometry = new THREE.BufferGeometry().setFromPoints(points);
             this.backdrop_cursor.add(new THREE.LineLoop(geometry, material));
             this.scene.add(this.backdrop_cursor);
@@ -1414,8 +1417,6 @@ class LevelEditor {
                 let rect = backdrop.rects[this.rect_index];
                 let p0 = this.world_to_ui([rect.left, rect.bottom]);
                 let p1 = this.world_to_ui([rect.left + rect.width, rect.bottom + rect.height]);
-                let ox = this.camera_x - this.width * 0.5 / this.scale;
-                let oy = this.camera_y + this.height * 0.5 / this.scale;
 
                 let sc0 = $(`<div style='top: ${p0[1] - 8}px; left: ${p0[0] - 8}px; background-color: #444;'>`).addClass('backdrop-swatch');
                 this.backdrop_controls.push(sc0);
@@ -1442,6 +1443,9 @@ class LevelEditor {
 
                 if (backdrop.backdrop_type === 'color') {
                     if (backdrop.colors.length > 1) {
+                        let rect = backdrop.rects[0];
+                        let p0 = this.world_to_ui([rect.left, rect.bottom]);
+                        let p1 = this.world_to_ui([rect.left + rect.width, rect.bottom + rect.height]);
                         for (let ci = 0; ci < backdrop.colors.length; ci++) {
                             let c = backdrop.colors[ci];
                             let swatch_control = $(`<div style='top: ${p0[1] + (p1[1] - p0[1]) * c[2] - 8}px; left: ${p0[0] + (p1[0] - p0[0]) * c[1] - 8}px; background-color: ${c[0]};'>`).addClass('backdrop-swatch');

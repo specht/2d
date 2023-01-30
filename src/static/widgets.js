@@ -14,6 +14,7 @@ class EditableText {
 class DragAndDropWidget {
     constructor(options = {}) {
         let self = this;
+        this.has_touch = false;
         this.dragging_div = $(`<div style='position: relative; pointer-events: none;'>`);
         this.mouse_down_element = null;
         this.drop_index = null;
@@ -114,6 +115,27 @@ class DragAndDropWidget {
         $(this.options.container).append(this.add_div);
     }
 
+    handle_down(e) {
+        let self = this;
+        e.stopPropagation();
+        let item = $(e.target).closest('._dnd_item').children()[0];
+        let div = $(item.closest('._dnd_item'));
+        self.moving_index = div.index();
+        self.mouse_down_element = div;
+        let body = $('html');
+        let p = self.get_touch_point(e);
+        let dx = p[0] - $(div).offset().left;
+        let dy = p[1] - $(div).offset().top;
+        body.data('_dnd_moving', true);
+        body.data('_dnd_has_moved', false);
+        body.data('_dnd_div_x', p[0] - dx - 1);
+        body.data('_dnd_div_y', p[1] - dy - 1);
+        body.data('_dnd_mouse_x', p[0]);
+        body.data('_dnd_mouse_y', p[1]);
+        self._install_drag_and_drop_handler();
+        self.container_scroll_position = [self.options.container.scrollLeft(), self.options.container.scrollTop()];
+    }
+
     _append_item(item) {
         let self = this;
         let item_div = $(`<div>`).addClass('_dnd_item');
@@ -122,31 +144,24 @@ class DragAndDropWidget {
         let drag_handle = $(`<div class='drag_handle'>`);
         item_subdiv.append(drag_handle);
         item_subdiv.append(item);
+        item.on('touchstart', function(e) {
+            self.has_touch = true;
+        });
         item.on('mousedown touchstart', function(e) {
-            e.preventDefault();
+            if (!self.has_touch)
+                e.preventDefault();
         });
         item_subdiv.click((e) => {
             let element = $(e.target).closest('._dnd_item');
             self.options.onclick(element.children().eq(0)[0], element.index());
         });
         item_subdiv.on('mousedown touchstart', function (e) {
-            e.stopPropagation();
-            let item = $(e.target).closest('._dnd_item').children()[0];
-            let div = $(item.closest('._dnd_item'));
-            self.moving_index = div.index();
-            self.mouse_down_element = div;
-            let body = $('html');
-            let p = self.get_touch_point(e);
-            let dx = p[0] - $(div).offset().left;
-            let dy = p[1] - $(div).offset().top;
-            body.data('_dnd_moving', true);
-            body.data('_dnd_has_moved', false);
-            body.data('_dnd_div_x', p[0] - dx - 1);
-            body.data('_dnd_div_y', p[1] - dy - 1);
-            body.data('_dnd_mouse_x', p[0]);
-            body.data('_dnd_mouse_y', p[1]);
-            self._install_drag_and_drop_handler();
-            self.container_scroll_position = [self.options.container.scrollLeft(), self.options.container.scrollTop()];
+            if (!self.has_touch)
+                self.handle_down(e);
+        });
+        drag_handle.on('mousedown touchstart', function (e) {
+            if (self.has_touch)
+                self.handle_down(e);
         });
         $(this.options.container).append(item_div);
     }

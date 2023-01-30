@@ -835,8 +835,8 @@ class Game {
 					texture1: { value: texture },
 				},
 				transparent: true,
-				vertexShader: document.getElementById('vertex-shader').textContent,
-				fragmentShader: document.getElementById('fragment-shader').textContent,
+				vertexShader: shaders.get('basic.vs'),
+				fragmentShader: shaders.get('texture.fs'),
 				side: THREE.DoubleSide,
 			});
 			this.spritesheets.push(material);
@@ -1085,8 +1085,8 @@ class Game {
 					material = new THREE.ShaderMaterial({
 						uniforms: uniforms,
 						transparent: true,
-						vertexShader: document.getElementById('vertex-shader').textContent,
-						fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
+						vertexShader: shaders.get('basic.vs'),
+						fragmentShader: shaders.get('gradient.fs'),
 						side: THREE.DoubleSide,
 					});
 				}
@@ -1099,8 +1099,8 @@ class Game {
 					};
 					material = new THREE.ShaderMaterial({
 						transparent: true,
-						vertexShader: document.getElementById('vertex-shader').textContent,
-						fragmentShader: backdrop.effect === 'snow' ? document.getElementById('fragment-shader-snow').textContent : document.getElementById('fragment-shader-smoke').textContent,
+						vertexShader: shaders.get('basic.vs'),
+						fragmentShader: shaders.get(backdrop.effect === 'snow' ? 'snow.fs' : 'smoke.fs'),
 						side: THREE.DoubleSide,
 						uniforms: uniforms,
 					});
@@ -1537,7 +1537,10 @@ class TouchButton {
 	}
 }
 
-document.addEventListener("DOMContentLoaded", function (event) {
+document.addEventListener("DOMContentLoaded", async function (event) {
+	let shaders = new Shaders();
+    await shaders.load();
+
 	window.game = new Game();
 	window.game.reset();
 

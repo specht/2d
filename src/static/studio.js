@@ -251,7 +251,9 @@ function close_modal() {
      └───2fbet5p
  */
 
-document.addEventListener("DOMContentLoaded", function (event) {
+document.addEventListener("DOMContentLoaded", async function (event) {
+    let shaders = new Shaders();
+    await shaders.load();
     moment.locale('de');
     tool_menu_items.sprites = [
         { group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'Q', label: 'Zeichnen' },
@@ -768,6 +770,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                         element: div,
                         headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames', 'Versionen'].map(function (x) {
                             let th = $('<th>').text(x);
+                            if (['Größe', 'Sprites', 'Zustände', 'Frames'].indexOf(x) >= 0) th.addClass('right');
                             // if (['Klasse', 'Ausgeliehen'].indexOf(x) >= 0) th.data('type', 'int');
                             return th;
                         }),
@@ -789,6 +792,7 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                                 element: $('#load_games_sublist'),
                                                 headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames'].map(function (x) {
                                                     let th = $('<th>').text(x);
+                                                    if (['Größe', 'Sprites', 'Zustände', 'Frames'].indexOf(x) >= 0) th.addClass('right');
                                                     return th;
                                                 }),
                                                 rows: data.nodes.map(function (node) {
@@ -799,10 +803,10 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                                         $('<td>').text(node.author || '–'),
                                                         $('<td>').text(node.title || '–'),
                                                         $('<td>').text(moment.unix(node.ts_created).format('L LTS')),
-                                                        $('<td>').text(bytes_to_str(node.size)),
-                                                        $('<td>').text(`${node.sprite_count}`),
-                                                        $('<td>').text(`${node.state_count}`),
-                                                        $('<td>').text(`${node.frame_count}`),
+                                                        $('<td>').addClass('right').text(bytes_to_str(node.size)),
+                                                        $('<td>').addClass('right').text(`${node.sprite_count}`),
+                                                        $('<td>').addClass('right').text(`${node.state_count}`),
+                                                        $('<td>').addClass('right').text(`${node.frame_count}`),
                                                     ];
                                                 }),
                                                 // filter_callback: user_filter,
@@ -823,10 +827,10 @@ document.addEventListener("DOMContentLoaded", function (event) {
                                 $('<td>').text(node.author || '–'),
                                 $('<td>').text(node.title || '–'),
                                 $('<td>').text(moment.unix(node.ts_created).format('L LTS')),
-                                $('<td>').text(bytes_to_str(node.size)),
-                                $('<td>').text(`${node.sprite_count}`),
-                                $('<td>').text(`${node.state_count}`),
-                                $('<td>').text(`${node.frame_count}`),
+                                $('<td>').addClass('right').text(bytes_to_str(node.size)),
+                                $('<td>').addClass('right').text(`${node.sprite_count}`),
+                                $('<td>').addClass('right').text(`${node.state_count}`),
+                                $('<td>').addClass('right').text(`${node.frame_count}`),
                                 $('<td>').append(bu_versions),
                             ];
                         }),

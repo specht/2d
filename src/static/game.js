@@ -203,8 +203,8 @@ class Game {
                 texture1: { value: null },
             },
             transparent: true,
-            vertexShader: document.getElementById('vertex-shader').textContent,
-            fragmentShader: document.getElementById('fragment-shader').textContent,
+            vertexShader: shaders.get('basic.vs'),
+            fragmentShader: shaders.get('texture.fs'),
             side: THREE.DoubleSide,
         });
         this.update_geometry_for_sprite(si);
