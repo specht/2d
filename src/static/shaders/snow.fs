@@ -7,7 +7,7 @@ precision mediump float;
 
 uniform float time;
 uniform float scale;
-uniform lowp vec2 cpa, cpb;
+uniform vec2 cpa, cpb;
 varying vec2 vuv;
 uniform vec4 color;
 float l;

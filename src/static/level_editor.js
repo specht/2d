@@ -894,7 +894,7 @@ class LevelEditor {
                     let p = this.ui_to_world([tx, ty], false);
                     this.zoom_at_point(-touch_distance_delta * 3, p[0], p[1]);
                     if (this.backdrop_index !== null)
-                        self.refresh_backdrop_controls();
+                        this.refresh_backdrop_controls();
                     this.refresh();
                     this.render();
                 }
