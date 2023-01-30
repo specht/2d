@@ -1021,7 +1021,7 @@ class LevelEditor {
                             this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
                         }
                         if (this.rect_index === 0) {
-                            for (let ci = 0; ci < backdrop.colors.length; ci++) {
+                            for (let ci = 0; ci < (backdrop.colors ?? []).length; ci++) {
                                 if (`color_${ci}` in this.backdrop_move_elements) {
                                     let color = backdrop.colors[ci];
                                     let p = this.world_to_ui([rect.left + rect.width * color[1], rect.bottom + rect.height * color[2]]);
@@ -1029,7 +1029,7 @@ class LevelEditor {
                                     this.backdrop_move_elements[`color_${ci}`].css('top', `${p[1] - 8}px`);
                                 }
                             }
-                            for (let cpi = 0; cpi < backdrop.control_points.length; cpi++) {
+                            for (let cpi = 0; cpi < (backdrop.control_points ?? []).length; cpi++) {
                                 if (`control_point_${cpi}` in this.backdrop_move_elements) {
                                     let control_point = backdrop.control_points[cpi];
                                     let p = this.world_to_ui([rect.left + rect.width * control_point[0], rect.bottom + rect.height * control_point[1]]);
