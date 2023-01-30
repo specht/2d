@@ -1080,11 +1080,9 @@ class Game {
 					if (backdrop.backdrop_type === 'color') {
 						let gradient_points = JSON.parse(JSON.stringify(backdrop.colors));
 						for (let gi = 0; gi < gradient_points.length; gi++) {
-							let x = gradient_points[gi][1];
-							let y = gradient_points[gi][2];
-							gradient_points[gi][1] = ((rect0.width * x + rect0.left) - rect.left) / rect.width;
-							gradient_points[gi][2] = ((rect0.height * y + rect0.bottom) - rect.bottom) / rect.height;
-						}
+							gradient_points[gi][1] = rect0.width * gradient_points[gi][1] + rect0.left;
+							gradient_points[gi][2] = rect0.height * gradient_points[gi][2] + rect0.bottom;
+					}
 						if (gradient_points.length === 1) {
 							uniforms = {
 								n:  { value: 1 },
@@ -1126,7 +1124,16 @@ class Game {
 							fragmentShader: shaders.get('gradient.fs'),
 							side: THREE.DoubleSide,
 						});
-					}
+						let x0 = rect.left;
+						let y0 = rect.bottom;
+						let x1 = rect.left + rect.width;
+						let y1 = rect.bottom + rect.height;
+						let uv = geometry.attributes.uv;
+						uv.setXY(0, x0, y1);
+						uv.setXY(1, x1, y1);
+						uv.setXY(2, x0, y0);
+						uv.setXY(3, x1, y0);
+				}
 					let mesh = new THREE.Mesh(geometry, material);
 					if (backdrop.backdrop_type === 'effect')
 						this.time_meshes.push({mesh: mesh, speed: backdrop.speed});
