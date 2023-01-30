@@ -82,6 +82,7 @@ class DragAndDropWidget {
                     self.gen_new_item_options_div.hide();
                 } else {
                     self.gen_new_item_options_div.show();
+                    self.gen_new_item_options_div[0].scrollIntoView();
                 }
             } else {
                 let index = self.options.items.length;

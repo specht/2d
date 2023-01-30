@@ -14,7 +14,7 @@ class Shaders {
     }
 
     async load_shader(path) {
-        return await (await fetch(`/shaders/${path}`)).text();
+        return await (await fetch(`/shaders/${path}?${Math.random()}`)).text();
     }
 
     get(path) {

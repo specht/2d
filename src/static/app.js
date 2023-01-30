@@ -1037,78 +1037,101 @@ class Game {
 				}
 			} else if (layer.type === 'backdrop') {
 				let backdrop = layer;
-				let geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
-				geometry.translate(0.5, 0.5, 0.0);
-				geometry.scale(backdrop.width, backdrop.height, 1.0);
-				geometry.translate(backdrop.left, backdrop.bottom, 0);
-				// geometry.translate(0, 0, -1);
-				let gradient_points = backdrop.colors;
-				let uniforms = {};
-				let material = new THREE.LineBasicMaterial();
-				material.opacity = 0;
+				let rect0 = backdrop.rects[0];
+				for (let ri = 0; ri < backdrop.rects.length; ri++) {
+					let rect = backdrop.rects[ri];
+					let geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+					geometry.translate(0.5, 0.5, 0.0);
+					geometry.scale(rect.width, rect.height, 1.0);
+					geometry.translate(rect.left, rect.bottom, 0);
+					// geometry.translate(0, 0, -1);
+					let uniforms = {};
+					let material = new THREE.LineBasicMaterial({transparent: true});
+					material.opacity = 0;
 
-				if (backdrop.backdrop_type === 'color') {
-					if (gradient_points.length === 1) {
+					if (backdrop.backdrop_type === 'effect') {
 						uniforms = {
-							n:  { value: 1 },
-							ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+							time:  { value: 0 },
+							resolution: { value: [rect0.width, rect0.height] },
+							scale: { value: backdrop.scale },
+							color: { value: parse_html_color_to_vec4(backdrop.color) },
 						};
-					} else if (gradient_points.length === 2) {
-						let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
-						let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
-						let l1 = 1.0 / l;
-						d[0] *= l1; d[1] *= l1;
-						uniforms = {
-							n:  { value: 2 },
-							ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-							cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-							pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-							pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-							na: { value: [d[0], d[1]] },
-							nb: { value: [-d[0], -d[1]] },
-							la: { value: l },
-							lb: { value: l },
-						};
-					} else if (gradient_points.length === 4) {
-						uniforms = {
-							n:  { value: 4 },
-							ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-							cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-							cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
-							cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
-							pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-							pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-							pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
-							pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
-						};
+						material = new THREE.ShaderMaterial({
+							uniforms: uniforms,
+							transparent: true,
+							vertexShader: shaders.get('basic.vs'),
+							fragmentShader: shaders.get(backdrop.effect === 'snow' ? 'snow.fs' : 'smoke.fs'),
+							side: THREE.DoubleSide,
+						});
+						let x0 = rect.left;
+						let y0 = rect.bottom;
+						let x1 = rect.left + rect.width;
+						let y1 = rect.bottom + rect.height;
+						let uv = geometry.attributes.uv;
+						x0 *= 0.01;
+						y0 *= 0.01;
+						x1 *= 0.01;
+						y1 *= 0.01;
+						uv.setXY(0, x0, y1);
+						uv.setXY(1, x1, y1);
+						uv.setXY(2, x0, y0);
+						uv.setXY(3, x1, y0);
 					}
-					material = new THREE.ShaderMaterial({
-						uniforms: uniforms,
-						transparent: true,
-						vertexShader: shaders.get('basic.vs'),
-						fragmentShader: shaders.get('gradient.fs'),
-						side: THREE.DoubleSide,
-					});
+					if (backdrop.backdrop_type === 'color') {
+						let gradient_points = JSON.parse(JSON.stringify(backdrop.colors));
+						for (let gi = 0; gi < gradient_points.length; gi++) {
+							let x = gradient_points[gi][1];
+							let y = gradient_points[gi][2];
+							gradient_points[gi][1] = ((rect0.width * x + rect0.left) - rect.left) / rect.width;
+							gradient_points[gi][2] = ((rect0.height * y + rect0.bottom) - rect.bottom) / rect.height;
+						}
+						if (gradient_points.length === 1) {
+							uniforms = {
+								n:  { value: 1 },
+								ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+							};
+						} else if (gradient_points.length === 2) {
+							let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
+							let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
+							let l1 = 1.0 / l;
+							d[0] *= l1; d[1] *= l1;
+							uniforms = {
+								n:  { value: 2 },
+								ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+								cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+								pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+								pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+								na: { value: [d[0], d[1]] },
+								nb: { value: [-d[0], -d[1]] },
+								la: { value: l },
+								lb: { value: l },
+							};
+						} else if (gradient_points.length === 4) {
+							uniforms = {
+								n:  { value: 4 },
+								ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+								cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+								cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
+								cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
+								pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+								pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+								pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
+								pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
+							};
+						}
+						material = new THREE.ShaderMaterial({
+							uniforms: uniforms,
+							transparent: true,
+							vertexShader: shaders.get('basic.vs'),
+							fragmentShader: shaders.get('gradient.fs'),
+							side: THREE.DoubleSide,
+						});
+					}
+					let mesh = new THREE.Mesh(geometry, material);
+					if (backdrop.backdrop_type === 'effect')
+						this.time_meshes.push({mesh: mesh, speed: backdrop.speed});
+					game_layer.add(mesh);
 				}
-				if (backdrop.backdrop_type === 'effect') {
-					let uniforms = {
-						time:  { value: 0 },
-						resolution: { value: [backdrop.width, backdrop.height] },
-						scale: { value: backdrop.scale },
-						color: { value: parse_html_color_to_vec4(backdrop.color) },
-					};
-					material = new THREE.ShaderMaterial({
-						transparent: true,
-						vertexShader: shaders.get('basic.vs'),
-						fragmentShader: shaders.get(backdrop.effect === 'snow' ? 'snow.fs' : 'smoke.fs'),
-						side: THREE.DoubleSide,
-						uniforms: uniforms,
-					});
-				}
-				let mesh = new THREE.Mesh(geometry, material);
-				if (backdrop.backdrop_type === 'effect')
-					this.time_meshes.push({mesh: mesh, speed: backdrop.speed});
-				game_layer.add(mesh);
 			}
 			this.layers.push(game_layer);
 		}
