@@ -138,6 +138,16 @@ class Game {
                 this.data.levels[li].layers[lyi].properties.visible ??= true;
                 this.data.levels[li].layers[lyi].properties.parallax ??= 0.0;
                 this.data.levels[li].layers[lyi].properties.opacity ??= 1.0;
+                this.data.levels[li].layers[lyi].rects ??= [];
+                let layer = this.data.levels[li].layers[lyi];
+                // promote old layer rect
+                if (layer.left && layer.bottom && layer.width && layer.height) {
+                    this.data.levels[li].layers[lyi].rects.push({left: layer.left, bottom: layer.bottom, width: layer.width, height: layer.height});
+                    delete this.data.levels[li].layers[lyi].left;
+                    delete this.data.levels[li].layers[lyi].bottom;
+                    delete this.data.levels[li].layers[lyi].width;
+                    delete this.data.levels[li].layers[lyi].height;
+                }
                 if (this.data.levels[li].layers[lyi].type === 'sprites') {
                     this.data.levels[li].layers[lyi].properties.collision_detection ??= true;
                     this.data.levels[li].layers[lyi].sprites ??= [];
@@ -145,10 +155,19 @@ class Game {
                         this.data.levels[li].layers[lyi].sprites = [];
                     this.data.levels[li].layers[lyi].sprite_properties ??= {};
                 } else if (this.data.levels[li].layers[lyi].type === 'backdrop') {
-                    this.data.levels[li].layers[lyi].top ??= 0;
-                    this.data.levels[li].layers[lyi].bottom ??= 0;
-                    this.data.levels[li].layers[lyi].width ??= 100;
-                    this.data.levels[li].layers[lyi].height ??= 100;
+                    let lyp = this.data.levels[li].layers[lyi];
+                    // this.data.levels[li].layers[lyi].rects ??= [{
+                    //     left: lyp.left,
+                    //     bottom: lyp.bottom,
+                    //     width: lyp.width,
+                    //     height: lyp.height,
+                    // }];
+                    // for (let ri = 0; ri < this.data.levels[li].layers[lyi].rects.length; ri++) {
+                    //     this.data.levels[li].layers[lyi].rects[ri].left ??= 0;
+                    //     this.data.levels[li].layers[lyi].rects[ri].bottom ??= 0;
+                    //     this.data.levels[li].layers[lyi].rects[ri].width ??= 100;
+                    //     this.data.levels[li].layers[lyi].rects[ri].height ??= 100;
+                    // }
                     this.data.levels[li].layers[lyi].backdrop_type ??= 'color'
                     if (this.data.levels[li].layers[lyi].backdrop_type === 'color') {
                         this.data.levels[li].layers[lyi].colors ??= [['#143b86', 0.5, 0.9], ['#c3def1', 0.5, 0.1]];

@@ -179,6 +179,7 @@ class LevelEditor {
         this.level_index = 0;
         this.auto_adjust_camera = true;
         this.layer_index = 0;
+        this.rect_index = 0;
         this.clock = new THREE.Clock(true);
         this.scene = new THREE.Scene();
         this.grid_group = new THREE.Group();
@@ -324,6 +325,7 @@ class LevelEditor {
                 self.clear_selection();
                 self.level_index = index;
                 self.layer_index = 0;
+                self.rect_index = 0;
                 self.auto_adjust_camera = true;
 
                 self.layer_structs = [];
@@ -423,6 +425,7 @@ class LevelEditor {
                         self.clear_selection();
                         console.log(`layer click: ${index}`);
                         self.layer_index = index;
+                        self.rect_index = 0;
                         if (self.game.data.levels[self.level_index].layers[self.layer_index].type !== 'sprites') {
                             menus.level.blur();
                         }
@@ -437,31 +440,30 @@ class LevelEditor {
                     gen_new_item: (type) => {
                         let layer_struct = new LayerStruct(self);
                         self.layer_structs.push(layer_struct);
+                        let layer = { type: type };
                         if (type === 'sprites') {
-                            let layer = { type: 'sprites', sprites: [] };
-                            self.game.data.levels[self.level_index].layers.push(layer);
-                            self.game.fix_game_data();
-                            self.refresh();
+                            layer.sprites = [];
                         } else if (type === 'backdrop') {
                             let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
                             let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
                             let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
                             let y1 = Math.round(self.camera_y + self.height * 0.45 / self.scale);
-                            // let p;
-                            // p = this.snap(x0, y0); x0 = p[0]; y0 = p[1];
-                            // p = this.snap(x1, y1); x1 = p[0]; y1 = p[1];
-                            let layer = { type: 'backdrop', left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 };
-                            self.game.data.levels[self.level_index].layers.push(layer);
-                            self.game.fix_game_data();
-                            self.refresh();
-                            self.render();
+                            let rect = { left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 };
+                            layer.rects = [rect];
                         }
+                        self.game.data.levels[self.level_index].layers.push(layer);
+                        console.log(layer.rects.length, JSON.stringify(layer));
+                        self.game.fix_game_data();
+                        console.log(layer.rects.length, JSON.stringify(layer));
+                        self.refresh();
+                        self.render();
                         return self.game.data.levels[self.level_index].layers[self.game.data.levels[self.level_index].layers.length - 1];
                     },
                     delete_item: (index) => {
                         self.game.data.levels[self.level_index].layers.splice(index, 1);
                         self.layer_structs.splice(index, 1);
                         self.layer_index = 0;
+                        self.rect_index = 0;
                         self.refresh();
                         // self.render();
                     },
@@ -536,6 +538,60 @@ class LevelEditor {
         }
         if (layer.type === 'backdrop') {
             let backdrop = layer;
+            // -----------------------------------------------------------
+            let rect_div = $('<div>').appendTo($('#menu_layer_properties'));
+            
+            new DragAndDropWidget({
+                game: self.game,
+                container: rect_div,
+                trash: $('#trash'),
+                items: self.game.data.levels[self.level_index].layers[self.layer_index].rects,
+                item_class: 'menu_layer_item',
+                step_aside_css: { top: '35px' },
+                gen_item: (layer, index) => {
+                    let rect_div = $(`<div>`).css('padding-top', '5px');
+                    rect_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Rechteck')));
+                    return rect_div;
+                },
+                onclick: (e, index) => {
+                    self.clear_selection();
+                    // console.log(`layer click: ${index}`);
+                    self.rect_index = index;
+                    self.backdrop_controls_setup_for = null;
+                    self.refresh_backdrop_controls();
+                    self.refresh();
+                    self.render();
+                },
+                gen_new_item: () => {
+                    let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
+                    let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
+                    let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
+                    let y1 = Math.round(self.camera_y + self.height * 0.45 / self.scale);
+                    // let p;
+                    // p = this.snap(x0, y0); x0 = p[0]; y0 = p[1];
+                    // p = this.snap(x1, y1); x1 = p[0]; y1 = p[1];
+                    let rect = { left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 };
+                    console.log(JSON.stringify(self.game.data.levels[self.level_index].layers[self.layer_index].rects));
+                    self.game.data.levels[self.level_index].layers[self.layer_index].rects.push(rect);
+                    console.log(JSON.stringify(self.game.data.levels[self.level_index].layers[self.layer_index].rects));
+                    self.game.fix_game_data();
+                    self.refresh();
+                    return rect;
+                },
+                delete_item: (index) => {
+                    self.game.data.levels[self.level_index].layers[self.layer_index].rects.splice(index, 1);
+                    self.rect_index = 0;
+                    self.refresh();
+                    // self.render();
+                },
+                on_move_item: (from, to) => {
+                    move_item_helper(self.game.data.levels[self.level_index].layers[self.layer_index].rects, from, to);
+                    self.refresh();
+                    self.render();
+                }
+            });
+
+            // -----------------------------------------------------------
             new SelectWidget({
                 container: $('#menu_layer_properties'),
                 label: `Art`,
@@ -918,6 +974,7 @@ class LevelEditor {
                         this.render();
                     } else if (this.backdrop_move_point === 'sc0' || this.backdrop_move_point === 'sc3') {
                         let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
+                        let rect = backdrop.rects[this.rect_index];
                         let dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
                         let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
                         // dx = p[0] - this.mouse_down_position[0];
@@ -926,18 +983,18 @@ class LevelEditor {
                         let ny = this.backdrop_move_point_old_coordinates[1] + dy;
                         if (this.backdrop_move_point === 'sc0') {
                             let p = this.world_to_ui([nx, ny]);
-                            backdrop.left = this.backdrop_move_point_old_coordinates[0] + dx;
-                            backdrop.width = this.backdrop_move_point_old_size[0] - dx;
-                            backdrop.bottom = this.backdrop_move_point_old_coordinates[1] + dy;
-                            backdrop.height = this.backdrop_move_point_old_size[1] - dy;
+                            rect.left = this.backdrop_move_point_old_coordinates[0] + dx;
+                            rect.width = this.backdrop_move_point_old_size[0] - dx;
+                            rect.bottom = this.backdrop_move_point_old_coordinates[1] + dy;
+                            rect.height = this.backdrop_move_point_old_size[1] - dy;
                             this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
                             this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
                         } else {
                             let p = this.world_to_ui([nx + backdrop.width - dx, ny + backdrop.height - dy]);
-                            backdrop.left = this.backdrop_move_point_old_coordinates[0];
-                            backdrop.width = this.backdrop_move_point_old_size[0] + dx;
-                            backdrop.bottom = this.backdrop_move_point_old_coordinates[1];
-                            backdrop.height = this.backdrop_move_point_old_size[1] + dy;
+                            rect.left = this.backdrop_move_point_old_coordinates[0];
+                            rect.width = this.backdrop_move_point_old_size[0] + dx;
+                            rect.bottom = this.backdrop_move_point_old_coordinates[1];
+                            rect.height = this.backdrop_move_point_old_size[1] + dy;
                             this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
                             this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
                         }
@@ -1247,62 +1304,10 @@ class LevelEditor {
                         this.scene.add(this.cursor_group);
                 } else if (this.game.data.levels[this.level_index].layers[li].type === 'backdrop') {
                     let backdrop = this.game.data.levels[this.level_index].layers[li];
-                    let geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
-                    geometry.translate(0.5, 0.5, 0.0);
-                    geometry.scale(backdrop.width, backdrop.height, 1.0);
-                    geometry.translate(backdrop.left, backdrop.bottom, 0);
-                    // geometry.translate(0, 0, -1);
-                    let gradient_points = backdrop.colors;
-                    let uniforms = {};
-                    let material = new THREE.LineBasicMaterial({transparent: true});
-                    material.opacity = 0;
-                    if (backdrop.backdrop_type === 'color') {
-                        if (gradient_points.length === 1) {
-                            uniforms = {
-                                n:  { value: 1 },
-                                ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                            };
-                        } else if (gradient_points.length === 2) {
-                            let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
-                            let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
-                            let l1 = 1.0 / l;
-                            d[0] *= l1; d[1] *= l1;
-                            uniforms = {
-                                n:  { value: 2 },
-                                ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                                cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-                                pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-                                pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-                                na: { value: [d[0], d[1]] },
-                                nb: { value: [-d[0], -d[1]] },
-                                la: { value: l },
-                                lb: { value: l },
-                            };
-                        } else if (gradient_points.length === 4) {
-                            uniforms = {
-                                n:  { value: 4 },
-                                ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                                cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-                                cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
-                                cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
-                                pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-                                pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-                                pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
-                                pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
-                            };
-                        }
-                        material = new THREE.ShaderMaterial({
-                            uniforms: uniforms,
-                            transparent: true,
-                            vertexShader: document.getElementById('vertex-shader').textContent,
-                            fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
-                            side: THREE.DoubleSide,
-                        });
-                    }
                     if (backdrop.backdrop_type === 'effect') {
                         uniforms = {
                             time: { value: 0 },
-                            resolution: { value: [backdrop.width, backdrop.height] },
+                            resolution: { value: [rect.width, rect.height] },
                             scale: { value: [backdrop.scale] },
                             color: { value: parse_html_color_to_vec4(backdrop.color)}
                         };
@@ -1314,8 +1319,63 @@ class LevelEditor {
                             side: THREE.DoubleSide,
                         });
                     }
-                    let mesh = new THREE.Mesh(geometry, material);
-                    this.scene.add(mesh);
+                    for (let ri = 0; ri < backdrop.rects.length; ri++) {
+                        let rect = backdrop.rects[ri];
+                        let geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+                        geometry.translate(0.5, 0.5, 0.0);
+                        geometry.scale(rect.width, rect.height, 1.0);
+                        geometry.translate(rect.left, rect.bottom, 0);
+                        // geometry.translate(0, 0, -1);
+                        let uniforms = {};
+                        let material = new THREE.LineBasicMaterial({transparent: true});
+                        material.opacity = 0;
+                        if (backdrop.backdrop_type === 'color') {
+                            let gradient_points = backdrop.colors;
+                            if (gradient_points.length === 1) {
+                                uniforms = {
+                                    n:  { value: 1 },
+                                    ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+                                };
+                            } else if (gradient_points.length === 2) {
+                                let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
+                                let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
+                                let l1 = 1.0 / l;
+                                d[0] *= l1; d[1] *= l1;
+                                uniforms = {
+                                    n:  { value: 2 },
+                                    ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+                                    cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+                                    pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+                                    pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+                                    na: { value: [d[0], d[1]] },
+                                    nb: { value: [-d[0], -d[1]] },
+                                    la: { value: l },
+                                    lb: { value: l },
+                                };
+                            } else if (gradient_points.length === 4) {
+                                uniforms = {
+                                    n:  { value: 4 },
+                                    ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
+                                    cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
+                                    cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
+                                    cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
+                                    pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
+                                    pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
+                                    pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
+                                    pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
+                                };
+                            }
+                            material = new THREE.ShaderMaterial({
+                                uniforms: uniforms,
+                                transparent: true,
+                                vertexShader: document.getElementById('vertex-shader').textContent,
+                                fragmentShader: document.getElementById('fragment-shader-gradient').textContent,
+                                side: THREE.DoubleSide,
+                            });
+                        }
+                        let mesh = new THREE.Mesh(geometry, material);
+                        this.scene.add(mesh);
+                    }
                 }
             }
         }
@@ -1343,16 +1403,17 @@ class LevelEditor {
             this.scene.add(this.backdrop_cursor);
 
         }
-        if (this.backdrop_controls_setup_for !== this.backdrop_index) {
+        if (this.backdrop_controls_setup_for === null) {
             this.backdrop_move_elements = {};
-            this.backdrop_controls_setup_for = this.backdrop_index;
+            this.backdrop_controls_setup_for = [this.backdrop_index, this.rect_index];
             for (let x of this.backdrop_controls)
                 $(x).remove();
             this.backdrop_controls = [];
             if (this.backdrop_index !== null && menus.level.active_key === null) {
                 let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
-                let p0 = this.world_to_ui([backdrop.left, backdrop.bottom]);
-                let p1 = this.world_to_ui([backdrop.left + backdrop.width, backdrop.bottom + backdrop.height]);
+                let rect = backdrop.rects[this.rect_index];
+                let p0 = this.world_to_ui([rect.left, rect.bottom]);
+                let p1 = this.world_to_ui([rect.left + rect.width, rect.bottom + rect.height]);
                 let ox = this.camera_x - this.width * 0.5 / this.scale;
                 let oy = this.camera_y + this.height * 0.5 / this.scale;
 
@@ -1361,8 +1422,8 @@ class LevelEditor {
                 this.backdrop_move_elements.sc0 = sc0;
                 $(sc0).on('mousedown touchstart', function(e) {
                     self.backdrop_move_point = `sc0`;
-                    self.backdrop_move_point_old_coordinates = [backdrop.left, backdrop.bottom];
-                    self.backdrop_move_point_old_size = [backdrop.width, backdrop.height];
+                    self.backdrop_move_point_old_coordinates = [rect.left, rect.bottom];
+                    self.backdrop_move_point_old_size = [rect.width, rect.height];
                     self.handle_down(e);
                 });
                 $(this.element).append(sc0);
@@ -1372,8 +1433,8 @@ class LevelEditor {
                 this.backdrop_move_elements.sc3 = sc3;
                 $(sc3).on('mousedown touchstart', function(e) {
                     self.backdrop_move_point = `sc3`;
-                    self.backdrop_move_point_old_coordinates = [backdrop.left, backdrop.bottom];
-                    self.backdrop_move_point_old_size = [backdrop.width, backdrop.height];
+                    self.backdrop_move_point_old_coordinates = [rect.left, rect.bottom];
+                    self.backdrop_move_point_old_size = [rect.width, rect.height];
                     self.backdrop_move_element = sc3;
                     self.handle_down(e);
                 });
