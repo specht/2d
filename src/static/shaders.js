@@ -2,7 +2,8 @@ let shaders = null;
 
 class Shaders {
     constructor() {
-        this.files = ['basic.vs', 'texture.fs', 'gradient.fs', 'snow.fs', 'smoke.fs'];
+        this.files = ['basic.vs', 'texture.fs', 'gradient.fs',
+            'snow.fs', 'smoke.fs', 'lightrays.fs'];
         this.shaders = {};
         shaders = this;
     }
