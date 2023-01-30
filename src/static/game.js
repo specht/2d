@@ -177,6 +177,7 @@ class Game {
                         this.data.levels[li].layers[lyi].scale ??= 1.0;
                         this.data.levels[li].layers[lyi].speed ??= 1.0;
                         this.data.levels[li].layers[lyi].color ??= '#ffffffff';
+                        this.data.levels[li].layers[lyi].control_points ??= [];
                     }
                 }
             }

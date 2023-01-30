@@ -7,28 +7,13 @@ precision highp float;
 
 uniform float time;
 uniform float scale;
+uniform lowp vec2 cpa, cpb;
 varying vec2 vuv;
 uniform vec4 color;
+float l;
 
-
-mat3 rotX(float a) {
-    float c = cos(a);
-    float s = sin(a);
-    return mat3(
-        1, 0, 0,
-        0, c, -s,
-        0, s, c
-    );
-}
-
-mat3 rotY(float a) {
-    float c = cos(a);
-    float s = sin(a);
-    return mat3(
-        c, 0, -s,
-        0, 1, 0,
-        s, 0, c
-    );
+float gradient(vec2 uv) {
+  return 1.0 - clamp(dot((uv - cpa), (cpb - cpa) * l), 0.0, 1.0);
 }
 
 float random(vec2 pos) {
@@ -60,7 +45,8 @@ float fbm(vec2 pos) {
 }
 
 void main(void) {
-    vec2 p = vec2(vuv.x, vuv.y) / scale;
+    l = 1.0 / (pow(length(cpb - cpa), 2.0));
+    vec2 p = vec2(vuv.x, vuv.y) / 240.0 / scale;
 
     float t = 0.0, d;
 
@@ -91,7 +77,9 @@ void main(void) {
         clamp(length(r.x), 1.0, 1.0)
     );
 
+    float alpha = gradient(vuv);
+    f *= alpha;
     color_out = (f * f * f + 0.6 * f * f + 0.9 * f) * color_out;
 
-    gl_FragColor = vec4(color.r, color.g, color.b, color.a * color_out.r);
+    gl_FragColor = vec4(color.r, color.g, color.b, color.a * color_out.r * alpha);
 }

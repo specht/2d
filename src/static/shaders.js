@@ -3,8 +3,14 @@ let shaders = null;
 class Shaders {
     constructor() {
         this.files = ['basic.vs', 'texture.fs', 'gradient.fs',
-            'snow.fs', 'smoke.fs', 'lightrays.fs'];
+            'snow.fs', 'smoke.fs', 'fire.fs', 'lightrays.fs'];
         this.shaders = {};
+        this.control_points_for_effect = {
+            'snow': [[0.5, 0.0], [0.5, -0.1]],
+            'smoke': [[0.5, 0.0], [0.5, -0.1]],
+            'fire': [[0.5, 0.0], [0.5, -0.1]],
+            'lightrays': [[0.5, 0.0], [0.5, -0.1], [0.45, 1.1], [0.55, 1.2]],
+        };
         shaders = this;
     }
 

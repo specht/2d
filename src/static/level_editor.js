@@ -662,6 +662,8 @@ class LevelEditor {
                     options: {
                         'snow': 'Schnee',
                         'smoke': 'Rauch',
+                        'fire': 'Feuer',
+                        'lightrays': 'Lichtstrahlen',
                     },
                     get: () => {
                         return `${backdrop.effect}`;
@@ -971,6 +973,21 @@ class LevelEditor {
                         this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
                         this.refresh();
                         this.render();
+                    } else if (this.backdrop_move_point.substr(0, 14) === 'control_point_') {
+                        let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
+                        let control_point_index = parseInt(this.backdrop_move_point.substr(14));
+                        let dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
+                        let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
+                        dx /= backdrop.rects[0].width;
+                        dy /= backdrop.rects[0].height;
+                        let nx = Math.round((this.backdrop_move_point_old_coordinates[0] + dx) * 1000.0) / 1000.0;
+                        let ny = Math.round((this.backdrop_move_point_old_coordinates[1] + dy) * 1000.0) / 1000.0;
+                        backdrop.control_points[control_point_index] = [nx, ny];
+                        let p = this.world_to_ui([backdrop.rects[0].left + backdrop.rects[0].width * nx, backdrop.rects[0].bottom + backdrop.rects[0].height * ny]);
+                        this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
+                        this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
+                        this.refresh();
+                        this.render();
                     } else if (this.backdrop_move_point === 'sc0' || this.backdrop_move_point === 'sc3') {
                         let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
                         let rect = backdrop.rects[this.rect_index];
@@ -1010,6 +1027,14 @@ class LevelEditor {
                                     let p = this.world_to_ui([rect.left + rect.width * color[1], rect.bottom + rect.height * color[2]]);
                                     this.backdrop_move_elements[`color_${ci}`].css('left', `${p[0] - 8}px`);
                                     this.backdrop_move_elements[`color_${ci}`].css('top', `${p[1] - 8}px`);
+                                }
+                            }
+                            for (let cpi = 0; cpi < backdrop.control_points.length; cpi++) {
+                                if (`control_point_${cpi}` in this.backdrop_move_elements) {
+                                    let control_point = backdrop.control_points[cpi];
+                                    let p = this.world_to_ui([rect.left + rect.width * control_point[0], rect.bottom + rect.height * control_point[1]]);
+                                    this.backdrop_move_elements[`control_point_${cpi}`].css('left', `${p[0] - 8}px`);
+                                    this.backdrop_move_elements[`control_point_${cpi}`].css('top', `${p[1] - 8}px`);
                                 }
                             }
                         }
@@ -1331,17 +1356,24 @@ class LevelEditor {
                         let material = new THREE.LineBasicMaterial({transparent: true});
                         material.opacity = 0;
                         if (backdrop.backdrop_type === 'effect') {
+                            let gradient_points = JSON.parse(JSON.stringify(backdrop.control_points));
                             uniforms = {
                                 time: { value: 0 },
                                 resolution: { value: [rect0.width, rect0.height] },
                                 scale: { value: [backdrop.scale] },
                                 color: { value: parse_html_color_to_vec4(backdrop.color)}
                             };
+                            for (let gi = 0; gi < gradient_points.length; gi++) {
+                                gradient_points[gi] ??= shaders.control_points_for_effect[backdrop.effect][gi];
+                                gradient_points[gi][0] = rect0.width * gradient_points[gi][0] + rect0.left;
+                                gradient_points[gi][1] = rect0.height * gradient_points[gi][1] + rect0.bottom;
+                                uniforms[`cp${String.fromCharCode(97 + gi)}`] = { value: [gradient_points[gi][0], gradient_points[gi][1]] };
+                            }
                             material = new THREE.ShaderMaterial({
                                 uniforms: uniforms,
                                 transparent: true,
                                 vertexShader: shaders.get('basic.vs'),
-                                fragmentShader: shaders.get(backdrop.effect === 'snow' ? 'snow.fs' : 'smoke.fs'),
+                                fragmentShader: shaders.get(backdrop.effect + '.fs'),
                                 side: THREE.DoubleSide,
                             });
                             let x0 = rect.left;
@@ -1349,10 +1381,6 @@ class LevelEditor {
                             let x1 = rect.left + rect.width;
                             let y1 = rect.bottom + rect.height;
                             let uv = geometry.attributes.uv;
-                            x0 *= 0.01;
-                            y0 *= 0.01;
-                            x1 *= 0.01;
-                            y1 *= 0.01;
                             uv.setXY(0, x0, y1);
                             uv.setXY(1, x1, y1);
                             uv.setXY(2, x0, y0);
@@ -1499,6 +1527,26 @@ class LevelEditor {
                             });
                             $(this.element).append(swatch_control);
                         }
+                    }
+                }
+                if (backdrop.backdrop_type === 'effect') {
+                    let default_control_points = shaders.control_points_for_effect[backdrop.effect] ?? [];
+                    let rect = backdrop.rects[0];
+                    let p0 = this.world_to_ui([rect.left, rect.bottom]);
+                    let p1 = this.world_to_ui([rect.left + rect.width, rect.bottom + rect.height]);
+                    for (let cpi = 0; cpi < default_control_points.length; cpi++) {
+                        let c = backdrop.control_points[cpi] ?? default_control_points[cpi];
+                        let swatch_control = $(`<div style='top: ${p0[1] + (p1[1] - p0[1]) * c[1] - 8}px; left: ${p0[0] + (p1[0] - p0[0]) * c[0] - 8}px; background-color: #fff;'>`).addClass('backdrop-swatch');
+                        this.backdrop_controls.push(swatch_control);
+                        this.backdrop_move_elements[`control_point_${cpi}`] = swatch_control;
+                        $(swatch_control).on('mousedown touchstart', function(e) {
+                            let c = backdrop.control_points[cpi] ?? default_control_points[cpi];
+                            self.backdrop_move_point = `control_point_${cpi}`;
+                            self.backdrop_move_point_old_coordinates = [c[0], c[1]];
+                            self.backdrop_move_element = swatch_control;
+                            self.handle_down(e);
+                        });
+                        $(this.element).append(swatch_control);
                     }
                 }
             }

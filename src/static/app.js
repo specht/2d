@@ -1050,17 +1050,23 @@ class Game {
 					material.opacity = 0;
 
 					if (backdrop.backdrop_type === 'effect') {
+						let gradient_points = JSON.parse(JSON.stringify(backdrop.control_points));
 						uniforms = {
 							time:  { value: 0 },
 							resolution: { value: [rect0.width, rect0.height] },
 							scale: { value: backdrop.scale },
 							color: { value: parse_html_color_to_vec4(backdrop.color) },
 						};
+						for (let gi = 0; gi < gradient_points.length; gi++) {
+							gradient_points[gi][0] = rect0.width * gradient_points[gi][0] + rect0.left;
+							gradient_points[gi][1] = rect0.height * gradient_points[gi][1] + rect0.bottom;
+							uniforms[`cp${String.fromCharCode(97 + gi)}`] = { value: [gradient_points[gi][0], gradient_points[gi][1]] };
+						}
 						material = new THREE.ShaderMaterial({
 							uniforms: uniforms,
 							transparent: true,
 							vertexShader: shaders.get('basic.vs'),
-							fragmentShader: shaders.get(backdrop.effect === 'snow' ? 'snow.fs' : 'smoke.fs'),
+							fragmentShader: shaders.get(backdrop.effect + '.fs'),
 							side: THREE.DoubleSide,
 						});
 						let x0 = rect.left;
@@ -1068,10 +1074,6 @@ class Game {
 						let x1 = rect.left + rect.width;
 						let y1 = rect.bottom + rect.height;
 						let uv = geometry.attributes.uv;
-						x0 *= 0.01;
-						y0 *= 0.01;
-						x1 *= 0.01;
-						y1 *= 0.01;
 						uv.setXY(0, x0, y1);
 						uv.setXY(1, x1, y1);
 						uv.setXY(2, x0, y0);
