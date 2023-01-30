@@ -76,14 +76,16 @@ void main() {
     vec2 r = vec2(fbm(p + q /2.0 + time * speed.x - p.x - p.y), fbm(p + q - time * speed.y));
     vec3 c = mix(c1, c2, fbm(p + r)) + mix(c3, c4, r.x) - mix(c5, c6, r.y);
     vec3 color = vec3(c * 0.7);
+    float alpha = gradient(vuv);
+    color.rgb *= alpha;
     color += .05;
     color.r *= .8;
     vec3 hsv = rgb2hsv(color);
-    float alpha = gradient(vuv);
     hsv.y *= hsv.z  * 1.1;
     hsv.z *= hsv.y * 1.13;
     hsv.y = (2.2-hsv.z*.9)*1.20;
     hsv.z *= alpha;
     color = hsv2rgb(hsv);
-    gl_FragColor = vec4(color.x, color.y, color.z, alpha);
+    float lightness = color.r * 0.299 + color.g * 0.587 + color.b * 0.114;
+    gl_FragColor = vec4(color.x, color.y, color.z, pow(lightness, 0.25));
 }
