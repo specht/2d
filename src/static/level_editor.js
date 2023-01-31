@@ -1536,7 +1536,6 @@ class LevelEditor {
                     let p1 = this.world_to_ui([rect.left + rect.width, rect.bottom + rect.height]);
                     for (let cpi = 0; cpi < default_control_points.length; cpi++) {
                         let c = backdrop.control_points[cpi] ?? default_control_points[cpi];
-                        console.log(c);
                         let swatch_control = $(`<div style='top: ${p0[1] + (p1[1] - p0[1]) * c[1] - 8}px; left: ${p0[0] + (p1[0] - p0[0]) * c[0] - 8}px; background-color: #fff;'>`).addClass('backdrop-swatch');
                         this.backdrop_controls.push(swatch_control);
                         this.backdrop_move_elements[`control_point_${cpi}`] = swatch_control;

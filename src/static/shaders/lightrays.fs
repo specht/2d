@@ -53,12 +53,9 @@ void main(void)
 		vec4(1.0, 1.0, 1.0, 1.0) *
 		rayStrength(rayPos2, rayRefDir2, coord, raySeedA2, raySeedB2, raySpeed2);
 
-	vec4 fragColor = rays1 * 0.5 + rays2 * 0.4;
+	vec4 fragColor = rays1 * 0.5 + rays2 * 0.5;
 
-	// Attenuate brightness towards the bottom, simulating light-loss due to depth.
-	// Give the whole thing a blue-green tinge as well.
-	float brightness = 1.0 - (coord.y / resolution);
-    //brightness = 1.0;
+    float brightness = 2.0;
     float r = fragColor.r * brightness;
 	fragColor.x *= 0.1 + (brightness * 0.8);
 	fragColor.y *= 0.3 + (brightness * 0.6);

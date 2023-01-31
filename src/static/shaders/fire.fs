@@ -87,5 +87,5 @@ void main() {
     hsv.z *= alpha;
     color = hsv2rgb(hsv);
     float lightness = color.r * 0.299 + color.g * 0.587 + color.b * 0.114;
-    gl_FragColor = vec4(color.x, color.y, color.z, pow(lightness, 0.25));
+    gl_FragColor = vec4(color.x, color.y, color.z, pow(lightness, 0.5));
 }
