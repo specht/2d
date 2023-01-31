@@ -884,6 +884,10 @@ class Game {
         this.camera.position.x = 0;
         this.camera.position.z = 10;
         this.camera.position.y = 0;
+        this.screen_camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
+        this.screen_camera.position.x = 0;
+        this.screen_camera.position.z = 10;
+        this.screen_camera.position.y = 0;
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setClearColor("#000");
 		this.camera_x = 0.0;
@@ -1149,6 +1153,23 @@ class Game {
 		for (let i = this.layers.length - 1; i >= 0; i--)
 			this.scene.add(this.layers[i]);
 
+		if (this.data.properties.crt_effect) {
+			this.render_target = new THREE.WebGLRenderTarget(this.width, this.height, {magFilter: THREE.NearestFilter});
+			this.screen_scene = new THREE.Scene();
+			let geometry = new THREE.PlaneGeometry(this.width, this.height);
+			console.log('size', this.width, this.height, this.data.properties.screen_pixel_height);
+			let material = new THREE.ShaderMaterial({
+				uniforms: {
+					texture1: { value: this.render_target.texture },
+					resolution: { value: [this.data.properties.screen_pixel_height / 9.0 * 16.0, this.data.properties.screen_pixel_height]},
+				},
+				vertexShader: shaders.get('basic.vs'),
+				fragmentShader: shaders.get('screen.fs'),
+				side: THREE.DoubleSide,
+			});
+			this.screen_scene.add(new THREE.Mesh(geometry, material));
+		}
+
 		// let material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
         // let points = [];
         // points.push(new THREE.Vector3(0, 24, 2));
@@ -1157,7 +1178,6 @@ class Game {
         // let geometry = new THREE.BufferGeometry().setFromPoints(points);
         // let line = new THREE.Line(geometry, material);
         // this.scene.add(line);
-
 	}
 
 	parse_yt_timestamp(s) {
@@ -1361,8 +1381,23 @@ class Game {
 		this.camera.updateProjectionMatrix();
         this.renderer.setSize(this.width, this.height);
         this.renderer.sortObjects = false;
+
+		// this.renderer.gammaFactor = 2.2;
+		// this.renderer.outputEncoding = THREE.sRGBEncoding;
+
+		this.renderer.setRenderTarget(this.data.properties.crt_effect ? this.render_target : null);
         this.renderer.render(this.scene, this.camera);
-		if (this.running)
+
+		if (this.data.properties.crt_effect) {
+			this.screen_camera.left = -this.width * 0.5;
+			this.screen_camera.right = this.width * 0.5;
+			this.screen_camera.bottom = -this.height * 0.5;
+			this.screen_camera.top = this.height * 0.5;
+			this.screen_camera.updateProjectionMatrix();
+			this.renderer.setRenderTarget(null);
+			this.renderer.render(this.screen_scene, this.screen_camera);
+		}
+ 		if (this.running)
 	        requestAnimationFrame((t) => this.render());
     }
 
@@ -1379,6 +1414,7 @@ class Game {
 	handle_resize() {
 		this.width = window.innerWidth;
 		this.height = window.innerHeight;
+
 		if (this.height * 16.0/9 < this.width)
 			$('.play_container_inner').css('width', '').css('height', '100%');
 		else

@@ -475,6 +475,15 @@ class Game {
                 self.data.properties.safe_zone_y = y;
             },
         });
+        new CheckboxWidget({
+            container: $('#game-settings-here'),
+            label: 'Kathodenstrahlröhre:',
+            default: false,
+            get: () => self.data.properties.crt_effect,
+            set: (x) => {
+                self.data.properties.crt_effect = x;
+            },
+        });
         new SeparatorWidget({
             container: $('#game-settings-here'),
             label: 'Musik',

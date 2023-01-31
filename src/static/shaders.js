@@ -2,7 +2,7 @@ let shaders = null;
 
 class Shaders {
     constructor() {
-        this.files = ['basic.vs', 'texture.fs', 'gradient.fs',
+        this.files = ['basic.vs', 'texture.fs', 'screen.fs', 'gradient.fs',
             'snow.fs', 'smoke.fs', 'fire.fs', 'lightrays.fs'];
         this.shaders = {};
         this.control_points_for_effect = {
