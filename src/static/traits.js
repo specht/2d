@@ -11,6 +11,7 @@ var SPRITE_TRAITS_ORDER = [
             'block_above',
             'block_sides',
             'block_below',
+            'falls_down',
         ],
     ],
     [
@@ -162,6 +163,31 @@ var SPRITE_TRAITS = {
     },
     block_below: {
         label: 'man kann nicht von unten reinspringen',
+    },
+    falls_down: {
+        label: 'fällt runter, wenn man drauf steht',
+        properties: {
+            timeout: {
+                label: 'fällt nach',
+                type: 'float',
+                suffix: 's',
+                min: 0.0,
+                max: 100.0,
+                default: 1.0,
+                decimalPlaces: 1,
+                step: 0.1,
+            },
+            accumulates: {
+                label: 'akkumuliert Zeit',
+                type: 'bool',
+                default: false,
+            },
+            falls_on_baddie: {
+                label: 'fällt auch bei Gegnern',
+                type: 'bool',
+                default: false,
+            },
+        },
     },
     ladder: {
         label: 'man kann dran hoch- und runterklettern',

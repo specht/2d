@@ -6,6 +6,24 @@ let KEY_RIGHT = 'right';
 let KEY_JUMP = 'jump';
 window.yt_player = null;
 
+class FutureEventList {
+	constructor() {
+		this.tree = new AVLBundle();
+	}
+
+	insert(t, value) {
+		this.tree.insert(t, value);
+	}
+
+	peek() {
+		return this.tree.min();
+	}
+
+	pop() {
+		return this.tree.pop().data;
+	}
+};
+
 class Character {
 	constructor(game, sprite_index, mesh) {
 		this.game = game;
@@ -24,6 +42,7 @@ class Character {
 		this.invincible_until = 0;
 		this.initial_position = [mesh.position.x, mesh.position.y];
 		this.simulate_this = true;
+		this.falling_sprite_indices = {};
 		console.log(this.initial_position);
 
 		if ('actor' in this.sprite.traits) {
@@ -141,10 +160,10 @@ class Character {
 				let baddie = this.game.baddies[bi];
 				let x = baddie.mesh.position.x;
 				let y = baddie.mesh.position.y;
-				let x0 = x - baddie.sprite.width / 2;
-				let x1 = x + baddie.sprite.width / 2;
+				let x0 = x - (baddie.sprite.width / 2) * baddie.traits.ex_left;
+				let x1 = x + (baddie.sprite.width / 2) * baddie.traits.ex_right;
 				let y0 = y;
-				let y1 = y + baddie.sprite.height;
+				let y1 = y + baddie.sprite.height * baddie.traits.ex_top;
 				this.game.dynamic_interval_tree_x.insert([x0, x1], bi);
 				this.game.dynamic_interval_tree_y.insert([y0, y1], bi);
 			}
@@ -489,6 +508,25 @@ class Character {
 				this.pressed_keys = {};
 		}
 
+		let entry = this.has_trait_at(['falls_down'], -0.5, 0.5, -0.5, this.sprite.height * this.traits.ex_top);
+		if (entry) {
+			let sprite = this.game.data.sprites[entry.sprite_index];
+			if (!(this.character_trait === 'baddie' && (!sprite.traits.falls_down.falls_on_baddie))) {
+				// this.falling_sprite_indices
+				if (!entry.falling) {
+					if (sprite.traits.falls_down.accumulates) {
+						this.game.active_level_sprites[entry.entry_index].accumulated ??= 0;
+						this.game.active_level_sprites[entry.entry_index].accumulated += 1;
+					}
+					if ((!(sprite.traits.falls_down.accumulates)) || (this.game.active_level_sprites[entry.entry_index].accumulated >= sprite.traits.falls_down.timeout * SIMULATION_RATE)) {
+						let t = sprite.traits.falls_down.accumulates ? 0.0 : sprite.traits.falls_down.timeout;
+						this.game.active_level_sprites[entry.entry_index].falling = true;
+						this.game.future_event_list.insert(this.game.clock.getElapsedTime() + t, {action: 'falls_down', entry_index: entry.entry_index});
+					}
+				}
+			}
+		}
+
 		let dx = 0;
 		let factor = 1;
 		if (this.character_trait === 'baddie' && this.pressed_keys[KEY_JUMP]) factor = this.traits.jump_vfactor;
@@ -512,7 +550,7 @@ class Character {
 		if (dx < 0) direction = 'left';
 
 		let dy = 0;
-		let entry = this.has_trait_at(['ladder'], -0.5, 0.5, 0.1, 1.1);
+		entry = this.has_trait_at(['ladder'], -0.5, 0.5, 0.1, 1.1);
 		if (entry) {
 			if (this.pressed_keys[KEY_UP]) {
 				dy += this.traits.vrun;
@@ -751,6 +789,7 @@ class Game {
 		this.dynamic_interval_tree_x = new IntervalTree();
 		this.dynamic_interval_tree_y = new IntervalTree();
 		this.active_level_sprites = [];
+		this.future_event_list = new FutureEventList();
 		this.reset();
 		window.addEventListener('resize', () => {
 			self.handle_resize();
@@ -920,6 +959,8 @@ class Game {
 		this.dynamic_interval_tree_y.clear();
 
 		this.active_level_sprites = [];
+		this.falling_sprite_indices = {};
+		this.future_event_list = new FutureEventList();
 
 		this.ts_zoom_actor = -1;
 		this.reached_flag = false;
@@ -1480,6 +1521,33 @@ class Game {
 			this.player_character.simulation_step(t);
 		for (let baddie of this.baddies)
 			baddie.simulation_step(t);
+
+		let next_fel_entry = this.future_event_list.peek();
+		while ((next_fel_entry !== null) && (next_fel_entry <= t)) {
+			let fel_entry = this.future_event_list.pop();
+			console.log(fel_entry);
+			if (fel_entry.action === 'falls_down') {
+				this.falling_sprite_indices[fel_entry.entry_index] = {vy: 0.0};
+				let sprite = this.data.sprites[this.active_level_sprites[fel_entry.entry_index].sprite_index];
+				let mesh = this.active_level_sprites[fel_entry.entry_index].mesh;
+				let x = mesh.position.x;
+				let y = mesh.position.y;
+				let x0 = x - sprite.width / 2;
+				let x1 = x + sprite.width / 2;
+				let y0 = y;
+				let y1 = y + sprite.height;
+				this.interval_tree_x.remove([x0, x1], fel_entry.entry_index);
+				this.interval_tree_y.remove([y0, y1], fel_entry.entry_index);
+			}
+			next_fel_entry = this.future_event_list.peek();
+		}
+		for (let entry_index in this.falling_sprite_indices) {
+			let falling_sprite = this.falling_sprite_indices[entry_index];
+			let mesh = this.active_level_sprites[entry_index].mesh;
+			falling_sprite.vy += this.data.properties.gravity;
+			mesh.position.y -= falling_sprite.vy;
+			// TODO: make them disappear when they're gone
+		}
 	}
 
 	simulate() {
