@@ -508,7 +508,7 @@ class Character {
 				this.pressed_keys = {};
 		}
 
-		let entry = this.has_trait_at(['falls_down'], -0.5, 0.5, -0.5, this.sprite.height * this.traits.ex_top);
+		let entry = this.has_trait_at(['falls_down'], -0.5, 0.5, -1.0, -0.1);
 		if (entry) {
 			let sprite = this.game.data.sprites[entry.sprite_index];
 			if (!(this.character_trait === 'baddie' && (!sprite.traits.falls_down.falls_on_baddie))) {
@@ -1541,13 +1541,19 @@ class Game {
 			}
 			next_fel_entry = this.future_event_list.peek();
 		}
+		let delete_these = [];
 		for (let entry_index in this.falling_sprite_indices) {
 			let falling_sprite = this.falling_sprite_indices[entry_index];
 			let mesh = this.active_level_sprites[entry_index].mesh;
 			falling_sprite.vy += this.data.properties.gravity;
 			mesh.position.y -= falling_sprite.vy;
-			// TODO: make them disappear when they're gone
+			if (mesh.position.y < this.camera.bottom - this.data.properties.screen_pixel_height) {
+				mesh.visible = false;
+				delete_these.push(entry_index);
+			}
 		}
+		for (let index of delete_these)
+			delete this.falling_sprite_indices[index];
 	}
 
 	simulate() {
