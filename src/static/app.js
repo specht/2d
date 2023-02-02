@@ -1342,14 +1342,17 @@ class Game {
 					mesh_state.frame_index = Math.floor((this.clock.getElapsedTime() * fps) + mesh_state.frame_offset) % sprite.states[sti].frames.length;
 					if (mesh_state.frame_index < 0) mesh_state.frame_index += sprite.states[sti].frames.length;
 				} else {
-					let t = (this.clock.getElapsedTime() - mesh_state.t0) / (mesh_state.t1 - mesh_state.t0);
-					if (t > 1.0) t = 1.0;
-					mesh_state.frame_index = Math.floor(t * sprite.states[sti].frames.length);
-					if (mesh_state.frame_index > sprite.states[sti].frames.length - 1)
-						mesh_state.frame_index = sprite.states[sti].frames.length - 1;
+					if (mesh_state.t0 && mesh_state.t1) {
+						let t = (this.clock.getElapsedTime() - mesh_state.t0) / (mesh_state.t1 - mesh_state.t0);
+						if (t > 1.0) t = 1.0;
+						mesh_state.frame_index = Math.floor(t * sprite.states[sti].frames.length);
+						if (mesh_state.frame_index > sprite.states[sti].frames.length - 1)
+							mesh_state.frame_index = sprite.states[sti].frames.length - 1;
+					}
 				}
 				let fi = mesh_state.frame_index;
 				if (fi < 0) fi += sprite.states[sti].frames.length;
+				if (fi > sprite.states[sti].frames.length - 1) fi = sprite.states[sti].frames.length - 1;
 				let uv = mesh.geometry.attributes.uv;
 				let tw = this.spritesheet_info.width;
 				let th = this.spritesheet_info.height;
