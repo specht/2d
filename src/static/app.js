@@ -318,7 +318,7 @@ class Character {
 	}
 
 	standing_on_ground() {
-		return this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, 0);
+		return this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, -0.01);
 	}
 
 	center_on_entry(entry) {
@@ -514,14 +514,27 @@ class Character {
 			if (!(this.character_trait === 'baddie' && (!sprite.traits.falls_down.falls_on_baddie))) {
 				// this.falling_sprite_indices
 				if (!entry.falling) {
+					for (let sti = 0; sti < sprite.states.length; sti++) {
+						if ('crumbling' in sprite.states[sti].traits.falls_down)
+							this.game.state_for_mesh[entry.mesh.uuid].state_index = sti;
+							this.game.state_for_mesh[entry.mesh.uuid].loop = false;
+					}
 					if (sprite.traits.falls_down.accumulates) {
 						this.game.active_level_sprites[entry.entry_index].accumulated ??= 0;
 						this.game.active_level_sprites[entry.entry_index].accumulated += 1;
+						let fc = sprite.states[this.game.state_for_mesh[entry.mesh.uuid].state_index].frames.length;
+						let fi = Math.floor(this.game.active_level_sprites[entry.entry_index].accumulated / SIMULATION_RATE / sprite.traits.falls_down.timeout * fc);
+						if (fi > fc - 1) fi = fc - 1;
+						this.game.state_for_mesh[entry.mesh.uuid].frame_index = fi;
 					}
 					if ((!(sprite.traits.falls_down.accumulates)) || (this.game.active_level_sprites[entry.entry_index].accumulated >= sprite.traits.falls_down.timeout * SIMULATION_RATE)) {
 						let t = sprite.traits.falls_down.accumulates ? 0.0 : sprite.traits.falls_down.timeout;
 						this.game.active_level_sprites[entry.entry_index].falling = true;
 						this.game.future_event_list.insert(this.game.clock.getElapsedTime() + t, {action: 'falls_down', entry_index: entry.entry_index});
+						if (!sprite.traits.falls_down.accumulates) {
+							this.game.state_for_mesh[entry.mesh.uuid].t0 = this.game.clock.getElapsedTime();
+							this.game.state_for_mesh[entry.mesh.uuid].t1 = this.game.clock.getElapsedTime() + sprite.traits.falls_down.timeout;
+						}
 					}
 				}
 			}
@@ -1077,7 +1090,7 @@ class Game {
 					let fy = sprite.states[0].properties.phase_y;
 					let fr = sprite.states[0].properties.phase_r;
 					let fo = Math.floor((mesh.position.x / sprite.width) * fx + (mesh.position.y / sprite.height) * fy + Math.random() * 1024 * fr);
-					this.state_for_mesh[mesh.uuid] = {state_index: 0, frame_offset: fo};
+					this.state_for_mesh[mesh.uuid] = {state_index: 0, frame_offset: fo, frame_index: 0, loop: true};
 					game_layer.add(mesh);
 				}
 			} else if (layer.type === 'backdrop') {
@@ -1325,7 +1338,17 @@ class Game {
 				let mesh_state = this.state_for_mesh[mesh.uuid];
 				let sti = mesh_state.state_index;
 				let fps = sprite.states[sti].properties.fps ?? 8;
-				let fi = Math.floor((this.clock.getElapsedTime() * fps) + mesh_state.frame_offset) % sprite.states[sti].frames.length;
+				if (mesh_state.loop) {
+					mesh_state.frame_index = Math.floor((this.clock.getElapsedTime() * fps) + mesh_state.frame_offset) % sprite.states[sti].frames.length;
+					if (mesh_state.frame_index < 0) mesh_state.frame_index += sprite.states[sti].frames.length;
+				} else {
+					let t = (this.clock.getElapsedTime() - mesh_state.t0) / (mesh_state.t1 - mesh_state.t0);
+					if (t > 1.0) t = 1.0;
+					mesh_state.frame_index = Math.floor(t * sprite.states[sti].frames.length);
+					if (mesh_state.frame_index > sprite.states[sti].frames.length - 1)
+						mesh_state.frame_index = sprite.states[sti].frames.length - 1;
+				}
+				let fi = mesh_state.frame_index;
 				if (fi < 0) fi += sprite.states[sti].frames.length;
 				let uv = mesh.geometry.attributes.uv;
 				let tw = this.spritesheet_info.width;
@@ -1525,7 +1548,6 @@ class Game {
 		let next_fel_entry = this.future_event_list.peek();
 		while ((next_fel_entry !== null) && (next_fel_entry <= t)) {
 			let fel_entry = this.future_event_list.pop();
-			console.log(fel_entry);
 			if (fel_entry.action === 'falls_down') {
 				this.falling_sprite_indices[fel_entry.entry_index] = {vy: 0.0};
 				let sprite = this.data.sprites[this.active_level_sprites[fel_entry.entry_index].sprite_index];

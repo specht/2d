@@ -59,6 +59,9 @@ var STATE_TRAITS_ORDER = {
     checkpoint: [
         'active',
     ],
+    falls_down: [
+        'crumbling',
+    ],
 };
 
 var SPRITE_TRAITS = {
@@ -178,7 +181,7 @@ var SPRITE_TRAITS = {
                 step: 0.1,
             },
             accumulates: {
-                label: 'akkumuliert Zeit',
+                label: 'akkumuliert Schaden',
                 type: 'bool',
                 default: false,
             },
@@ -515,5 +518,8 @@ var STATE_TRAITS = {
     },
     checkpoint: {
         active: {label: 'Checkpoint aktiviert'},
+    },
+    falls_down: {
+        crumbling: {label: 'zerbröselt'},
     }
 };
