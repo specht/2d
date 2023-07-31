@@ -1,4 +1,4 @@
-FROM ruby:3.1-alpine
+FROM ruby:3.2-alpine
 
 RUN apk update && apk upgrade
 RUN apk add cmake alpine-sdk less curl bash curl-dev ruby-dev build-base docker tzdata glib-dev vips && rm -rf /var/cache/apk/*

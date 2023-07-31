@@ -5,4 +5,4 @@
 
 DEVELOPMENT = ENV['DEVELOPMENT']
 
-WEB_ROOT = DEVELOPMENT ? 'http://localhost:8025' : "https://#{WEBSITE_HOST}"
+WEB_ROOT = DEVELOPMENT ? 'http://localhost:8025' : "https://2d.hackschule.de"
