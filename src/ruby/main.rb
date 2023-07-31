@@ -223,7 +223,7 @@ ANIMALS = %w(s1cfi07 rqaux7w q6xbd0g pxly0tu on87yoe n0vdqui lm78e76 lclapq1 l3l
 
         def self.render_spritesheet_for_tag(tag)
             path = "/gen/spritesheets/#{tag}.json"
-            return if File.exists?(path)
+            return if File.exist?(path)
             debug "Rendering spritesheet for #{tag}!"
             FileUtils.mkpath(File.dirname(path))
             game = JSON.parse(File.read("/gen/games/#{tag}.json"))
@@ -308,7 +308,7 @@ ANIMALS = %w(s1cfi07 rqaux7w q6xbd0g pxly0tu on87yoe n0vdqui lm78e76 lclapq1 l3l
             sheets.each.with_index do |sheet, i|
                 sheet_sha1 = Digest::SHA1.hexdigest(sheet_contents[i].to_json)[0, 16]
                 path = "/gen/spritesheets/#{sheet_sha1}.png"
-                unless File.exists?(path)
+                unless File.exist?(path)
                     sheet.save(path + 's', :fast_rgba)
                     im = Vips::Image.new_from_file path + 's'
                     im = im.resize(4, :kernel => :nearest)
@@ -385,7 +385,7 @@ ANIMALS = %w(s1cfi07 rqaux7w q6xbd0g pxly0tu on87yoe n0vdqui lm78e76 lclapq1 l3l
                         frame_sha1 = Digest::SHA1.hexdigest(png).to_i(16).to_s(36)[0, 7]
                         unique_frames << frame_sha1
                         path = "/gen/png/#{frame_sha1}.png"
-                        unless File.exists?(path)
+                        unless File.exist?(path)
                             File.open(path, "w") do |f|
                                 f.write png
                             end
@@ -405,7 +405,7 @@ ANIMALS = %w(s1cfi07 rqaux7w q6xbd0g pxly0tu on87yoe n0vdqui lm78e76 lclapq1 l3l
             size += game_json.size
             tag = Digest::SHA1.hexdigest(game_json).to_i(16).to_s(36)[0, 7]
             path = "/gen/games/#{tag}.json"
-            unless File.exists?(path)
+            unless File.exist?(path)
                 File.open(path, "w") do |f|
                     f.write game_json
                 end
@@ -531,7 +531,7 @@ ANIMALS = %w(s1cfi07 rqaux7w q6xbd0g pxly0tu on87yoe n0vdqui lm78e76 lclapq1 l3l
                     original_path = path.dup
 
                     path = File::join("/static", path) + ".html"
-                    if File::exists?(path)
+                    if File::exist?(path)
                         content = File::read(path, :encoding => "utf-8")
 
                         @original_path = original_path
