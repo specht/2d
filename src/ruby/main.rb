@@ -463,8 +463,7 @@ ANIMALS = %w(s1cfi07 rqaux7w q6xbd0g pxly0tu on87yoe n0vdqui lm78e76 lclapq1 l3l
         post "/api/get_games" do
             nodes = neo4j_query(<<~END_OF_QUERY).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x["g"] }
             MATCH (g:Game)
-            WHERE NOT (:Game)-[:PARENT]->(g)
-            WHERE g.ts_created > 1696779915
+            WHERE (NOT (:Game)-[:PARENT]->(g)) AND (g.ts_created > 1696779915)
             OPTIONAL MATCH (g)-[:PARENT*]->(p:Game)
             OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
             OPTIONAL MATCH (g)-[:TITLE]->(t:String)
