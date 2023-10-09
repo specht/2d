@@ -190,6 +190,13 @@ var SPRITE_TRAITS = {
                 type: 'bool',
                 default: false,
             },
+            damage: {
+                label: 'Schaden',
+                type: 'float',
+                default: 0,
+                min: 0,
+                max: 1000,
+            },
         },
     },
     ladder: {
@@ -281,6 +288,13 @@ var SPRITE_TRAITS = {
     baddie: {
         label: 'Gegner',
         properties: {
+            energy: {
+                label: 'Energie',
+                type: 'float',
+                min: 0,
+                max: 10000,
+                default: 100,
+            },
             damage: {
                 label: 'Schaden',
                 type: 'float',

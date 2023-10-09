@@ -27,6 +27,7 @@ class FutureEventList {
 class Character {
 	constructor(game, sprite_index, mesh) {
 		this.game = game;
+		this.active = true;
 		this.sprite_index = sprite_index;
 		this.sprite = this.game.data.sprites[this.sprite_index];
 		this.mesh = mesh;
@@ -151,42 +152,14 @@ class Character {
 	}
 
 	has_baddie_at(dx0, dx1, dy0, dy1) {
-
-		if (this.game.dynamic_interval_frame !== this.game.frame) {
-			// recreate baddie interval tree
-			this.game.dynamic_interval_tree_x.clear();
-			this.game.dynamic_interval_tree_y.clear();
-			for (let bi = 0; bi < this.game.baddies.length; bi++) {
-				let baddie = this.game.baddies[bi];
-				let x = baddie.mesh.position.x;
-				let y = baddie.mesh.position.y;
-				let x0 = x - (baddie.sprite.width / 2) * baddie.traits.ex_left;
-				let x1 = x + (baddie.sprite.width / 2) * baddie.traits.ex_right;
-				let y0 = y;
-				let y1 = y + baddie.sprite.height * baddie.traits.ex_top;
-				this.game.dynamic_interval_tree_x.insert([x0, x1], bi);
-				this.game.dynamic_interval_tree_y.insert([y0, y1], bi);
-			}
-		}
-
-		let trait_or_traits = ['baddie'];
+		this.game.update_dynamic_interval_tree_if_necessary();
 
 		let x0 = this.mesh.position.x + dx0;
 		let x1 = this.mesh.position.x + dx1;
 		let y0 = this.mesh.position.y + dy0;
 		let y1 = this.mesh.position.y + dy1;
 
-		let result_x = new Set();
-		for (let i of this.game.dynamic_interval_tree_x.search([x0, x1]))
-			result_x.add(i);
-		let result_y = new Set();
-		for (let i of this.game.dynamic_interval_tree_y.search([y0, y1]))
-			result_y.add(i);
-		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
-		for (let entry_index of result) {
-			return this.game.baddies[entry_index];
-		}
-		return null;
+		return this.game.has_baddie_at(x0, x1, y0, y1);
 	}
 
 	intersect_x_with_trait(dx, trait_or_traits, dx0, dx1, dy0, dy1) {
@@ -468,6 +441,7 @@ class Character {
 	}
 
 	take_damage_from_sprite(sprite, trait) {
+		// for actor
 		if ((!this.game.running) || this.dead() || this.game.reached_flag) return;
 		this.game.energy -= sprite.traits[trait].damage;
 		if (this.game.energy < 0) this.game.energy = 0;
@@ -479,7 +453,20 @@ class Character {
 		}
 	}
 
+	take_damage(damage) {
+		if (this.character_trait === 'baddie') {
+			this.traits.energy -= damage;
+			if (this.traits.energy < 0.0) this.traits_energy = 0.0;
+			if (this.traits.energy < 0.0001) {
+				// remove baddie from game
+				this.active = false;
+				this.mesh.visible = false;
+			}
+		}
+	}
+
 	simulation_step(t) {
+		if (!this.active) return;
 		if (!this.simulate_this) {
 			let x0 = this.mesh.position.x - this.sprite.width * 0.5 * this.traits.ex_left;
 			let x1 = this.mesh.position.x + this.sprite.width * 0.5 * this.traits.ex_right;
@@ -1552,9 +1539,9 @@ class Game {
 		while ((next_fel_entry !== null) && (next_fel_entry <= t)) {
 			let fel_entry = this.future_event_list.pop();
 			if (fel_entry.action === 'falls_down') {
-				this.falling_sprite_indices[fel_entry.entry_index] = {vy: 0.0};
 				let sprite = this.data.sprites[this.active_level_sprites[fel_entry.entry_index].sprite_index];
 				let mesh = this.active_level_sprites[fel_entry.entry_index].mesh;
+				this.falling_sprite_indices[fel_entry.entry_index] = {vy: 0.0, damage: sprite.traits.falls_down.damage};
 				let x = mesh.position.x;
 				let y = mesh.position.y;
 				let x0 = x - sprite.width / 2;
@@ -1572,6 +1559,15 @@ class Game {
 			let mesh = this.active_level_sprites[entry_index].mesh;
 			falling_sprite.vy += this.data.properties.gravity;
 			mesh.position.y -= falling_sprite.vy;
+			if (falling_sprite.damage > 0) {
+				let baddie = this.has_baddie_at(mesh.position.x - 1, mesh.position.x + 1,
+					mesh.position.y - 1, mesh.position.y + 1);
+				if (baddie !== null) {
+					// falling sprite hit a baddie, deal damage
+					baddie.take_damage(falling_sprite.damage);
+				}
+			}
+			
 			if (mesh.position.y < this.camera.bottom - this.data.properties.screen_pixel_height) {
 				mesh.visible = false;
 				delete_these.push(entry_index);
@@ -1588,6 +1584,41 @@ class Game {
 			this.frame++;
 			this.simulated_to++;
 		}
+	}
+
+	update_dynamic_interval_tree_if_necessary() {
+		if (this.dynamic_interval_frame !== this.frame) {
+			// recreate baddie interval tree
+			this.dynamic_interval_tree_x.clear();
+			this.dynamic_interval_tree_y.clear();
+			for (let bi = 0; bi < this.baddies.length; bi++) {
+				let baddie = this.baddies[bi];
+				if (!baddie.active) continue;
+				let x = baddie.mesh.position.x;
+				let y = baddie.mesh.position.y;
+				let x0 = x - (baddie.sprite.width / 2) * baddie.traits.ex_left;
+				let x1 = x + (baddie.sprite.width / 2) * baddie.traits.ex_right;
+				let y0 = y;
+				let y1 = y + baddie.sprite.height * baddie.traits.ex_top;
+				this.dynamic_interval_tree_x.insert([x0, x1], bi);
+				this.dynamic_interval_tree_y.insert([y0, y1], bi);
+			}
+			this.dynamic_interval_frame = this.frame;
+		}
+	}
+
+	has_baddie_at(x0, x1, y0, y1) {
+		let result_x = new Set();
+		for (let i of this.dynamic_interval_tree_x.search([x0, x1]))
+			result_x.add(i);
+		let result_y = new Set();
+		for (let i of this.dynamic_interval_tree_y.search([y0, y1]))
+			result_y.add(i);
+		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
+		for (let entry_index of result) {
+			return this.baddies[entry_index];
+		}
+		return null;
 	}
 };
 
