@@ -55,6 +55,7 @@ var STATE_TRAITS_ORDER = {
         ['Laufen', ['walk_front', 'walk_back', 'walk_left', 'walk_right']],
         ['Springen', ['jump_front', 'jump_back', 'jump_left', 'jump_right']],
         ['Fallen', ['fall_front', 'fall_back', 'fall_left', 'fall_right']],
+        'dead',
     ],
     checkpoint: [
         'active',
@@ -529,6 +530,7 @@ var STATE_TRAITS = {
         fall_back: {label: 'Gegner fällt nach hinten'},
         fall_left: {label: 'Gegner fällt nach links'},
         fall_right: {label: 'Gegner fällt nach rechts'},
+        dead: {label: 'Gegner tot'}
     },
     checkpoint: {
         active: {label: 'Checkpoint aktiviert'},

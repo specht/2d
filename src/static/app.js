@@ -460,7 +460,8 @@ class Character {
 			if (this.traits.energy < 0.0001) {
 				// remove baddie from game
 				this.active = false;
-				this.mesh.visible = false;
+				this.update_state_and_direction('dead', 'front');
+				// this.mesh.visible = false;
 			}
 		}
 	}
