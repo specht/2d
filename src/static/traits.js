@@ -71,6 +71,7 @@ var SPRITE_TRAITS = {
         properties: {
             vrun: {
                 label: 'Geschwindigkeit',
+                hint: 'Gib hier an, wie schnell deine Spielfigur laufen soll.',
                 type: 'float',
                 min: 0.0,
                 max: 100.0,
@@ -80,6 +81,7 @@ var SPRITE_TRAITS = {
             },
             vjump: {
                 label: 'Sprungkraft',
+                hint: 'Gib hier an, wie kräftig deine Spielfigur springen können soll.',
                 type: 'float',
                 default: 9.0,
                 min: 0.0,
@@ -89,16 +91,19 @@ var SPRITE_TRAITS = {
             },
             can_jump: {
                 label: 'kann springen',
+                hint: 'Kann deine Spielfigur springen?',
                 type: 'bool',
                 default: true,
             },
             affected_by_gravity: {
                 label: 'beeinflusst durch Schwerkraft',
+                hint: 'Soll deine Spielfigur von der Schwerkraft beeinflusst werden?',
                 type: 'bool',
                 default: true,
             },
             ex_left: {
                 label: 'Kollisionsbox links',
+                hint: 'Mit diesem Wert kannst du anpassen, wo genau deine Spielfigur mit der Umgebung oder Gegnern kollidiert.',
                 type: 'float',
                 min: 0,
                 max: 1,
@@ -119,6 +124,7 @@ var SPRITE_TRAITS = {
             },
             ex_right: {
                 label: 'Kollisionsbox rechts',
+                hint: 'Mit diesem Wert kannst du anpassen, wo genau deine Spielfigur mit der Umgebung oder Gegnern kollidiert.',
                 type: 'float',
                 min: 0,
                 max: 1,
@@ -139,6 +145,7 @@ var SPRITE_TRAITS = {
             },
             ex_top: {
                 label: 'Kollisionsbox oben',
+                hint: 'Mit diesem Wert kannst du anpassen, wo genau deine Spielfigur mit der Umgebung oder Gegnern kollidiert.',
                 type: 'float',
                 min: 0,
                 max: 1,
@@ -173,6 +180,7 @@ var SPRITE_TRAITS = {
         properties: {
             timeout: {
                 label: 'fällt nach',
+                hint: 'Gibt an, nach welcher Zeit ein Sprite fällt.',
                 type: 'float',
                 suffix: 's',
                 min: 0.0,
@@ -183,16 +191,19 @@ var SPRITE_TRAITS = {
             },
             accumulates: {
                 label: 'akkumuliert Schaden',
+                hint: 'Diese Angabe ist vor allem im Zusammenhang mit animierten Sprites sinnvoll. Ist diese Eigenschaft aktiviert, so wird je nach Zerfallszustand der passende Frame deiner Animation angezeigt.',
                 type: 'bool',
                 default: false,
             },
             falls_on_baddie: {
                 label: 'fällt auch bei Gegnern',
+                hint: 'Soll das Sprite auch fallen, wenn ein Gegner drauf steht?',
                 type: 'bool',
                 default: false,
             },
             damage: {
                 label: 'Schaden',
+                hint: 'Gibt an, wie viel Fallschaden das Sprite anrichtet, wenn es einen Gegner trifft.',
                 type: 'float',
                 default: 0,
                 min: 0,
@@ -205,6 +216,7 @@ var SPRITE_TRAITS = {
         properties: {
             center: {
                 label: 'Figur zentrieren',
+                hint: 'Soll die Spielfigur automatisch zentriert werden?',
                 type: 'bool',
                 default: true,
             },
@@ -215,6 +227,7 @@ var SPRITE_TRAITS = {
         properties: {
             duration: {
                 label: 'Ausblenden',
+                hint: 'Gibt an, innerhalb welcher Zeit das Sprite ausgeblendet wird, nachdem es eingesammelt wurde.',
                 type: 'float',
                 suffix: 's',
                 width: '3.2em',
@@ -226,6 +239,7 @@ var SPRITE_TRAITS = {
             },
             move_up: {
                 label: 'Bewegung',
+                hint: 'Gibt an, wie schnell sich das Sprite nach oben bewegen soll, nachdem es eingesammelt wurde.',
                 type: 'float',
                 suffix: 'px/s',
                 width: '1.8em',

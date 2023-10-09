@@ -484,6 +484,33 @@ class SortableTable {
     }
 }
 
+function install_hint_handler(div, data) {
+    if (data.hint) {
+        div.css('position', 'relative');
+        let hint = $('<div>').addClass('tooltip').addClass('tooltip_hint').addClass('key').text('?');
+        div.append(hint);
+        hint.on('click', function(e) {
+            let modal = new ModalDialog({
+                title: data.label,
+                width: 'unset',
+                max_width: '800px',
+                height: 'unset',
+                body: $(`<p>`).html(data.hint),
+                footer: [
+                    {
+                        type: 'button',
+                        label: 'Schließen',
+                        icon: 'fa-times',
+                        callback: (self) => self.dismiss(),
+                    },
+                ]
+            });
+            modal.show();
+            $('.tooltip').hide();
+        });
+    }
+}
+
 class ColorWidget {
     constructor(data) {
         let self = this;
@@ -512,6 +539,7 @@ class ColorWidget {
         // });
         div.append(this.color_button);
         $(this.container).append(div);
+        install_hint_handler(div, data);
         this.color_button.on('open', function(e) {
             $('.modal-dialogs').css('background-color', 'transparent').show();
         });
@@ -543,6 +571,7 @@ class LineEditWidget {
         // });
         div.append(this.input);
         $(this.container).append(div);
+        install_hint_handler(div, data);
         let self = this;
         this.input.keydown(function(e) { self.update(); });
         this.input.keyup(function(e) { self.update(); });
@@ -557,6 +586,7 @@ class LineEditWidget {
 class NumberWidget {
     constructor(data) {
         let self = this;
+        data.hint ??= null;
         data.count ??= 1;
         data.width ??= '2.5em';
         data.min ??= null;
@@ -620,6 +650,7 @@ class NumberWidget {
             subdiv.append($(`<span style='margin-left: 0.25em;'>`).text(this.data.suffix));
         div.append(subdiv);
         $(this.container).append(div);
+        install_hint_handler(div, data);
     }
 
     delta(i, d) {
@@ -703,6 +734,7 @@ class CheckboxWidget {
         });
         div.append(this.input);
         $(this.container).append(div);
+        install_hint_handler(div, data);
         let self = this;
         this.input.change(function(e) { self.update(); });
     }
@@ -735,6 +767,7 @@ class SelectWidget {
         // });
         div.append(this.select);
         $(this.container).append(div);
+        install_hint_handler(div, data);
         let self = this;
         this.select.change(function(e) { self.update(); });
     }

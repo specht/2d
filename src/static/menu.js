@@ -179,7 +179,7 @@ class Menu {
         //     }
         // });
 
-        hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) self.element.find('.tooltip').show(); else self.element.find('.tooltip').hide(); } });
+        hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) $('.tooltip').show(); else $('.tooltip').hide(); } });
         // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
         hints.push({
             key: 'Control+O', label: 'Spiel laden', callback: function () {

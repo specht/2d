@@ -475,6 +475,20 @@ body {
     left: 12px;
     display: none;
     z-index: 100;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 1.0);
+    color: #eee;
+}
+
+.tooltip.tooltip_hint {
+    top: unset;
+    left: unset;
+    right: -1px;
+    cursor: pointer;
+}
+
+.tooltip.tooltip_hint:hover {
+    outline: 2px solid #ccc;
+    box-shadow: 0 0 5px #fff;
 }
 
 #status-bar {
@@ -1351,4 +1365,8 @@ input.clr-color {
     width: 100%;
     margin-top: 5px;
     border-radius: 10px;
+}
+
+a, a:visited {
+    color: #55beed;
 }

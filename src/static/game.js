@@ -343,6 +343,7 @@ class Game {
         new LineEditWidget({
             container: $('#game-settings-here'),
             label: 'Titel:',
+            hint: 'Gib deinem Spiel einen Titel, damit du es schnell wieder findest.',
             get: () => self.data.properties.title,
             set: (x) => {
                 self.data.properties.title = x;
@@ -351,6 +352,7 @@ class Game {
         new LineEditWidget({
             container: $('#game-settings-here'),
             label: 'Autor:',
+            hint: 'Hier kannst du deinen Namen eintragen.',
             get: () => self.data.properties.author,
             set: (x) => {
                 self.data.properties.author = x;
@@ -363,6 +365,7 @@ class Game {
         new NumberWidget({
             container: $('#game-settings-here'),
             label: 'Leben am Anfang:',
+            hint: 'Dieser Wert gibt an, wie viele Leben deine Figur am Anfang des Spiels hat.',
             min: 1,
             max: 1000,
             step: 1,
@@ -375,6 +378,7 @@ class Game {
         new NumberWidget({
             container: $('#game-settings-here'),
             label: 'Leben maximal:',
+            hint: 'Dieser Wert gibt an, wie viele Leben deine Figur im Laufe des Spiels höchstens sammeln kann. Sind die Leben am Maximum, kann die Spielfigur keine weiteren lebensspendenen Sprites einsammeln.',
             min: 1,
             max: 1000,
             step: 1,
@@ -387,6 +391,7 @@ class Game {
         new CheckboxWidget({
             container: $('#game-settings-here'),
             label: 'Energie anzeigen:',
+            hint: 'Gib hier an, ob du die Energie während des Spiels anzeigen möchtest.',
             default: true,
             get: () => self.data.properties.show_energy,
             set: (x) => {
@@ -396,6 +401,7 @@ class Game {
         new NumberWidget({
             container: $('#game-settings-here'),
             label: 'Energie am Anfang:',
+            hint: 'So viel Energie hat deine Spielfigur am Anfang.',
             min: 1,
             max: 1000,
             step: 1,
@@ -408,6 +414,7 @@ class Game {
         new NumberWidget({
             container: $('#game-settings-here'),
             label: 'Energie maximal:',
+            hint: 'So viel Energie kann deine Spielfigur maximial haben.',
             min: 1,
             max: 1000,
             step: 1,
@@ -420,6 +427,7 @@ class Game {
         new NumberWidget({
             container: $('#game-settings-here'),
             label: 'Unverwundbar nach Respawn:',
+            hint: 'Gib hier an, wie lange deine Spielfigur nach einem Respawn unverwundbar sein soll.',
             min: 0,
             max: 60,
             step: 1,
@@ -437,6 +445,7 @@ class Game {
         new NumberWidget({
             container: $('#game-settings-here'),
             label: 'Gravitation:',
+            hint: 'Wert für die Schwerkraft. Höherer Wert = größere Schwerkraft, Figuren fallen schneller.',
             min: 0,
             max: 100,
             step: 0.1,
@@ -453,6 +462,7 @@ class Game {
         new NumberWidget({
             container: $('#game-settings-here'),
             label: 'Höhe in Pixeln:',
+            hint: 'So viele Pixel hoch ist der Bildausschnitt.',
             min: 16,
             max: 1080,
             get: () => self.data.properties.screen_pixel_height,
@@ -463,6 +473,10 @@ class Game {
         new NumberWidget({
             container: $('#game-settings-here'),
             label: 'Kamera Safe Zone (Breite &times; Höhe):',
+            hint: `<p>Solange du innerhalb dieses Bereichs bleibst, bewegt sich die Kamera nicht mit, wenn du die Spielfigur bewegst. Verlässt die Figur diesen Bereich, folgt die Kamera automatisch.</p>
+            <p>Kleinere Werte sorgen dafür, dass die Kamera schneller reagiert.</p>
+            <p>Setze beide Werte auf 0, um die Spielfigur immer genau in der Mitte des Bildschirmes zu halten.</p>
+            `,
             count: 2,
             connector: '&times;',
             min: [0.0, 0.0],
@@ -478,6 +492,7 @@ class Game {
         new CheckboxWidget({
             container: $('#game-settings-here'),
             label: 'Kathodenstrahlröhre:',
+            hint: `Simuliert einen alten CRT-Monitor mit Scanlines, Wölbung und Vignette für das ultimative Retro-Feedling.`,
             default: false,
             get: () => self.data.properties.crt_effect,
             set: (x) => {
@@ -491,6 +506,9 @@ class Game {
         new LineEditWidget({
             container: $('#game-settings-here'),
             label: 'Youtube ID:',
+            hint: `<p>Gib hier die Video-ID eines Youtube-Videos ein, um eine Musik im Hintergrund des Spiels abzuspielen.</p>
+            <p>Beispiel: Für das Video unter <a target='_blank' href='https://www.youtube.com/watch?v=dQw4w9WgXcQ'>https://www.youtube.com/watch?v=dQw4w9WgXcQ</a> lautet die ID <b>dQw4w9WgXcQ</b>.</p>
+            `,
             get: () => self.data.properties.yt_tag,
             set: (x) => {
                 self.data.properties.yt_tag = x;
@@ -593,6 +611,7 @@ class Game {
                 new NumberWidget({
                     container: div,
                     label: property.label ?? key,
+                    hint: property.hint ?? null,
                     min: property.min ?? null,
                     max: property.max ?? null,
                     step: property.step ?? null,
@@ -615,6 +634,7 @@ class Game {
                 new CheckboxWidget({
                     container: div,
                     label: property.label ?? key,
+                    hint: property.hint ?? null,
                     get: () => self.data.sprites[si].traits[trait][key],
                     set: (x) => {
                         self.data.sprites[si].traits[trait][key] = x;
@@ -624,6 +644,7 @@ class Game {
                 new SelectWidget({
                     container: div,
                     label: property.label ?? key,
+                    hint: property.hint ?? null,
                     options: property.options ?? null,
                     get: () => self.data.sprites[si].traits[trait][key],
                     set: (x) => {
@@ -684,6 +705,7 @@ class Game {
         new LineEditWidget({
             container: $('#menu_state_properties_fixed'),
             label: 'Titel',
+            hint: `Gib jedem Zustand einen Titel, damit du weißt, welcher Zustand welcher ist.`,
             get: () => self.data.sprites[si].states[sti].properties.name,
             set: (x) => {
                 self.data.sprites[si].states[sti].properties.name = x;
@@ -693,6 +715,9 @@ class Game {
         new NumberWidget({
             container: $('#menu_state_properties_fixed'),
             label: 'Framerate',
+            hint: `Die Framerate definiert, wie schnell ein Sprite animiert wird.
+            Die Einheit dafür sind FPS (frames per second), also Bilder pro Sekunde.
+            Umso höher die FPS-Zahl ist, umso schneller läuft die Animation.`,
             suffix: 'fps',
             width: '1.8em',
             min: 1,
@@ -705,6 +730,13 @@ class Game {
         new NumberWidget({
             container: $('#menu_state_properties_fixed'),
             label: "Phase <span style='font-size: 80%;'>XY/R</span>",
+            hint: `<p>Die Phase wird wichtig, wenn du viele Sprites in einem Level platzierst.</p>
+            <p>Setzt du alle Werte auf 0, so werden alle Sprites synchron, also gleichzeitig animiert.</p>
+            <ul>
+                <li>Der X-Wert gibt an, wie stark der Einfluss der X-Position auf die Phase ist</li>
+                <li>Der Y-Wert gibt an, wie stark der Einfluss der Y-Position auf die Phase ist</li>
+                <li>Der R-Wert gibt an, wie stark ein zufälliger Einfluss auf die Phase ist</li>
+            </ul>`,
             width: '1.4em',
             count: 3,
             min: [0.0, 0.0, 0.0],
