@@ -131,6 +131,9 @@ class Game {
             this.data.levels[li].layers ??= [];
             if (this.data.levels[li].layers.length === 0)
                 this.data.levels[li].layers.push({});
+            this.data.levels[li].conditions ??= [];
+            if (this.data.levels[li].conditions.length === 0)
+                this.data.levels[li].conditions.push({type: 'touching_level_complete'});
             for (let lyi = 0; lyi < this.data.levels[li].layers.length; lyi++) {
                 this.data.levels[li].layers[lyi].type ??= 'sprites';
                 this.data.levels[li].layers[lyi].properties ??= {};

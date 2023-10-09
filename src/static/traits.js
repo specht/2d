@@ -486,7 +486,7 @@ var SPRITE_TRAITS = {
         },
     },
     level_complete: {
-        label: 'Ab ins nächste Level!',
+        label: 'Levelwechsel',
     },
     checkpoint: {
         label: 'Checkpoint'
