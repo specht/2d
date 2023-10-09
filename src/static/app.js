@@ -1541,7 +1541,7 @@ class Game {
 			if (fel_entry.action === 'falls_down') {
 				let sprite = this.data.sprites[this.active_level_sprites[fel_entry.entry_index].sprite_index];
 				let mesh = this.active_level_sprites[fel_entry.entry_index].mesh;
-				this.falling_sprite_indices[fel_entry.entry_index] = {vy: 0.0, damage: sprite.traits.falls_down.damage};
+				this.falling_sprite_indices[fel_entry.entry_index] = {vy: 0.0, damage: sprite.traits.falls_down.damage, width: sprite.width};
 				let x = mesh.position.x;
 				let y = mesh.position.y;
 				let x0 = x - sprite.width / 2;
@@ -1560,10 +1560,9 @@ class Game {
 			falling_sprite.vy += this.data.properties.gravity;
 			mesh.position.y -= falling_sprite.vy;
 			if (falling_sprite.damage > 0) {
-				let baddie = this.has_baddie_at(mesh.position.x - 1, mesh.position.x + 1,
-					mesh.position.y - 1, mesh.position.y + 1);
+				let baddie = this.has_baddie_at(mesh.position.x - falling_sprite.width * 0.5, mesh.position.x + falling_sprite.width * 0.5,
+					mesh.position.y - 2, mesh.position.y + 2);
 				if (baddie !== null) {
-					// falling sprite hit a baddie, deal damage
 					baddie.take_damage(falling_sprite.damage);
 				}
 			}
