@@ -1,38 +1,4 @@
 ```
-sprites:
-  - name: 'Sprite 1'
-    properties:
-      deal_damage: 1
-      classes: []
-      hitboxes:
-        collision: []
-        take_damage: []
-        deal_damage: []
-    states:
-    - name: 'Zustand 1'
-      hitboxes: nil
-      fps: 8
-      frames:
-      - width: 24
-        height: 24
-        hitboxes: nil
-        src: (image/png base64 url)
-palette:
-  - html color entries
-levels:
-  - name: 'Level 1'
-    layers:
-    - name: 'Layer 1'
-      properties:
-        visible: true
-      sprites:
-       - [sprite_index, x, y]
-       - ...
-      sprite_properties:
-       0: {...}
-```
-
-```
 - mesh_for_sprite
 - LayerStruct:
   - sprite_for_pos (only one sprite per position)
@@ -49,33 +15,30 @@ levels:
   - delete => re-create LayerStruct
 ```
 
-Level Editor:
+Level Editor
 
-Pan & zoom
-Place sprite
-Fill rect with sprite
-Select placed sprites and delete
-Enable / disable grid
-Resize grid / move grid
+- Pan & zoom
+- Place sprite
+- Fill rect with sprite
+- Select placed sprites and delete
+- Enable / disable grid
+- Resize grid / move grid
 
 Feedback Expertentage
 
-Schlüssel und Türen
-Nahkampf und Fernkampf, Knockback und Damage, mit Upgrades (Fäuste, Schwert, etc.)
-Schlittern (Eisiger Untergrund)
-Multiplayer
-Teammates, Begleiter, NPC
-Leiter / Wednesday Bug mit mehreren Spritesheet
-Blöcke die runterfallen
-Block erscheint beim betreten
-Fahrstuhl / Plattformen
-Schutzschilder
-Sprechblasen triggern mit Sprites
-Missionen: Dinge einsammeln, NPC bringen
-Gleiten / flattern wenn man in der Luft ist
-physikverstellende Blöcke
-Parallaxe zu kompliziert: Layer komplett verschieben
-Shop-System: Münzen einsetzen und Upgrades kaufen
-
-Animationen sind besser und leichter zu nutzen
-Layer sind gut
+- Schlüssel und Türen
+- Nahkampf und Fernkampf, Knockback und Damage, mit Upgrades (Fäuste, Schwert, etc.)
+- Schlittern (Eisiger Untergrund)
+- Multiplayer
+- Teammates, Begleiter, NPC
+- Leiter / Wednesday Bug mit mehreren Spritesheet
+- Blöcke die runterfallen
+- Block erscheint beim betreten
+- Fahrstuhl / Plattformen
+- Schutzschilder
+- Sprechblasen triggern mit Sprites
+- Missionen: Dinge einsammeln, NPC bringen
+- Gleiten / flattern wenn man in der Luft ist
+- physikverstellende Blöcke
+- Parallaxe zu kompliziert: Layer komplett verschieben
+- Shop-System: Münzen einsetzen und Upgrades kaufen
