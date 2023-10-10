@@ -577,7 +577,7 @@ class LevelEditor {
         $(this.element).on('mousedown touchstart', (e) => self.handle_down(e));
         $(window).on('mouseup touchend', (e) => self.handle_up(e));
         $(window).on('mousemove touchmove', (e) => self.handle_move(e));
-        $(this.element).on('mousewheel', function (e) {
+        $(this.element).on('wheel', function (e) {
             e.preventDefault();
             let p = self.ui_to_world(self.get_touch_point(e), false);
             self.zoom_at_point(e.originalEvent.deltaY, p[0], p[1]);

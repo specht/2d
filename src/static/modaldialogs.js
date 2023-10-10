@@ -5,12 +5,14 @@ class ModalDialog {
         this.parent = $('.modal-dialogs');
         if (!('width' in options)) options.width = '80vw';
         this.options = options;
+        this.options.max_width ||= 'unset';
         this.dialog = $(`<div class='modal' style='display: none;'>`);
         this.dialog.css('width', `${this.options.width}`);
+        this.dialog.css('max-width', `${this.options.max_width}`);
         if ('height' in options)
             this.dialog.css('height', `${options.height}`);
         if (options.title) {
-            this.dialog.append($('<h3>').text(options.title));
+            this.dialog.append($('<h3>').html(options.title));
         }
         if (options.body)
             this.dialog.append($(`<div class='modal-body'>`).append($(options.body)));
