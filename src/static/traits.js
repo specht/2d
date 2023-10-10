@@ -251,6 +251,7 @@ var SPRITE_TRAITS = {
             },
             points: {
                 label: 'gibt Punkte',
+                hint: 'Gib hier an, wie viele Punkte deine Spielfigur erhalten soll, wenn das Sprite eingesammelt wird.',
                 type: 'float',
                 min: 0,
                 max: 100,
@@ -260,6 +261,7 @@ var SPRITE_TRAITS = {
             },
             lives: {
                 label: 'gibt Leben',
+                hint: 'Gib hier an, wie viele Leben deine Spielfigur erhalten soll, wenn das Sprite eingesammelt wird.',
                 type: 'float',
                 min: 0,
                 max: 100,
@@ -269,6 +271,7 @@ var SPRITE_TRAITS = {
             },
             energy: {
                 label: 'gibt Energie',
+                hint: 'Gib hier an, wie viel Energie deine Spielfigur erhalten soll, wenn das Sprite eingesammelt wird.',
                 type: 'float',
                 min: 0,
                 max: 100,
@@ -283,6 +286,7 @@ var SPRITE_TRAITS = {
         properties: {
             damage: {
                 label: 'Schaden',
+                hint: 'Der Schaden wird von der Energie deiner Spielfigur abgezogen, wenn sie mit der Falle in Berührung kommt.',
                 type: 'float',
                 default: 100,
                 min: 0,
@@ -290,6 +294,7 @@ var SPRITE_TRAITS = {
             },
             damage_cool_down: {
                 label: 'Cooldown',
+                hint: 'Für diese Zeit verursacht die Falle keinen weiteren Schaden, nachdem sie ausgelöst wurde.',
                 type: 'float',
                 default: 1.0,
                 suffix: 's',
@@ -305,6 +310,7 @@ var SPRITE_TRAITS = {
         properties: {
             energy: {
                 label: 'Energie',
+                hint: 'Da auch Gegner Schaden erleiden können, muss hier die Anfangsenergie angegeben werden.',
                 type: 'float',
                 min: 0,
                 max: 10000,
@@ -312,6 +318,7 @@ var SPRITE_TRAITS = {
             },
             damage: {
                 label: 'Schaden',
+                hint: 'Wie viel Schaden verursacht dieser Gegner bei Berührung?',
                 type: 'float',
                 default: 100,
                 min: 0,
@@ -319,6 +326,7 @@ var SPRITE_TRAITS = {
             },
             damage_cool_down: {
                 label: 'Cooldown',
+                hint: 'Für diese Zeit verursacht die der Gegner keinen weiteren Schaden, nachdem er berührt wurde.',
                 type: 'float',
                 default: 1.0,
                 suffix: 's',
@@ -337,6 +345,7 @@ var SPRITE_TRAITS = {
             // },
             vrun: {
                 label: 'Geschwindigkeit',
+                hint: 'Gib hier die Geschwindigkeit an, mit der sich der Gegner bewegen soll.',
                 type: 'float',
                 min: 0.0,
                 max: 100.0,
@@ -346,11 +355,13 @@ var SPRITE_TRAITS = {
             },
             affected_by_gravity: {
                 label: 'beeinflusst durch Schwerkraft',
+                hint: 'Wenn der Gegner durch die Schwerkraft beeinflusst wird, fällt er nach unten.',
                 type: 'bool',
                 default: true,
             },
             vjump: {
                 label: 'Sprungkraft',
+                hint: 'Mit welcher Kraft soll der Gegner abspringen, wenner sprint?',
                 type: 'float',
                 default: 9.0,
                 min: 0.0,
@@ -360,11 +371,13 @@ var SPRITE_TRAITS = {
             },
             patrols: {
                 label: 'patrouilliert',
+                hint: 'Ein patrouillierender Gegner läuft hin und her und bewacht ein begrenztes Gebiet.',
                 type: 'bool',
                 default: true,
             },
             start_dir: {
                 label: 'Startrichtung',
+                hint: 'In welche Richtung soll der Gegner zuerst laufen?',
                 type: 'select',
                 options: {
                     'left': 'links',
@@ -375,6 +388,7 @@ var SPRITE_TRAITS = {
             },
             jump_from_edge_probability: {
                 label: 'springt von Plattformen',
+                hint: 'Gegner können auch von Plattformen abspringen, anstatt umzukehren. Dadurch kannst du komplexe Patrouille-Muster entwerfen.',
                 type: 'float',
                 min: 0.0,
                 max: 100,
