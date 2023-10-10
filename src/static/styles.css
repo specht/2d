@@ -1370,3 +1370,14 @@ input.clr-color {
 a, a:visited {
     color: #55beed;
 }
+
+@keyframes blink {
+    50% {
+        border-color: rgba(255, 255, 255, 1.0);
+    }
+}
+
+.tooltip.key {
+    border: 1px solid rgba(255, 255, 255, 0);
+    animation: blink 3s infinite;
+}

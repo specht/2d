@@ -179,7 +179,19 @@ class Menu {
         //     }
         // });
 
-        hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) { if (flag) $('.tooltip').show(); else $('.tooltip').hide(); } });
+        hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) {
+            if (flag) {
+                $('.tooltip').show();
+                for (let t of $('.tooltip')) {
+                    let d = Math.abs((($(t)[0].getBoundingClientRect().left + $(t)[0].getBoundingClientRect().top) / 500.0)) % 1.0;
+                    console.log(d);
+                    $(t).css('animation-delay', `${d * 1.0}s`);
+                }
+            }
+            else {
+                $('.tooltip').hide();
+            }
+        } });
         // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
         hints.push({
             key: 'Control+O', label: 'Spiel laden', callback: function () {
