@@ -184,7 +184,6 @@ class Menu {
                 $('.tooltip').show();
                 for (let t of $('.tooltip')) {
                     let d = Math.abs((($(t)[0].getBoundingClientRect().left + $(t)[0].getBoundingClientRect().top) / 500.0)) % 1.0;
-                    console.log(d);
                     $(t).css('animation-delay', `${d * 1.0}s`);
                 }
             }

@@ -480,7 +480,7 @@ body {
 }
 
 .tooltip.tooltip_hint {
-    top: unset;
+    top: 3px;
     left: unset;
     right: -1px;
     cursor: pointer;
@@ -1380,4 +1380,19 @@ a, a:visited {
 .tooltip.key {
     border: 1px solid rgba(255, 255, 255, 0);
     animation: blink 3s infinite;
+}
+
+.sprite-sq-thumb {
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border: 1px solid rgba(0, 0, 0, 0);
+    outline: rgba(255, 255, 255, 0.5) solid 1px;
+    border-radius: 2px;
+    margin: 2px;
+    object-fit: contain;
+}
+
+.sprite-sq-thumb:hover {
+    outline: rgba(255, 255, 255, 1.0) solid 1px;
 }

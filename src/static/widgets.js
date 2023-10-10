@@ -164,6 +164,14 @@ class DragAndDropWidget {
             if (self.has_touch)
                 self.handle_down(e);
         });
+        try {
+            if (self.options.items.length > 0) {
+                let hint = self.options.hint_with_heading_for_item(self.options.items[self.options.items.length - 1]);
+                let hint2 = {label: hint[0], hint: hint[1]};
+                install_hint_handler(item, hint2);
+                // console.log('hint', hint);
+            }
+        } catch (e) {}
         $(this.options.container).append(item_div);
     }
 
@@ -786,5 +794,38 @@ class SeparatorWidget {
         let label = $(`<div' class='separator'>`).text(data.label);
         div.append(label);
         this.container.append(div);
+    }
+}
+
+class SpriteWidget {
+    constructor(data) {
+        this.data = data;
+        this.container = data.container;
+        let div = $(`<div class='item'>`);
+        let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
+        div.append(label);
+        // this.select = $(`<select>`);
+        for (let si = 0; si < game.data.sprites.length; si++) {
+            let sprite = game.data.sprites[si];
+            if (this.data.filter(sprite) === true) {
+                let state = sprite.states[0];
+                let fi = Math.floor(state.frames.length / 2 - 0.5);
+                let img = $('<img>').addClass('sprite-sq-thumb').attr('src', state.frames[fi].src);
+                div.append(img);
+            }
+            // this.select.append($(`<option>`).val(si).text(`${si}`));
+
+        }
+        // div.append(this.select);
+        $(this.container).append(div);
+        install_hint_handler(div, data);
+        // let self = this;
+        // this.select.change(function(e) { self.update(); });
+
+    }
+
+    update() {
+        if (this.data.get() !== this.select.val())
+            this.data.set(this.select.val());
     }
 }

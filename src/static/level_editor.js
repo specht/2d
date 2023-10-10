@@ -179,7 +179,7 @@ class LevelEditor {
         this.level_index = 0;
         this.auto_adjust_camera = true;
         this.layer_index = 0;
-        this.condition_index = null;
+        this.condition_index = 0;
         this.rect_index = 0;
         this.clock = new THREE.Clock(true);
         this.scene = new THREE.Scene();
@@ -326,7 +326,7 @@ class LevelEditor {
                 self.clear_selection();
                 self.level_index = index;
                 self.layer_index = 0;
-                self.condition_index = null;
+                self.condition_index = 0;
                 self.rect_index = 0;
                 self.auto_adjust_camera = true;
 
@@ -391,8 +391,8 @@ class LevelEditor {
                     ],
                     gen_item: (layer, index) => {
                         let type = layer.type;
-                        let layer_div = $(`<div>`).css('padding-top', '2px');
-                        let button_show = $(`<div class='toggle' style='margin-left: 1px;'>`);
+                        let layer_div = $(`<div>`).css('padding-top', '4px');
+                        let button_show = $(`<div class='toggle' style='margin-left: 1px; position: relative; top: -2px;'>`);
                         if (self.game.data.levels[self.level_index].layers[index].properties.visible) {
                             button_show.append($(`<i class='fa fa-eye'>`));
                         } else {
@@ -475,74 +475,83 @@ class LevelEditor {
                     }
                 });
 
-                // new DragAndDropWidget({
-                //     game: self.game,
-                //     container: $('#menu_conditions'),
-                //     can_be_empty: true,
-                //     trash: $('#trash'),
-                //     items: self.game.data.levels[self.level_index].conditions,
-                //     item_class: 'menu_layer_item',
-                //     step_aside_css: { top: '35px' },
-                //     gen_new_item_options: [
-                //         ['Levelwechsel erreicht', 'touching_level_complete'],
-                //         ['Min. Punkte', 'points'],
-                //         ['Sprite eingesammelt', 'need_sprite'],
-                //         ['Gegner getötet', 'killed_baddie'],
-                //     ],
-                //     gen_item: (layer, index) => {
-                //         let type = layer.type;
-                //         let condition_div = $(`<div>`).css('padding-top', '2px');
-                //         if (type === 'touching_level_complete') {
-                //             condition_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Levelwechsel erreicht')));
-                //         } else if (type === 'points') {
-                //             condition_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Min. Punkte')));
-                //         } else if (type === 'need_sprite') {
-                //             condition_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Sprite eingesammelt')));
-                //         } else if (type === 'killed_baddie') {
-                //             condition_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Gegner getötet')));
-                //         }
-                //         return condition_div;
-                //     },
-                //     onclick: (e, index) => {
-                //         self.clear_selection();
-                //         self.condition_index = index;
-                //         self.setup_condition_properties();
-                //         $('#menu_condition_properties_container').show();
-                //         self.refresh();
-                //         self.render();
-                //     },
-                //     gen_new_item: (type) => {
-                //         // let layer_struct = new LayerStruct(self);
-                //         // self.layer_structs.push(layer_struct);
-                //         let condition = { type: type };
-                //         // if (type === 'sprites') {
-                //         //     layer.sprites = [];
-                //         // } else if (type === 'backdrop') {
-                //         //     let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
-                //         //     let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
-                //         //     let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
-                //         //     let y1 = Math.round(self.camera_y + self.height * 0.45 / self.scale);
-                //         //     let rect = { left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 };
-                //         //     layer.rects = [rect];
-                //         // }
-                //         self.game.data.levels[self.level_index].conditions.push(condition);
-                //         self.game.fix_game_data();
-                //         self.refresh();
-                //         self.render();
-                //         return self.game.data.levels[self.level_index].conditions[self.game.data.levels[self.level_index].conditions.length - 1];
-                //     },
-                //     delete_item: (index) => {
-                //         self.game.data.levels[self.level_index].conditions.splice(index, 1);
-                //         self.condition_index = null;
-                //         self.refresh();
-                //         // self.render();
-                //     },
-                //     on_move_item: (from, to) => {
-                //         move_item_helper(self.game.data.levels[self.level_index].conditions[self.condition_index].layers, from, to);
-                //         self.refresh();
-                //         self.render();
-                //     }
-                // });
+                new DragAndDropWidget({
+                    game: self.game,
+                    container: $('#menu_conditions'),
+                    trash: $('#trash'),
+                    items: self.game.data.levels[self.level_index].conditions,
+                    item_class: 'menu_layer_item',
+                    step_aside_css: { top: '35px' },
+                    gen_new_item_options: [
+                        ['Levelwechsel erreicht', 'touching_level_complete'],
+                        ['Punkte gesammelt', 'min_points'],
+                        ['Sprite eingesammelt', 'need_sprite'],
+                        ['Gegner getötet', 'killed_baddie'],
+                    ],
+                    gen_item: (layer, index) => {
+                        let type = layer.type;
+                        let condition_div = $(`<div>`).css('padding-top', '4px');
+                        if (type === 'touching_level_complete') {
+                            condition_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Levelwechsel erreicht')));
+                        } else if (type === 'min_points') {
+                            condition_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Punkte gesammelt')));
+                        } else if (type === 'need_sprite') {
+                            condition_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Sprite eingesammelt')));
+                        } else if (type === 'killed_baddie') {
+                            condition_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Gegner getötet')));
+                        }
+                        return condition_div;
+                    },
+                    hint_with_heading_for_item: (item) => {
+                        if (item.type === 'touching_level_complete')
+                            return ["Levelwechsel erreicht", "Damit das Level beendet werden kann, muss ein Sprite mit der Eigenschaft »Levelwechsel« eingesammelt worden sein."];
+                        if (item.type === 'min_points')
+                            return ["Punkte gesammelt", "Damit das Level beendet werden kann, muss ein bestimmter Anteil der im Level vorhandenen Punkte eingesammelt worden sein."];
+                        if (item.type === 'need_sprite')
+                            return ["Sprite eingesammelt", "Damit das Level beendet werden kann, muss ein bestimmtes Sprite eingesammelt worden sein."];
+                        if (item.type === 'killed_baddie')
+                            return ["Gegner getötet", "Damit das Level beendet werden kann, muss ein bestimmter Gegner getötet worden sein."];
+                    },
+                    onclick: (e, index) => {
+                        self.clear_selection();
+                        self.condition_index = index;
+                        self.setup_condition_properties();
+                        $('#menu_conditions_properties_container').show();
+                        self.refresh();
+                        self.render();
+                    },
+                    gen_new_item: (type) => {
+                        // let layer_struct = new LayerStruct(self);
+                        // self.layer_structs.push(layer_struct);
+                        let condition = { type: type };
+                        // if (type === 'sprites') {
+                        //     layer.sprites = [];
+                        // } else if (type === 'backdrop') {
+                        //     let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
+                        //     let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
+                        //     let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
+                        //     let y1 = Math.round(self.camera_y + self.height * 0.45 / self.scale);
+                        //     let rect = { left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 };
+                        //     layer.rects = [rect];
+                        // }
+                        self.game.data.levels[self.level_index].conditions.push(condition);
+                        self.game.fix_game_data();
+                        self.refresh();
+                        self.render();
+                        return self.game.data.levels[self.level_index].conditions[self.game.data.levels[self.level_index].conditions.length - 1];
+                    },
+                    delete_item: (index) => {
+                        self.game.data.levels[self.level_index].conditions.splice(index, 1);
+                        self.condition_index = 0;
+                        self.refresh();
+                        // self.render();
+                    },
+                    on_move_item: (from, to) => {
+                        move_item_helper(self.game.data.levels[self.level_index].conditions, from, to);
+                        self.refresh();
+                        self.render();
+                    }
+                });
 
                 self.refresh();
                 self.render();
@@ -809,21 +818,40 @@ class LevelEditor {
         });
     }
 
-    // setup_condition_properties() {
-    //     let self = this;
-    //     $('#menu_condition_properties').empty();
-    //     let condition = self.game.data.levels[self.level_index].conditions[self.condition_index];
+    setup_condition_properties() {
+        let self = this;
+        $('#menu_conditions_properties').empty();
 
-    //     // new CheckboxWidget({
-    //     //     container: $('#menu_condition_properties'),
-    //     //     label: 'Kollisionen erkennen',
-    //     //     get: () => self.game.data.levels[self.level_index].conditions[self.condition_index].properties.collision_detection,
-    //     //     set: (x) => {
-    //     //         self.game.data.levels[self.level_index].conditions[self.condition_index].properties.collision_detection = x;
-    //     //         // self.update_layer_label();
-    //     //     },
-    //     // });
-    // }
+        let condition = self.game.data.levels[self.level_index].conditions[self.condition_index];
+
+        if (condition.type === 'min_points') {
+            new NumberWidget({
+                container: $('#menu_conditions_properties'),
+                label: 'Mindestanteil',
+                min: 0.0,
+                max: 100.0,
+                suffix: '%',
+                get: () => self.game.data.levels[self.level_index].conditions[self.condition_index].properties.min_points_percent,
+                set: (x) => {
+                    self.game.data.levels[self.level_index].conditions[self.condition_index].properties.min_points_percent = x;
+                    // self.update_condition_label();
+                },
+            });
+        } else if (condition.type === 'need_sprite') {
+            new SpriteWidget({
+                container: $('#menu_conditions_properties'),
+                label: 'Sprite',
+                filter: (sprite) => {
+                    return 'pickup' in sprite.traits;
+                },
+                get: () => self.game.data.levels[self.level_index].conditions[self.condition_index].properties.sprite_index,
+                set: (x) => {
+                    self.game.data.levels[self.level_index].conditions[self.condition_index].properties.sprite_index = x;
+                    // self.update_layer_label();
+                },
+            });
+        }
+    }
 
     update_level_label(li) {
         if (typeof(li) === 'undefined') li = this.level_index;

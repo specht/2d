@@ -131,9 +131,17 @@ class Game {
             this.data.levels[li].layers ??= [];
             if (this.data.levels[li].layers.length === 0)
                 this.data.levels[li].layers.push({});
-            // this.data.levels[li].conditions ??= [];
-            // if (this.data.levels[li].conditions.length === 0)
-            //     this.data.levels[li].conditions.push({type: 'touching_level_complete'});
+            this.data.levels[li].conditions ??= [];
+            if (this.data.levels[li].conditions.length === 0)
+                this.data.levels[li].conditions.push({type: 'touching_level_complete'});
+            for (let ci = 0; ci < this.data.levels[li].conditions.length; ci++) {
+                let condition = this.data.levels[li].conditions[ci];
+                condition.type ??= 'touching_level_complete';
+                condition.properties ??= {};
+                if (condition.type === 'min_points') {
+                    condition.properties.min_points_percent = 100.0;
+                }
+            }
             for (let lyi = 0; lyi < this.data.levels[li].layers.length; lyi++) {
                 this.data.levels[li].layers[lyi].type ??= 'sprites';
                 this.data.levels[li].layers[lyi].properties ??= {};
