@@ -117,6 +117,7 @@ class Menu {
             if (e.altKey) parts.push('Alt');
             if (e.shiftKey) parts.push('Shift');
             let k = e.code;
+            if (typeof(k) === 'undefined') return '';
             if (k.substr(0, 3) === 'Key')
                 k = k.substr(3);
             if (k.substr(0, 5) === 'Digit')
