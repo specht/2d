@@ -42,3 +42,15 @@ Feedback Expertentage
 - physikverstellende Blöcke
 - Parallaxe zu kompliziert: Layer komplett verschieben
 - Shop-System: Münzen einsetzen und Upgrades kaufen
+
+Feedback Forschertage
+
+- Kampfsystem: draufspringen, Nahkampf, Fernkampf (auch für Gegner!)
+- Zeit die abläuft (insgesamt)
+- von unten gegen Blöcke springen: Sprite kommt raus (Münze)
+- NPCs mit Dialog
+- Skills: fliegen / schweben können
+- Mauspads in 223
+- Steuerung: WASD / Leertaste, konfigurierbar machen
+- bewegliche Blöcke, Plattformen etc.
+
