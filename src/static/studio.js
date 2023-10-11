@@ -877,6 +877,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     });
 
     $('#btn_playtesting_refresh').click(function(e) {
+        e.preventDefault();
+        e.stopPropagation();
         refresh_playtesting_code();
     });
     
