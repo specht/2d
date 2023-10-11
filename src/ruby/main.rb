@@ -123,6 +123,10 @@ class Main < Sinatra::Base
             setup = SetupDatabase.new()
             setup.setup(self)
         end
+        PLAYTESTING_CODES.each do |tag|
+            path = "/gen/games/#{tag}.json"
+            STDERR.puts "Testing #{path}: #{File.exist?(path) ? 'OK' : 'MISSING'}"
+        end
         if ["thin", "rackup"].include?(File.basename($0))
             debug("Server is up and running!")
         end
