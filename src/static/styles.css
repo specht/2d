@@ -1330,7 +1330,7 @@ input.clr-color {
     color: #fff;
 }
 
-#main_div_help a.link_button {
+#main_div_help a.link_button, #main_div_playtesting a.link_button {
     background-color: rgba(255, 255, 255, 0.1);
     /* background-image: linear-gradient(rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.1)); */
     border-top: 1px solid rgba(255, 255, 255, 0.2);
@@ -1344,7 +1344,7 @@ input.clr-color {
     color: #eee;
 }
 
-#main_div_help a.link_button:hover {
+#main_div_help a.link_button:hover, #main_div_playtesting a.link_button:hover {
     background-color: rgba(255, 255, 255, 0.2);
     color: #fff;
 }
@@ -1369,6 +1369,21 @@ input.clr-color {
 
 a, a:visited {
     color: #55beed;
+}
+
+#main_div_playtesting {
+    margin-top: 60px;
+    padding-bottom: 300px;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 120%;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+}
+
+#main_div_playtesting::-webkit-scrollbar {
+    display: none;
 }
 
 @keyframes blink {

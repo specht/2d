@@ -209,6 +209,16 @@ function close_modal() {
     // }});
 }
 
+function refresh_playtesting_code() {
+    api_call('/api/get_playtesting_code', {}, function(data) {
+        if (data.success) {
+            $('#btn_playtesting').html(`<b>${data.title}</b> (${data.author})`);
+            $('#btn_playtesting').attr('href', `https://2d.hackschule.de/play/${data.tag}`);
+            console.log(data);
+        }
+    });
+}
+
 /*
  ├─e7a7qmp
  ├─5nqrh5b
@@ -441,6 +451,9 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 $('#play_iframe')[0].contentWindow.game.stop();
                 $('#play_iframe')[0].contentWindow.yt_player.pauseVideo();
             } catch {}
+        }
+        if (current_pane === 'playtesting') {
+            refresh_playtesting_code();
         }
     })
 
@@ -861,6 +874,10 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         $('#load_games_list').parent().css('pointer-events', 'auto');
         $('#load_games_sublist').parent().css('pointer-events', 'none');
         $('#load_games_sublist').empty();
+    });
+
+    $('#btn_playtesting_refresh').click(function(e) {
+        refresh_playtesting_code();
     });
     
     window.resizeCanvasModal = new ModalDialog({

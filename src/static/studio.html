@@ -45,6 +45,7 @@
             <div id='mi_settings' class='main-nav-item'>Einstellungen</div>
             <div id='mi_play' class='main-nav-item'>Spielen</div>
             <div id='mi_help' class='main-nav-item'>Hilfe</div>
+            <div id='mi_playtesting' style='#{PLAYTESTING_CODES.empty? ? 'display: none;' : ''}' class='main-nav-item'>Playtesting</div>
         </div>
         <div id='main_div_game' class="main_div" style="margin-top: 40px;">
             <button id="bu_save_game">Spiel speichern</button>
@@ -323,6 +324,18 @@
             </div>
             <div style="display: inline-block; width: 48%;">
                 <a href="https://youtu.be/uDqjIdI4bF4" target="_blank"><img src="https://img.youtube.com/vi/uDqjIdI4bF4/hqdefault.jpg" style="width: 100%;" /></a>
+            </div>
+        </div>
+        <div id='main_div_playtesting' class="main_div scroll_helper scroll_helper_vertical">
+            <div style="text-align: center;">
+                <h2>Playtesting</h2>
+                <p style="padding-bottom: 1em;">Bitte teste dieses Spiel und schreib dein Feedback auf den Zettel:</p>
+                <p>
+                    <a id='btn_playtesting' style='font-size: 120%;' class="link_button" href="" target="_blank"></a>
+                </p>
+                <p style="margin-top: 2em;">
+                    <a id='btn_playtesting_refresh' class="link_button" href="#">Neues Spiel vorschlagen</a>
+                </p>
             </div>
         </div>
         <div id='status-bar' class='__disabled__scroll_helper
