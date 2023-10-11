@@ -230,7 +230,7 @@ class Main < Sinatra::Base
     def self.render_spritesheet_for_tag(tag)
         path = "/gen/spritesheets/#{tag}.json"
         return if File.exist?(path)
-        debug "Rendering spritesheet for #{tag}!"
+        # debug "Rendering spritesheet for #{tag}!"
         FileUtils.mkpath(File.dirname(path))
         game = JSON.parse(File.read("/gen/games/#{tag}.json"))
         sprite_sizes = {}
@@ -262,7 +262,7 @@ class Main < Sinatra::Base
             break if r > 10
             ny ||= y + sprite_sizes[key][1]
             if ny > MAX_SPRITESHEET_HEIGHT
-                debug "next spritesheet!"
+                # debug "next spritesheet!"
                 x = 0
                 y = 0
                 ny = nil
@@ -271,7 +271,7 @@ class Main < Sinatra::Base
             end
             nx = x + sprite_sizes[key][0]
             if nx > MAX_SPRITESHEET_WIDTH
-                debug "next row!"
+                # debug "next row!"
                 x = 0
                 y = ny
                 ny = nil
@@ -307,7 +307,7 @@ class Main < Sinatra::Base
             sheet_contents.last << [key, x, y, File.basename(sprite_paths[key])]
             x = nx
         end
-        debug sheet_contents.to_yaml
+        # debug sheet_contents.to_yaml
         info = {
             :spritesheets => [],
         }
