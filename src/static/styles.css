@@ -1396,3 +1396,18 @@ a, a:visited {
 .sprite-sq-thumb:hover {
     outline: rgba(255, 255, 255, 1.0) solid 1px;
 }
+
+#game_code {
+    text-align: center;
+    font-size: 200%;
+    font-family: 'IBM Plex Mono', 'Roboto Mono', monospace;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    padding: 0.2em;
+    margin: 10px 0;
+    user-select: text;
+}
+
+#game_code_div {
+    display: none;
+}

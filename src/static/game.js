@@ -36,6 +36,9 @@ class Game {
         let self = this;
         api_call('/api/save_game', { game: this.data }, function (data) {
             if (data.success) {
+                $('#game_code_div').show();
+                $('#game_code').text(`${data.tag}`);
+                $('#game_link').attr('href', `https://2d.hackschule.de/play/${data.tag}`).text(`https://2d.hackschule.de/play/${data.tag}`);
                 if (data.tag !== self.data.parent) {
                     self.data.parent = data.tag;
                 }
@@ -525,6 +528,18 @@ class Game {
                 self.data.properties.yt_tag = x;
             },
         });
+        let div = $(`<div id='game_code_div'>`);
+        $('#game-settings-here').append(div);
+        new SeparatorWidget({
+            container: div,
+            label: 'Link zum Spiel',
+        });
+        div.append($(`<p>`).css('margin', '4px 6px').text("Der Code für dein Spiel lautet:"));
+        let game_code = $(`<p>`).attr('id', 'game_code').attr('target', '_blank').html(``);
+        div.append(game_code);
+        div.append($(`<p>`).css('margin', '4px 6px').text("Wenn du dein Spiel teilen möchtest, verwende diesen Link:"));
+        let game_link = $(`<a>`).attr('id', 'game_link').css('margin', '4px 6px').attr('target', '_blank').html(``);
+        div.append(game_link);
         if (typeof(this.data.parent) !== 'undefined') {
             $('#play_iframe').hide();
             if ($('#play_iframe')[0].contentWindow.game) {
