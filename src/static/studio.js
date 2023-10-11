@@ -1144,12 +1144,14 @@ function delete_item_helper(list, index) {
 }
 
 window.onerror = function(event, source, lineno, colno, error) {
-    // let data = {
-    //     event: event,
-    //     source: source,
-
-    // };
-    // console.log('welp');
+    let data = {
+        event: event,
+        source: source,
+        lineno: lineno,
+        colno: colno,
+        error: error
+    };
+    console.log(JSON.stringify(data));
     $('#error_curtain').fadeIn();
     $('#error_curtain .robot').css('transform', 'scale(1)');
     $('#error_curtain p').css('transform', 'translate(0, 0)').css('opacity', 1);
