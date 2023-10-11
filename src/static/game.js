@@ -25,6 +25,9 @@ class Game {
                 self.data = data.game;
                 self.data.parent = tag;
                 self._load();
+                $('#game_code_div').show();
+                $('#game_code').text(`${tag}`);
+                $('#game_link').attr('href', `https://2d.hackschule.de/play/${tag}`).text(`https://2d.hackschule.de/play/${tag}`);
             }
         });
     }
