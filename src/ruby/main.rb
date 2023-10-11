@@ -11,12 +11,12 @@ require 'vips'
 
 require "./credentials.template.rb"
 warn_level = $VERBOSE
-$VERBOSE = nil
+# $VERBOSE = nil
 require "./credentials.rb"
 $VERBOSE = warn_level
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 
-PLAYTESTING_CODES = %w()
+PLAYTESTING_CODES = %w(sg1luaf 4aib9fc)
 
 Neo4jBolt.bolt_host = "neo4j"
 Neo4jBolt.bolt_port = 7687
