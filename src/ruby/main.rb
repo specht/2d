@@ -128,6 +128,13 @@ class Main < Sinatra::Base
             path = "/gen/games/#{tag}.json"
             STDERR.puts "Testing #{path}: #{File.exist?(path) ? 'OK' : 'MISSING'}"
         end
+        PLAYTESTING_CODES.each do |tag|
+            path = "/gen/games/#{tag}.json"
+            if File.exist?(path)
+                game = JSON.parse(File.read(path))
+                STDERR.puts "#{game['properties']['title']} (#{game['properties']['author']})"
+            end
+        end
         if ["thin", "rackup"].include?(File.basename($0))
             debug("Server is up and running!")
         end
