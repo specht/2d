@@ -333,11 +333,12 @@ body {
 .menu {
     /* width: 152px; */
     border: 1px solid rgba(255, 255, 255, 0.2);
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: rgba(0, 0, 0, 0.4);
     padding: 5px;
     border-radius: 10px;
     margin-bottom: 10px;
     overflow: hidden;
+    backdrop-filter: blur(10px);
 }
 
 .menu-group .menu:not(:last-child) {
@@ -503,6 +504,7 @@ body {
     font-size: 15px;
     overflow-x: auto;
     white-space: nowrap;
+    backdrop-filter: blur(10px);
 }
 
 #status-bar::-webkit-scrollbar {
@@ -923,7 +925,7 @@ height: 24px;
     background-image: url(paper.jpg?1);
     background-size: cover;
     border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 20px 10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 60px 20px rgba(0, 0, 0, 0.5);
     border-radius: 10px;
     max-width: 90vw;
     /* min-height: 30vh; */
@@ -948,6 +950,8 @@ height: 24px;
 
 .modal > h3 {
     background-color: rgba(0, 0, 0, 0.5);
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
 }
 
 .modal .modal-body {
