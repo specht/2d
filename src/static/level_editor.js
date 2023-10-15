@@ -388,6 +388,7 @@ class LevelEditor {
                     gen_new_item_options: [
                         ['Sprites', 'sprites'],
                         ['Backdrop', 'backdrop'],
+                        ['Text', 'text'],
                     ],
                     gen_item: (layer, index) => {
                         let type = layer.type;
@@ -420,6 +421,8 @@ class LevelEditor {
                             self.layer_structs[index].el_sprite_count = sprite_count;
                         } else if (type === 'backdrop') {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Backdrop')));
+                        } else if (type === 'text') {
+                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Text')));
                         }
                         return layer_div;
                     },
