@@ -130,6 +130,10 @@ class Character {
 		let y0 = this.mesh.position.y + dy0;
 		let y1 = this.mesh.position.y + dy1;
 
+		let check_for_block_above = trait_or_traits.indexOf('block_above') >= 0;
+		let check_for_block_sides = trait_or_traits.indexOf('block_sides') >= 0;
+		let check_for_block_below = trait_or_traits.indexOf('block_below') >= 0;
+
 		let result_x = new Set();
 		for (let i of this.game.interval_tree_x.search([x0, x1]))
 			result_x.add(i);
@@ -142,6 +146,13 @@ class Character {
 			let sprite = this.game.data.sprites[entry.sprite_index];
 			for (let trait of trait_or_traits) {
 				if (trait in sprite.traits) {
+					let r = {...entry};
+					r.entry_index = entry_index;
+					return r;
+				}
+			}
+			if (check_for_block_above || check_for_block_sides || check_for_block_below) {
+				if (('door' in sprite.traits) && entry.door_closed) {
 					let r = {...entry};
 					r.entry_index = entry_index;
 					return r;
@@ -171,6 +182,10 @@ class Character {
 		let y0 = this.mesh.position.y + dy0;
 		let y1 = this.mesh.position.y + dy1;
 
+		let check_for_block_above = trait_or_traits.indexOf('block_above') >= 0;
+		let check_for_block_sides = trait_or_traits.indexOf('block_sides') >= 0;
+		let check_for_block_below = trait_or_traits.indexOf('block_below') >= 0;
+
 		let result_x = new Set();
 		for (let i of this.game.interval_tree_x.search([x0, x1]))
 			result_x.add(i);
@@ -183,6 +198,16 @@ class Character {
 			let sprite = this.game.data.sprites[entry.sprite_index];
 			for (let trait of trait_or_traits) {
 				if (trait in sprite.traits) {
+					let winx = this.mesh.position.x;
+					if (dx < 0)
+						winx = Math.max(x0, entry.mesh.position.x + sprite.width / 2 + this.traits.ex_left * this.sprite.width * 0.5);
+					else if (dx > 0)
+						winx = Math.min(x0, entry.mesh.position.x - sprite.width / 2 - this.traits.ex_right * this.sprite.width * 0.5);
+					dx = winx - this.mesh.position.x;
+				}
+			}
+			if (check_for_block_above || check_for_block_sides || check_for_block_below) {
+				if (('door' in sprite.traits) && entry.door_closed) {
 					let winx = this.mesh.position.x;
 					if (dx < 0)
 						winx = Math.max(x0, entry.mesh.position.x + sprite.width / 2 + this.traits.ex_left * this.sprite.width * 0.5);
@@ -619,6 +644,25 @@ class Character {
 				}
 			}
 
+			entry = this.has_trait_at(['key'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
+				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
+			if (entry) {
+				let sprite = this.game.data.sprites[entry.sprite_index];
+				let x = entry.mesh.position.x;
+				let y = entry.mesh.position.y;
+				let x0 = x - sprite.width / 2;
+				let x1 = x + sprite.width / 2;
+				let y0 = y;
+				let y1 = y + sprite.height;
+				this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
+				this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
+				this.game.transitioning_sprites['pickup'] ??= {};
+				this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+				// TODO: Remember that we found the key
+					// this.game.points += sprite.traits.pickup.points ?? 0;
+				this.game.update_stats();
+			}
+
 			entry = this.has_trait_at(['checkpoint'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
 			if (entry) {
@@ -1047,6 +1091,7 @@ class Game {
 					if (effective_collision_detection) {
 						let x = placed[1];
 						let y = placed[2];
+						let placed_properties = placed[3] ?? {};
 						let x0 = x - sprite.width / 2;
 						let x1 = x + sprite.width / 2;
 						let y0 = y;
@@ -1060,6 +1105,12 @@ class Game {
 							this.interval_tree_x.insert([x0, x1], this.active_level_sprites.length);
 							this.interval_tree_y.insert([y0, y1], this.active_level_sprites.length);
 							this.active_level_sprites.push({layer_index: li, sprite_index: si, mesh: mesh});
+						}
+						for (let trait of Object.keys(sprite.traits)) {
+							for (let key of Object.keys(SPRITE_TRAITS[trait].placed_properties ?? {})) {
+								let data = SPRITE_TRAITS[trait].placed_properties[key];
+								this.active_level_sprites[this.active_level_sprites.length - 1][key] = placed_properties[key] ?? data.default;
+							}
 						}
 					}
 					mesh.position.set(placed[1], placed[2], 0);
@@ -1361,8 +1412,8 @@ class Game {
 			let entry = this.active_level_sprites[pi];
 			let sprite = this.data.sprites[entry.sprite_index];
 			let dt0 = (t1 - this.transitioning_sprites.pickup[pi].t0);
-			let dt = dt0 / sprite.traits.pickup.duration;
-			entry.mesh.position.y = this.transitioning_sprites.pickup[pi].y0 + dt0 * sprite.traits.pickup.move_up;
+			let dt = dt0 / ((sprite.traits.pickup ?? {}).duration ?? 0.5);
+			entry.mesh.position.y = this.transitioning_sprites.pickup[pi].y0 + dt0 * ((sprite.traits.pickup ?? {}).move_up ?? 100);
 			let t = 1.0 - dt;
 			if (t > 1.0) t = 1.0;
 			if (t < 0.0) t = 0.0;
@@ -1501,6 +1552,14 @@ class Game {
 			this.pressed_keys[KEY_UP] = true;
 		if (key === 'ArrowDown')
 			this.pressed_keys[KEY_DOWN] = true;
+		if (key === 'KeyA')
+			this.pressed_keys[KEY_LEFT] = true;
+		if (key === 'KeyD')
+			this.pressed_keys[KEY_RIGHT] = true;
+		if (key === 'KeyW')
+			this.pressed_keys[KEY_UP] = true;
+		if (key === 'KeyS')
+			this.pressed_keys[KEY_DOWN] = true;
 		if (key === 'Space')
 			this.pressed_keys[KEY_JUMP] = true;
 		if (this.development) {
@@ -1517,6 +1576,14 @@ class Game {
 	}
 
 	handle_key_up(key) {
+		if (key === 'KeyA')
+			this.pressed_keys[KEY_LEFT] = false;
+		if (key === 'KeyD')
+			this.pressed_keys[KEY_RIGHT] = false;
+		if (key === 'KeyW')
+			this.pressed_keys[KEY_UP] = false;
+		if (key === 'KeyS')
+			this.pressed_keys[KEY_DOWN] = false;
 		if (key === 'ArrowLeft')
 			this.pressed_keys[KEY_LEFT] = false;
 		if (key === 'ArrowRight')

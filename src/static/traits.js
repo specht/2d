@@ -15,6 +15,18 @@ var SPRITE_TRAITS_ORDER = [
         ],
     ],
     [
+        'Türen',
+        [
+            'door',
+        ],
+    ],
+    [
+        'Schlüssel',
+        [
+            'key',
+        ],
+    ],
+    [
         'Leitern',
         [
             'ladder',
@@ -62,6 +74,11 @@ var STATE_TRAITS_ORDER = {
     ],
     falls_down: [
         'crumbling',
+    ],
+    door: [
+        'closed',
+        'open',
+        'transition',
     ],
 };
 
@@ -174,6 +191,38 @@ var SPRITE_TRAITS = {
     },
     block_below: {
         label: 'man kann nicht von unten reinspringen',
+    },
+    door: {
+        label: 'ist eine Tür',
+        placed_properties: {
+            door_code: {
+                label: 'Code',
+                hint: 'Nur ein Schlüssel / Schalter mit demselben Code kann diese Tür öffnen.',
+                type: 'int',
+                min: 0,
+                max: 1000,
+                default: 0,
+            },
+            door_closed: {
+                label: 'Tür geschlossen',
+                hint: 'Gib an, ob die Tür geschlossen sein soll.',
+                type: 'bool',
+                default: true,
+            },
+        },
+    },
+    key: {
+        label: 'ist ein Schlüssel',
+        placed_properties: {
+            door_code: {
+                label: 'Code',
+                hint: 'Der Schlüssen kann nur Türen mit demselben Code öffnen.',
+                type: 'int',
+                min: 0,
+                max: 1000,
+                default: 0,
+            },
+        },
     },
     falls_down: {
         label: 'fällt runter, wenn man drauf steht',
@@ -565,5 +614,10 @@ var STATE_TRAITS = {
     },
     falls_down: {
         crumbling: {label: 'zerbröselt'},
-    }
+    },
+    door: {
+        closed: {label: 'geschlossen'},
+        open: {label: 'geöffnet'},
+        transition: {label: 'Übergang'},
+    },
 };

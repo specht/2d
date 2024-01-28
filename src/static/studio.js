@@ -783,8 +783,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         element: div,
                         headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames', 'Versionen'].map(function (x) {
                             let th = $('<th>').text(x);
-                            if (['Größe', 'Sprites', 'Zustände', 'Frames', 'Versionen'].indexOf(x) >= 0) {
+                            if (['Größe', 'Sprites', 'Zustände', 'Frames'].indexOf(x) >= 0) {
                                 th.addClass('right');
+                                th.data('type', 'int');
+                            }
+                            if (['Versionen'].indexOf(x) >= 0) {
                                 th.data('type', 'int');
                             }
                             return th;
