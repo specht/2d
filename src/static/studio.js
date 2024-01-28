@@ -783,8 +783,10 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         element: div,
                         headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames', 'Versionen'].map(function (x) {
                             let th = $('<th>').text(x);
-                            if (['Größe', 'Sprites', 'Zustände', 'Frames'].indexOf(x) >= 0) th.addClass('right');
-                            // if (['Klasse', 'Ausgeliehen'].indexOf(x) >= 0) th.data('type', 'int');
+                            if (['Größe', 'Sprites', 'Zustände', 'Frames', 'Versionen'].indexOf(x) >= 0) {
+                                th.addClass('right');
+                                th.data('type', 'int');
+                            }
                             return th;
                         }),
                         rows: data.nodes.map(function (node) {
@@ -805,7 +807,10 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                                                 element: $('#load_games_sublist'),
                                                 headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames'].map(function (x) {
                                                     let th = $('<th>').text(x);
-                                                    if (['Größe', 'Sprites', 'Zustände', 'Frames'].indexOf(x) >= 0) th.addClass('right');
+                                                    if (['Größe', 'Sprites', 'Zustände', 'Frames'].indexOf(x) >= 0) {
+                                                        th.addClass('right');
+                                                        th.data('type', 'int');
+                                                    }
                                                     return th;
                                                 }),
                                                 rows: data.nodes.map(function (node) {
@@ -816,10 +821,10 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                                                         $('<td>').text(node.author || '–'),
                                                         $('<td>').text(node.title || '–'),
                                                         $('<td>').text(moment.unix(node.ts_created).format('L LTS')),
-                                                        $('<td>').addClass('right').text(bytes_to_str(node.size)),
-                                                        $('<td>').addClass('right').text(`${node.sprite_count}`),
-                                                        $('<td>').addClass('right').text(`${node.state_count}`),
-                                                        $('<td>').addClass('right').text(`${node.frame_count}`),
+                                                        $('<td>').addClass('right').text(bytes_to_str(node.size)).data('sort_value', node.size),
+                                                        $('<td>').addClass('right').text(`${node.sprite_count}`).data('sort_value', node.sprite_count),
+                                                        $('<td>').addClass('right').text(`${node.state_count}`).data('sort_value', node.state_count),
+                                                        $('<td>').addClass('right').text(`${node.frame_count}`).data('sort_value', node.frame_count),
                                                     ];
                                                 }),
                                                 // filter_callback: user_filter,
@@ -840,11 +845,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                                 $('<td>').text(node.author || '–'),
                                 $('<td>').text(node.title || '–'),
                                 $('<td>').text(moment.unix(node.ts_created).format('L LTS')),
-                                $('<td>').addClass('right').text(bytes_to_str(node.size)),
-                                $('<td>').addClass('right').text(`${node.sprite_count}`),
-                                $('<td>').addClass('right').text(`${node.state_count}`),
-                                $('<td>').addClass('right').text(`${node.frame_count}`),
-                                $('<td>').append(bu_versions),
+                                $('<td>').addClass('right').text(bytes_to_str(node.size)).data('sort_value', node.size),
+                                $('<td>').addClass('right').text(`${node.sprite_count}`).data('sort_value', node.sprite_count),
+                                $('<td>').addClass('right').text(`${node.state_count}`).data('sort_value', node.state_count),
+                                $('<td>').addClass('right').text(`${node.frame_count}`).data('sort_value', node.frame_count),
+                                $('<td>').append(bu_versions).data('sort_value', node.ancestor_count + 1),
                             ];
                         }),
                         // filter_callback: user_filter,
