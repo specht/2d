@@ -4,6 +4,7 @@ let KEY_DOWN = 'down';
 let KEY_LEFT = 'left';
 let KEY_RIGHT = 'right';
 let KEY_JUMP = 'jump';
+let KEY_ACTION = 'action';
 window.yt_player = null;
 let OVERLAY_ICONS = {
 	f_key: [36, 36, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAf0lEQVRYw+2YQQqAIBQFv9GBWygE0SqCoM7nr9PUVtyEpJIwbye4GHjDAzWDc7uEMcZKxZyqR3ju5GcB6C197IyqVgW4vLdU1rhDidmWNen+OE9UhkNZHaEyHHrbpa9OURk7RGUAAQRQ6R3KvTtU1r5D8f9M/NYunVuE/6G2gR7lsx2d8NUeyQAAAABJRU5ErkJggg=="],
@@ -684,6 +685,10 @@ class Character {
 				this.game.update_stats();
 			}
 
+			for (let mesh of this.game.overlay_meshes)
+				mesh.visible = false;
+			this.game.action_key_targets = {};
+
 			entry = this.has_trait_at(['door'],
 			   -this.traits.ex_left * this.sprite.width * 0.5 - 0.1 - 100,
 				this.traits.ex_right * this.sprite.width * 0.5 + 0.1 + 100,
@@ -697,7 +702,22 @@ class Character {
 				if (sprite.traits.door.automatic) {
 					this.game.open_door_intent(entry.entry_index, t);
 				} else {
-					console.log("Press F to open door");
+					let ok = true;
+					if (this.game.active_level_sprites[entry.entry_index].door_closed === false) {
+						ok = false;
+						if (this.has_trait_at(['door'],
+						-this.traits.ex_left * this.sprite.width * 0.25 - 0.1,
+						 this.traits.ex_right * this.sprite.width * 0.25 + 0.1,
+						 -0.1,
+						 this.traits.ex_top * this.sprite.height + 0.1) === null) {
+							ok = true;
+						 }
+					}
+					if (ok) {
+						this.game.active_level_sprites[entry.entry_index].overlay_mesh.visible = true;
+						this.game.action_key_targets.door ??= [];
+						this.game.action_key_targets.door.push(entry.entry_index);
+					}
 				}
 
 				// this.game.active_level_sprites[entry.entry_index].door_closed = false;
@@ -795,6 +815,11 @@ class Character {
 			}
 			if (!this.dead()) {
 				if (this.mesh.position.y < this.game.miny - this.game.screen_pixel_height * 1.5) this.die(null, null);
+			}
+			if (this.pressed_keys[KEY_ACTION]) {
+				for (let entry_index of (this.game.action_key_targets.door ?? [])) {
+					this.game.toggle_door_intent(entry_index, t);
+				}
 			}
 		}
 	}
@@ -894,6 +919,8 @@ class Game {
 		this.dynamic_interval_tree_x = new IntervalTree();
 		this.dynamic_interval_tree_y = new IntervalTree();
 		this.active_level_sprites = [];
+		this.overlay_meshes = [];
+		this.action_key_targets = {};
 		this.future_event_list = new FutureEventList();
 		this.reset();
 		window.addEventListener('resize', () => {
@@ -1083,6 +1110,8 @@ class Game {
 		this.dynamic_interval_tree_y.clear();
 
 		this.active_level_sprites = [];
+		this.overlay_meshes = [];
+		this.action_key_targets = {};
 		this.falling_sprite_indices = {};
 		this.future_event_list = new FutureEventList();
 
@@ -1149,12 +1178,12 @@ class Game {
 			let height = OVERLAY_ICONS[key][1];
 			let geometry = new THREE.PlaneGeometry(width, height);
 			geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
-			geometry.translate(width / 2, height / 2, 0);
+			geometry.scale(0.25, -0.25, 1.0);
 			let uv = geometry.attributes.uv;
 			uv.setXY(0, 0.0, 0.0);
 			uv.setXY(1, 1.0, 0.0);
-			uv.setXY(2, 1.0, 1.0);
-			uv.setXY(3, 0.0, 1.0);
+			uv.setXY(2, 0.0, 1.0);
+			uv.setXY(3, 1.0, 1.0);
 			let material = this.overlay_icons_material[key];
 			let mesh = new THREE.Mesh(geometry, material);
 			this.overlay_mesh_catalogue[key] = mesh;
@@ -1213,9 +1242,11 @@ class Game {
 							this.active_level_sprites[this.active_level_sprites.length - 1].door_state = 'idle';
 							let overlay_mesh = this.overlay_mesh_catalogue['f_key'].clone();
 							overlay_mesh.geometry = overlay_mesh.geometry.clone();
-							overlay_mesh.geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
-							overlay_mesh.position.set(placed[1], placed[2], 1.0);
+							overlay_mesh.position.set(placed[1], placed[2] + sprite.height / 2, 1.0);
 							game_layer.add(overlay_mesh);
+							this.active_level_sprites[this.active_level_sprites.length - 1].overlay_mesh = overlay_mesh;
+							overlay_mesh.visible = false;
+							this.overlay_meshes.push(overlay_mesh);
 						}
 					}
 					mesh.position.set(placed[1], placed[2], 0);
@@ -1537,7 +1568,7 @@ class Game {
 		// handle transitioning sprites (transition)
 		delete_keys = [];
 		for (let pi in (this.transitioning_sprites ?? {}).transition ?? {}) {
-			console.log(pi, this.transitioning_sprites.transition[pi]);
+			// console.log(pi, this.transitioning_sprites.transition[pi]);
 			let entry = this.active_level_sprites[pi];
 			let sprite = this.data.sprites[entry.sprite_index];
 			let si = entry.sprite_index;
@@ -1546,10 +1577,12 @@ class Game {
 			let dt0 = (t1 - this.transitioning_sprites.transition[pi].t0);
 			let dt = dt0 / ((sprite.traits.transition ?? {}).duration ?? 0.5);
 			this.state_for_mesh[entry.mesh.uuid].frame_index = Math.floor(dt * sprite.states[sti].frames.length);
+			if (this.transitioning_sprites.transition[pi].reverse_animation)
+				this.state_for_mesh[entry.mesh.uuid].frame_index = Math.floor((1.0 - dt) * sprite.states[sti].frames.length);
 
 			// TODO: This animation code is duplicated somewhere
 			let fi = this.state_for_mesh[entry.mesh.uuid].frame_index;
-			if (fi < 0) fi += sprite.states[sti].frames.length;
+			if (fi < 0) fi = 0;
 			if (fi > sprite.states[sti].frames.length - 1) fi = sprite.states[sti].frames.length - 1;
 			let uv = entry.mesh.geometry.attributes.uv;
 			let tw = this.spritesheet_info.width;
@@ -1562,6 +1595,7 @@ class Game {
 			uv.needsUpdate = true;
 			entry.mesh.needsUpdate = true;
 
+			this.transitioning_sprites.transition[pi].progress(dt);
 			if (dt > 1.0) {
 				delete_keys.push(pi);
 				this.transitioning_sprites.transition[pi].done();
@@ -1703,6 +1737,8 @@ class Game {
 			this.pressed_keys[KEY_DOWN] = true;
 		if (key === 'Space')
 			this.pressed_keys[KEY_JUMP] = true;
+		if (key === 'KeyF')
+			this.pressed_keys[KEY_ACTION] = true;
 		if (this.development) {
 			if (key === 'Comma') {
 				this.clock.delta(-0.1);
@@ -1735,6 +1771,8 @@ class Game {
 			this.pressed_keys[KEY_DOWN] = false;
 		if (key === 'Space')
 			this.pressed_keys[KEY_JUMP] = false;
+		if (key === 'KeyF')
+			this.pressed_keys[KEY_ACTION] = false;
 	}
 
 	// handle simulation at fixed rate
@@ -1866,7 +1904,9 @@ class Game {
 					t0: t,
 					t1: t + sprite.states[transition_state_index].frames.length / (sprite.states[transition_state_index].properties.fps ?? 8),
 					transition_state: transition_state_index,
-					final_state: closed_state_index,
+					progress: (t) => {
+						if (t > 0.5) this.active_level_sprites[entry_index].door_closed = false;
+					},
 					done: () => {
 						entry.door_state = 'idle';
 						this.active_level_sprites[entry_index].door_closed = false;
@@ -1875,6 +1915,61 @@ class Game {
 					},
 				};
 			}
+		}
+	}
+
+	close_door_intent(entry_index, t) {
+		let entry = this.active_level_sprites[entry_index];
+		let sprite = this.data.sprites[entry.sprite_index];
+		if (entry.door_state === 'closing' || entry.door_closed === true)
+			return;
+		if (sprite.traits.door.closable) {
+			console.log("Now closing door!");
+			console.log("sprite", sprite);
+			let open_state_index = sprite.states.findIndex((s) => s.traits.door.open);
+			let closed_state_index = sprite.states.findIndex((s) => s.traits.door.closed);
+			let transition_state_index = sprite.states.findIndex((s) => s.traits.door.transition);
+			if (closed_state_index === -1) {
+				console.log("No closed state found for this door!");
+				return;
+			}
+			if (transition_state_index === -1) {
+				// no animation, just close the door
+				this.active_level_sprites[entry_index].door_closed = true;
+				this.state_for_mesh[entry.mesh.uuid].state_index = closed_state_index;
+				this.state_for_mesh[entry.mesh.uuid].frame_index = 0;
+			} else {
+				// show the transition animation, close door when animation is done
+				entry.door_state = 'closing';
+				this.transitioning_sprites['transition'] ??= {};
+				this.transitioning_sprites['transition'][entry_index] = {
+					t0: t,
+					t1: t + sprite.states[transition_state_index].frames.length / (sprite.states[transition_state_index].properties.fps ?? 8),
+					transition_state: transition_state_index,
+					reverse_animation: true,
+					progress: (t) => {
+						if (t > 0.5) this.active_level_sprites[entry_index].door_closed = true;
+					},
+					done: () => {
+						entry.door_state = 'idle';
+						this.active_level_sprites[entry_index].door_closed = true;
+						this.state_for_mesh[entry.mesh.uuid].state_index = closed_state_index;
+						this.state_for_mesh[entry.mesh.uuid].frame_index = 0;
+					},
+				};
+			}
+		}
+	}
+	
+	toggle_door_intent(entry_index, t) {
+		let entry = this.active_level_sprites[entry_index];
+		let sprite = this.data.sprites[entry.sprite_index];
+		if (entry.door_state !== 'idle')
+			return;
+		if (entry.door_closed) {
+			this.open_door_intent(entry_index, t);
+		} else {
+			this.close_door_intent(entry_index, t);
 		}
 	}
 };
