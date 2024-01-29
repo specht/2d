@@ -63,23 +63,33 @@ Türen:
 - Was passiert, wenn man die Tür schließt und drin steht?
 
 ```
+door level sprite:
+  door_code: 1612
+  door_closed: true / false
+  door_state: idle / opening / closing
+
 def open_door_intent():
   ok = false
   if lockable:
     if have matching key:
       ok = true
+  else:
+    ok = true
   if ok:
     do_open()
 
 def close_door_intent():
+  ok = false
+  if closable:
+    ok = true
   if ok:
     do_close()
 
 def toggle_door_intent():
   if closed:
-    open()
+    open_door_intent()
   else:
-    close()
+    close_door_intent()
 
 if standing close:
   if automatic:

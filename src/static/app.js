@@ -5,6 +5,9 @@ let KEY_LEFT = 'left';
 let KEY_RIGHT = 'right';
 let KEY_JUMP = 'jump';
 window.yt_player = null;
+let OVERLAY_ICONS = {
+	f_key: [36, 36, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAf0lEQVRYw+2YQQqAIBQFv9GBWygE0SqCoM7nr9PUVtyEpJIwbye4GHjDAzWDc7uEMcZKxZyqR3ju5GcB6C197IyqVgW4vLdU1rhDidmWNen+OE9UhkNZHaEyHHrbpa9OURk7RGUAAQRQ6R3KvTtU1r5D8f9M/NYunVuE/6G2gR7lsx2d8NUeyQAAAABJRU5ErkJggg=="],
+};
 
 class FutureEventList {
 	constructor() {
@@ -130,9 +133,13 @@ class Character {
 		let y0 = this.mesh.position.y + dy0;
 		let y1 = this.mesh.position.y + dy1;
 
-		let check_for_block_above = trait_or_traits.indexOf('block_above') >= 0;
-		let check_for_block_sides = trait_or_traits.indexOf('block_sides') >= 0;
-		let check_for_block_below = trait_or_traits.indexOf('block_below') >= 0;
+		let check_for_door = false;
+		for (let trait of trait_or_traits) {
+			if (trait === 'block_above' || trait === 'block_sides' || trait === 'block_below') {
+				check_for_door = true;
+				break;
+			}
+		}
 
 		let result_x = new Set();
 		for (let i of this.game.interval_tree_x.search([x0, x1]))
@@ -146,12 +153,26 @@ class Character {
 			let sprite = this.game.data.sprites[entry.sprite_index];
 			for (let trait of trait_or_traits) {
 				if (trait in sprite.traits) {
-					let r = {...entry};
-					r.entry_index = entry_index;
-					return r;
+					let ok = true;
+					if (trait === 'door') {
+						// Doors are a special case because of their proximity sensing capabilities.
+						// We search an area +- 100 px around the door and now have to test whether
+						// the hit was really within the door's area via xsense and ysense.
+						if (this.mesh.position.x < entry.mesh.position.x - sprite.width / 2 - sprite.traits.door.xsense ||
+							this.mesh.position.x > entry.mesh.position.x + sprite.width / 2 + sprite.traits.door.xsense ||
+							this.mesh.position.y < entry.mesh.position.y - sprite.traits.door.ysense ||
+							this.mesh.position.y > entry.mesh.position.y + sprite.height + sprite.traits.door.ysense)
+							ok = false;
+					}
+
+					if (ok) {
+						let r = {...entry};
+						r.entry_index = entry_index;
+						return r;
+					}
 				}
 			}
-			if (check_for_block_above || check_for_block_sides || check_for_block_below) {
+			if (check_for_door) {
 				if (('door' in sprite.traits) && entry.door_closed) {
 					let r = {...entry};
 					r.entry_index = entry_index;
@@ -658,25 +679,32 @@ class Character {
 				this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
 				this.game.transitioning_sprites['pickup'] ??= {};
 				this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
-				// TODO: Remember that we found the key
-					// this.game.points += sprite.traits.pickup.points ?? 0;
+				console.log(entry);
+				this.game.found_keys[entry.door_code] = true;
 				this.game.update_stats();
 			}
 
 			entry = this.has_trait_at(['door'],
-			   -this.traits.ex_left * this.sprite.width * 0.5 - 0.1,
-				this.traits.ex_right * this.sprite.width * 0.5 + 0.1,
-				-0.1,
-			    this.traits.ex_top * this.sprite.height + 0.1);
+			   -this.traits.ex_left * this.sprite.width * 0.5 - 0.1 - 100,
+				this.traits.ex_right * this.sprite.width * 0.5 + 0.1 + 100,
+				-0.1 - 100,
+			    this.traits.ex_top * this.sprite.height + 0.1 + 100);
 			if (entry) {
-				console.log(`door here - closed: ${entry.door_closed}`, entry);
-				this.game.active_level_sprites[entry.entry_index].door_closed = false;
 				let sprite = this.game.data.sprites[entry.sprite_index];
-				// this.initial_position = [entry.mesh.position.x, entry.mesh.position.y];
-				for (let sti = 0; sti < sprite.states.length; sti++) {
-					if ('open' in sprite.states[sti].traits.door)
-						this.game.state_for_mesh[entry.mesh.uuid].state_index = sti;
+				// console.log(sprite);
+				// console.log(`door here - closed: ${entry.door_closed} - x/y sense: ${sprite.traits.door.xsense} / ${sprite.traits.door.ysense}`);
+
+				if (sprite.traits.door.automatic) {
+					this.game.open_door_intent(entry.entry_index, t);
+				} else {
+					console.log("Press F to open door");
 				}
+
+				// this.game.active_level_sprites[entry.entry_index].door_closed = false;
+				// for (let sti = 0; sti < sprite.states.length; sti++) {
+				// 	if ('open' in sprite.states[sti].traits.door)
+				// 		this.game.state_for_mesh[entry.mesh.uuid].state_index = sti;
+				// }
 
 				// let sprite = this.game.data.sprites[entry.sprite_index];
 				// let x = entry.mesh.position.x;
@@ -850,6 +878,7 @@ class Game {
 		this.spritesheets = null;
 		// a mesh for every sprite (not regarding state or frame)
 		this.mesh_catalogue = [];
+		this.overlay_mesh_catalogue = {};
 		this.running = false;
 		this.level_index = 0;
 		this.layers = [];
@@ -907,6 +936,7 @@ class Game {
 		this.next_level_index = 0;
 		this.lives = 5;
 		this.energy = 100;
+		this.found_keys = {};
 		console.log('RESET', this.next_level_index);
 		this.handle_resize();
 		this.stop();
@@ -956,7 +986,25 @@ class Game {
 			});
 			this.spritesheets.push(material);
 		}
-		console.log(this);
+
+		this.overlay_icons_material = {};
+		for (let key in OVERLAY_ICONS) {
+			let texture = new THREE.Texture();
+			let image = new Image();
+			image.src = OVERLAY_ICONS[key][2];
+			texture.image = image;
+			texture.needsUpdate = true;
+			let material = new THREE.ShaderMaterial({
+				uniforms: {
+					texture1: { value: texture },
+				},
+				transparent: true,
+				vertexShader: shaders.get('basic.vs'),
+				fragmentShader: shaders.get('texture.fs'),
+				side: THREE.DoubleSide,
+			});
+			this.overlay_icons_material[key] = material;
+		}
 
 		$('#game_title').text(this.data.properties.title);
 		$('#game_author').text(this.data.properties.author);
@@ -1044,6 +1092,7 @@ class Game {
 		$('#screen').empty();
 		$('#screen').append(this.renderer.domElement);
 		this.mesh_catalogue = [];
+		this.overlay_mesh_catalogue = {};
 		this.layers = [];
 
 		this.lives = 1;
@@ -1095,6 +1144,23 @@ class Game {
 			}
 		}
 
+		for (let key in OVERLAY_ICONS) {
+			let width = OVERLAY_ICONS[key][0];
+			let height = OVERLAY_ICONS[key][1];
+			let geometry = new THREE.PlaneGeometry(width, height);
+			geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
+			geometry.translate(width / 2, height / 2, 0);
+			let uv = geometry.attributes.uv;
+			uv.setXY(0, 0.0, 0.0);
+			uv.setXY(1, 1.0, 0.0);
+			uv.setXY(2, 1.0, 1.0);
+			uv.setXY(3, 0.0, 1.0);
+			let material = this.overlay_icons_material[key];
+			let mesh = new THREE.Mesh(geometry, material);
+			this.overlay_mesh_catalogue[key] = mesh;
+		}
+
+
 		if (this.level_index >= this.data.levels.length)
 			return;
 
@@ -1142,6 +1208,14 @@ class Game {
 								let data = SPRITE_TRAITS[trait].placed_properties[key];
 								this.active_level_sprites[this.active_level_sprites.length - 1][key] = placed_properties[key] ?? data.default;
 							}
+						}
+						if ('door' in sprite.traits) {
+							this.active_level_sprites[this.active_level_sprites.length - 1].door_state = 'idle';
+							let overlay_mesh = this.overlay_mesh_catalogue['f_key'].clone();
+							overlay_mesh.geometry = overlay_mesh.geometry.clone();
+							overlay_mesh.geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
+							overlay_mesh.position.set(placed[1], placed[2], 1.0);
+							game_layer.add(overlay_mesh);
 						}
 					}
 					mesh.position.set(placed[1], placed[2], 0);
@@ -1436,8 +1510,8 @@ class Game {
 			}
 		}
 
-		// handle transitioning sprites (pickup)
 		let t1 = this.clock.getElapsedTime();
+		// handle transitioning sprites (pickup)
 		let delete_keys = [];
 		for (let pi in (this.transitioning_sprites ?? {}).pickup ?? {}) {
 			let entry = this.active_level_sprites[pi];
@@ -1459,6 +1533,42 @@ class Game {
 		}
 		for (let pi of delete_keys)
 			delete this.transitioning_sprites.pickup[pi];
+
+		// handle transitioning sprites (transition)
+		delete_keys = [];
+		for (let pi in (this.transitioning_sprites ?? {}).transition ?? {}) {
+			console.log(pi, this.transitioning_sprites.transition[pi]);
+			let entry = this.active_level_sprites[pi];
+			let sprite = this.data.sprites[entry.sprite_index];
+			let si = entry.sprite_index;
+			this.state_for_mesh[entry.mesh.uuid].state_index = this.transitioning_sprites.transition[pi].transition_state;
+			let sti = this.state_for_mesh[entry.mesh.uuid].state_index;
+			let dt0 = (t1 - this.transitioning_sprites.transition[pi].t0);
+			let dt = dt0 / ((sprite.traits.transition ?? {}).duration ?? 0.5);
+			this.state_for_mesh[entry.mesh.uuid].frame_index = Math.floor(dt * sprite.states[sti].frames.length);
+
+			// TODO: This animation code is duplicated somewhere
+			let fi = this.state_for_mesh[entry.mesh.uuid].frame_index;
+			if (fi < 0) fi += sprite.states[sti].frames.length;
+			if (fi > sprite.states[sti].frames.length - 1) fi = sprite.states[sti].frames.length - 1;
+			let uv = entry.mesh.geometry.attributes.uv;
+			let tw = this.spritesheet_info.width;
+			let th = this.spritesheet_info.height;
+			let tile_info = this.spritesheet_info.tiles[si][sti][fi];
+			uv.setXY(0, tile_info[1] / tw, tile_info[2] / th);
+			uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
+			uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
+			uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
+			uv.needsUpdate = true;
+			entry.mesh.needsUpdate = true;
+
+			if (dt > 1.0) {
+				delete_keys.push(pi);
+				this.transitioning_sprites.transition[pi].done();
+			}
+		}
+		for (let pi of delete_keys)
+			delete this.transitioning_sprites.transition[pi];
 
 		if (this.player_character) {
 			if (this.player_character.invincible()) {
@@ -1717,6 +1827,55 @@ class Game {
 			return this.baddies[entry_index];
 		}
 		return null;
+	}
+
+	open_door_intent(entry_index, t) {
+		let entry = this.active_level_sprites[entry_index];
+		let sprite = this.data.sprites[entry.sprite_index];
+		if (entry.door_state === 'opening' || entry.door_closed === false)
+			return;
+		let ok = false;
+		if (sprite.traits.door.lockable) {
+			// check if we have correct key
+			if (this.found_keys[entry.door_code] === true) {
+				ok = true;
+			}
+		} else {
+			ok = true;
+		}
+		if (ok) {
+			console.log("Now opening door!");
+			console.log("sprite", sprite);
+			let open_state_index = sprite.states.findIndex((s) => s.traits.door.open);
+			let closed_state_index = sprite.states.findIndex((s) => s.traits.door.closed);
+			let transition_state_index = sprite.states.findIndex((s) => s.traits.door.transition);
+			if (open_state_index === -1) {
+				console.log("No open state found for this door!");
+				return;
+			}
+			if (transition_state_index === -1) {
+				// no animation, just open the door
+				this.active_level_sprites[entry_index].door_closed = false;
+				this.state_for_mesh[entry.mesh.uuid].state_index = open_state_index;
+				this.state_for_mesh[entry.mesh.uuid].frame_index = 0;
+			} else {
+				// show the transition animation, open door when animation is done
+				entry.door_state = 'opening';
+				this.transitioning_sprites['transition'] ??= {};
+				this.transitioning_sprites['transition'][entry_index] = {
+					t0: t,
+					t1: t + sprite.states[transition_state_index].frames.length / (sprite.states[transition_state_index].properties.fps ?? 8),
+					transition_state: transition_state_index,
+					final_state: closed_state_index,
+					done: () => {
+						entry.door_state = 'idle';
+						this.active_level_sprites[entry_index].door_closed = false;
+						this.state_for_mesh[entry.mesh.uuid].state_index = open_state_index;
+						this.state_for_mesh[entry.mesh.uuid].frame_index = 0;
+					},
+				};
+			}
+		}
 	}
 };
 
