@@ -550,7 +550,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 
     game = new Game();
 
-    game.load('6imgi0t');
+    // game.load('6imgi0t');
     // game.load('skkmhwy');
 
     let tag = window.location.search.replace('?', '');
