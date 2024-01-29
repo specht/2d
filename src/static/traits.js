@@ -194,6 +194,14 @@ var SPRITE_TRAITS = {
     },
     door: {
         label: 'ist eine Tür',
+        properties: {
+            lockable: {
+                label: 'ist verschließbar',
+                hint: 'Gib hier an, ob man einen Schlüssel braucht oder einen Schalter umlegen muss, um diese Tür zu öffnen.',
+                type: 'bool',
+                default: true,
+            },
+        },
         placed_properties: {
             door_code: {
                 label: 'Code',

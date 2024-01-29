@@ -54,3 +54,46 @@ Feedback Forschertage
 - Steuerung: WASD / Leertaste, konfigurierbar machen
 - bewegliche Blöcke, Plattformen etc.
 
+Türen:
+- `lockable` ist verschließbar: braucht Schlüssel oder Schalter bzw. lässt sich so öffnen
+- im Level: Code für Türen, Schlüssel und Schalter (falls verschlossen)
+- `automatic` automatische Tür ja / nein
+- `closable` lässt sich wieder schließen ja / nein
+- `close_after` schließt automatisch nach n Sekunden (0 = nein)
+- Was passiert, wenn man die Tür schließt und drin steht?
+
+```
+def open_door_intent():
+  ok = false
+  if lockable:
+    if have matching key:
+      ok = true
+  if ok:
+    do_open()
+
+def close_door_intent():
+  if ok:
+    do_close()
+
+def toggle_door_intent():
+  if closed:
+    open()
+  else:
+    close()
+
+if standing close:
+  if automatic:
+    open_door_intent()
+  else:
+    display F hint
+
+if F pressed and not automatic:
+  toggle_door_intent()
+
+if timeout triggered:
+  close_door_intent()
+
+if lockable:
+  if have matching key:
+if not lockable:
+```

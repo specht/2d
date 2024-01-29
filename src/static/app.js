@@ -663,6 +663,37 @@ class Character {
 				this.game.update_stats();
 			}
 
+			entry = this.has_trait_at(['door'],
+			   -this.traits.ex_left * this.sprite.width * 0.5 - 0.1,
+				this.traits.ex_right * this.sprite.width * 0.5 + 0.1,
+				-0.1,
+			    this.traits.ex_top * this.sprite.height + 0.1);
+			if (entry) {
+				console.log(`door here - closed: ${entry.door_closed}`, entry);
+				this.game.active_level_sprites[entry.entry_index].door_closed = false;
+				let sprite = this.game.data.sprites[entry.sprite_index];
+				// this.initial_position = [entry.mesh.position.x, entry.mesh.position.y];
+				for (let sti = 0; sti < sprite.states.length; sti++) {
+					if ('open' in sprite.states[sti].traits.door)
+						this.game.state_for_mesh[entry.mesh.uuid].state_index = sti;
+				}
+
+				// let sprite = this.game.data.sprites[entry.sprite_index];
+				// let x = entry.mesh.position.x;
+				// let y = entry.mesh.position.y;
+				// let x0 = x - sprite.width / 2;
+				// let x1 = x + sprite.width / 2;
+				// let y0 = y;
+				// let y1 = y + sprite.height;
+				// this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
+				// this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
+				// this.game.transitioning_sprites['pickup'] ??= {};
+				// this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+				// // TODO: Remember that we found the key
+				// 	// this.game.points += sprite.traits.pickup.points ?? 0;
+				// this.game.update_stats();
+			}
+
 			entry = this.has_trait_at(['checkpoint'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
 			if (entry) {
