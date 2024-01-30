@@ -945,7 +945,7 @@ class LevelEditor {
         } else if (menus.level.active_key === 'tool/pan') {
             this.old_camera_position = [this.camera_x, this.camera_y];
         } else if (menus.level.active_key === 'tool/select' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
-            this.clear_selection();
+            this.clear_selection(false);
             this.updating_selection = true;
         }
 
@@ -979,7 +979,7 @@ class LevelEditor {
             let sy0 = this.y0;
             let sx1 = this.x1;
             let sy1 = this.y1;
-            this.clear_selection();
+            this.clear_selection(false);
             this.selection = this.layer_structs[this.layer_index].select_rect(this.selection_group, sx0, sy0, sx1, sy1);
             this.refresh();
             this.render();
@@ -1199,10 +1199,11 @@ class LevelEditor {
         }
     }
 
-    clear_selection() {
+    clear_selection(do_update) {
+        if (typeof(do_update) === 'undefined') do_update = true;
         this.selection = [];
         this.selection_group.remove.apply(this.selection_group, this.selection_group.children);
-        this.refresh();
+        if (do_update) this.refresh();
         this.render();
     }
 
@@ -1670,6 +1671,171 @@ class LevelEditor {
                 }
             }
         }
+
+        let placed_properties_need_update = false;
+        if (this.selection.length !== 1) {
+            $('#menu_placed_properties').empty();
+        } else {
+            placed_properties_need_update = ((this.placed_properties_for ?? null) != this.selection[0]);
+            this.placed_properties_for = this.selection[0];
+        }
+
+        if (placed_properties_need_update) {
+            $('#menu_placed_properties').empty();
+            if (this.selection.length === 1) {
+                this.placed_properties_for ??= selection[0];
+                let div = $(`<div class='menu'>`).appendTo($('#menu_placed_properties'));
+                let entry_index = this.selection[0];
+                let entry = this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index];
+                console.log('entry', entry);
+                let sprite = this.game.data.sprites[entry[0]];
+                console.log('sprite', sprite);
+                for (let trait in sprite.traits) {
+                    console.log('trait', trait);
+                    // let title = $(`<h4>`).text(SPRITE_TRAITS[trait].label).appendTo(div);
+                    for (let key in ((SPRITE_TRAITS[trait] ?? {}).placed_properties ?? {})) {
+                        console.log('key', key);
+                        let property = SPRITE_TRAITS[trait].placed_properties[key];
+                        console.log('property', property);
+                        if (property.type === 'int') {
+                            new NumberWidget({
+                                container: div,
+                                label: property.label ?? key,
+                                hint: property.hint ?? null,
+                                min: property.min ?? null,
+                                max: property.max ?? null,
+                                step: property.step ?? null,
+                                decimalPlaces: property.decimalPlaces ?? null,
+                                width: property.width ?? null,
+                                suffix: property.suffix ?? null,
+                                count: property.count ?? null,
+                                connector: property.connector ?? null,
+                                onfocus: property.onfocus ?? null,
+                                onblur: property.onblur ?? null,
+                                onchange: property.onchange ?? null,
+                                get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
+                                set: (...x) => {
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Math.round(x);
+                                },
+                            });
+                        } else if (property.type === 'float') {
+                            new NumberWidget({
+                                container: div,
+                                label: property.label ?? key,
+                                hint: property.hint ?? null,
+                                min: property.min ?? null,
+                                max: property.max ?? null,
+                                step: property.step ?? null,
+                                decimalPlaces: property.decimalPlaces ?? null,
+                                width: property.width ?? null,
+                                suffix: property.suffix ?? null,
+                                count: property.count ?? null,
+                                connector: property.connector ?? null,
+                                onfocus: property.onfocus ?? null,
+                                onblur: property.onblur ?? null,
+                                onchange: property.onchange ?? null,
+                                get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
+                                set: (...x) => {
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = x;
+                                },
+                            });
+                        } else if (property.type === 'bool') {
+                            new CheckboxWidget({
+                                container: div,
+                                label: property.label ?? key,
+                                hint: property.hint ?? null,
+                                get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
+                                set: (...x) => {
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Math.round(x);
+                                },
+                            });
+                        } else if (property.type === 'select') {
+                            new SelectWidget({
+                                container: div,
+                                label: property.label ?? key,
+                                hint: property.hint ?? null,
+                                options: property.options ?? null,
+                                get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
+                                set: (...x) => {
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Math.round(x);
+                                },
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        /*
+        add_sprite_trait_controls(trait, element) {
+            let self = this;
+            let si = canvas.sprite_index;
+            let div = $(`<div class='menu'>`);
+            let bu_delete = $(`<button class='btn'>`).append($(`<i class='fa fa-trash'>`));
+            bu_delete.click(function(e) {
+                self.remove_sprite_trait(trait);
+                self.build_sprite_traits_menu();
+            });
+            let title = $(`<h4>`).append($('<span>').text(SPRITE_TRAITS[trait].label)).append(bu_delete).appendTo(div);
+            let info = SPRITE_TRAITS[trait] ?? {};
+            for (let key in info.properties ?? {}) {
+                let property = info.properties[key];
+                if (property.type === 'float') {
+                    new NumberWidget({
+                        container: div,
+                        label: property.label ?? key,
+                        hint: property.hint ?? null,
+                        min: property.min ?? null,
+                        max: property.max ?? null,
+                        step: property.step ?? null,
+                        decimalPlaces: property.decimalPlaces ?? null,
+                        width: property.width ?? null,
+                        suffix: property.suffix ?? null,
+                        count: property.count ?? null,
+                        connector: property.connector ?? null,
+                        onfocus: property.onfocus ?? null,
+                        onblur: property.onblur ?? null,
+                        onchange: property.onchange ?? null,
+                        get: () => self.data.sprites[si].traits[trait][key],
+                        set: (...x) => {
+                            let y = x;
+                            if (y.length === 1) y = y[0];
+                            self.data.sprites[si].traits[trait][key] = y;
+                        },
+                    });
+                } else if (property.type === 'bool') {
+                    new CheckboxWidget({
+                        container: div,
+                        label: property.label ?? key,
+                        hint: property.hint ?? null,
+                        get: () => self.data.sprites[si].traits[trait][key],
+                        set: (x) => {
+                            self.data.sprites[si].traits[trait][key] = x;
+                        },
+                    });
+                } else if (property.type === 'select') {
+                    new SelectWidget({
+                        container: div,
+                        label: property.label ?? key,
+                        hint: property.hint ?? null,
+                        options: property.options ?? null,
+                        get: () => self.data.sprites[si].traits[trait][key],
+                        set: (x) => {
+                            self.data.sprites[si].traits[trait][key] = x;
+                        },
+                    });
+                }
+            }
+            div.insertAfter(element);
+        }
+    */
     }
 
     refresh_sprite_widget() {

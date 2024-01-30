@@ -585,7 +585,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                                 let si = canvas.sprite_index;
                                 let sti = canvas.state_index;
                                 let fi = canvas.frame_index;
-                                if ((this.game.data.sprites[si].states.length === 1 && 
+                                if ((this.game.data.sprites[si].states.length === 1 &&
                                     this.game.data.sprites[si].states[sti].frames.length === 1) ||
                                     (this.game.data.sprites[si].width === image.width &&
                                     this.game.data.sprites[si].height === image.height))
@@ -889,7 +889,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         e.stopPropagation();
         refresh_playtesting_code();
     });
-    
+
     window.resizeCanvasModal = new ModalDialog({
         title: 'Größe ändern',
         width: '40vw',

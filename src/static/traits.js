@@ -250,9 +250,9 @@ var SPRITE_TRAITS = {
                 label: 'Code',
                 hint: 'Nur ein Schlüssel / Schalter mit demselben Code kann diese Tür öffnen.',
                 type: 'int',
+                default: 0,
                 min: 0,
                 max: 1000,
-                default: 0,
             },
             door_closed: {
                 label: 'Tür geschlossen',
@@ -267,7 +267,7 @@ var SPRITE_TRAITS = {
         placed_properties: {
             door_code: {
                 label: 'Code',
-                hint: 'Der Schlüssen kann nur Türen mit demselben Code öffnen.',
+                hint: 'Der Schlüssel kann nur Türen mit demselben Code öffnen.',
                 type: 'int',
                 min: 0,
                 max: 1000,

@@ -680,7 +680,8 @@ class Character {
 				this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
 				this.game.transitioning_sprites['pickup'] ??= {};
 				this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
-				console.log(entry);
+				console.log('picking up key!');
+				console.log(this.game.active_level_sprites[entry.entry_index]);
 				this.game.found_keys[entry.door_code] = true;
 				this.game.update_stats();
 			}
@@ -1235,7 +1236,10 @@ class Game {
 						for (let trait of Object.keys(sprite.traits)) {
 							for (let key of Object.keys(SPRITE_TRAITS[trait].placed_properties ?? {})) {
 								let data = SPRITE_TRAITS[trait].placed_properties[key];
-								this.active_level_sprites[this.active_level_sprites.length - 1][key] = placed_properties[key] ?? data.default;
+								let value = (placed_properties[trait] ?? {})[key] ?? data.default;
+								console.log(`setting placed prop: ${trait} / ${key}: ${value}`);
+								this.active_level_sprites[this.active_level_sprites.length - 1][key] = value;
+								console.log('look', this.active_level_sprites[this.active_level_sprites.length - 1]);
 							}
 						}
 						if ('door' in sprite.traits) {
@@ -1247,6 +1251,8 @@ class Game {
 							this.active_level_sprites[this.active_level_sprites.length - 1].overlay_mesh = overlay_mesh;
 							overlay_mesh.visible = false;
 							this.overlay_meshes.push(overlay_mesh);
+							// TODO: Check if door is closed initially and use the
+							// appropriate state
 						}
 					}
 					mesh.position.set(placed[1], placed[2], 0);
@@ -1875,6 +1881,7 @@ class Game {
 		let ok = false;
 		if (sprite.traits.door.lockable) {
 			// check if we have correct key
+			console.log(`Checking door key: ${entry.door_code}, have: `, this.found_keys)
 			if (this.found_keys[entry.door_code] === true) {
 				ok = true;
 			}
