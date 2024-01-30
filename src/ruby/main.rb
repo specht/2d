@@ -482,13 +482,13 @@ class Main < Sinatra::Base
 
     post "/api/get_games" do
         nodes = neo4j_query(<<~END_OF_QUERY).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x["g"] }
-        MATCH (g:Game)
-        WHERE NOT (:Game)-[:PARENT]->(g)
-        OPTIONAL MATCH (g)-[:PARENT*]->(p:Game)
-        OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
-        OPTIONAL MATCH (g)-[:TITLE]->(t:String)
-        RETURN g, a.content AS author, t.content AS title, COUNT(DISTINCT p) AS ac
-        ORDER BY g.ts_created DESC;
+            MATCH (g:Game)
+            WHERE NOT (:Game)-[:PARENT]->(g)
+            OPTIONAL MATCH (g)-[:PARENT*]->(p:Game)
+            OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
+            OPTIONAL MATCH (g)-[:TITLE]->(t:String)
+            RETURN g, a.content AS author, t.content AS title, COUNT(DISTINCT p) AS ac
+            ORDER BY g.ts_created DESC;
         END_OF_QUERY
         nodes.map! do |node|
             node[:icon] = icon_for_tag(node[:tag])
