@@ -71,7 +71,7 @@ class Menu {
                 e.stopPropagation();
                 e.preventDefault();
             } else {
-                if ($(e.target).is('input')) return;
+                if ($(e.target).is('input') || $(e.target).is('textarea')) return;
             }
             let k = self.parseKeyEvent(e);
             if (k in self.shortcuts) {

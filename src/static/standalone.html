@@ -79,6 +79,30 @@
         right: 0;
         bottom: 0;
       }
+      #text_frame {
+        background-color: rgba(0,0,0,0.8);
+        position: absolute;
+        margin-left: 15%;
+        margin-right: 15%;
+        height: 60%;
+        width: 70%;
+        top: 20%;
+        box-shadow: 0 0 100vh #000;
+        backdrop-filter: blur(40px);
+        border: 4px solid #aaa;
+        padding: 1em;
+        font-family: 'IBM Plex Mono';
+        color: #eee;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.0;
+        transition: opacity 0.2s ease-out;
+      }
+      #text_frame.showing {
+        opacity: 1.0;
+
+      }
       #curtain {
         background-color: rgba(0, 0, 0, 0.5);
         opacity: 0.0;
@@ -174,6 +198,7 @@
     <div class="play_container">
       <div class="play_container_inner">
         <div id="screen"></div>
+        <div id="text_frame"></div>
         <div id="curtain">
         </div>
         <div id="curtain_text">

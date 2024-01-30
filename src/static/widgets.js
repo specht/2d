@@ -567,18 +567,24 @@ class ColorWidget {
 
 class LineEditWidget {
     constructor(data) {
+        console.log("LineEditWidget", data);
         this.data = data;
         this.container = data.container;
         let div = $(`<div class='item'>`);
         let label = $(`<div style='margin-right: 1em; white-space: pre;'>`).text(data.label);
         div.append(label);
         this.input = $(`<input type='text'>`);
+        if ((data.options || {}).multiline)
+            this.input = $(`<textarea style="font-family: 'IBM Plex Sans'; max-width: 100%; background-color: rgb(17, 17, 17); color: rgb(238, 238, 238); border: none; padding: 0.5em 0.2em; margin-top: 0.5em; box-shadow: rgba(255, 255, 255, 0.3) 0px 0px 10px inset; height: 100px; width: calc(100% - 0.4em);">`);
         this.input.val(data.get());
         // label.click(function(e) {
         //     self.input.focus();
         // });
-        div.append(this.input);
         $(this.container).append(div);
+        if ((data.options || {}).multiline)
+            $(this.container).append(this.input);
+        else
+            div.append(this.input);
         install_hint_handler(div, data);
         let self = this;
         this.input.keydown(function(e) { self.update(); });

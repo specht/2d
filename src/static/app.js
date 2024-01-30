@@ -720,27 +720,18 @@ class Character {
 						this.game.action_key_targets.door.push(entry.entry_index);
 					}
 				}
+			}
 
-				// this.game.active_level_sprites[entry.entry_index].door_closed = false;
-				// for (let sti = 0; sti < sprite.states.length; sti++) {
-				// 	if ('open' in sprite.states[sti].traits.door)
-				// 		this.game.state_for_mesh[entry.mesh.uuid].state_index = sti;
-				// }
-
-				// let sprite = this.game.data.sprites[entry.sprite_index];
-				// let x = entry.mesh.position.x;
-				// let y = entry.mesh.position.y;
-				// let x0 = x - sprite.width / 2;
-				// let x1 = x + sprite.width / 2;
-				// let y0 = y;
-				// let y1 = y + sprite.height;
-				// this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
-				// this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
-				// this.game.transitioning_sprites['pickup'] ??= {};
-				// this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
-				// // TODO: Remember that we found the key
-				// 	// this.game.points += sprite.traits.pickup.points ?? 0;
-				// this.game.update_stats();
+			entry = this.has_trait_at(['text'],
+			   -this.traits.ex_left * this.sprite.width * 0.5 - 10,
+				this.traits.ex_right * this.sprite.width * 0.5 + 10,
+				-10,
+			    this.traits.ex_top * this.sprite.height + 10);
+			if (entry) {
+				let sprite = this.game.data.sprites[entry.sprite_index];
+				this.game.active_level_sprites[entry.entry_index].overlay_mesh.visible = true;
+				this.game.action_key_targets.text ??= [];
+				this.game.action_key_targets.text.push(entry.entry_index);
 			}
 
 			entry = this.has_trait_at(['checkpoint'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
@@ -820,6 +811,12 @@ class Character {
 			if (this.pressed_keys[KEY_ACTION]) {
 				for (let entry_index of (this.game.action_key_targets.door ?? [])) {
 					this.game.toggle_door_intent(entry_index, t);
+				}
+				for (let entry_index of (this.game.action_key_targets.text ?? [])) {
+					let s = this.game.active_level_sprites[entry_index].text;
+					$('#text_frame').text(s);
+					$('#text_frame').addClass('showing');
+					console.log(s);
 				}
 			}
 		}
@@ -972,6 +969,7 @@ class Game {
 		$('#overlay').show();
 		$('#screen').hide();
 		this.curtain.hide();
+		$('#text_frame').removeClass('showing');
 
 		this.points = 0;
 
@@ -1047,6 +1045,7 @@ class Game {
 	}
 
 	stop() {
+		$('#text_frame').removeClass('showing');
 		if (window.yt_player !== null) {
 			window.yt_player.pauseVideo();
 		}
@@ -1242,7 +1241,7 @@ class Game {
 								console.log('look', this.active_level_sprites[this.active_level_sprites.length - 1]);
 							}
 						}
-						if ('door' in sprite.traits) {
+						if ('door' in sprite.traits || 'text' in sprite.traits) {
 							this.active_level_sprites[this.active_level_sprites.length - 1].door_state = 'idle';
 							let overlay_mesh = this.overlay_mesh_catalogue['f_key'].clone();
 							overlay_mesh.geometry = overlay_mesh.geometry.clone();
@@ -1712,6 +1711,10 @@ class Game {
 	handle_key_down(key) {
 		if (((this.running && this.lives === 0) || (this.level_index >= this.data.levels.length)) && key === 'Escape') {
 			this.stop();
+			return;
+		}
+		if ($('#text_frame').hasClass('showing')) {
+			$('#text_frame').removeClass('showing');
 			return;
 		}
 		if (this.curtain.showing) {

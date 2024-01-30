@@ -46,6 +46,12 @@ var SPRITE_TRAITS_ORDER = [
         ],
     ],
     [
+        'Text',
+        [
+            'text',
+        ],
+    ],
+    [
         'Level',
         [
             'level_complete',
@@ -272,6 +278,20 @@ var SPRITE_TRAITS = {
                 min: 0,
                 max: 1000,
                 default: 0,
+            },
+        },
+    },
+    text: {
+        label: 'Hinweistext',
+        placed_properties: {
+            text: {
+                label: 'Text',
+                hint: 'Gib hier den Text ein, der angezeigt werden soll.',
+                type: 'string',
+                options: {
+                    multiline: true,
+                },
+                default: '',
             },
         },
     },

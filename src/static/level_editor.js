@@ -388,7 +388,7 @@ class LevelEditor {
                     gen_new_item_options: [
                         ['Sprites', 'sprites'],
                         ['Backdrop', 'backdrop'],
-                        ['Text', 'text'],
+                        // ['Text', 'text'],
                     ],
                     gen_item: (layer, index) => {
                         let type = layer.type;
@@ -1684,7 +1684,7 @@ class LevelEditor {
             $('#menu_placed_properties').empty();
             if (this.selection.length === 1) {
                 this.placed_properties_for ??= selection[0];
-                let div = $(`<div class='menu'>`).appendTo($('#menu_placed_properties'));
+                let div = $(`<div>`).appendTo($('#menu_placed_properties'));
                 let entry_index = this.selection[0];
                 let entry = this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index];
                 console.log('entry', entry);
@@ -1714,7 +1714,7 @@ class LevelEditor {
                                 onblur: property.onblur ?? null,
                                 onchange: property.onchange ?? null,
                                 get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
-                                set: (...x) => {
+                                set: (x) => {
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Math.round(x);
@@ -1737,7 +1737,7 @@ class LevelEditor {
                                 onblur: property.onblur ?? null,
                                 onchange: property.onchange ?? null,
                                 get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
-                                set: (...x) => {
+                                set: (x) => {
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = x;
@@ -1749,7 +1749,7 @@ class LevelEditor {
                                 label: property.label ?? key,
                                 hint: property.hint ?? null,
                                 get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
-                                set: (...x) => {
+                                set: (x) => {
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Math.round(x);
@@ -1762,10 +1762,24 @@ class LevelEditor {
                                 hint: property.hint ?? null,
                                 options: property.options ?? null,
                                 get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
-                                set: (...x) => {
+                                set: (x) => {
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Math.round(x);
+                                },
+                            });
+                        } else if (property.type === 'string') {
+                            new LineEditWidget({
+                                container: div,
+                                label: property.label ?? key,
+                                hint: property.hint ?? null,
+                                options: property.options ?? null,
+                                get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
+                                set: (x) => {
+                                    console.log('SETTING', x);
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = x;
                                 },
                             });
                         }
