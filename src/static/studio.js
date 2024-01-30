@@ -471,6 +471,12 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         window.resizeCanvasModal.show();
                     },
                 },
+                {
+                    label: 'Sprite importieren',
+                    callback: () => {
+                        window.importSpriteModal.show();
+                    }
+                },
                 // {
                 //     label: 'Farbkorrektur',
                 //     callback: () => {
@@ -1046,6 +1052,75 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                     self.dismiss();
                 }
             },
+        ]
+    });
+
+    window.importSpriteModal = new ModalDialog({
+        title: 'Sprite importieren',
+        // vars: {
+        //     palette_index: -1,
+        //     div_for_palette_index: {},
+        // },
+        width: '90vw',
+        body: `
+        <div id='gifs_here' class="grid"></div>
+        `,
+        onbody: (self) => {
+            // for (let i = 0; i < palettes.length; i++) {
+            //     let palette = palettes[i];
+            //     let div = $(`<div class='palette-swatches grid-item'>`);
+            //     let div2 = $(`<div>`)
+            //     div.append(div2)
+            //     div2.append($(`<h3>`).text(palette.name));
+            //     let colors = $(`<div>`).css('margin-top', '5px');
+            //     for (let color of palette.colors) {
+            //         let swatch = $(`<div class='swatch'>`);
+            //         swatch.css('background-color', color);
+            //         colors.append(swatch);
+            //     }
+            //     div2.append(colors);
+            //     div2.click(function (e) {
+            //         $('#palettes_here .palette-swatches > div').removeClass('active');
+            //         $(e.target).closest('.palette-swatches > div').addClass('active');
+            //         self.palette_index = i;
+            //     });
+            //     self.div_for_palette_index[i] = div2;
+            //     $('#palettes_here').append(div);
+            // }
+            $('#gifs_here').empty();
+            api_call('/api/get_all_gifs', {}, function(data) {
+                if (data.success) {
+                    for (let tag of data.tags) {
+                        $('#gifs_here').append($(`<img style='height: 100px; image-rendering: pixelated;'>`).attr('src', `/gen/catalogue/${tag}.gif`));
+                    }
+                }
+            });
+        },
+        onshow: (self) => {
+            // self.palette_index = window.selected_palette_index;
+            // $('#palettes_here .palette-swatches > div').removeClass('active');
+            // self.div_for_palette_index[self.palette_index].addClass('active');
+            // window.modal_choose_palette_grid.masonry();
+            window.dispatchEvent(new Event('resize'));
+        },
+        footer: [
+            {
+                type: 'button',
+                label: 'Abbrechen',
+                icon: 'fa-times',
+                callback: (self) => self.dismiss(),
+            },
+            // {
+            //     type: 'button',
+            //     label: 'Sprite importieren',
+            //     icon: 'fa-check',
+            //     color: 'green',
+            //     callback: async (self) => {
+            //         // window.selected_palette_index = self.palette_index;
+            //         // update_color_palette();
+            //         self.dismiss();
+            //     }
+            // },
         ]
     });
 

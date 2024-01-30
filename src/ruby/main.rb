@@ -524,6 +524,14 @@ class Main < Sinatra::Base
         respond(:nodes => nodes)
     end
 
+    post '/api/get_all_gifs' do
+        tags = []
+        Dir['/gen/catalogue/*.gif'].each do |path|
+            tags << File.basename(path, '.gif')
+        end
+        respond(:tags => tags)
+    end
+
     after "*" do
         cleanup_neo4j()
     end
