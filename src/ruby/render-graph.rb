@@ -107,7 +107,7 @@ compact(nodes)
 STDERR.puts "Ended up with #{nodes.size} nodes!"
 
 root_tags.each do |root_tag|
-    next unless root_tag == 'o3bbng1'
+    # next unless root_tag == 'o3bbng1'
     ts_min = nil
     ts_max = nil
 
@@ -144,7 +144,7 @@ root_tags.each do |root_tag|
             color = '#ffffff'
             label = [node[:author] || '', node[:title] || ''].reject { |x| x.strip.empty? }.join(" / ").strip
             # if label.empty?
-                io.puts "\"g#{tag}\" [id = \"f#{tag}\", fillcolor = \"#{color}#{sprintf('%02x', (opacity * 255).to_i)}\", shape = circle, fixedsize = true, label = \"\", width = #{t * 0.1 + 0.05} pencolor = \"#000000\"];"
+                io.puts "\"g#{tag}\" [id = \"g#{tag}\", fillcolor = \"#{color}#{sprintf('%02x', (opacity * 255).to_i)}\", shape = circle, fixedsize = true, label = \"\", width = #{t * 0.1 + 0.05} pencolor = \"#000000\"];"
             # else
                 # io.puts "\"g#{tag}\" [fillcolor = \"#{color}\" label = \"#{label}\", pencolor = \"#000000\"];"
             # end

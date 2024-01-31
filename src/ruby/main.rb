@@ -360,6 +360,134 @@ class Main < Sinatra::Base
         respond({:tag => tag, :author => game['properties']['author'], :title => game['properties']['title']})
     end
 
+    # http://localhost:8025/api/graph/o3bbng1
+    # http://localhost:8025/api/graph/mvt5uzk
+
+    get '/api/graph/:tag' do
+        tag = params[:tag]
+        assert((!tag.include?(".")) && tag.size == 7)
+        root_tag = nil
+        neo4j_query(<<~END_OF_QUERY, :tag => tag).each { |row| root_tag = row['tag'] }
+            MATCH (g:Game {tag: $tag})
+            WHERE NOT (g)-[:PARENT]->(:Game)
+            RETURN g.tag AS tag;
+        END_OF_QUERY
+        root_tag ||= neo4j_query_expect_one(<<~END_OF_QUERY, :tag => tag)['tag']
+            MATCH (g:Game {tag: $tag})-[:PARENT*]->(o:Game)
+            WHERE NOT (o)-[:PARENT]->(:Game)
+            RETURN o.tag AS tag;
+        END_OF_QUERY
+        tags = Set.new()
+        tags << root_tag
+        neo4j_query(<<~END_OF_QUERY, :root_tag => root_tag).each { |row| tags << row['tag'] }
+            MATCH (g:Game)-[:PARENT*]->(r:Game {tag: $root_tag})
+            RETURN g.tag AS tag;
+        END_OF_QUERY
+        nodes = {}
+        neo4j_query(<<~END_OF_QUERY, :tags => tags.to_a).each do |row|
+            MATCH (g:Game) WHERE g.tag IN $tags
+            OPTIONAL MATCH (g)-[:PARENT]->(p:Game)
+            RETURN g, p.tag AS parent;
+        END_OF_QUERY
+            nodes[row['g'][:tag]] = {}
+            nodes[row['g'][:tag]][:parent] = row['parent']
+            row['g'].each_pair do |key, value|
+                nodes[row['g'][:tag]][key] = value
+            end
+        end
+
+        nodes.each_pair do |tag, node|
+            node[:children] ||= []
+            if node[:parent]
+                nodes[node[:parent]][:children] ||= []
+                nodes[node[:parent]][:children] << tag
+            end
+        end
+
+        def compact(nodes)
+            # STDERR.puts "Compacting #{nodes.size} nodes!"
+            loop do
+                nodes.each_pair do |tag, node|
+                    if node[:parent]
+                        parent_tag = node[:parent]
+                        if nodes[parent_tag][:children].size == 1
+                            if node[:children].size == 1
+                                child_tag = node[:children].first
+                                # if node[:title] == nodes[node[:parent]][:title]
+                                #     if node[:author] == nodes[node[:parent]][:author]
+                                        tag = node[:tag]
+                                        nodes[parent_tag][:children] = [node[:children].first]
+                                        nodes[parent_tag][:skipped_children] ||= 0
+                                        nodes[parent_tag][:skipped_children] += (node[:skipped_children] || 0)
+                                        nodes[parent_tag][:skipped_children] += 1
+                                        nodes[child_tag][:parent] = node[:parent]
+                                        nodes.delete(tag)
+                                        next
+                                #     end
+                                # end
+                            end
+                        end
+                    end
+                end
+                break
+            end
+        end
+
+        compact(nodes)
+
+        ts_min = nil
+        ts_max = nil
+    
+        nodes.each_pair do |tag, node|
+            ts = node[:ts_created]
+            if ts
+                ts_min ||= ts
+                ts_max ||= ts
+                ts_min = ts if ts < ts_min
+                ts_max = ts if ts > ts_max
+            end
+        end
+        ts_min ||= 0
+        ts_max ||= 0
+    
+        dot = StringIO.open do |io|
+            io.puts "digraph {"
+            io.puts "graph [fontname = Helvetica, fontsize = 10, nodesep = 0.2, ranksep = 0.3, bgcolor = transparent];"
+            io.puts "node [fontname = Helvetica, fontsize = 10, shape = rect, margin = 0, style = filled, color = \"#ffffff\"];"
+            io.puts "edge [fontname = Helvetica, fontsize = 10, arrowsize = 0.6, color = \"#888888\", fontcolor = \"#ffffff\"];"
+            io.puts 'rankdir=LR;'
+            io.puts 'splines=true;'
+            nodes.each_pair do |tag, node|
+                t = 1.0
+                if (ts_max - ts_min).abs > 0.1
+                    t = (node[:ts_created] - ts_min).to_f / (ts_max - ts_min)
+                end
+                opacity = t * 0.5 + 0.5
+                color = '#ffffff'
+                label = [node[:author] || '', node[:title] || ''].reject { |x| x.strip.empty? }.join(" / ").strip
+                # if label.empty?
+                    io.puts "\"g#{tag}\" [id = \"g#{tag}\", fillcolor = \"#{color}#{sprintf('%02x', (opacity * 255).to_i)}\", shape = circle, fixedsize = true, label = \"\", width = #{t * 0.1 + 0.05} pencolor = \"#000000\"];"
+                # else
+                    # io.puts "\"g#{tag}\" [fillcolor = \"#{color}\" label = \"#{label}\", pencolor = \"#000000\"];"
+                # end
+                # if row['p']
+                #     puts "g#{row['p']} -> g#{row['g']};"
+                # end
+            end
+            nodes.each_pair do |tag, node|
+                if node[:parent]
+                    io.puts "\"g#{node[:parent]}\" -> \"g#{tag}\" [label = \"#{nodes[node[:parent]][:skipped_children]}\"];";
+                end
+            end
+            io.puts "}"
+            io.string
+        end
+
+        svg, status = Open3.capture2("dot -Tsvg", :stdin_data => dot)
+
+        respond_raw_with_mimetype(svg, 'image/svg+xml')
+    end
+
     post "/api/load_game" do
         data = parse_request_data(:required_keys => [:tag])
         tag = data[:tag]

@@ -761,13 +761,13 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         width: '80vw',
         height: '80vh',
         body: `
-        <img src='/gen/graphs/o3bbng1.svg' style='display: block;'>
         <div style='position: absolute; width: calc(100% - 30px); height: calc(100% - 30px);'>
             <div style='position: absolute; width: 100%; height: 100%;' class='scroll-helper'>
                 <div id='load_games_list' style='position: relative; left: 0; opacity: 1; transition: left 0.5s ease, opacity 0.5s ease;'></div>
             </div>
             <div style='position: absolute; width: 100%; height: 100%;' class='scroll-helper'>
                 <button id='bu_load_game_back' style='left: 100%; opacity: 0; transition: left 0.5s ease, opacity 0.5s ease; margin-bottom: 5px;'><i class='fa fa-angle-left'></i> Zurück</button>
+                <img id='games_sublist_graph' style='max-width: 100%; display: block; margin: 1em auto;'>
                 <div id='load_games_sublist' style='position: relative; left: 100%; opacity: 0; transition: left 0.5s ease, opacity 0.5s ease;'></div>
             </div>
         </div>
@@ -802,8 +802,9 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         rows: data.nodes.map(function (node) {
                             let bu_versions = $('');
                             if (node.ancestor_count > 0) {
-                                bu_versions = $('<button>').css('font-size', '90%').append($(`<div>${node.ancestor_count + 1} Versionen <i class='fa fa-angle-right'></i></div>`));
+                                bu_versions = $('<button>').css('font-size', '90%').css('width', '9.2em').append($(`<div>${node.ancestor_count + 1} Versionen <i class='fa fa-angle-right'></i></div>`));
                                 bu_versions.click(function(e) {
+                                    $('#games_sublist_graph').attr('src', `/api/graph/${node.tag}`).show();
                                     e.stopPropagation();
                                     $('#load_games_list').css('left', '-100%').css('opacity', 0);
                                     $('#load_games_sublist').css('left', '0').css('opacity', 1);
@@ -889,6 +890,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         $('#load_games_list').parent().css('pointer-events', 'auto');
         $('#load_games_sublist').parent().css('pointer-events', 'none');
         $('#load_games_sublist').empty();
+        $('#games_sublist_graph').hide().attr('src', '');
     });
 
     $('#btn_playtesting_refresh').click(function(e) {
