@@ -371,16 +371,6 @@ body {
     margin: 1px 0;
 }
 
-#color_menu {
-    /* max-height: 200px; */
-    overflow-y: scroll;
-    scrollbar-width: thin;
-}
-
-#color_menu::-webkit-scrollbar {
-    display: none;
-}
-
 .button {
     display: inline-block;
     width: 32px;
