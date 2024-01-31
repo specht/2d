@@ -375,7 +375,7 @@ class Main < Sinatra::Base
         root_tag ||= neo4j_query_expect_one(<<~END_OF_QUERY, :tag => tag)['tag']
             MATCH (g:Game {tag: $tag})-[:PARENT*]->(o:Game)
             WHERE NOT (o)-[:PARENT]->(:Game)
-            RETURN o.tag AS tag;
+            RETURN DISTINCT o.tag AS tag;
         END_OF_QUERY
         tags = Set.new()
         tags << root_tag
