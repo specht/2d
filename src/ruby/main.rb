@@ -433,35 +433,35 @@ class Main < Sinatra::Base
         Main.render_spritesheet_for_tag(tag)
         if add_to_database
             neo4j_query(<<~END_OF_QUERY, { :tag => tag, :ts => Time.now.to_i, :size => size, :sprite_count => sprite_count, :state_count => state_count, :frame_count => frame_count, :unique_frame_count => unique_frame_count })
-            MERGE (g:Game {tag: $tag})
-            SET g.ts_created = COALESCE(g.ts_created, $ts)
-            SET g.ts_updated = $ts
-            SET g.size = $size
-            SET g.sprite_count = $sprite_count
-            SET g.state_count = $state_count
-            SET g.frame_count = $frame_count
-            SET g.unique_frame_count = $unique_frame_count;
+                MERGE (g:Game {tag: $tag})
+                SET g.ts_created = COALESCE(g.ts_created, $ts)
+                SET g.ts_updated = $ts
+                SET g.size = $size
+                SET g.sprite_count = $sprite_count
+                SET g.state_count = $state_count
+                SET g.frame_count = $frame_count
+                SET g.unique_frame_count = $unique_frame_count;
             END_OF_QUERY
             if (game["properties"] || {})["title"]
                 neo4j_query(<<~END_OF_QUERY, { :content => game["properties"]["title"], :tag => tag, :ts => Time.now.to_i })
-                MATCH (g:Game {tag: $tag})
-                MERGE (s:String {content: $content})
-                CREATE (g)-[:TITLE]->(s);
+                    MATCH (g:Game {tag: $tag})
+                    MERGE (s:String {content: $content})
+                    CREATE (g)-[:TITLE]->(s);
                 END_OF_QUERY
             end
             if (game["properties"] || {})["author"]
                 neo4j_query(<<~END_OF_QUERY, { :content => game["properties"]["author"], :tag => tag, :ts => Time.now.to_i })
-                MATCH (g:Game {tag: $tag})
-                MERGE (s:String {content: $content})
-                CREATE (g)-[:AUTHOR]->(s);
+                    MATCH (g:Game {tag: $tag})
+                    MERGE (s:String {content: $content})
+                    CREATE (g)-[:AUTHOR]->(s);
                 END_OF_QUERY
             end
             if parent && parent != tag
                 neo4j_query(<<~END_OF_QUERY, { :tag => tag, :parent => parent })
-                MATCH (g:Game {tag: $tag})
-                MATCH (p:Game {tag: $parent})
-                WHERE p.ts_created < g.ts_created
-                CREATE (g)-[:PARENT]->(p);
+                    MATCH (g:Game {tag: $tag})
+                    MATCH (p:Game {tag: $parent})
+                    WHERE p.ts_created < g.ts_created
+                    CREATE (g)-[:PARENT]->(p);
                 END_OF_QUERY
             end
         end
@@ -504,17 +504,17 @@ class Main < Sinatra::Base
         assert(!tag.include?("."))
         assert(!tag.include?("/"))
         nodes = neo4j_query(<<~END_OF_QUERY, { :tag => tag }).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x["g"] }
-        MATCH (g:Game {tag: $tag})
-        OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
-        OPTIONAL MATCH (g)-[:TITLE]->(t:String)
-        RETURN g, a.content AS author, t.content AS title;
+            MATCH (g:Game {tag: $tag})
+            OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
+            OPTIONAL MATCH (g)-[:TITLE]->(t:String)
+            RETURN g, a.content AS author, t.content AS title;
         END_OF_QUERY
         nodes += neo4j_query(<<~END_OF_QUERY, { :tag => tag }).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x["g"] }
-        MATCH (l:Game {tag: $tag})-[:PARENT*]->(g:Game)
-        OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
-        OPTIONAL MATCH (g)-[:TITLE]->(t:String)
-        RETURN g, a.content AS author, t.content AS title
-        ORDER BY g.ts_created DESC;
+            MATCH (l:Game {tag: $tag})-[:PARENT*]->(g:Game)
+            OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
+            OPTIONAL MATCH (g)-[:TITLE]->(t:String)
+            RETURN g, a.content AS author, t.content AS title
+            ORDER BY g.ts_created DESC;
         END_OF_QUERY
         nodes.map! do |node|
             node[:icon] = icon_for_tag(node[:tag])

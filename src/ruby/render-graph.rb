@@ -106,31 +106,15 @@ end
 compact(nodes)
 STDERR.puts "Ended up with #{nodes.size} nodes!"
 
-def hex_to_rgb(c)
-    r = c[1, 2].downcase.to_i(16)
-    g = c[3, 2].downcase.to_i(16)
-    b = c[5, 2].downcase.to_i(16)
-    [r, g, b]
-end
-
-def mix(a, b, t)
-    t1 = 1.0 - t
-    return [a[0] * t1 + b[0] * t,
-            a[1] * t1 + b[1] * t,
-            a[2] * t1 + b[2] * t]
-end
-
-def rgb_to_hex(c)
-    sprintf('#%02x%02x%02x', c[0].to_i, c[1].to_i, c[2].to_i)
-end
-
 root_tags.each do |root_tag|
+    next unless root_tag == 'o3bbng1'
     ts_min = nil
     ts_max = nil
 
     nodes.each_pair do |tag, node|
         next unless node[:root] == root_tag
         ts = node[:ts_created]
+        STDERR.puts node.to_json
         if ts
             ts_min ||= ts
             ts_max ||= ts
@@ -160,7 +144,7 @@ root_tags.each do |root_tag|
             color = '#ffffff'
             label = [node[:author] || '', node[:title] || ''].reject { |x| x.strip.empty? }.join(" / ").strip
             # if label.empty?
-                io.puts "\"g#{tag}\" [fillcolor = \"#{color}#{sprintf('%02x', (opacity * 255).to_i)}\", shape = circle, fixedsize = true, label = \"\", width = #{t * 0.1 + 0.05} pencolor = \"#000000\"];"
+                io.puts "\"g#{tag}\" [id = \"f#{tag}\", fillcolor = \"#{color}#{sprintf('%02x', (opacity * 255).to_i)}\", shape = circle, fixedsize = true, label = \"\", width = #{t * 0.1 + 0.05} pencolor = \"#000000\"];"
             # else
                 # io.puts "\"g#{tag}\" [fillcolor = \"#{color}\" label = \"#{label}\", pencolor = \"#000000\"];"
             # end

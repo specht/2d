@@ -761,6 +761,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         width: '80vw',
         height: '80vh',
         body: `
+        <img src='/gen/graphs/o3bbng1.svg' style='display: block;'>
         <div style='position: absolute; width: calc(100% - 30px); height: calc(100% - 30px);'>
             <div style='position: absolute; width: 100%; height: 100%;' class='scroll-helper'>
                 <div id='load_games_list' style='position: relative; left: 0; opacity: 1; transition: left 0.5s ease, opacity 0.5s ease;'></div>
@@ -829,7 +830,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                                                         $('<td>').addClass('mono').text(node.tag),
                                                         $('<td>').text(node.author || '–'),
                                                         $('<td>').text(node.title || '–'),
-                                                        $('<td>').text(moment.unix(node.ts_created).format('L LTS')),
+                                                        $('<td>').text(moment.unix(node.ts_created).format('L LT')),
                                                         $('<td>').addClass('right').text(bytes_to_str(node.size)).data('sort_value', node.size),
                                                         $('<td>').addClass('right').text(`${node.sprite_count}`).data('sort_value', node.sprite_count),
                                                         $('<td>').addClass('right').text(`${node.state_count}`).data('sort_value', node.state_count),
@@ -853,7 +854,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                                 $('<td>').addClass('mono').text(node.tag),
                                 $('<td>').text(node.author || '–'),
                                 $('<td>').text(node.title || '–'),
-                                $('<td>').text(moment.unix(node.ts_created).format('L LTS')),
+                                $('<td>').text(moment.unix(node.ts_created).format('L LT')),
                                 $('<td>').addClass('right').text(bytes_to_str(node.size)).data('sort_value', node.size),
                                 $('<td>').addClass('right').text(`${node.sprite_count}`).data('sort_value', node.sprite_count),
                                 $('<td>').addClass('right').text(`${node.state_count}`).data('sort_value', node.state_count),
