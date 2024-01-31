@@ -107,3 +107,11 @@ if lockable:
   if have matching key:
 if not lockable:
 ```
+
+Weitere Ideen:
+
+- Tür triggert Animation
+- Schaden gilt auch für Gegner, wenn tot: Animation + verschwinden?
+- j6ubiwi.json moderation
+- 1dr717z Mia
+- Levelausgang: in ein bestimmtes Level springen
