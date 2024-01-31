@@ -773,6 +773,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         </div>
         `,
         onshow: () => {
+            $('#games_sublist_graph').hide().attr('src', '');
             $('#load_games_list').css('left', '0').css('opacity', 1);
             $('#load_games_sublist').css('left', '100%').css('opacity', 0);
             $('#bu_load_game_back').css('left', '100%').css('opacity', 0);
