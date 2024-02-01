@@ -117,3 +117,4 @@ Weitere Ideen:
 - Levelausgang: in ein bestimmtes Level springen
 - Actor die state not used when dead
 - Levelbenennung trifft das falsche Level
+- Levelmusik wechselt nicht korrekt, alte Musik läuft weiter
