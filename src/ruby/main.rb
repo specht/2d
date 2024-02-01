@@ -16,7 +16,7 @@ require "./credentials.rb"
 $VERBOSE = warn_level
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 
-PLAYTESTING_CODES = %w(e2bhh1m 9nafhzj)
+PLAYTESTING_CODES = %w(e2bnn1m 9nafhzj)
 
 Neo4jBolt.bolt_host = "neo4j"
 Neo4jBolt.bolt_port = 7687
