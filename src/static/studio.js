@@ -758,7 +758,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 
     window.loadGameModal = new ModalDialog({
         title: 'Spiel laden',
-        width: '80vw',
+        width: '90vw',
         height: '90vh',
         body: `
         <div style='position: absolute; width: calc(100% - 30px); height: calc(100% - 30px);'>
@@ -802,8 +802,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         }),
                         rows: data.nodes.map(function (node) {
                             let bu_versions = $('');
-                            if (node.ancestor_count > 0) {
-                                bu_versions = $('<button>').css('font-size', '90%').css('width', '9.2em').append($(`<div>${node.ancestor_count} Versionen <i class='fa fa-angle-right'></i></div>`));
+                            if (node.relatives_count > 0) {
+                                bu_versions = $('<button>').css('font-size', '90%').css('width', '9.2em').append($(`<div>${node.relatives_count} Versionen <i class='fa fa-angle-right'></i></div>`));
                                 bu_versions.click(function(e) {
                                     api_call('/api/graph', {tag: node.tag}, function(data) {
                                         if (data.success) {
@@ -869,7 +869,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                                 $('<td>').addClass('right').text(`${node.sprite_count}`).data('sort_value', node.sprite_count),
                                 $('<td>').addClass('right').text(`${node.state_count}`).data('sort_value', node.state_count),
                                 $('<td>').addClass('right').text(`${node.frame_count}`).data('sort_value', node.frame_count),
-                                $('<td>').append(bu_versions).data('sort_value', node.ancestor_count + 1),
+                                $('<td>').append(bu_versions).data('sort_value', node.relatives_count),
                             ];
                         }),
                         // filter_callback: user_filter,

@@ -44,7 +44,7 @@ tip_tags = $neo4j.neo4j_query(<<~END_OF_QUERY, {:root_tag => root_tag}).map { |x
     ORDER BY ts DESC;
 END_OF_QUERY
 
-STDERR.puts "tip tags (#{tip_tags.to_json}): #{tip_tags.to_json}"
+STDERR.puts "tip tags: #{tip_tags.size}"
 
 latest_tip_tag = tip_tags.first[:tag]
 
@@ -54,11 +54,12 @@ STDERR.puts "latest tip: #{latest_tip_tag}"
 
 child_tags = $neo4j.neo4j_query(<<~END_OF_QUERY, {:root_tag => root_tag}).map { |x| {:tag => x['tag']} }
     MATCH (g:Game)-[:PARENT*0..]->(r:Game {tag: $root_tag})
+    WITH DISTINCT g
     RETURN g.tag AS tag, g.ts_created AS ts
     ORDER BY ts DESC;
 END_OF_QUERY
 
-STDERR.puts "child tags (#{child_tags.size}): #{child_tags.to_json}"
+STDERR.puts "child tags: #{child_tags.size}"
 
 exit
 
@@ -82,9 +83,6 @@ END_OF_QUERY
         latest_for_root_tag[root_tag] = {:tag => tag, :ts => ts}
     end
 end
-
-STDERR.puts latest_for_root_tag.to_yaml
-
 
 exit
 

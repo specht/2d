@@ -919,7 +919,7 @@ height: 24px;
     border-radius: 10px;
     max-width: 90vw;
     /* min-height: 30vh; */
-    max-height: 80vh;
+    max-height: 90vh;
     position: relative;
     display: flex;
     flex-direction: column;
