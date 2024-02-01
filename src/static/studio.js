@@ -766,14 +766,14 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 <div id='load_games_list' style='position: relative; left: 0; opacity: 1; transition: left 0.5s ease, opacity 0.5s ease;'></div>
             </div>
             <div style='position: absolute; width: 100%; height: 100%;' class='scroll-helper'>
-                <button id='bu_load_game_back' style='left: 100%; opacity: 0; transition: left 0.5s ease, opacity 0.5s ease; margin-bottom: 5px;'><i class='fa fa-angle-left'></i> Zurück</button>
-                <img id='games_sublist_graph' style='max-width: 100%; display: block; margin: 1em auto;'>
+                <button id='bu_load_game_back' style='position: absolute; left: 100%; opacity: 0; transition: left 0.5s ease, opacity 0.5s ease; margin-bottom: 5px;'><i class='fa fa-angle-left'></i> Zurück</button>
+                <span id='games_sublist_graph'></span>
                 <div id='load_games_sublist' style='position: relative; left: 100%; opacity: 0; transition: left 0.5s ease, opacity 0.5s ease;'></div>
             </div>
         </div>
         `,
         onshow: () => {
-            $('#games_sublist_graph').hide().attr('src', '');
+            $('#games_sublist_graph').hide();
             $('#load_games_list').css('left', '0').css('opacity', 1);
             $('#load_games_sublist').css('left', '100%').css('opacity', 0);
             $('#bu_load_game_back').css('left', '100%').css('opacity', 0);
@@ -805,7 +805,15 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                             if (node.ancestor_count > 0) {
                                 bu_versions = $('<button>').css('font-size', '90%').css('width', '9.2em').append($(`<div>${node.ancestor_count + 1} Versionen <i class='fa fa-angle-right'></i></div>`));
                                 bu_versions.click(function(e) {
-                                    $('#games_sublist_graph').attr('src', `/api/graph/${node.tag}`).show();
+                                    api_call('/api/graph', {tag: node.tag}, function(data) {
+                                        if (data.success) {
+                                            $('#games_sublist_graph').empty().append($(data.svg)).show();
+                                            $('#games_sublist_graph svg g.node').on('click', function(e) {
+                                                let id = $(e.target).closest('g.node').attr('id').substr(1);;
+                                                console.log(`click ${id}`);
+                                            })
+                                        }
+                                    });
                                     e.stopPropagation();
                                     $('#load_games_list').css('left', '-100%').css('opacity', 0);
                                     $('#load_games_sublist').css('left', '0').css('opacity', 1);

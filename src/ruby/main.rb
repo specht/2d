@@ -363,8 +363,7 @@ class Main < Sinatra::Base
     # http://localhost:8025/api/graph/o3bbng1
     # http://localhost:8025/api/graph/mvt5uzk
 
-    get '/api/graph/:tag' do
-        tag = params[:tag]
+    def get_graph(tag)
         assert((!tag.include?(".")) && tag.size == 7)
         root_tag = nil
         neo4j_query(<<~END_OF_QUERY, :tag => tag).each { |row| root_tag = row['tag'] }
@@ -484,8 +483,17 @@ class Main < Sinatra::Base
         end
 
         svg, status = Open3.capture2("dot -Tsvg", :stdin_data => dot)
+        return svg
+    end
 
-        respond_raw_with_mimetype(svg, 'image/svg+xml')
+    get '/api/graph/:tag' do
+        tag = params[:tag]
+        respond_raw_with_mimetype(get_graph(tag), 'image/svg+xml')
+    end
+
+    post '/api/graph' do
+        data = parse_request_data(:required_keys => [:tag])
+        respond(:svg => get_graph(data[:tag]))
     end
 
     post "/api/load_game" do

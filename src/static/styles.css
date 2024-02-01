@@ -1420,3 +1420,23 @@ a, a:visited {
 #game_code_div {
     display: none;
 }
+
+#games_sublist_graph {
+    display: flex;
+    justify-content: center;
+    max-width: 100%;
+    margin: 1em auto;
+}
+
+#games_sublist_graph svg {
+    max-width: 100%;
+}
+
+#games_sublist_graph svg g.node {
+    cursor: pointer;
+}
+
+#games_sublist_graph svg g.node:hover{
+    outline: 3px solid #238acc;
+    border-radius: 100%;
+}
