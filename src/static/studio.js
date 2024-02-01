@@ -759,7 +759,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     window.loadGameModal = new ModalDialog({
         title: 'Spiel laden',
         width: '80vw',
-        height: '80vh',
+        height: '90vh',
         body: `
         <div style='position: absolute; width: calc(100% - 30px); height: calc(100% - 30px);'>
             <div style='position: absolute; width: 100%; height: 100%;' class='scroll-helper'>

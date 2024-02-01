@@ -115,3 +115,5 @@ Weitere Ideen:
 - j6ubiwi.json moderation
 - 1dr717z Mia
 - Levelausgang: in ein bestimmtes Level springen
+- Actor die state not used when dead
+- Levelbenennung trifft das falsche Level
