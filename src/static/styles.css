@@ -972,8 +972,17 @@ height: 24px;
     text-align: right;
 }
 
-.modal-footer button {
+.modal-footer button, .modal-footer input {
     margin-right: 5px;
+}
+
+.modal-footer input {
+    background-color: #222;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 0.5em 1em!important;
+    font-size: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
 }
 
 .modal .modal-status {
