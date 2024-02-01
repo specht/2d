@@ -756,6 +756,62 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         ]
     });
 
+    function highlight_path_to(tag) {
+        $('#games_sublist_graph svg g.node').removeClass('highlight');
+        $('#games_sublist_graph svg g.edge').removeClass('highlight');
+        let node = $(`#games_sublist_graph svg g.node#g${tag}`);
+        node.addClass('highlight');
+        let p0 = tag;
+        let p = window.graph_parents[tag] ?? null;
+        while (p !== null) {
+            let node = $(`#games_sublist_graph svg g.node#g${p}`);
+            node.addClass('highlight');
+            let edge = $(`#games_sublist_graph svg g.edge#g${p}g${p0}`);
+            edge.addClass('highlight');
+            p0 = p;
+            p = window.graph_parents[p] ?? null;
+        }
+    }
+
+    function fetch_game_versions_until(tag) {
+        api_call('/api/get_versions_for_game', {tag: tag}, function(data) {
+            if (data.success) {
+                $('#load_games_sublist').empty();
+                new SortableTable({
+                    element: $('#load_games_sublist'),
+                    headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames'].map(function (x) {
+                        let th = $('<th>').text(x);
+                        if (['Größe', 'Sprites', 'Zustände', 'Frames'].indexOf(x) >= 0) {
+                            th.addClass('right');
+                            th.data('type', 'int');
+                        }
+                        return th;
+                    }),
+                    rows: data.nodes.map(function (node) {
+                        return [
+                            node.tag,
+                            $('<td>').append($('<img>').attr('src', `noto/${node.icon}.png`).css('height', '24px')),
+                            $('<td>').addClass('mono').text(node.tag),
+                            $('<td>').text(node.author || '–'),
+                            $('<td>').text(node.title || '–'),
+                            $('<td>').text(moment.unix(node.ts_created).format('L LT')),
+                            $('<td>').addClass('right').text(bytes_to_str(node.size)).data('sort_value', node.size),
+                            $('<td>').addClass('right').text(`${node.sprite_count}`).data('sort_value', node.sprite_count),
+                            $('<td>').addClass('right').text(`${node.state_count}`).data('sort_value', node.state_count),
+                            $('<td>').addClass('right').text(`${node.frame_count}`).data('sort_value', node.frame_count),
+                        ];
+                    }),
+                    // filter_callback: user_filter,
+                    clickable_rows: true,
+                    clickable_row_callback: (tag) => {
+                        game.load(tag);
+                        window.loadGameModal.dismiss();
+                    }
+                });
+            }
+        });
+    }
+
     window.loadGameModal = new ModalDialog({
         title: 'Spiel laden',
         width: '90vw',
@@ -807,10 +863,13 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                                 bu_versions.click(function(e) {
                                     api_call('/api/graph', {tag: node.tag}, function(data) {
                                         if (data.success) {
+                                            window.graph_parents = data.graph_parents;
                                             $('#games_sublist_graph').empty().append($(data.svg)).show();
+                                            highlight_path_to(node.tag);
                                             $('#games_sublist_graph svg g.node').on('click', function(e) {
                                                 let id = $(e.target).closest('g.node').attr('id').substr(1);;
-                                                console.log(`click ${id}`);
+                                                highlight_path_to(id);
+                                                fetch_game_versions_until(id);
                                             })
                                         }
                                     });
@@ -820,42 +879,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                                     $('#bu_load_game_back').css('left', '0').css('opacity', 1);
                                     $('#load_games_list').parent().css('pointer-events', 'none');
                                     $('#load_games_sublist').parent().css('pointer-events', 'auto');
-                                    $('#load_games_sublist').empty();
-                                    api_call('/api/get_versions_for_game', {tag: node.tag}, function(data) {
-                                        if (data.success) {
-                                            new SortableTable({
-                                                element: $('#load_games_sublist'),
-                                                headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames'].map(function (x) {
-                                                    let th = $('<th>').text(x);
-                                                    if (['Größe', 'Sprites', 'Zustände', 'Frames'].indexOf(x) >= 0) {
-                                                        th.addClass('right');
-                                                        th.data('type', 'int');
-                                                    }
-                                                    return th;
-                                                }),
-                                                rows: data.nodes.map(function (node) {
-                                                    return [
-                                                        node.tag,
-                                                        $('<td>').append($('<img>').attr('src', `noto/${node.icon}.png`).css('height', '24px')),
-                                                        $('<td>').addClass('mono').text(node.tag),
-                                                        $('<td>').text(node.author || '–'),
-                                                        $('<td>').text(node.title || '–'),
-                                                        $('<td>').text(moment.unix(node.ts_created).format('L LT')),
-                                                        $('<td>').addClass('right').text(bytes_to_str(node.size)).data('sort_value', node.size),
-                                                        $('<td>').addClass('right').text(`${node.sprite_count}`).data('sort_value', node.sprite_count),
-                                                        $('<td>').addClass('right').text(`${node.state_count}`).data('sort_value', node.state_count),
-                                                        $('<td>').addClass('right').text(`${node.frame_count}`).data('sort_value', node.frame_count),
-                                                    ];
-                                                }),
-                                                // filter_callback: user_filter,
-                                                clickable_rows: true,
-                                                clickable_row_callback: (tag) => {
-                                                    game.load(tag);
-                                                    window.loadGameModal.dismiss();
-                                                }
-                                            });
-                                        }
-                                    });
+                                    fetch_game_versions_until(node.tag);
                                 });
                             }
                             return [

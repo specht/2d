@@ -1445,7 +1445,22 @@ a, a:visited {
     cursor: pointer;
 }
 
-#games_sublist_graph svg g.node:hover{
-    outline: 3px solid #238acc;
-    border-radius: 100%;
+:root {
+    --graph-highlight-color: rgba(229, 24, 93, 1.0);
 }
+
+#games_sublist_graph svg g.node.highlight ellipse {
+    fill: var(--graph-highlight-color);
+    stroke: var(--graph-highlight-color);
+}
+
+#games_sublist_graph svg g.edge.highlight path, #games_sublist_graph svg g.edge.highlight polygon {
+    fill: var(--graph-highlight-color);
+    stroke: var(--graph-highlight-color);
+}
+
+#games_sublist_graph svg g.node:hover ellipse {
+    fill: var(--graph-highlight-color);
+    stroke: var(--graph-highlight-color);
+}
+

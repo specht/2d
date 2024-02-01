@@ -361,9 +361,6 @@ class Main < Sinatra::Base
         respond({:tag => tag, :author => game['properties']['author'], :title => game['properties']['title']})
     end
 
-    # http://localhost:8025/api/graph/o3bbng1
-    # http://localhost:8025/api/graph/mvt5uzk
-
     def get_graph(tag)
         assert((!tag.include?(".")) && tag.size == 7)
         root_tag = nil
@@ -405,7 +402,6 @@ class Main < Sinatra::Base
         end
 
         def compact(nodes)
-            # STDERR.puts "Compacting #{nodes.size} nodes!"
             loop do
                 nodes.each_pair do |tag, node|
                     if node[:parent]
@@ -413,18 +409,14 @@ class Main < Sinatra::Base
                         if nodes[parent_tag][:children].size == 1
                             if node[:children].size == 1
                                 child_tag = node[:children].first
-                                # if node[:title] == nodes[node[:parent]][:title]
-                                #     if node[:author] == nodes[node[:parent]][:author]
-                                        tag = node[:tag]
-                                        nodes[parent_tag][:children] = [node[:children].first]
-                                        nodes[parent_tag][:skipped_children] ||= 0
-                                        nodes[parent_tag][:skipped_children] += (node[:skipped_children] || 0)
-                                        nodes[parent_tag][:skipped_children] += 1
-                                        nodes[child_tag][:parent] = node[:parent]
-                                        nodes.delete(tag)
-                                        next
-                                #     end
-                                # end
+                                tag = node[:tag]
+                                nodes[parent_tag][:children] = [node[:children].first]
+                                nodes[parent_tag][:skipped_children] ||= 0
+                                nodes[parent_tag][:skipped_children] += (node[:skipped_children] || 0)
+                                nodes[parent_tag][:skipped_children] += 1
+                                nodes[child_tag][:parent] = node[:parent]
+                                nodes.delete(tag)
+                                next
                             end
                         end
                     end
@@ -437,7 +429,7 @@ class Main < Sinatra::Base
 
         ts_min = nil
         ts_max = nil
-    
+
         nodes.each_pair do |tag, node|
             ts = node[:ts_created]
             if ts
@@ -449,12 +441,14 @@ class Main < Sinatra::Base
         end
         ts_min ||= 0
         ts_max ||= 0
-    
+
+        graph_parents = {}
+
         dot = StringIO.open do |io|
             io.puts "digraph {"
             io.puts "graph [fontname = Helvetica, fontsize = 10, nodesep = 0.2, ranksep = 0.3, bgcolor = transparent];"
             io.puts "node [fontname = Helvetica, fontsize = 10, shape = rect, margin = 0, style = filled, color = \"#ffffff\"];"
-            io.puts "edge [fontname = Helvetica, fontsize = 10, arrowsize = 0.6, color = \"#888888\", fontcolor = \"#ffffff\"];"
+            io.puts "edge [fontname = Helvetica, fontsize = 10, arrowsize = 0.6, color = \"#808080\", fontcolor = \"#ffffff\"];"
             io.puts 'rankdir=LR;'
             io.puts 'splines=true;'
             nodes.each_pair do |tag, node|
@@ -462,21 +456,15 @@ class Main < Sinatra::Base
                 if (ts_max - ts_min).abs > 0.1
                     t = (node[:ts_created] - ts_min).to_f / (ts_max - ts_min)
                 end
-                opacity = t * 0.5 + 0.5
+                opacity = t * 0.25 + 0.5
                 color = '#ffffff'
                 label = [node[:author] || '', node[:title] || ''].reject { |x| x.strip.empty? }.join(" / ").strip
-                # if label.empty?
-                    io.puts "\"g#{tag}\" [id = \"g#{tag}\", fillcolor = \"#{color}#{sprintf('%02x', (opacity * 255).to_i)}\", shape = circle, fixedsize = true, label = \"\", width = #{t * 0.1 + 0.05} pencolor = \"#000000\"];"
-                # else
-                    # io.puts "\"g#{tag}\" [fillcolor = \"#{color}\" label = \"#{label}\", pencolor = \"#000000\"];"
-                # end
-                # if row['p']
-                #     puts "g#{row['p']} -> g#{row['g']};"
-                # end
+                io.puts "\"g#{tag}\" [id = \"g#{tag}\", fillcolor = \"#{color}#{sprintf('%02x', (opacity * 255).to_i)}\", shape = circle, fixedsize = true, label = \"\", width = #{t * 0.1 + 0.05} pencolor = \"#000000\"];"
             end
             nodes.each_pair do |tag, node|
                 if node[:parent]
-                    io.puts "\"g#{node[:parent]}\" -> \"g#{tag}\" [label = \"#{nodes[node[:parent]][:skipped_children]}\"];";
+                    io.puts "\"g#{node[:parent]}\" -> \"g#{tag}\" [id = \"g#{node[:parent]}g#{tag}\", label = \"#{nodes[node[:parent]][:skipped_children]}\"];";
+                    graph_parents[tag] = node[:parent]
                 end
             end
             io.puts "}"
@@ -484,17 +472,19 @@ class Main < Sinatra::Base
         end
 
         svg, status = Open3.capture2("dot -Tsvg", :stdin_data => dot)
-        return svg
+        return svg, graph_parents
     end
 
     get '/api/graph/:tag' do
         tag = params[:tag]
-        respond_raw_with_mimetype(get_graph(tag), 'image/svg+xml')
+        svg, graph_parents = get_graph(tag)
+        respond_raw_with_mimetype(svg, 'image/svg+xml')
     end
 
     post '/api/graph' do
         data = parse_request_data(:required_keys => [:tag])
-        respond(:svg => get_graph(data[:tag]))
+        svg, graph_parents = get_graph(data[:tag])
+        respond(:svg => svg, :graph_parents => graph_parents)
     end
 
     post "/api/load_game" do
@@ -634,6 +624,10 @@ class Main < Sinatra::Base
         END_OF_QUERY
         STDERR.puts "Got #{root_tags.size} root tags: #{root_tags.to_json}"
 
+        if DEVELOPMENT
+            root_tags = ['mvs25t8']
+        end
+
         child_counts_for_root_nodes = {}
         child_tags =$neo4j.neo4j_query(<<~END_OF_QUERY, {:root_tags => root_tags}).each do |row|
             MATCH (g:Game)-[:PARENT*0..]->(r:Game)
@@ -731,7 +725,7 @@ class Main < Sinatra::Base
     get "/play/:tag" do
         redirect "#{WEB_ROOT}/standalone##{params[:tag]}", 302
     end
-    
+
     get "/*" do
         path = request.env["REQUEST_PATH"]
         assert(path[0] == "/")
