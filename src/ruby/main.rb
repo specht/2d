@@ -622,11 +622,6 @@ class Main < Sinatra::Base
             WHERE NOT (r)-[:PARENT]->(:Game)
             RETURN r.tag AS tag;
         END_OF_QUERY
-        STDERR.puts "Got #{root_tags.size} root tags: #{root_tags.to_json}"
-
-        if DEVELOPMENT
-            root_tags = ['mvs25t8']
-        end
 
         child_counts_for_root_nodes = {}
         child_tags =$neo4j.neo4j_query(<<~END_OF_QUERY, {:root_tags => root_tags}).each do |row|
@@ -673,9 +668,6 @@ class Main < Sinatra::Base
 
         nodes.map! do |node|
             node[:icon] = icon_for_tag(node[:tag])
-            STDERR.puts "tag: #{node[:tag]}"
-            STDERR.puts "root tag: #{root_tag_for_tag[node[:tag]]}"
-            STDERR.puts "child count: #{child_counts_for_root_nodes[root_tag_for_tag[node[:tag]]]}"
             node[:relatives_count] = child_counts_for_root_nodes[root_tag_for_tag[node[:tag]]]
             node
         end
