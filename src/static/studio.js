@@ -883,6 +883,14 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             });
         },
         footer: [
+            // {
+            //     type: 'input',
+            //     label: 'Suchen',
+            //     icon: 'fa-search',
+            //     callback: (self) => {
+
+            //     },
+            // },
             {
                 type: 'button',
                 label: 'Abbrechen',

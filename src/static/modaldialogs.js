@@ -36,6 +36,22 @@ class ModalDialog {
                             entry.callback(self);
                         });
                     }
+                } else if (entry.type === 'input') {
+                    let button = $(`<input>`).attr('placeholder', entry.label);
+                    if (entry.icon) {
+                        button.empty();
+                        button.append($(`<i class='fa ${entry.icon}'></i>`));
+                        button.append(`&nbsp;&nbsp;`);
+                        button.append(entry.label);
+                    }
+                    button.appendTo(footer);
+                    // if (entry.color)
+                    //     button.addClass(entry.color);
+                    // if (entry.callback) {
+                    //     button.click(function(e) {
+                    //         entry.callback(self);
+                    //     });
+                    // }
                 }
             }
         }
