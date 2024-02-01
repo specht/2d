@@ -17,6 +17,77 @@ end
 
 $neo4j = Neo4jGlobal.new
 
+# OCEAN RUN:
+# liam: s3rrbdc / dat17md (root should be mvs25t8)
+# but graph has 35+ nodes (list says 9)
+
+tag = 's3rrbdc'
+
+STDERR.puts "tag: #{tag}"
+
+# 1. FIND ROOT
+
+root_tag = $neo4j.neo4j_query_expect_one(<<~END_OF_QUERY, {:tag => tag})['tag']
+    MATCH (g:Game {tag: $tag})-[:PARENT*0..]->(r:Game)
+    WHERE NOT (r)-[:PARENT]->(:Game)
+    RETURN r.tag AS tag;
+END_OF_QUERY
+
+STDERR.puts "root tag: #{root_tag}"
+
+# 2. FIND ALL TIPS WITH TS
+
+tip_tags = $neo4j.neo4j_query(<<~END_OF_QUERY, {:root_tag => root_tag}).map { |x| {:tag => x['tag'], :ts => x['ts']} }
+    MATCH (g:Game)-[:PARENT*0..]->(r:Game {tag: $root_tag})
+    WHERE NOT (:Game)-[:PARENT]->(g)
+    RETURN g.tag AS tag, g.ts_created AS ts
+    ORDER BY ts DESC;
+END_OF_QUERY
+
+STDERR.puts "tip tags (#{tip_tags.to_json}): #{tip_tags.to_json}"
+
+latest_tip_tag = tip_tags.first[:tag]
+
+STDERR.puts "latest tip: #{latest_tip_tag}"
+
+# 3. FIND ALL DESCENDANTS
+
+child_tags = $neo4j.neo4j_query(<<~END_OF_QUERY, {:root_tag => root_tag}).map { |x| {:tag => x['tag']} }
+    MATCH (g:Game)-[:PARENT*0..]->(r:Game {tag: $root_tag})
+    RETURN g.tag AS tag, g.ts_created AS ts
+    ORDER BY ts DESC;
+END_OF_QUERY
+
+STDERR.puts "child tags (#{child_tags.size}): #{child_tags.to_json}"
+
+exit
+
+root_tags = ['mvs25t8']
+
+latest_for_root_tag = {}
+
+$neo4j.neo4j_query(<<~END_OF_QUERY, {:root_tags => root_tags}).each do |row|
+    MATCH (r:Game) WHERE r.tag IN $root_tags
+    WITH r
+    MATCH (g:Game)-[:PARENT*0..]->(r:Game)
+    WHERE NOT (:Game)-[:PARENT]->(g)
+    RETURN r.tag AS root_tag, g.tag AS tag, g.ts_created AS ts;
+END_OF_QUERY
+    # STDERR.puts "> #{row.to_json}"
+    root_tag = row['root_tag']
+    tag = row['tag']
+    ts = row['ts']
+    latest_for_root_tag[root_tag] ||= {:tag => tag, :ts => ts}
+    if ts > latest_for_root_tag[root_tag][:ts]
+        latest_for_root_tag[root_tag] = {:tag => tag, :ts => ts}
+    end
+end
+
+STDERR.puts latest_for_root_tag.to_yaml
+
+
+exit
+
 nodes = {}
 
 

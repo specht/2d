@@ -115,7 +115,9 @@ Weitere Ideen:
 - j6ubiwi.json moderation
 - 1dr717z Mia
 - Levelausgang: in ein bestimmtes Level springen
-- Actor die state not used when dead
+- Sterbeanimation darf sich nicht wiederholen (oder als Option)
 - Levelbenennung trifft das falsche Level
 - Levelmusik wechselt nicht korrekt, alte Musik läuft weiter
 - Treppen und Slides
+- Teleportieren mit 'door code'
+- Slopes!

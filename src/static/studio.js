@@ -803,7 +803,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         rows: data.nodes.map(function (node) {
                             let bu_versions = $('');
                             if (node.ancestor_count > 0) {
-                                bu_versions = $('<button>').css('font-size', '90%').css('width', '9.2em').append($(`<div>${node.ancestor_count + 1} Versionen <i class='fa fa-angle-right'></i></div>`));
+                                bu_versions = $('<button>').css('font-size', '90%').css('width', '9.2em').append($(`<div>${node.ancestor_count} Versionen <i class='fa fa-angle-right'></i></div>`));
                                 bu_versions.click(function(e) {
                                     api_call('/api/graph', {tag: node.tag}, function(data) {
                                         if (data.success) {
