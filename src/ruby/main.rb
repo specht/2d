@@ -16,7 +16,7 @@ require "./credentials.rb"
 $VERBOSE = warn_level
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 
-PLAYTESTING_CODES = %w(e2bnn1m 8598gp7 2lmg98v zf572rq ohbxw98 fd8mqzg dclordr o1umqtz
+PLAYTESTING_CODES = %w(e2bnn1m 8598gp7 2lmg98v zf572rq ohbxw98 fd8mqzg l9jkp7u o1umqtz
                        9puw9cl hkgixso cj4qolc p2zz17d dbkrr1s 8pj0l9x 2p6xsag s2i2rlq
                        lgcqbqy 9i3rtj4 kzrrw45)
 
