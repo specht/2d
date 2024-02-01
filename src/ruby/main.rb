@@ -607,22 +607,56 @@ class Main < Sinatra::Base
         respond(:tag => tag, :icon => icon_for_tag(tag))
     end
 
-    post "/api/get_games" do
-        # nodes = neo4j_query(<<~END_OF_QUERY).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x["g"] }
-        #     MATCH (g:Game)
-        #     WHERE NOT (:Game)-[:PARENT]->(g)
-        #     OPTIONAL MATCH (g)-[:PARENT*]->(p:Game)
-        #     OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
-        #     OPTIONAL MATCH (g)-[:TITLE]->(t:String)
-        #     RETURN g, a.content AS author, t.content AS title, COUNT(DISTINCT p) AS ac
-        #     ORDER BY g.ts_created DESC;
-        # END_OF_QUERY
-        root_tags = neo4j_query(<<~END_OF_QUERY).map { |x| x['tag'] }
+    post '/api/search_game' do
+        data = parse_request_data(:required_keys => [:query], :max_body_length => 256)
+        query = data[:query].strip.downcase
+        query_parts = query.split(/\s+/)
+        strings = neo4j_query('MATCH (s:String) RETURN s.content AS s;').map { |x| x['s'] }
+        tags = neo4j_query('MATCH (g:Game) RETURN g.tag AS s;').map { |x| x['s'] }
+        STDERR.puts "Got #{strings.size} strings, #{tags.size} tags"
+        result_tags = Set.new()
+        query_parts.each do |part|
+            if part.size <= 7
+                tags.each do |tag|
+                    if tag[0, part.size] == part
+                        result_tags << tag
+                    end
+                end
+            end
+            strings.each do |string|
+                s = string.downcase
+                if s.include?(part)
+                    neo4j_query(<<~END_OF_QUERY, {:string => string}).each do |row|
+                        MATCH (g:Game)-[:AUTHOR|:TITLE]->(s:String {content: $string})
+                        RETURN g.tag AS tag;
+                    END_OF_QUERY
+                        result_tags << row['tag']
+                    end
+                end
+            end
+        end
+        root_tags = Set.new()
+        neo4j_query(<<~END_OF_QUERY, {:tags => result_tags.to_a}).each do |row|
+            MATCH (g:Game)-[:PARENT*0..]->(r:Game)
+            WHERE g.tag IN $tags
+            AND NOT (r)-[:PARENT]->(:Game)
+            RETURN r.tag AS tag;
+        END_OF_QUERY
+            root_tags << row['tag']
+        end
+        nodes = get_current_tips_for_root_nodes(root_tags.to_a)
+        respond(:query => query, :nodes => nodes)
+    end
+
+    def all_root_tags
+        neo4j_query(<<~END_OF_QUERY).map { |x| x['tag'] }
             MATCH (r:Game)
             WHERE NOT (r)-[:PARENT]->(:Game)
             RETURN r.tag AS tag;
         END_OF_QUERY
+    end
 
+    def get_current_tips_for_root_nodes(root_tags)
         child_counts_for_root_nodes = {}
         child_tags =$neo4j.neo4j_query(<<~END_OF_QUERY, {:root_tags => root_tags}).each do |row|
             MATCH (g:Game)-[:PARENT*0..]->(r:Game)
@@ -672,6 +706,12 @@ class Main < Sinatra::Base
             node
         end
         nodes.uniq! { |x| x[:tag] }
+        nodes
+    end
+
+    post "/api/get_games" do
+        root_tags = all_root_tags()
+        nodes = get_current_tips_for_root_nodes(root_tags)
         respond(:nodes => nodes)
     end
 
@@ -680,14 +720,7 @@ class Main < Sinatra::Base
         tag = data[:tag]
         assert(!tag.include?("."))
         assert(!tag.include?("/"))
-        nodes = []
-        # nodes = neo4j_query(<<~END_OF_QUERY, { :tag => tag }).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x["g"] }
-        #     MATCH (g:Game {tag: $tag})
-        #     OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
-        #     OPTIONAL MATCH (g)-[:TITLE]->(t:String)
-        #     RETURN g, a.content AS author, t.content AS title;
-        # END_OF_QUERY
-        nodes += neo4j_query(<<~END_OF_QUERY, { :tag => tag }).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x["g"] }
+        nodes = neo4j_query(<<~END_OF_QUERY, { :tag => tag }).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x["g"] }
             MATCH (l:Game {tag: $tag})-[:PARENT*0..]->(g:Game)
             OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
             OPTIONAL MATCH (g)-[:TITLE]->(t:String)
