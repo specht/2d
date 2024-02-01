@@ -618,15 +618,50 @@ class Main < Sinatra::Base
     end
 
     post "/api/get_games" do
-        nodes = neo4j_query(<<~END_OF_QUERY).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x["g"] }
-            MATCH (g:Game)
+        # nodes = neo4j_query(<<~END_OF_QUERY).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x["g"] }
+        #     MATCH (g:Game)
+        #     WHERE NOT (:Game)-[:PARENT]->(g)
+        #     OPTIONAL MATCH (g)-[:PARENT*]->(p:Game)
+        #     OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
+        #     OPTIONAL MATCH (g)-[:TITLE]->(t:String)
+        #     RETURN g, a.content AS author, t.content AS title, COUNT(DISTINCT p) AS ac
+        #     ORDER BY g.ts_created DESC;
+        # END_OF_QUERY
+        root_tags = neo4j_query(<<~END_OF_QUERY).map { |x| x['tag'] }
+            MATCH (r:Game)
+            WHERE NOT (r)-[:PARENT]->(:Game)
+            RETURN r.tag AS tag;
+        END_OF_QUERY
+        STDERR.puts "Got #{root_tags.size} root tags: #{root_tags.to_json}"
+
+        latest_for_root_tag = {}
+
+        neo4j_query(<<~END_OF_QUERY, {:root_tags => root_tags}).each do |row|
+            MATCH (r:Game) WHERE r.tag IN $root_tags
+            WITH r
+            MATCH (g:Game)-[:PARENT*0..]->(r:Game)
             WHERE NOT (:Game)-[:PARENT]->(g)
+            RETURN r.tag AS root_tag, g.tag AS tag, g.ts_created AS ts;
+        END_OF_QUERY
+            # STDERR.puts "> #{row.to_json}"
+            root_tag = row['root_tag']
+            tag = row['tag']
+            ts = row['ts']
+            latest_for_root_tag[root_tag] ||= {:tag => tag, :ts => ts}
+            if ts > latest_for_root_tag[root_tag][:ts]
+                latest_for_root_tag[root_tag] = {:tag => tag, :ts => ts}
+            end
+        end
+        nodes = neo4j_query(<<~END_OF_QUERY, {:tags => latest_for_root_tag.values.map { |x| x[:tag] }}).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x['g'] }
+            MATCH (g:Game)
+            WHERE g.tag IN $tags
             OPTIONAL MATCH (g)-[:PARENT*]->(p:Game)
             OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
             OPTIONAL MATCH (g)-[:TITLE]->(t:String)
             RETURN g, a.content AS author, t.content AS title, COUNT(DISTINCT p) AS ac
             ORDER BY g.ts_created DESC;
         END_OF_QUERY
+
         nodes.map! do |node|
             node[:icon] = icon_for_tag(node[:tag])
             node

@@ -19,6 +19,43 @@ $neo4j = Neo4jGlobal.new
 
 nodes = {}
 
+
+root_tags = $neo4j.neo4j_query(<<~END_OF_QUERY).map { |x| x['tag'] }
+    MATCH (r:Game)
+    WHERE NOT (r)-[:PARENT]->(:Game)
+    RETURN r.tag AS tag;
+END_OF_QUERY
+STDERR.puts "Got #{root_tags.size} root tags: #{root_tags.to_json}"
+
+latest_for_root_tag = {}
+
+$neo4j.neo4j_query(<<~END_OF_QUERY, {:root_tags => root_tags}).each do |row|
+    MATCH (r:Game) WHERE r.tag IN $root_tags
+    WITH r
+    MATCH (g:Game)-[:PARENT*0..]->(r:Game)
+    WHERE NOT (:Game)-[:PARENT]->(g)
+    RETURN r.tag AS root_tag, g.tag AS tag, g.ts_created AS ts;
+END_OF_QUERY
+    # STDERR.puts "> #{row.to_json}"
+    root_tag = row['root_tag']
+    tag = row['tag']
+    ts = row['ts']
+    latest_for_root_tag[root_tag] ||= {:tag => tag, :ts => ts}
+    if ts > latest_for_root_tag[root_tag][:ts]
+        latest_for_root_tag[root_tag] = {:tag => tag, :ts => ts}
+    end
+end
+
+root_tags.each do |root_tag|
+    # STDERR.puts "#{root_tag} => #{latest_for_root_tag[root_tag].to_json}"
+end
+
+puts "Got #{latest_for_root_tag.size} latest nodes."
+
+# STDERR.puts latest_for_root_tag_2.to_yaml
+
+exit
+
 $neo4j.neo4j_query(<<~END_OF_QUERY).each do |row|
     MATCH (g:Game)
     OPTIONAL MATCH (g)-[:PARENT]->(p:Game)
