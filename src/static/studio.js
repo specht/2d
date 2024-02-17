@@ -12,8 +12,10 @@ function bytes_to_str(i) {
     if (i < 1024 * 1024)
         return `${(i / 1024).toFixed(1)} kB`;
     if (i < 1024 * 1024 * 1024)
-        return `${(i / 1024).toFixed(1)} MB`;
-    return `${(i / 1024).toFixed(1)} GB`;
+        return `${(i / 1024 / 1024).toFixed(1)} MB`;
+    if (i < 1024 * 1024 * 1024 * 1024)
+        return `${(i / 1024 / 1024 / 1024).toFixed(1)} GB`;
+    return `${(i / 1024 / 1024 / 1024 / 1024).toFixed(1)} TB`;
 }
 
 function handleResize() {
