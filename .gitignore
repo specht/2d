@@ -1,6 +1,5 @@
 docker-compose.yaml
 env.rb
-src/ruby/credentials.rb
 data/
 logs/
 docker/nginx/default.conf

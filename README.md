@@ -8,8 +8,15 @@
 
 Du kannst das ganze hier ausprobieren: [https://2d.hackschule.de/](https://2d.hackschule.de/)
 
-## Installation
+## Vorbereitung
 
 ```bash
 cp env.template.rb env.rb
+./config.rb build
+```
+
+## Server starten
+
+```bash
+./config.rb up
 ```
