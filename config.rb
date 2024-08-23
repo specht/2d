@@ -13,7 +13,6 @@ RAW_FILES_PATH = File::join(DATA_PATH, 'raw')
 GEN_FILES_PATH = File::join(DATA_PATH, 'gen')
 
 docker_compose = {
-    :version => '3',
     :services => {},
 }
 
@@ -167,4 +166,6 @@ FileUtils::mkpath(File.join(GEN_FILES_PATH, 'games'))
 FileUtils::mkpath(NEO4J_DATA_PATH)
 FileUtils::mkpath(NEO4J_LOGS_PATH)
 
-system("docker-compose --project-name #{PROJECT_NAME} #{ARGV.map { |x| '"' + x + '"'}.join(' ')}")
+`docker compose 2> /dev/null`
+DOCKER_COMPOSE = ($? == 0) ? 'docker compose' : 'docker-compose'
+system("#{DOCKER_COMPOSE} --compatibility --project-name #{PROJECT_NAME} #{ARGV.map { |x| '"' + x + '"'}.join(' ')}")

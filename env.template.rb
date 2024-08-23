@@ -15,6 +15,9 @@ UID = Process::UID.eid
 # Domain, auf der die Live-Seite läuft
 WEBSITE_HOST = '2d.nhcham.org'
 
+# Präfix für alle URLs
+WEB_ROOT = DEVELOPMENT ? 'http://localhost:8025' : "https://#{WEBSITE_HOST}"
+
 # E-Mail für Letsencrypt
 LETSENCRYPT_EMAIL = 'specht@gymnasiumsteglitz.de'
 
