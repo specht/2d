@@ -400,7 +400,7 @@ var SPRITE_TRAITS = {
                 default: 0,
             },
             invincible: {
-                label: 'macht unverwundbar',
+                label: 'unverwundbar für',
                 hint: 'Gib hier an, für wie viele Sekunden deine Spielfigur unverwundbar sein soll.',
                 type: 'float',
                 min: 0,
@@ -408,6 +408,7 @@ var SPRITE_TRAITS = {
                 step: 1,
                 decimalPlaces: 1,
                 default: 0,
+                suffix: 's',
             },
         },
     },

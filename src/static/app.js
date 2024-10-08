@@ -662,6 +662,9 @@ class Character {
 					this.game.energy += sprite.traits.pickup.energy ?? 0;
 					if (this.game.energy > this.game.data.properties.max_energy)
 						this.game.energy = this.game.data.properties.max_energy;
+					if ((sprite.traits.pickup.invincible ?? 0) > 0.0) {
+						this.invincible_until = t + sprite.traits.pickup.invincible;
+					}
 					this.game.update_stats();
 				}
 			}
