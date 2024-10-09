@@ -742,7 +742,7 @@ class Main < Sinatra::Base
     end
 
     get "/play/:tag" do
-        redirect "#{WEB_ROOT}/standalone##{params[:tag]}", 302
+        redirect "/standalone##{params[:tag]}", 302
     end
 
     get "/*" do
