@@ -121,3 +121,9 @@ Weitere Ideen:
 - Treppen und Slides
 - Teleportieren mit 'door code'
 - Slopes!
+
+2025:
+
+- Coyote Time, erst nach 30 ms fallen
+- Eis: rutschige Oberfläche
+- Bug: Leben resetten sich
