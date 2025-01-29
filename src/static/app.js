@@ -168,6 +168,15 @@ class Character {
 							this.mesh.position.y > entry.mesh.position.y + sprite.height + sprite.traits.door.ysense)
 							ok = false;
 					}
+					if (trait === 'slope') {
+						// Slopes are special as well: whether we're intersecting the slope or not
+						// depends on the x position
+						let tx = (this.mesh.position.x - (entry.mesh.position.x - sprite.width / 2)) / sprite.width;
+						if (sprite.traits.slope.direction === 'negative') tx = 1.0 - tx;
+						if (this.mesh.position.y > entry.mesh.position.y + tx * sprite.height + 8) {
+							ok = false;
+						}
+					}
 
 					if (ok) {
 						let r = { ...entry };
@@ -207,6 +216,12 @@ class Character {
 		let y0 = this.mesh.position.y + dy0;
 		let y1 = this.mesh.position.y + dy1;
 
+		// handle slopes: if we want to walk left or right and we're on a slope,
+		// just do it
+		if (this.has_trait_at(['slope'], -0.0001, 0.0001, -0.1, -0.01)) {
+			return dx;
+		}
+
 		let check_for_block_above = trait_or_traits.indexOf('block_above') >= 0;
 		let check_for_block_sides = trait_or_traits.indexOf('block_sides') >= 0;
 		let check_for_block_below = trait_or_traits.indexOf('block_below') >= 0;
@@ -228,6 +243,7 @@ class Character {
 						winx = Math.max(x0, entry.mesh.position.x + sprite.width / 2 + this.traits.ex_left * this.sprite.width * 0.5);
 					else if (dx > 0)
 						winx = Math.min(x0, entry.mesh.position.x - sprite.width / 2 - this.traits.ex_right * this.sprite.width * 0.5);
+					console.log('fix x', trait, dx, winx, this.mesh.position.x);
 					dx = winx - this.mesh.position.x;
 				}
 			}
@@ -255,6 +271,7 @@ class Character {
 			let tb = this.traits.ex_top * this.sprite.height;
 			dx = this.intersect_x_with_trait(dx, ['block_sides'], rb, rb + dx, 0.1, tb - 0.1);
 		}
+		// console.log(this.mesh.position.x, dx);
 		this.mesh.position.x += dx;
 		return dx;
 	}
@@ -281,9 +298,16 @@ class Character {
 			for (let trait of trait_or_traits) {
 				if (trait in sprite.traits) {
 					let winy = this.mesh.position.y;
-					if (dy < 0)
-						winy = Math.max(y0, entry.mesh.position.y + sprite.height);
-					else if (dy > 0)
+					if (dy < 0) {
+						// accomodate for slope
+						let height = sprite.height;
+						if (trait === 'slope') {
+							let tx = (this.mesh.position.x - (entry.mesh.position.x - sprite.width * 0.5)) / sprite.width;
+							if (sprite.traits.slope.direction === 'negative') tx = 1.0 - tx;
+							height = tx * sprite.height;
+						}
+						winy = Math.max(y0, entry.mesh.position.y + height);
+					} else if (dy > 0)
 						winy = Math.min(y0, entry.mesh.position.y - this.sprite.height * this.traits.ex_top);
 					dy = winy - this.mesh.position.y;
 				}
@@ -295,7 +319,6 @@ class Character {
 	try_move_y(dy) {
 		let old_dy = dy;
 		if (dy < 0) {
-			// if (this.has_trait_at('ladder'), -0.5, 0.5, 0.1, 1.1) {
 			if (this.pressed_keys[KEY_DOWN]) {
 				dy = this.intersect_y_with_trait(dy, ['block_above'], -0.5, 0.5, dy, 0.0);
 			} else {
@@ -309,6 +332,7 @@ class Character {
 					this.game.camera_shake_strength = dist * this.traits.camera_shake_on_land ?? 0;
 				}
 			}
+			dy = this.intersect_y_with_trait(dy, ['slope'], -0.01, 0.01, dy - 0.1, dy);
 		} else if (dy > 0) {
 			let tb = this.traits.ex_top * this.sprite.height;
 			dy = this.intersect_y_with_trait(dy, ['block_below'], -0.5, 0.5, tb + 0.1, tb + dy + 0.1);
@@ -343,20 +367,21 @@ class Character {
 	standing_on_ground() {
 		// we're adding a coyote time effect here:
 		// keep this true for an additional 30 ms or something like this
-		let value = (this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, -0.01) !== null);
+		let value = (this.has_trait_at(['block_above', 'ladder', 'slope'], -0.5, 0.5, -0.5, -0.01) !== null);
 		this.standing_on_ground_cache ??= {
 			v0: false,
 			v1: false,
-			v0_t: 0.0,
+			v1_t: 0.0,
 		};
 		this.standing_on_ground_cache.v0 = this.standing_on_ground_cache.v1;
 		this.standing_on_ground_cache.v1 = value;
 		if (this.standing_on_ground_cache.v0 === true && this.standing_on_ground_cache.v1 === false) {
-			this.standing_on_ground_cache.v0_t = this.game.clock.getElapsedTime();
+			let delta = (this.game.data.properties.coyote_time ?? 30) * 0.001;
+			if (this.has_trait_at(['slope'], -0.001, 0.001, -8, -0.01) !== null) delta = 0;
+			this.standing_on_ground_cache.v1_t = this.game.clock.getElapsedTime() + delta;
 		}
-		console.log(value, this.standing_on_ground_cache);
 		if (this.standing_on_ground_cache.v1 === false) {
-			return (this.game.clock.getElapsedTime() < this.standing_on_ground_cache.v0_t + (this.game.data.properties.coyote_time ?? 30) * 0.001);
+			return this.game.clock.getElapsedTime() < this.standing_on_ground_cache.v1_t;
 		} else {
 			return true;
 		}
@@ -404,6 +429,7 @@ class Character {
 					}
 				}
 			}
+
 
 			if (this.traits.affected_by_gravity) {
 				if (this.standing_on_ground()) {
@@ -523,13 +549,15 @@ class Character {
 	take_damage_from_sprite(sprite, trait) {
 		// for actor
 		if ((!this.game.running) || this.dead() || this.game.reached_flag) return;
-		this.game.energy -= sprite.traits[trait].damage;
-		if (this.game.energy < 0) this.game.energy = 0;
-		this.game.update_stats();
-		if (this.game.energy === 0) {
-			this.die(sprite, trait);
-		} else {
-			this.invincible_until = this.game.clock.getElapsedTime() + sprite.traits[trait].damage_cool_down;
+		if (sprite.traits[trait].damage > 0) {
+			this.game.energy -= sprite.traits[trait].damage;
+			if (this.game.energy < 0) this.game.energy = 0;
+			this.game.update_stats();
+			if (this.game.energy === 0) {
+				this.die(sprite, trait);
+			} else {
+				this.invincible_until = this.game.clock.getElapsedTime() + sprite.traits[trait].damage_cool_down;
+			}
 		}
 	}
 
@@ -613,9 +641,25 @@ class Character {
 		if (this.character_trait === 'baddie' && this.pressed_keys[KEY_JUMP]) factor = this.traits.jump_vfactor;
 		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun * factor * this.vrun_factor();
 		if (this.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun * factor * this.vrun_factor();
+
 		// if (this.character_trait === 'baddie')
 		// 	dx *= (1.0) + ((Math.random() - 0.5) * 2.0) * 3;
+		// console.log(this.mesh.position.x, "trying", dx);
+		let previous_slope = this.has_trait_at(['slope'], -0.001, 0.001, -0.01, 0.1);
+		let prev_dx = dx;
 		dx = this.try_move_x(dx);
+		if (dx !== 0) {
+			console.log("moved by", prev_dx, dx, (previous_slope ?? {}).sprite_index);
+			if (previous_slope) {
+				// we were standing on a slope, adjust y accordingly
+				let sprite = this.game.data.sprites[previous_slope.sprite_index];
+				let tx = (this.mesh.position.x - (previous_slope.mesh.position.x - sprite.width * 0.5)) / sprite.width;
+				if (sprite.traits.slope.direction === 'negative') tx = 1.0 - tx;
+				let dy = previous_slope.mesh.position.y + tx * sprite.height - this.mesh.position.y;
+				this.mesh.position.y += dy;
+				// this.mesh.position.y += 0.1;
+			}
+		}
 		let state = 'stand';
 		if (this.standing_on_ground()) {
 			state = (Math.abs(dx) > 0.1) ? 'walk' : 'stand';
@@ -647,6 +691,16 @@ class Character {
 					this.center_on_entry(entry);
 			}
 		}
+		// handle slopes: if we're on a slope, correct y coordinate
+		// let value = (this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, -0.01) !== null);
+		entry = this.has_trait_at(['slope'], -0.5, 0.5, -0.01, 0.1);
+		if (entry) {
+			let sprite = this.game.data.sprites[entry.sprite_index];
+			let tx = (this.mesh.position.x - (entry.mesh.position.x - sprite.width * 0.5)) / sprite.width;
+			if (sprite.traits.slope.direction === 'negative') tx = 1.0 - tx;
+			dy = Math.max(dy, entry.mesh.position.y + tx * sprite.height - this.mesh.position.y);
+		}
+
 		dy = this.try_move_y(dy);
 		if (Math.abs(dy) > 0.1)
 			direction = 'back';

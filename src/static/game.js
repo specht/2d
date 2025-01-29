@@ -73,7 +73,7 @@ class Game {
         this.data.properties.respawn_invincible ??= 3;
         this.data.properties.screen_pixel_height ??= 240.0;
         this.data.properties.gravity ??= 0.5;
-        this.data.properties.coyote_time ??= 30;
+        this.data.properties.coyote_time ??= 50;
         this.data.properties.safe_zone_x ??= 0.4;
         this.data.properties.safe_zone_y ??= 0.3;
         this.data.parent ??= null;

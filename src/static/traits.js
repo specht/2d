@@ -15,6 +15,12 @@ var SPRITE_TRAITS_ORDER = [
         ],
     ],
     [
+        'Schrägen',
+        [
+            'slope',
+        ],
+    ],
+    [
         'Türen',
         [
             'door',
@@ -197,6 +203,20 @@ var SPRITE_TRAITS = {
     },
     block_below: {
         label: 'man kann nicht von unten reinspringen',
+    },
+    slope: {
+        label: 'Schräge / Treppe',
+        properties: {
+            direction: {
+                label: 'Richtung',
+                type: 'select',
+                options: {
+                    'positive': 'nach rechts oben',
+                    'negative': 'nach rechts unten',
+                },
+                default: 'positive',
+            },
+        },
     },
     door: {
         label: 'ist eine Tür',

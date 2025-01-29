@@ -124,7 +124,8 @@ Weitere Ideen:
 
 2025:
 
-- Coyote Time, erst nach 30 ms fallen
 - Eis: rutschige Oberfläche
 - Slopes!
 - Highscore
+- markierte Sprites in anderes Layer verschieben
+- Trampolin
