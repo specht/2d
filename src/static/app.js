@@ -45,6 +45,9 @@ class Character {
 		this.pressed_keys = {};
 		this.intention = null;
 		this.invincible_until = 0;
+		this.accelerated_until = 0;
+		this.speed_boost_vrun = 1.0;
+		this.speed_boost_vjump = 1.0;
 		this.initial_position = [mesh.position.x, mesh.position.y];
 		this.simulate_this = true;
 		this.falling_sprite_indices = {};
@@ -458,6 +461,18 @@ class Character {
 		return this.game.clock.getElapsedTime() < this.invincible_until;
 	}
 
+	accelerated() {
+		return this.game.clock.getElapsedTime() < this.accelerated_until;
+	}
+
+	vrun_factor() {
+		return (this.accelerated() && this.character_trait === 'actor') ? this.speed_boost_vrun : 1.0;
+	}
+
+	vjump_factor() {
+		return (this.accelerated() && this.character_trait === 'actor') ? this.speed_boost_vjump : 1.0;
+	}
+
 	dead() {
 		return (this.game.ts_zoom_actor >= 0) && (!this.game.reached_flag);
 	}
@@ -578,8 +593,8 @@ class Character {
 		let dx = 0;
 		let factor = 1;
 		if (this.character_trait === 'baddie' && this.pressed_keys[KEY_JUMP]) factor = this.traits.jump_vfactor;
-		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun * factor;
-		if (this.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun * factor;
+		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun * factor * this.vrun_factor();
+		if (this.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun * factor * this.vrun_factor();
 		// if (this.character_trait === 'baddie')
 		// 	dx *= (1.0) + ((Math.random() - 0.5) * 2.0) * 3;
 		dx = this.try_move_x(dx);
@@ -601,7 +616,7 @@ class Character {
 		entry = this.has_trait_at(['ladder'], -0.5, 0.5, 0.1, 1.1);
 		if (entry) {
 			if (this.pressed_keys[KEY_UP]) {
-				dy += this.traits.vrun;
+				dy += this.traits.vrun * this.vrun_factor();
 				if (this.game.data.sprites[entry.sprite_index].traits.ladder.center)
 					this.center_on_entry(entry);
 			}
@@ -609,7 +624,7 @@ class Character {
 		entry = this.has_trait_at(['ladder'], -0.5, 0.5, -1.1, -0.1);
 		if (entry) {
 			if (this.pressed_keys[KEY_DOWN]) {
-				dy -= this.traits.vrun;
+				dy -= this.traits.vrun * this.vrun_factor();
 				if (this.game.data.sprites[entry.sprite_index].traits.ladder.center)
 					this.center_on_entry(entry);
 			}
@@ -623,7 +638,7 @@ class Character {
 			if (this.standing_on_ground()) {
 				this.vy = 0;
 				if (this.pressed_keys[KEY_JUMP])
-					this.vy = this.traits.vjump;
+					this.vy = this.traits.vjump * this.vjump_factor();
 			}
 		}
 
@@ -664,6 +679,11 @@ class Character {
 						this.game.energy = this.game.data.properties.max_energy;
 					if ((sprite.traits.pickup.invincible ?? 0) > 0.0) {
 						this.invincible_until = t + sprite.traits.pickup.invincible;
+					}
+					if ((sprite.traits.pickup.speed_boost_duration ?? 0) > 0.0) {
+						this.accelerated_until = t + sprite.traits.pickup.speed_boost_duration;
+						this.speed_boost_vrun = sprite.traits.pickup.speed_boost_vrun;
+						this.speed_boost_vjump = sprite.traits.pickup.speed_boost_vjump;
 					}
 					this.game.update_stats();
 				}
@@ -1611,7 +1631,7 @@ class Game {
 			delete this.transitioning_sprites.transition[pi];
 
 		if (this.player_character) {
-			if (this.player_character.invincible()) {
+			if (this.player_character.invincible() || this.player_character.accelerated()) {
 				this.player_character.mesh.visible = (this.frame % 10) < 5;
 			} else {
 				this.player_character.mesh.visible = true;
