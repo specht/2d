@@ -1,77 +1,78 @@
 <!DOCTYPE html>
 <html style="background-color: #000;">
-    <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1,
-            user-scalable=no, maximum-scale=1">
-        <meta charset="UTF-8" />
-        <title>Hackschule Game Studio</title>
-        <link href="fork-awesome/fork-awesome.min.css" rel="stylesheet">
-        <link href="coloris.min.css" rel="stylesheet">
-        <link href="styles.css?#{@@cache_buster}" rel="stylesheet">
-        <link href="fonts.css?#{@@cache_buster}" rel="stylesheet">
-        <script src="jquery-3.6.0.min.js"></script>
-        <script src="coloris.min.js"></script>
-        <script src="misc.js?#{@@cache_buster}"></script>
-        <script src="api.js?#{@@cache_buster}"></script>
-        <script src="widgets.js?#{@@cache_buster}"></script>
-        <script src="canvas.js?#{@@cache_buster}"></script>
-        <script src="traits.js?#{@@cache_buster}"></script>
-        <script src="sprite_sheet.js?#{@@cache_buster}"></script>
-        <script src="level_editor.js?#{@@cache_buster}"></script>
-        <script src="game.js?#{@@cache_buster}"></script>
-        <script src="dropdownmenu.js?#{@@cache_buster}"></script>
-        <script src="modaldialogs.js?#{@@cache_buster}"></script>
-        <script src="menu.js?#{@@cache_buster}"></script>
-        <script src="cling-colors.js?#{@@cache_buster}"></script>
-        <script src="palettes.js?#{@@cache_buster}"></script>
-        <script src="tinycolor-min.js"></script>
-        <script src="moment-with-locales.min.js"></script>
-        <script src="shaders.js?#{@@cache_buster}"></script>
-        <script src="studio.js?#{@@cache_buster}"></script>
-        <script src="three.min.js?#{@@cache_buster}"></script>
-        <script src="masonry.pkgd.min.js?#{@@cache_buster}"></script>
-        <script src="ditherjs.dist.js?#{@@cache_buster}"></script>
-        <script src="interval_tree.js?#{@@cache_buster}"></script>
-        <script src="avl.js?#{@@cache_buster}"></script>
-    </head>
 
-    <body>
-        <div id='main-nav'>
-            <div id='mi_sprites' class='main-nav-item active'>Sprites</div>
-            <div id='mi_level' class='main-nav-item'>Level</div>
-            <!-- <div id='mi_code' class='main-nav-item'>Code</div> -->
-            <div id='mi_settings' class='main-nav-item'>Einstellungen</div>
-            <div id='mi_play' class='main-nav-item'>Spielen</div>
-            <div id='mi_help' class='main-nav-item'>Hilfe</div>
-            <!-- <div id='mi_playtesting' style='#{PLAYTESTING_CODES.empty? ? 'display: none;' : ''}' class='main-nav-item'>Playtesting</div> -->
-        </div>
-        <div id='main_div_game' class="main_div" style="margin-top: 40px;">
-            <button id="bu_save_game">Spiel speichern</button>
-            <div id="saved_games_here"></div>
-        </div>
-        <div id='main_div_sprites' class="main_div">
-            <div class='menu_container'>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1,
+            user-scalable=no, maximum-scale=1">
+    <meta charset="UTF-8" />
+    <title>Hackschule Game Studio</title>
+    <link href="fork-awesome/fork-awesome.min.css" rel="stylesheet">
+    <link href="coloris.min.css" rel="stylesheet">
+    <link href="styles.css?#{@@cache_buster}" rel="stylesheet">
+    <link href="fonts.css?#{@@cache_buster}" rel="stylesheet">
+    <script src="jquery-3.6.0.min.js"></script>
+    <script src="coloris.min.js"></script>
+    <script src="misc.js?#{@@cache_buster}"></script>
+    <script src="api.js?#{@@cache_buster}"></script>
+    <script src="widgets.js?#{@@cache_buster}"></script>
+    <script src="canvas.js?#{@@cache_buster}"></script>
+    <script src="traits.js?#{@@cache_buster}"></script>
+    <script src="sprite_sheet.js?#{@@cache_buster}"></script>
+    <script src="level_editor.js?#{@@cache_buster}"></script>
+    <script src="game.js?#{@@cache_buster}"></script>
+    <script src="dropdownmenu.js?#{@@cache_buster}"></script>
+    <script src="modaldialogs.js?#{@@cache_buster}"></script>
+    <script src="menu.js?#{@@cache_buster}"></script>
+    <script src="cling-colors.js?#{@@cache_buster}"></script>
+    <script src="palettes.js?#{@@cache_buster}"></script>
+    <script src="tinycolor-min.js"></script>
+    <script src="moment-with-locales.min.js"></script>
+    <script src="shaders.js?#{@@cache_buster}"></script>
+    <script src="studio.js?#{@@cache_buster}"></script>
+    <script src="three.min.js?#{@@cache_buster}"></script>
+    <script src="masonry.pkgd.min.js?#{@@cache_buster}"></script>
+    <script src="ditherjs.dist.js?#{@@cache_buster}"></script>
+    <script src="interval_tree.js?#{@@cache_buster}"></script>
+    <script src="avl.js?#{@@cache_buster}"></script>
+</head>
+
+<body>
+    <div id='main-nav'>
+        <div id='mi_sprites' class='main-nav-item active'>Sprites</div>
+        <div id='mi_level' class='main-nav-item'>Level</div>
+        <!-- <div id='mi_code' class='main-nav-item'>Code</div> -->
+        <div id='mi_settings' class='main-nav-item'>Einstellungen</div>
+        <div id='mi_play' class='main-nav-item'>Spielen</div>
+        <div id='mi_help' class='main-nav-item'>Hilfe</div>
+        <!-- <div id='mi_playtesting' style='#{PLAYTESTING_CODES.empty? ? 'display: none;' : ''}' class='main-nav-item'>Playtesting</div> -->
+    </div>
+    <div id='main_div_game' class="main_div" style="margin-top: 40px;">
+        <button id="bu_save_game">Spiel speichern</button>
+        <div id="saved_games_here"></div>
+    </div>
+    <div id='main_div_sprites' class="main_div">
+        <div class='menu_container'>
+            <div class='menu'>
+                <h3>Werkzeuge</h3>
+                <div id='tool_menu' class="menu-body"></div>
+            </div>
+            <div class='menu-group'>
                 <div class='menu'>
-                    <h3>Werkzeuge</h3>
-                    <div id='tool_menu' class="menu-body"></div>
-                </div>
-                <div class='menu-group'>
-                    <div class='menu'>
-                        <h3>Palette</h3>
-                        <div id='color_menu' class="menu-body"></div>
-                    </div>
-                    <div class='menu'>
-                        <!-- <h3>Farbvariationen</h3> -->
-                        <div id='color_variations_menu' class="menu-body"></div>
-                    </div>
+                    <h3>Palette</h3>
+                    <div id='color_menu' class="menu-body"></div>
                 </div>
                 <div class='menu'>
-                    <h3>Funktionen</h3>
-                    <div id='functions_dropdown' class="menu-body"></div>
+                    <!-- <h3>Farbvariationen</h3> -->
+                    <div id='color_variations_menu' class="menu-body"></div>
                 </div>
-                <!--
+            </div>
+            <div class='menu'>
+                <h3>Funktionen</h3>
+                <div id='functions_dropdown' class="menu-body"></div>
+            </div>
+            <!--
                 Color picker: select swatch or none
                 Farben an Palette anpassen (mit und ohne Dither)
                 Sättigung / Helligkeit / Kontrast
@@ -82,43 +83,43 @@
                 Hitbox anzeigen und verändern
                 Animation: Frames
             -->
-            </div>
-            <div id='undo_stack' class="scroll_helper scroll_helper_horizontal"></div>
-            <div id='canvas'></div>
-            <div id='menu_frames' class="scroll_helper
+        </div>
+        <div id='undo_stack' class="scroll_helper scroll_helper_horizontal"></div>
+        <div id='canvas'></div>
+        <div id='menu_frames' class="scroll_helper
                 scroll_helper_horizontal"></div>
-            <div class='menu_container right_menu_container'>
-                <div class="menu-group">
-                    <div class="menu">
-                        <h3>Sprites</h3>
-                        <div id="menu_sprites" class="menu-body scroll_helper
+        <div class='menu_container right_menu_container'>
+            <div class="menu-group">
+                <div class="menu">
+                    <h3>Sprites</h3>
+                    <div id="menu_sprites" class="menu-body scroll_helper
                             scroll_helper_vertical" style="max-height: calc(50vh -
                             90px); line-height: 12px;"></div>
-                    </div>
-                    <div id='menu_sprite_properties_variable_part_following' class="menu">
-                        <div id="menu_sprite_properties" class="menu-body
-                            scroll_helper scroll_helper_vertical"></div>
-                    </div>
                 </div>
-                <div class="menu-group" id="states_container">
-                    <div class="menu">
-                        <h3>Zustände</h3>
-                        <div id="menu_states" class="menu-body scroll_helper
+                <div id='menu_sprite_properties_variable_part_following' class="menu">
+                    <div id="menu_sprite_properties" class="menu-body
+                            scroll_helper scroll_helper_vertical"></div>
+                </div>
+            </div>
+            <div class="menu-group" id="states_container">
+                <div class="menu">
+                    <h3>Zustände</h3>
+                    <div id="menu_states" class="menu-body scroll_helper
                             scroll_helper_vertical" style="max-height: calc(50vh -
                             90px); line-height: 12px;"></div>
-                    </div>
-                    <div class="menu" id="menu_state_properties_fixed">
-                    </div>
-                    <div id='menu_state_properties_variable_part_following' class="menu">
-                        <div id="menu_state_properties" class="menu-body
-                            scroll_helper scroll_helper_vertical"></div>
-                    </div>
                 </div>
-                <!-- <div class="menu">
+                <div class="menu" id="menu_state_properties_fixed">
+                </div>
+                <div id='menu_state_properties_variable_part_following' class="menu">
+                    <div id="menu_state_properties" class="menu-body
+                            scroll_helper scroll_helper_vertical"></div>
+                </div>
+            </div>
+            <!-- <div class="menu">
                     <div id="menu_test" class="menu-body scroll_helper
                         scroll_helper_vertical"></div>
                 </div> -->
-                <!--
+            <!--
                 Color picker: select swatch or none
                 Farben an Palette anpassen (mit und ohne Dither)
                 Sättigung / Helligkeit / Kontrast
@@ -129,65 +130,65 @@
                 Hitbox anzeigen und verändern
                 Animation: Frames
             -->
-            </div>
-            <div class='menu_container far_right_menu_container'>
-            </div>
-
         </div>
-        <div id='main_div_level' class="main_div">
-            <div class='menu_container full_left_menu_container'>
-                <div class="menu-group">
-                    <div class="menu">
-                        <h3>Werkzeuge</h3>
-                        <div id='tool_menu_level' class="menu-body"></div>
-                    </div>
-                    <div class="menu">
-                        <div id='tool_menu_level_settings' class="menu-body"></div>
-                    </div>
+        <div class='menu_container far_right_menu_container'>
+        </div>
+
+    </div>
+    <div id='main_div_level' class="main_div">
+        <div class='menu_container full_left_menu_container'>
+            <div class="menu-group">
+                <div class="menu">
+                    <h3>Werkzeuge</h3>
+                    <div id='tool_menu_level' class="menu-body"></div>
                 </div>
                 <div class="menu">
-                    <h3>Sprites</h3>
-                    <div id="menu_level_sprites" class="menu-body scroll_helper
-                        scroll_helper_vertical" style="max-height: calc(100vh -
-                        270px); line-height: 6px;"></div>
+                    <div id='tool_menu_level_settings' class="menu-body"></div>
                 </div>
             </div>
-            <div id="level" style="overflow: hidden;"></div>
-            <div class='menu_container full_right_menu_container'>
-                <div class="menu-group">
-                    <div class="menu">
-                        <h3>Level</h3>
-                        <div id="menu_levels" class="menu-body scroll_helper
+            <div class="menu">
+                <h3>Sprites</h3>
+                <div id="menu_level_sprites" class="menu-body scroll_helper
+                        scroll_helper_vertical" style="max-height: calc(100vh -
+                        270px); line-height: 6px;"></div>
+            </div>
+        </div>
+        <div id="level" style="overflow: hidden;"></div>
+        <div class='menu_container full_right_menu_container'>
+            <div class="menu-group">
+                <div class="menu">
+                    <h3>Level</h3>
+                    <div id="menu_levels" class="menu-body scroll_helper
                             scroll_helper_vertical" style="max-height: calc((100vh -
                             195px) * 0.4); line-height: 12px;"></div>
-                    </div>
-                    <div class="menu">
-                        <!-- <h3>Level-Eigenschaften</h3> -->
-                        <div id="menu_level_properties" class="menu-body
+                </div>
+                <div class="menu">
+                    <!-- <h3>Level-Eigenschaften</h3> -->
+                    <div id="menu_level_properties" class="menu-body
                             scroll_helper scroll_helper_vertical"></div>
-                    </div>
                 </div>
-                <div class="menu-group">
-                    <div class="menu">
-                        <h3>Layer</h3>
-                        <div id="menu_layers" class="menu-body scroll_helper
+            </div>
+            <div class="menu-group">
+                <div class="menu">
+                    <h3>Layer</h3>
+                    <div id="menu_layers" class="menu-body scroll_helper
                             scroll_helper_vertical" style="max-height: calc((100vh -
                             195px) * 0.4); line-height: 12px;"></div>
-                    </div>
-                    <div id="menu_layer_properties_container" class="menu" style="display: none; line-height: 12px;">
-                        <div id="menu_layer_properties" class="menu-body scroll_helper
+                </div>
+                <div id="menu_layer_properties_container" class="menu" style="display: none; line-height: 12px;">
+                    <div id="menu_layer_properties" class="menu-body scroll_helper
                             scroll_helper_vertical"></div>
-                    </div>
                 </div>
-                <div class="menu-group">
-                    <div id="menu_placed_properties_container" class="menu" style="line-height: 12px;">
-                        <h3>Eigenschaften</h3>
-                        <div id="menu_placed_properties" class="menu-body scroll_helper
+            </div>
+            <div class="menu-group">
+                <div id="menu_placed_properties_container" class="menu" style="line-height: 12px;">
+                    <h3>Eigenschaften</h3>
+                    <div id="menu_placed_properties" class="menu-body scroll_helper
                             scroll_helper_vertical">
-                        </div>
                     </div>
                 </div>
-                <!-- <div class="menu-group">
+            </div>
+            <!-- <div class="menu-group">
                     <div class="menu">
                         <h3>Levelende-Bedingungen</h3>
                         <div id="menu_conditions" class="menu-body scroll_helper
@@ -199,186 +200,202 @@
                             scroll_helper_vertical"></div>
                     </div>
                 </div> -->
-                <!-- <div class="menu">
+            <!-- <div class="menu">
                 <h3>Layer-Eigenschaften</h3>
                 <div id="menu_layer_properties" class="menu-body scroll_helper scroll_helper_vertical"></div>
             </div> -->
-                <!-- <div class="menu">
+            <!-- <div class="menu">
                 <h3>Debug</h3>
                 <div id="layer_debug" class="menu-body scroll_helper scroll_helper_vertical" style="max-height: calc((100vh - 195px) / 2); white-space: pre; font-family: monospace; font-size: 90%;"></div>
             </div> -->
+        </div>
+    </div>
+    <div id='main_div_settings' class="main_div scroll_helper scroll_helper_vertical">
+        <div class='menu_container full_left_menu_container' style="display: none;">
+            <div class="menu">
+                <h3>Werkzeuge</h3>
+                <div id='tool_menu_settings' class="menu-body"></div>
             </div>
         </div>
-        <div id='main_div_settings' class="main_div scroll_helper scroll_helper_vertical">
-            <div class='menu_container full_left_menu_container' style="display: none;">
-                <div class="menu">
-                    <h3>Werkzeuge</h3>
-                    <div id='tool_menu_settings' class="menu-body"></div>
-                </div>
+        <div>
+            <div class="menu-body wide-menu-body">
+                <div id="game-settings-here"></div>
             </div>
-            <div>
-                <div class="menu-body wide-menu-body">
-                    <div id="game-settings-here"></div>
-                </div>
 
+        </div>
+    </div>
+    <div id='main_div_play' class="main_div">
+        <div class='menu_container full_left_menu_container' style="display: none;">
+            <div class="menu">
+                <h3>Werkzeuge</h3>
+                <div id='tool_menu_play' class="menu-body"></div>
             </div>
         </div>
-        <div id='main_div_play' class="main_div">
-            <div class='menu_container full_left_menu_container' style="display: none;">
-                <div class="menu">
-                    <h3>Werkzeuge</h3>
-                    <div id='tool_menu_play' class="menu-body"></div>
-                </div>
-            </div>
-            <div class="play_container">
-                <div class="play_container_inner">
-                    <iframe id="play_iframe" src="/standalone?dev/#{@@cache_buster}"></iframe>
-                </div>
+        <div class="play_container">
+            <div class="play_container_inner">
+                <iframe id="play_iframe" src="/standalone?dev/#{@@cache_buster}"></iframe>
             </div>
         </div>
-        <div id='main_div_help' class="main_div scroll_helper scroll_helper_vertical">
-            <p>
-                Hier findest du Links zu verschiedenen Themen rund um die Themen Pixelgrafik und Platformer.
-            </p>
-            <h2>Pixel Art</h2>
+    </div>
+    <div id='main_div_help' class="main_div scroll_helper scroll_helper_vertical">
+        <p>
+            Hier findest du Links zu verschiedenen Themen rund um die Themen Pixelgrafik und Platformer.
+        </p>
+        <h2>Pixel Art</h2>
 
-            <p>
-                <a class='link_button' href="https://blog.studiominiboss.com/pixelart" target="_blank">Miniboss Pixel Art Tutorials</a>
-            </p>
-            <img src="https://64.media.tumblr.com/6759dacdbc0f4dd6e69257629960713f/tumblr_inline_ovvd6rE4kC1qdiwz3_1280.gif" style="height: 190px;"/>
-            <img src="https://64.media.tumblr.com/c5cc799376bd29e27e2428287e07f157/tumblr_inline_oug2m7pJuF1qdiwz3_1280.gif" style="height: 190px;"/>
-            <img src="https://64.media.tumblr.com/0520c37e79b4cdeaefd44094ba9249ca/tumblr_inline_ou2cmw0eNy1qdiwz3_1280.gif" style="height: 190px;"/>
-            <img src="https://64.media.tumblr.com/12bae334cfc713751d430b2be205d783/tumblr_inline_otpupsodce1qdiwz3_1280.gif" style="height: 190px;"/>
+        <p>
+            <a class='link_button' href="https://saint11.art/blog/pixel-art-tutorials/" target="_blank">Miniboss Pixel
+                Art Tutorials</a>
+        </p>
+        <img src="https://64.media.tumblr.com/6759dacdbc0f4dd6e69257629960713f/tumblr_inline_ovvd6rE4kC1qdiwz3_1280.gif"
+            style="height: 190px;" />
+        <img src="https://64.media.tumblr.com/c5cc799376bd29e27e2428287e07f157/tumblr_inline_oug2m7pJuF1qdiwz3_1280.gif"
+            style="height: 190px;" />
+        <img src="https://64.media.tumblr.com/0520c37e79b4cdeaefd44094ba9249ca/tumblr_inline_ou2cmw0eNy1qdiwz3_1280.gif"
+            style="height: 190px;" />
+        <img src="https://64.media.tumblr.com/12bae334cfc713751d430b2be205d783/tumblr_inline_otpupsodce1qdiwz3_1280.gif"
+            style="height: 190px;" />
 
-            <p>
-                <a class="link_button" href="https://www.slynyrd.com/pixelblog-catalogue" target="_blank">SLYNYRD Pixelblog Catalogue</a>
-            </p>
-            <img src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1590841692873-JNAS75S6UTPEMZUSLQXA/Title_Image_2.png?format=750w" style="height: 150px;"/>
-            <img src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1580174972554-KEHLLUDLCY1HIB50YQMD/Title_Image_25_2.png?format=750w" style="height: 150px;"/>
-            <img src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1573861378175-CUPY0J566KA5A117IIEE/Intro_Parallax.gif?format=750w" style="height: 150px;"/>
-            
-            <p>
-                <a class="link_button" href="https://itch.io/game-assets/tag-pixel-art" target="_blank">Pixel Art @ itch.io</a>
-            </p>
-            <img src="https://img.itch.zone/aW1nLzQ2MDIzMjgucG5n/315x250%23c/dV4UhH.png" style="height: 150px;" />
-            <img src="https://img.itch.zone/aW1hZ2UvMTQxMjc4LzY0NzIxNi5naWY=/original/TFYh3p.gif" style="height: 150px;"/>
-            <img src="https://img.itch.zone/aW1hZ2UvODA5Njg2Lzc3MzAwODYucG5n/347x500/3HmdHb.png" style="height: 150px;"/>
-            <img src="https://img.itch.zone/aW1nLzQ1NDk0MjIuZ2lm/original/jrI08h.gif" style="height: 150px;"/>
+        <p>
+            <a class="link_button" href="https://www.slynyrd.com/pixelblog-catalogue" target="_blank">SLYNYRD Pixelblog
+                Catalogue</a>
+        </p>
+        <img src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1590841692873-JNAS75S6UTPEMZUSLQXA/Title_Image_2.png?format=750w"
+            style="height: 150px;" />
+        <img src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1580174972554-KEHLLUDLCY1HIB50YQMD/Title_Image_25_2.png?format=750w"
+            style="height: 150px;" />
+        <img src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1573861378175-CUPY0J566KA5A117IIEE/Intro_Parallax.gif?format=750w"
+            style="height: 150px;" />
 
-            <p>
-                <a class="link_button" href="https://octavinavarro.com/projects" target="_blank">Octavi Navarro Arts & Games</a>
-            </p>
-            <img src="https://cdn.myportfolio.com/d2affae58daf04ccc372f279c745bf12/40df7cc49bf7b939ab7b3bfc_rw_1200.png?h=027f8b7c9cb1e616c9daa746b8c3ad34" style="height: 250px;
+        <p>
+            <a class="link_button" href="https://itch.io/game-assets/tag-pixel-art" target="_blank">Pixel Art @
+                itch.io</a>
+        </p>
+        <img src="https://img.itch.zone/aW1nLzQ2MDIzMjgucG5n/315x250%23c/dV4UhH.png" style="height: 150px;" />
+        <img src="https://img.itch.zone/aW1hZ2UvMTQxMjc4LzY0NzIxNi5naWY=/original/TFYh3p.gif" style="height: 150px;" />
+        <img src="https://img.itch.zone/aW1hZ2UvODA5Njg2Lzc3MzAwODYucG5n/347x500/3HmdHb.png" style="height: 150px;" />
+        <img src="https://img.itch.zone/aW1nLzQ1NDk0MjIuZ2lm/original/jrI08h.gif" style="height: 150px;" />
+
+        <p>
+            <a class="link_button" href="https://octavinavarro.com/projects" target="_blank">Octavi Navarro Arts &
+                Games</a>
+        </p>
+        <img src="https://cdn.myportfolio.com/d2affae58daf04ccc372f279c745bf12/40df7cc49bf7b939ab7b3bfc_rw_1200.png?h=027f8b7c9cb1e616c9daa746b8c3ad34"
+            style="height: 250px;
             object-fit: cover;
             width: 100%;
-            object-position: 0 20%;"/>
+            object-position: 0 20%;" />
 
-            <h2>Animation</h2>
+        <h2>Animation</h2>
+        <p>
+            <a class="link_button"
+                href="https://www.adobe.com/de/creativecloud/animation/discover/principles-of-animation.html"
+                target="_blank">Die 12 Prinzipien der Animation</a>
+        </p>
+        <div class="help-tiles-3">
+            <div>
+                1. Squash and Stretch
+                <img src='/12-principles/squash-and-stretch.gif' />
+            </div>
+            <div>
+                2. Anticipation
+                <img src='/12-principles/anticipation.gif' />
+            </div>
+            <div>
+                3. Staging
+                <img src='/12-principles/staging.gif' />
+            </div>
+            <div>
+                4. Straight Ahead &amp; Pose-to-Pose
+                <img src='/12-principles/straight-ahead-pose-to-pose.gif' />
+            </div>
+            <div>
+                5. Follow Through &amp; Overlapping Action
+                <img src='/12-principles/follow-through-overlapping.gif' />
+            </div>
+            <div>
+                6. Slow In &amp; Slow Out
+                <img src='/12-principles/slow-in-slow-out.gif' />
+            </div>
+            <div>
+                7. Arcs
+                <img src='/12-principles/arcs.gif' />
+            </div>
+            <div>
+                8. Secondary Action
+                <img src='/12-principles/secondary-action.gif' />
+            </div>
+            <div>
+                9. Timing
+                <img src='/12-principles/timing.gif' />
+            </div>
+            <div>
+                10. Exaggeration
+                <img src='/12-principles/exaggeration.gif' />
+            </div>
+            <div>
+                11. Solid Drawing
+                <img src='/12-principles/solid-drawings.gif' />
+            </div>
+            <div>
+                12. Appeal
+                <img src='/12-principles/appeal.gif' />
+            </div>
+        </div>
+        <div style="display: inline-block; width: 48%;">
+            <a href="https://youtu.be/f0cZfw3XrG8" target="_blank"><img
+                    src="https://img.youtube.com/vi/f0cZfw3XrG8/hqdefault.jpg" style="width: 100%;" /></a>
+        </div>
+        <div style="display: inline-block; width: 48%;">
+            <a href="https://youtu.be/uDqjIdI4bF4" target="_blank"><img
+                    src="https://img.youtube.com/vi/uDqjIdI4bF4/hqdefault.jpg" style="width: 100%;" /></a>
+        </div>
+    </div>
+    <div id='main_div_playtesting' class="main_div scroll_helper scroll_helper_vertical">
+        <div style="text-align: center;">
+            <h2>Playtesting</h2>
+            <p style="padding-bottom: 1em;">Bitte teste dieses Spiel und schreib dein Feedback auf den Zettel:</p>
             <p>
-                <a class="link_button" href="https://www.adobe.com/de/creativecloud/animation/discover/principles-of-animation.html" target="_blank">Die 12 Prinzipien der Animation</a>
+                <a id='btn_playtesting' style='font-size: 120%;' class="link_button" href="" target="_blank"></a>
             </p>
-            <div class="help-tiles-3">
-                <div>
-                    1. Squash and Stretch
-                    <img src='/12-principles/squash-and-stretch.gif' />
-                </div>
-                <div>
-                    2. Anticipation
-                    <img src='/12-principles/anticipation.gif' />
-                </div>
-                <div>
-                    3. Staging
-                    <img src='/12-principles/staging.gif' />
-                </div>
-                <div>
-                    4. Straight Ahead &amp; Pose-to-Pose
-                    <img src='/12-principles/straight-ahead-pose-to-pose.gif' />
-                </div>
-                <div>
-                    5. Follow Through &amp; Overlapping Action
-                    <img src='/12-principles/follow-through-overlapping.gif' />
-                </div>
-                <div>
-                    6. Slow In &amp; Slow Out
-                    <img src='/12-principles/slow-in-slow-out.gif' />
-                </div>
-                <div>
-                    7. Arcs
-                    <img src='/12-principles/arcs.gif' />
-                </div>
-                <div>
-                    8. Secondary Action
-                    <img src='/12-principles/secondary-action.gif' />
-                </div>
-                <div>
-                    9. Timing
-                    <img src='/12-principles/timing.gif' />
-                </div>
-                <div>
-                    10. Exaggeration
-                    <img src='/12-principles/exaggeration.gif' />
-                </div>
-                <div>
-                    11. Solid Drawing
-                    <img src='/12-principles/solid-drawings.gif' />
-                </div>
-                <div>
-                    12. Appeal
-                    <img src='/12-principles/appeal.gif' />
-                </div>
-            </div>
-            <div style="display: inline-block; width: 48%;">
-                <a href="https://youtu.be/f0cZfw3XrG8" target="_blank"><img src="https://img.youtube.com/vi/f0cZfw3XrG8/hqdefault.jpg" style="width: 100%;"/></a>
-            </div>
-            <div style="display: inline-block; width: 48%;">
-                <a href="https://youtu.be/uDqjIdI4bF4" target="_blank"><img src="https://img.youtube.com/vi/uDqjIdI4bF4/hqdefault.jpg" style="width: 100%;" /></a>
-            </div>
+            <p style="margin-top: 2em;">
+                <a id='btn_playtesting_refresh' class="link_button" href="#">Neues Spiel vorschlagen</a>
+            </p>
         </div>
-        <div id='main_div_playtesting' class="main_div scroll_helper scroll_helper_vertical">
-            <div style="text-align: center;">
-                <h2>Playtesting</h2>
-                <p style="padding-bottom: 1em;">Bitte teste dieses Spiel und schreib dein Feedback auf den Zettel:</p>
-                <p>
-                    <a id='btn_playtesting' style='font-size: 120%;' class="link_button" href="" target="_blank"></a>
-                </p>
-                <p style="margin-top: 2em;">
-                    <a id='btn_playtesting_refresh' class="link_button" href="#">Neues Spiel vorschlagen</a>
-                </p>
-            </div>
-        </div>
-        <div id='status-bar' class='__disabled__scroll_helper
+    </div>
+    <div id='status-bar' class='__disabled__scroll_helper
             scroll_helper_horizontal'></div>
-        <div id='trash'>
-            <i class="fa fa-trash"></i>
-        </div>
-        <div id='save_notification'>
-            <img src="/noto/aob22o8.png" />
-        </div>
+    <div id='trash'>
+        <i class="fa fa-trash"></i>
+    </div>
+    <div id='save_notification'>
+        <img src="/noto/aob22o8.png" />
+    </div>
 
-        <div class='modal-dialogs' style="display: none;">
-        </div>
+    <div class='modal-dialogs' style="display: none;">
+    </div>
 
-        <!-- <div class='modal-container' style="display: none;">
+    <!-- <div class='modal-container' style="display: none;">
             <div id='modal_load_game' class='modal'>
                 <h3>Spiel laden</h3>
                 <div class='modal-body'>
                 </div>
             </div>
         </div> -->
-        <div id="curtain" style="position: fixed; left: 0; top: 0; width: 100%;
+    <div id="curtain" style="position: fixed; left: 0; top: 0; width: 100%;
             height: 100%; background-color: #000;"></div>
-        <div id="error_curtain" style="display: none;">
-            <div class="robot"></div>
-            <p>Leider ist ein Fehler passiert. Um sicherzustellen, dass nichts schiefgeht, lade bitte die Seite neu.</p>
-        </div>
+    <div id="error_curtain" style="display: none;">
+        <div class="robot"></div>
+        <p>Leider ist ein Fehler passiert. Um sicherzustellen, dass nichts schiefgeht, lade bitte die Seite neu.</p>
+    </div>
 
-    </body>
+</body>
 
-    <script>
-        // window.addEventListener('load', function() {
-        //     if ('#{DEVELOPMENT}' === '1')
-        //         game.load('a5oynyj');
-        // });
-    </script>
+<script>
+    // window.addEventListener('load', function() {
+    //     if ('#{DEVELOPMENT}' === '1')
+    //         game.load('a5oynyj');
+    // });
+</script>
 
 </html>
