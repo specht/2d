@@ -127,5 +127,4 @@ Weitere Ideen:
 - Coyote Time, erst nach 30 ms fallen
 - Eis: rutschige Oberfläche
 - Slopes!
-- Einsammeln: Geschwindigkeitsfaktor
 - Highscore

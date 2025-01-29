@@ -341,7 +341,25 @@ class Character {
 	}
 
 	standing_on_ground() {
-		return this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, -0.01);
+		// we're adding a coyote time effect here:
+		// keep this true for an additional 30 ms or something like this
+		let value = (this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, -0.01) !== null);
+		this.standing_on_ground_cache ??= {
+			v0: false,
+			v1: false,
+			v0_t: 0.0,
+		};
+		this.standing_on_ground_cache.v0 = this.standing_on_ground_cache.v1;
+		this.standing_on_ground_cache.v1 = value;
+		if (this.standing_on_ground_cache.v0 === true && this.standing_on_ground_cache.v1 === false) {
+			this.standing_on_ground_cache.v0_t = this.game.clock.getElapsedTime();
+		}
+		console.log(value, this.standing_on_ground_cache);
+		if (this.standing_on_ground_cache.v1 === false) {
+			return (this.game.clock.getElapsedTime() < this.standing_on_ground_cache.v0_t + (this.game.data.properties.coyote_time ?? 30) * 0.001);
+		} else {
+			return true;
+		}
 	}
 
 	center_on_entry(entry) {

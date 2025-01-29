@@ -73,6 +73,7 @@ class Game {
         this.data.properties.respawn_invincible ??= 3;
         this.data.properties.screen_pixel_height ??= 240.0;
         this.data.properties.gravity ??= 0.5;
+        this.data.properties.coyote_time ??= 30;
         this.data.properties.safe_zone_x ??= 0.4;
         this.data.properties.safe_zone_y ??= 0.3;
         this.data.parent ??= null;
@@ -139,7 +140,7 @@ class Game {
                 this.data.levels[li].layers.push({});
             this.data.levels[li].conditions ??= [];
             if (this.data.levels[li].conditions.length === 0)
-                this.data.levels[li].conditions.push({type: 'touching_level_complete'});
+                this.data.levels[li].conditions.push({ type: 'touching_level_complete' });
             for (let ci = 0; ci < this.data.levels[li].conditions.length; ci++) {
                 let condition = this.data.levels[li].conditions[ci];
                 condition.type ??= 'touching_level_complete';
@@ -159,7 +160,7 @@ class Game {
                 let layer = this.data.levels[li].layers[lyi];
                 // promote old layer rect
                 if (layer.left && layer.bottom && layer.width && layer.height) {
-                    this.data.levels[li].layers[lyi].rects.push({left: layer.left, bottom: layer.bottom, width: layer.width, height: layer.height});
+                    this.data.levels[li].layers[lyi].rects.push({ left: layer.left, bottom: layer.bottom, width: layer.width, height: layer.height });
                     delete this.data.levels[li].layers[lyi].left;
                     delete this.data.levels[li].layers[lyi].bottom;
                     delete this.data.levels[li].layers[lyi].width;
@@ -200,7 +201,7 @@ class Game {
             }
         }
         for (let si = 0; si < this.data.sprites.length; si++) {
-            if (typeof(this.data.sprites[si].width) === 'undefined') {
+            if (typeof (this.data.sprites[si].width) === 'undefined') {
                 this.data.sprites[si].width = this.data.sprites[si].states[0].frames[0].width;
                 this.data.sprites[si].height = this.data.sprites[si].states[0].frames[0].height;
                 for (let sti = 0; sti < this.data.sprites[si].states.length; sti++) {
@@ -283,10 +284,10 @@ class Game {
             items: this.data.sprites,
             item_class: 'menu_sprite_item',
             step_aside_css: { left: '68px', top: '0px' },
-            step_aside_css_mod: { left: '-136px', top: '53px'},
+            step_aside_css_mod: { left: '-136px', top: '53px' },
             step_aside_css_mod_n: 3,
             onclick: (e, index) => {
-                canvas.attachSprite(index, 0, 0, function() {
+                canvas.attachSprite(index, 0, 0, function () {
                     // $(e).closest('.menu_sprite_item').parent().parent().find('.menu_sprite_item').removeClass('active');
                     // $(e).parent().addClass('active');
                 });
@@ -472,6 +473,20 @@ class Game {
                 self.data.properties.gravity = x;
             },
         });
+        new NumberWidget({
+            container: $('#game-settings-here'),
+            label: 'Coyote Time:',
+            hint: 'Wert für die Verzögerung beim Fallen.',
+            min: 0,
+            max: 1000,
+            step: 1,
+            decimalPlaces: 0,
+            suffix: 'ms',
+            get: () => self.data.properties.coyote_time,
+            set: (x) => {
+                self.data.properties.coyote_time = x;
+            },
+        });
         new SeparatorWidget({
             container: $('#game-settings-here'),
             label: 'Kamera',
@@ -543,7 +558,7 @@ class Game {
         div.append($(`<p>`).css('margin', '4px 6px').text("Wenn du dein Spiel teilen möchtest, verwende diesen Link:"));
         let game_link = $(`<a>`).attr('id', 'game_link').css('margin', '4px 6px').attr('target', '_blank').html(``);
         div.append(game_link);
-        if (typeof(this.data.parent) !== 'undefined') {
+        if (typeof (this.data.parent) !== 'undefined') {
             $('#play_iframe').hide();
             if ($('#play_iframe')[0].contentWindow.game) {
                 $('#play_iframe')[0].contentWindow.game.load(this.data.parent);
@@ -589,8 +604,8 @@ class Game {
 
     build_sprite_traits_submenu(traits) {
         let self = this;
-        return traits.map(function(x) {
-            if (typeof(x) === 'string')
+        return traits.map(function (x) {
+            if (typeof (x) === 'string')
                 return {
                     label: SPRITE_TRAITS[x].label,
                     callback: () => {
@@ -598,7 +613,7 @@ class Game {
                         self.build_sprite_traits_menu();
                     }
                 };
-            let d = {label: x[0]};
+            let d = { label: x[0] };
             if ((!(x[0] in SPRITE_TRAITS)) && x.length > 1) {
                 d.children = self.build_sprite_traits_submenu(x[1]);
             }
@@ -613,7 +628,7 @@ class Game {
         $('#menu_sprite_properties_variable_part_following').nextAll().remove();
         let traits_menu = $('<div>').css('max-height', 'calc(50vh - 90px)').appendTo($('#menu_sprite_properties'));
         let traits_menu_data = [];
-        traits_menu_data.push({label: 'Eigenschaft hinzufügen', children: this.build_sprite_traits_submenu(SPRITE_TRAITS_ORDER)});
+        traits_menu_data.push({ label: 'Eigenschaft hinzufügen', children: this.build_sprite_traits_submenu(SPRITE_TRAITS_ORDER) });
         setupDropdownMenu(traits_menu, traits_menu_data);
         let keys = Object.keys(self.data.sprites[si].traits);
         for (let i = keys.length - 1; i >= 0; i--) {
@@ -628,7 +643,7 @@ class Game {
         let si = canvas.sprite_index;
         let div = $(`<div class='menu'>`);
         let bu_delete = $(`<button class='btn'>`).append($(`<i class='fa fa-trash'>`));
-        bu_delete.click(function(e) {
+        bu_delete.click(function (e) {
             self.remove_sprite_trait(trait);
             self.build_sprite_traits_menu();
         });
@@ -708,8 +723,8 @@ class Game {
     build_state_traits_submenu(sprite_trait, traits) {
         let self = this;
         // console.log(traits);
-        return traits.map(function(x) {
-            if (typeof(x) === 'string')
+        return traits.map(function (x) {
+            if (typeof (x) === 'string')
                 return {
                     label: STATE_TRAITS[sprite_trait][x].label,
                     callback: () => {
@@ -717,7 +732,7 @@ class Game {
                         self.build_state_traits_menu();
                     }
                 };
-            let d = {label: x[0]};
+            let d = { label: x[0] };
             if ((!(x[0] in STATE_TRAITS)) && x.length > 1) {
                 // console.log(x);
                 d.children = self.build_state_traits_submenu(sprite_trait, x[1]);
@@ -789,10 +804,10 @@ class Game {
         let children = [];
         for (let sprite_trait of Object.keys(self.data.sprites[si].traits)) {
             if (sprite_trait in STATE_TRAITS_ORDER)
-                children.push({label: SPRITE_TRAITS[sprite_trait].label, children: this.build_state_traits_submenu(sprite_trait, STATE_TRAITS_ORDER[sprite_trait])});
+                children.push({ label: SPRITE_TRAITS[sprite_trait].label, children: this.build_state_traits_submenu(sprite_trait, STATE_TRAITS_ORDER[sprite_trait]) });
         }
         if (children.length === 0) return;
-        traits_menu_data.push({label: 'Eigenschaft hinzufügen', children: children});
+        traits_menu_data.push({ label: 'Eigenschaft hinzufügen', children: children });
         setupDropdownMenu(traits_menu, traits_menu_data);
 
         let sprite_traits = Object.keys(self.data.sprites[si].traits);
@@ -813,7 +828,7 @@ class Game {
         let sti = canvas.state_index;
         let div = $(`<div class='menu'>`);
         let bu_delete = $(`<button class='btn'>`).append($(`<i class='fa fa-trash'>`));
-        bu_delete.click(function(e) {
+        bu_delete.click(function (e) {
             self.remove_state_trait(sprite_trait, trait);
             self.build_state_traits_menu();
         });
