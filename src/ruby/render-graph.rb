@@ -61,7 +61,7 @@ END_OF_QUERY
 
 STDERR.puts "child tags: #{child_tags.size}"
 
-exit
+# exit
 
 root_tags = ['mvs25t8']
 
