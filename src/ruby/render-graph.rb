@@ -84,7 +84,7 @@ END_OF_QUERY
     end
 end
 
-exit
+# exit
 
 nodes = {}
 
@@ -123,7 +123,7 @@ puts "Got #{latest_for_root_tag.size} latest nodes."
 
 # STDERR.puts latest_for_root_tag_2.to_yaml
 
-exit
+# exit
 
 $neo4j.neo4j_query(<<~END_OF_QUERY).each do |row|
     MATCH (g:Game)
