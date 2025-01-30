@@ -10,6 +10,10 @@ let OVERLAY_ICONS = {
 	f_key: [36, 36, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAf0lEQVRYw+2YQQqAIBQFv9GBWygE0SqCoM7nr9PUVtyEpJIwbye4GHjDAzWDc7uEMcZKxZyqR3ju5GcB6C197IyqVgW4vLdU1rhDidmWNen+OE9UhkNZHaEyHHrbpa9OURk7RGUAAQRQ6R3KvTtU1r5D8f9M/NYunVuE/6G2gR7lsx2d8NUeyQAAAABJRU5ErkJggg=="],
 };
 
+Number.prototype.clamp = function (min, max) {
+	return Math.min(Math.max(this, min), max);
+};
+
 class FutureEventList {
 	constructor() {
 		this.tree = new AVLBundle();
@@ -173,6 +177,7 @@ class Character {
 						// depends on the x position
 						let tx = (this.mesh.position.x - (entry.mesh.position.x - sprite.width / 2)) / sprite.width;
 						if (sprite.traits.slope.direction === 'negative') tx = 1.0 - tx;
+						tx = tx.clamp(0.0, 1.0);
 						if (this.mesh.position.y > entry.mesh.position.y + tx * sprite.height + 8) {
 							ok = false;
 						}
@@ -243,7 +248,6 @@ class Character {
 						winx = Math.max(x0, entry.mesh.position.x + sprite.width / 2 + this.traits.ex_left * this.sprite.width * 0.5);
 					else if (dx > 0)
 						winx = Math.min(x0, entry.mesh.position.x - sprite.width / 2 - this.traits.ex_right * this.sprite.width * 0.5);
-					console.log('fix x', trait, dx, winx, this.mesh.position.x);
 					dx = winx - this.mesh.position.x;
 				}
 			}
@@ -304,6 +308,7 @@ class Character {
 						if (trait === 'slope') {
 							let tx = (this.mesh.position.x - (entry.mesh.position.x - sprite.width * 0.5)) / sprite.width;
 							if (sprite.traits.slope.direction === 'negative') tx = 1.0 - tx;
+							tx = tx.clamp(0.0, 1.0);
 							height = tx * sprite.height;
 						}
 						winy = Math.max(y0, entry.mesh.position.y + height);
@@ -440,13 +445,13 @@ class Character {
 					this.pressed_keys[KEY_JUMP] = false;
 					if (this.intention.direction === 'left') {
 						if (this.has_trait_at(['block_above'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, -1.0, 0.0)) {
-							if (this.has_trait_at(['block_sides'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
+							if (this.has_trait_at(['block_sides', 'slope'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
 								this.intention.direction = 'right';
 							} else {
 								this.pressed_keys[KEY_LEFT] = true;
 							}
 						} else {
-							if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
+							if (this.has_trait_at(['block_sides', 'slope'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
 								this.intention.direction = 'right';
 							} else {
 								if (Math.random() < this.traits.jump_from_edge_probability / 100.0) {
@@ -459,13 +464,13 @@ class Character {
 						}
 					} else if (this.intention.direction === 'right') {
 						if (this.has_trait_at(['block_above'], this.sprite.width * 0.5 - 1, this.sprite.width * 0.5, -1.0, 0.0)) {
-							if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
+							if (this.has_trait_at(['block_sides', 'slope'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
 								this.intention.direction = 'left';
 							} else {
 								this.pressed_keys[KEY_RIGHT] = true;
 							}
 						} else {
-							if (this.has_trait_at(['block_sides'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
+							if (this.has_trait_at(['block_sides', 'slope'], this.sprite.width * 0.5, this.sprite.width * 0.5 + 1, 0.1, this.sprite.height - 0.1)) {
 								this.intention.direction = 'left';
 							} else {
 								if (Math.random() < this.traits.jump_from_edge_probability / 100.0) {
@@ -647,14 +652,24 @@ class Character {
 		// console.log(this.mesh.position.x, "trying", dx);
 		let previous_slope = this.has_trait_at(['slope'], -0.001, 0.001, -0.01, 0.1);
 		let prev_dx = dx;
+
+		entry = this.has_trait_at(['slope'], -0.5, 0.5, -0.01, 0.1);
+		if (entry) {
+			let sprite = this.game.data.sprites[entry.sprite_index];
+			if (sprite.traits.slope.slippery > 0.0) {
+				dx += -sprite.traits.slope.slippery / 100.0 * sprite.height / sprite.width;
+			}
+		}
+
+
 		dx = this.try_move_x(dx);
 		if (dx !== 0) {
-			console.log("moved by", prev_dx, dx, (previous_slope ?? {}).sprite_index);
 			if (previous_slope) {
 				// we were standing on a slope, adjust y accordingly
 				let sprite = this.game.data.sprites[previous_slope.sprite_index];
 				let tx = (this.mesh.position.x - (previous_slope.mesh.position.x - sprite.width * 0.5)) / sprite.width;
 				if (sprite.traits.slope.direction === 'negative') tx = 1.0 - tx;
+				tx = tx.clamp(0.0, 1.0);
 				let dy = previous_slope.mesh.position.y + tx * sprite.height - this.mesh.position.y;
 				this.mesh.position.y += dy;
 				// this.mesh.position.y += 0.1;
@@ -698,6 +713,7 @@ class Character {
 			let sprite = this.game.data.sprites[entry.sprite_index];
 			let tx = (this.mesh.position.x - (entry.mesh.position.x - sprite.width * 0.5)) / sprite.width;
 			if (sprite.traits.slope.direction === 'negative') tx = 1.0 - tx;
+			tx = tx.clamp(0.0, 1.0);
 			dy = Math.max(dy, entry.mesh.position.y + tx * sprite.height - this.mesh.position.y);
 		}
 

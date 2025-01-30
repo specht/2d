@@ -216,6 +216,15 @@ var SPRITE_TRAITS = {
                 },
                 default: 'positive',
             },
+            slippery: {
+                label: 'rutschig',
+                type: 'float',
+                min: 0.0,
+                max: 1000,
+                decimalPlaces: 0,
+                default: 0,
+                suffix: '%',
+            },
         },
     },
     door: {
