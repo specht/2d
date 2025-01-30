@@ -53,7 +53,7 @@ tags_sorted.each do |tag|
     STDERR.puts "#{tag} >> #{game['author']} / #{game['title']}"
 end
 
-exit
+# exit
 
 Dir['/gen/games/*.json'].each do |file|
     game = JSON.parse(File.read(file))

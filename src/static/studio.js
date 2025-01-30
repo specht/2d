@@ -212,7 +212,7 @@ function close_modal() {
 }
 
 function refresh_playtesting_code() {
-    api_call('/api/get_playtesting_code', {}, function(data) {
+    api_call('/api/get_playtesting_code', {}, function (data) {
         if (data.success) {
             $('#btn_playtesting').html(`<b>${data.title}</b> (${data.author})`);
             $('#btn_playtesting').attr('href', `https://2d.hackschule.de/play/${data.tag}`);
@@ -288,11 +288,13 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 { key: 'Shift', label: 'auch auf anderen Farben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
             ]
         },
-        { group: 'tool', command: 'select-rect', image: 'select-rect-44', shortcut: 'Y', label: 'Rechteck auswählen', hints: [
-            { key: 'Control', label: 'Auswahl erweitern', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
-            { key: 'Alt', label: 'Auswahl verkleinern', type: 'checkbox', callback: function (x) { canvas.setModifierAlt(x); } },
-            { key: 'Shift', label: 'Klonen', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
-        ] },
+        {
+            group: 'tool', command: 'select-rect', image: 'select-rect-44', shortcut: 'Y', label: 'Rechteck auswählen', hints: [
+                { key: 'Control', label: 'Auswahl erweitern', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
+                { key: 'Alt', label: 'Auswahl verkleinern', type: 'checkbox', callback: function (x) { canvas.setModifierAlt(x); } },
+                { key: 'Shift', label: 'Klonen', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
+            ]
+        },
         { group: 'tool', command: 'fill', image: 'color-fill-44', shortcut: 'A', label: 'Fläche füllen' },
         {
             group: 'tool', command: 'gradient', image: 'color-gradient', shortcut: 'S', label: 'Farbverlauf', hints: [
@@ -333,23 +335,25 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         },
         { command: 'clear', image: 'document-new', callback: () => canvas.clearFrame(), label: 'Frame löschen' },
         { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Z', label: 'Farbe auswählen' },
-        { group: 'tool', command: 'move', image: 'transform-move', shortcut: 'X', label: 'Sprite verschieben', hints: [
-            { key: 'Shift', label: 'nur diesen Frame verschieben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
-            {
-                type: 'group', keys: ['Control', `<i style='font-size: 90%;' class='fa fa-chevron-left'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-right'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-up'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-down'></i>`], label: 'Verschieben', shortcuts: [
-                    { key: 'Control+ArrowLeft', label: 'Links', callback: () => canvas.move_frames(-1, 0) },
-                    { key: 'Control+ArrowRight', label: 'Rechts', callback: () => canvas.move_frames(+1, 0) },
-                    { key: 'Control+ArrowUp', label: 'Pos1', callback: () => canvas.move_frames(0, -1) },
-                    { key: 'Control+ArrowDown', label: 'Ende', callback: () => canvas.move_frames(0, +1) },
-                    // we need to specify the Control+Shift variants as well or it wouldn't work if Shift is pressed
-                    { key: 'Control+Shift+ArrowLeft', label: 'Links', callback: () => canvas.move_frames(-1, 0) },
-                    { key: 'Control+Shift+ArrowRight', label: 'Rechts', callback: () => canvas.move_frames(+1, 0) },
-                    { key: 'Control+Shift+ArrowUp', label: 'Pos1', callback: () => canvas.move_frames(0, -1) },
-                    { key: 'Control+Shift+ArrowDown', label: 'Ende', callback: () => canvas.move_frames(0, +1) },
-                ]
-            },
+        {
+            group: 'tool', command: 'move', image: 'transform-move', shortcut: 'X', label: 'Sprite verschieben', hints: [
+                { key: 'Shift', label: 'nur diesen Frame verschieben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
+                {
+                    type: 'group', keys: ['Control', `<i style='font-size: 90%;' class='fa fa-chevron-left'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-right'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-up'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-down'></i>`], label: 'Verschieben', shortcuts: [
+                        { key: 'Control+ArrowLeft', label: 'Links', callback: () => canvas.move_frames(-1, 0) },
+                        { key: 'Control+ArrowRight', label: 'Rechts', callback: () => canvas.move_frames(+1, 0) },
+                        { key: 'Control+ArrowUp', label: 'Pos1', callback: () => canvas.move_frames(0, -1) },
+                        { key: 'Control+ArrowDown', label: 'Ende', callback: () => canvas.move_frames(0, +1) },
+                        // we need to specify the Control+Shift variants as well or it wouldn't work if Shift is pressed
+                        { key: 'Control+Shift+ArrowLeft', label: 'Links', callback: () => canvas.move_frames(-1, 0) },
+                        { key: 'Control+Shift+ArrowRight', label: 'Rechts', callback: () => canvas.move_frames(+1, 0) },
+                        { key: 'Control+Shift+ArrowUp', label: 'Pos1', callback: () => canvas.move_frames(0, -1) },
+                        { key: 'Control+Shift+ArrowDown', label: 'Ende', callback: () => canvas.move_frames(0, +1) },
+                    ]
+                },
 
-        ] },
+            ]
+        },
         { command: 'rotate-left', image: 'transform-rotate-left', shortcut: 'C', callback: () => canvas.rotateLeft() },
         { command: 'rotate-right', image: 'transform-rotate-right', shortcut: 'V', callback: () => canvas.rotateRight() },
         { command: 'flip-h', image: 'transform-flip-h', shortcut: 'B', callback: () => canvas.flipHorizontal() },
@@ -370,13 +374,17 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 
     tool_menu_items.level = [
         { group: 'tool', command: 'pan', image: 'move-hand-44', shortcut: 'Q', label: 'Verschieben' },
-        { group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'W', label: 'Zeichnen', hints: [
-            { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
-        ] },
-        { group: 'tool', command: 'select', image: 'select-rect-44', shortcut: 'E', label: 'Auswählen', hints: [
-            { key: 'Control+A', label: 'Alles auswählen', callback: function (x) { game.level_editor.select_all(); } },
-            { key: 'Delete', label: 'Auswahl löschen', callback: function (x) { game.level_editor.delete_selection(); } },
-        ] },
+        {
+            group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'W', label: 'Zeichnen', hints: [
+                { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
+            ]
+        },
+        {
+            group: 'tool', command: 'select', image: 'select-rect-44', shortcut: 'E', label: 'Auswählen', hints: [
+                { key: 'Control+A', label: 'Alles auswählen', callback: function (x) { game.level_editor.select_all(); } },
+                { key: 'Delete', label: 'Auswahl löschen', callback: function (x) { game.level_editor.delete_selection(); } },
+            ]
+        },
         // { group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'W', label: 'Rechteck füllen' },
     ];
 
@@ -392,7 +400,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 
     update_color_palette();
     // initialize all other menus
-    menus.level = new Menu($('#tool_menu_level'), 'level', tool_menu_items.level, null, function() {
+    menus.level = new Menu($('#tool_menu_level'), 'level', tool_menu_items.level, null, function () {
         if (this.active_key === 'tool/pen') {
             $('#menu_level_sprites .button').removeClass('active');
             $('#menu_level_sprites .button').eq(game.level_editor.sprite_index).addClass('active');
@@ -452,7 +460,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             try {
                 $('#play_iframe')[0].contentWindow.game.stop();
                 $('#play_iframe')[0].contentWindow.yt_player.pauseVideo();
-            } catch {}
+            } catch { }
         }
         if (current_pane === 'playtesting') {
             refresh_playtesting_code();
@@ -473,12 +481,12 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         window.resizeCanvasModal.show();
                     },
                 },
-                // {
-                //     label: 'Sprite importieren',
-                //     callback: () => {
-                //         window.importSpriteModal.show();
-                //     }
-                // },
+                {
+                    label: 'Sprite importieren',
+                    callback: () => {
+                        window.importSpriteModal.show();
+                    }
+                },
                 // {
                 //     label: 'Farbkorrektur',
                 //     callback: () => {
@@ -596,8 +604,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                                 if ((this.game.data.sprites[si].states.length === 1 &&
                                     this.game.data.sprites[si].states[sti].frames.length === 1) ||
                                     (this.game.data.sprites[si].width === image.width &&
-                                    this.game.data.sprites[si].height === image.height))
-                                {
+                                        this.game.data.sprites[si].height === image.height)) {
                                     console.log(`got image: ${image.width}x${image.height}`);
                                     let sw = image.width;
                                     let sh = image.height;
@@ -629,7 +636,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                                         }
                                     }
                                     canvas.detachSprite();
-                                    canvas.attachSprite(si, sti, fi, function() {});
+                                    canvas.attachSprite(si, sti, fi, function () { });
                                 }
                             });
                         };
@@ -711,7 +718,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         });
     }
 
-    $('.scroll_helper_horizontal').on('wheel', function(e) {
+    $('.scroll_helper_horizontal').on('wheel', function (e) {
         if (e.originalEvent.deltaX === 0) {
             let t = $(e.target).closest('.scroll_helper_horizontal');
             t[0].scrollLeft += e.originalEvent.deltaY;
@@ -830,13 +837,13 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 let bu_versions = $('');
                 if (node.relatives_count > 0) {
                     bu_versions = $('<button>').css('font-size', '90%').css('width', '9.2em').append($(`<div>${node.relatives_count} Versionen <i class='fa fa-angle-right'></i></div>`));
-                    bu_versions.click(function(e) {
-                        api_call('/api/graph', {tag: node.tag}, function(data) {
+                    bu_versions.click(function (e) {
+                        api_call('/api/graph', { tag: node.tag }, function (data) {
                             if (data.success) {
                                 window.graph_parents = data.graph_parents;
                                 $('#games_sublist_graph').empty().append($(data.svg)).show();
                                 highlight_path_to(node.tag);
-                                $('#games_sublist_graph svg g.node').on('click', function(e) {
+                                $('#games_sublist_graph svg g.node').on('click', function (e) {
                                     let id = $(e.target).closest('g.node').attr('id').substr(1);;
                                     highlight_path_to(id);
                                     fetch_game_versions_until(id);
@@ -872,11 +879,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 game.load(tag);
                 window.loadGameModal.dismiss();
             }
-        });        
+        });
     }
 
     function fetch_game_versions_until(tag) {
-        api_call('/api/get_versions_for_game', {tag: tag}, function(data) {
+        api_call('/api/get_versions_for_game', { tag: tag }, function (data) {
             if (data.success) {
                 populate_games_list(data.nodes);
             }
@@ -949,7 +956,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         ]
     });
 
-    $('#bu_load_game_back').click(function(e) {
+    $('#bu_load_game_back').click(function (e) {
         $('#load_games_list').css('left', '0').css('opacity', 1);
         $('#load_games_sublist').css('left', '100%').css('opacity', 0);
         $('#bu_load_game_back').css('left', '100%').css('opacity', 0);
@@ -959,7 +966,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         $('#games_sublist_graph').hide().attr('src', '');
     });
 
-    $('#btn_playtesting_refresh').click(function(e) {
+    $('#btn_playtesting_refresh').click(function (e) {
         e.preventDefault();
         e.stopPropagation();
         refresh_playtesting_code();
@@ -1020,7 +1027,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         }
                         game.refresh_frames_on_screen();
                         canvas.detachSprite();
-                        canvas.attachSprite(old_sprite_index, old_state_index, old_frame_index, function() {
+                        canvas.attachSprite(old_sprite_index, old_state_index, old_frame_index, function () {
                             game.update_geometry_for_sprite(old_sprite_index);
                             self.dismiss();
                         });
@@ -1124,74 +1131,75 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         ]
     });
 
-    // window.importSpriteModal = new ModalDialog({
-    //     title: 'Sprite importieren',
-    //     // vars: {
-    //     //     palette_index: -1,
-    //     //     div_for_palette_index: {},
-    //     // },
-    //     width: '90vw',
-    //     body: `
-    //     <div id='gifs_here' class="grid"></div>
-    //     `,
-    //     onbody: (self) => {
-    //         // for (let i = 0; i < palettes.length; i++) {
-    //         //     let palette = palettes[i];
-    //         //     let div = $(`<div class='palette-swatches grid-item'>`);
-    //         //     let div2 = $(`<div>`)
-    //         //     div.append(div2)
-    //         //     div2.append($(`<h3>`).text(palette.name));
-    //         //     let colors = $(`<div>`).css('margin-top', '5px');
-    //         //     for (let color of palette.colors) {
-    //         //         let swatch = $(`<div class='swatch'>`);
-    //         //         swatch.css('background-color', color);
-    //         //         colors.append(swatch);
-    //         //     }
-    //         //     div2.append(colors);
-    //         //     div2.click(function (e) {
-    //         //         $('#palettes_here .palette-swatches > div').removeClass('active');
-    //         //         $(e.target).closest('.palette-swatches > div').addClass('active');
-    //         //         self.palette_index = i;
-    //         //     });
-    //         //     self.div_for_palette_index[i] = div2;
-    //         //     $('#palettes_here').append(div);
-    //         // }
-    //         $('#gifs_here').empty();
-    //         api_call('/api/get_all_gifs', {}, function(data) {
-    //             if (data.success) {
-    //                 for (let tag of data.tags) {
-    //                     $('#gifs_here').append($(`<img style='height: 100px; image-rendering: pixelated;'>`).attr('src', `/gen/catalogue/${tag}.gif`));
-    //                 }
-    //             }
-    //         });
-    //     },
-    //     onshow: (self) => {
-    //         // self.palette_index = window.selected_palette_index;
-    //         // $('#palettes_here .palette-swatches > div').removeClass('active');
-    //         // self.div_for_palette_index[self.palette_index].addClass('active');
-    //         // window.modal_choose_palette_grid.masonry();
-    //         window.dispatchEvent(new Event('resize'));
-    //     },
-    //     footer: [
-    //         {
-    //             type: 'button',
-    //             label: 'Abbrechen',
-    //             icon: 'fa-times',
-    //             callback: (self) => self.dismiss(),
-    //         },
-    //         // {
-    //         //     type: 'button',
-    //         //     label: 'Sprite importieren',
-    //         //     icon: 'fa-check',
-    //         //     color: 'green',
-    //         //     callback: async (self) => {
-    //         //         // window.selected_palette_index = self.palette_index;
-    //         //         // update_color_palette();
-    //         //         self.dismiss();
-    //         //     }
-    //         // },
-    //     ]
-    // });
+    window.importSpriteModal = new ModalDialog({
+        title: 'Sprite importieren',
+        // vars: {
+        //     palette_index: -1,
+        //     div_for_palette_index: {},
+        // },
+        width: '90vw',
+        body: `
+        <div id='gifs_here' class="grid"></div>
+        `,
+        onbody: (self) => {
+            // for (let i = 0; i < palettes.length; i++) {
+            //     let palette = palettes[i];
+            //     let div = $(`<div class='palette-swatches grid-item'>`);
+            //     let div2 = $(`<div>`)
+            //     div.append(div2)
+            //     div2.append($(`<h3>`).text(palette.name));
+            //     let colors = $(`<div>`).css('margin-top', '5px');
+            //     for (let color of palette.colors) {
+            //         let swatch = $(`<div class='swatch'>`);
+            //         swatch.css('background-color', color);
+            //         colors.append(swatch);
+            //     }
+            //     div2.append(colors);
+            //     div2.click(function (e) {
+            //         $('#palettes_here .palette-swatches > div').removeClass('active');
+            //         $(e.target).closest('.palette-swatches > div').addClass('active');
+            //         self.palette_index = i;
+            //     });
+            //     self.div_for_palette_index[i] = div2;
+            //     $('#palettes_here').append(div);
+            // }
+            $('#gifs_here').empty();
+            api_call('/api/get_all_gifs', {}, function (data) {
+                if (data.success) {
+                    console.log(data);
+                    for (let tag of data.tags) {
+                        $('#gifs_here').append($(`<img style='height: 100px; image-rendering: pixelated;'>`).attr('src', `/gen/catalogue/${tag}.gif`));
+                    }
+                }
+            });
+        },
+        onshow: (self) => {
+            // self.palette_index = window.selected_palette_index;
+            // $('#palettes_here .palette-swatches > div').removeClass('active');
+            // self.div_for_palette_index[self.palette_index].addClass('active');
+            // window.modal_choose_palette_grid.masonry();
+            window.dispatchEvent(new Event('resize'));
+        },
+        footer: [
+            {
+                type: 'button',
+                label: 'Abbrechen',
+                icon: 'fa-times',
+                callback: (self) => self.dismiss(),
+            },
+            // {
+            //     type: 'button',
+            //     label: 'Sprite importieren',
+            //     icon: 'fa-check',
+            //     color: 'green',
+            //     callback: async (self) => {
+            //         // window.selected_palette_index = self.palette_index;
+            //         // update_color_palette();
+            //         self.dismiss();
+            //     }
+            // },
+        ]
+    });
 
     window.debugModal = new ModalDialog({
         title: 'Debug',
@@ -1297,7 +1305,7 @@ function delete_item_helper(list, index) {
     return tr;
 }
 
-window.onerror = function(event, source, lineno, colno, error) {
+window.onerror = function (event, source, lineno, colno, error) {
     let data = {
         event: event,
         source: source,
