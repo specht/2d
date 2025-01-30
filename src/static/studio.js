@@ -482,7 +482,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                     },
                 },
                 {
-                    label: 'Sprite importieren',
+                    label: 'Spritekatalog',
                     callback: () => {
                         window.importSpriteModal.show();
                     }
@@ -1132,7 +1132,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     });
 
     window.importSpriteModal = new ModalDialog({
-        title: 'Sprite importieren',
+        title: 'Spritekatalog',
         // vars: {
         //     palette_index: -1,
         //     div_for_palette_index: {},
