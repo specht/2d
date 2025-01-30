@@ -708,6 +708,16 @@ var SPRITE_TRAITS = {
     },
     level_complete: {
         label: 'Levelwechsel',
+        placed_properties: {
+            delta: {
+                label: 'Delta',
+                hint: 'Gib hier an, wie weit der Levelwechsel nach vorne springen soll (1: nächstes Level, 2: übernächstes Level).',
+                type: 'int',
+                default: 1,
+                min: -100,
+                max: 100,
+            },
+        },
     },
     checkpoint: {
         label: 'Checkpoint'
