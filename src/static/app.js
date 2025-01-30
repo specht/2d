@@ -657,7 +657,7 @@ class Character {
 		if (entry) {
 			let sprite = this.game.data.sprites[entry.sprite_index];
 			if (sprite.traits.slope.slippery > 0.0) {
-				dx += -sprite.traits.slope.slippery / 100.0 * sprite.height / sprite.width;
+				dx += (sprite.traits.direction === 'negative' ? -1 : 1) * sprite.traits.slope.slippery / 100.0 * sprite.height / sprite.width;
 			}
 		}
 
