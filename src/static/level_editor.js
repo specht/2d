@@ -378,6 +378,18 @@ class LevelEditor {
                     },
                 });
 
+                // new LineEditWidget({
+                //     container: $('#menu_level_properties'),
+                //     label: 'Höhe in Pixeln:',
+                //     hint: 'So viele Pixel hoch ist der Bildausschnitt.',
+                //     min: 16,
+                //     max: 1080,
+                //     get: () => self.game.data.levels[self.level_index].properties.screen_pixel_height,
+                //     set: (x) => {
+                //         self.game.data.levels[self.level_index].properties.screen_pixel_height = x;
+                //     },
+                // });
+
                 new DragAndDropWidget({
                     game: self.game,
                     container: $('#menu_layers'),

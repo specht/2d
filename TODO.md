@@ -129,3 +129,11 @@ Weitere Ideen:
 - Highscore
 - markierte Sprites in anderes Layer verschieben
 - Trampolin
+
+Matheolympiade 2025:
+
+- Sprites können Sprites spawnen
+- Gegner können Sprites droppen wenn sie sterben
+- Spritesheets
+- Spielfigur kann Schaden an Gegnern anrichten
+- Blöcke die runterfallen können, können nach n Sekunden respawnen oder auch beim Neustart des Levels respawnen

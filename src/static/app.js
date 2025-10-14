@@ -1581,6 +1581,7 @@ class Game {
 				}
 			}
 		}
+
 		if (this.running) return;
 		this.running = true;
 
