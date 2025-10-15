@@ -12,7 +12,7 @@ require 'vips'
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 DEVELOPMENT = ENV['DEVELOPMENT'] == '1'
 
-PLAYTESTING_CODES = %w(julsvqy 1jbz4p0 qgwoy5f 90d71e5 lmj7an3 8xhq8j1 8dstqjr 9qm3dia 1xmrz1a 2nr282i 87ptg6p bxxrg3y 41we7fa 3a0bjsj 63n5ctg)
+PLAYTESTING_CODES = %w(julsvqy 1jbz4p0 qgwoy5f i4m59yz lmj7an3 8xhq8j1 8dstqjr 9qm3dia 1xmrz1a 2nr282i 87ptg6p bxxrg3y batpvl1 3a0bjsj 63n5ctg)
 
 Neo4jBolt.bolt_host = "neo4j"
 Neo4jBolt.bolt_port = 7687
