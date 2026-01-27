@@ -647,6 +647,10 @@ class Character {
 		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun * factor * this.vrun_factor();
 		if (this.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun * factor * this.vrun_factor();
 
+        if (!this.traits.force_non_controllable)
+            dx = 0;
+        dx += this.traits.force_x;
+
 		// if (this.character_trait === 'baddie')
 		// 	dx *= (1.0) + ((Math.random() - 0.5) * 2.0) * 3;
 		// console.log(this.mesh.position.x, "trying", dx);

@@ -193,6 +193,22 @@ var SPRITE_TRAITS = {
                     canvas.handleResize();
                 }
             },
+            force_x: {
+                label: 'Kraft in X-Richtung',
+                hint: 'Gib hier an, welche Kraft in X-Richtung auf die Spielfigur wirken soll (z.B. für Wind).',
+                type: 'float',
+                min: -100.0,
+                max: 100.0,
+                default: 0.0,
+                decimalPlaces: 1,
+                step: 0.1,
+            },
+            force_non_controllable: {
+                label: 'Kraft gegensteuerbar',
+                hint: 'Kann deine Spielfigur gegen die Kraft in X-Richtung ankämpfen?',
+                type: 'bool',
+                default: true,
+            },
         },
     },
     block_above: {
