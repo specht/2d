@@ -362,6 +362,12 @@ class Character {
 		// animate character if there's more than one frame
 		if (this.game.data.sprites[this.sprite_index].states[sti].frames.length > 0) {
 			let fi = Math.floor((this.game.clock.getElapsedTime() - this.t0) * this.sprite.states[sti].properties.fps) % this.sprite.states[sti].frames.length;
+            if (state === 'dead') {
+                // if it's the dead state, don't loop the animation
+                fi = Math.floor((this.game.clock.getElapsedTime() - this.t0) * this.sprite.states[sti].properties.fps);
+                if (fi > this.sprite.states[sti].frames.length - 1)
+                    fi = this.sprite.states[sti].frames.length - 1;
+            }
 			let info = this.game.geometry_and_material_for_frame[this.sprite_index][sti][fi];
 			this.mesh.geometry = info.geometry;
 			this.mesh.material = info.material;
