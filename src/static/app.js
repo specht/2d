@@ -653,11 +653,13 @@ class Character {
 		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun * factor * this.vrun_factor();
 		if (this.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun * factor * this.vrun_factor();
 
-        if (!this.traits.force_non_controllable)
-            dx = 0;
-		if (Math.abs(this.traits.force_x) > 0.001) {
-			if (!this.dead()) {
-				dx += this.traits.force_x;
+		if (this.character_trait === 'actor') {
+			if (!this.traits.force_non_controllable)
+				dx = 0;
+			if (Math.abs(this.traits.force_x) > 0.001) {
+				if (!this.dead()) {
+					dx += this.traits.force_x;
+				}
 			}
 		}
 
