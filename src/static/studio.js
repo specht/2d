@@ -219,6 +219,16 @@ function refresh_playtesting_code() {
             console.log(data);
         }
     });
+    api_call('/api/get_all_playtesting_codes', {}, function (data) {
+        if (data.success) {
+            console.log(data);
+            $('#all_games_here').empty();
+            for (let game of data.games) {
+                let game_entry = $(`<div style="margin-bottom: 1em;"><a class="link_button" href="https://2d.hackschule.de/play/${game.tag}"><b>${game.title}</b> (${game.author})</a></div>`);
+                $('#all_games_here').append(game_entry);
+            }
+        }
+    });
 }
 
 /*

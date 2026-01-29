@@ -137,3 +137,6 @@ Matheolympiade 2025:
 - Spritesheets
 - Spielfigur kann Schaden an Gegnern anrichten
 - Blöcke die runterfallen können, können nach n Sekunden respawnen oder auch beim Neustart des Levels respawnen
+
+- Tür / Falltür remote auslösen
+- Layer für Bewegung (Wind)
