@@ -13,7 +13,7 @@ DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 DEVELOPMENT = ENV['DEVELOPMENT'] == '1'
 
 # PLAYTESTING_CODES = %w(julsvqy 1jbz4p0 qgwoy5f i4m59yz lmj7an3 8xhq8j1 8dstqjr 9qm3dia 1xmrz1a 2nr282i 87ptg6p bxxrg3y batpvl1 3a0bjsj 63n5ctg fca36s9 6r5s9la)
-PLAYTESTING_CODES =  %w(qdmczg8 4bdvwpn 3m8cmld)
+PLAYTESTING_CODES =  %w(qdmczg8 4bdvwpn 3m8cmld edv78x4 hevofgh)
 
 Neo4jBolt.bolt_host = "neo4j"
 Neo4jBolt.bolt_port = 7687
