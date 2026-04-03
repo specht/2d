@@ -653,11 +653,16 @@ class Main < Sinatra::Base
     end
 
     def all_root_tags
-        neo4j_query(<<~END_OF_QUERY).map { |x| x['tag'] }
+        root_tags = neo4j_query(<<~END_OF_QUERY).map { |x| x['tag'] }
             MATCH (r:Game)
             WHERE NOT (r)-[:PARENT]->(:Game)
             RETURN r.tag AS tag;
         END_OF_QUERY
+        if File.exist?("/app/hidden-root-tags.txt")
+            hidden_root_tags = File.read("/app/hidden-root-tags.txt").split("\n").to_set
+            root_tags.reject! { |tag| hidden_root_tags.include?(tag) }
+        end
+        root_tags
     end
 
     def get_current_tips_for_root_nodes(root_tags)
