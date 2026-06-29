@@ -660,7 +660,10 @@ class Main < Sinatra::Base
         END_OF_QUERY
         if File.exist?("/app/hidden-root-tags.txt")
             hidden_root_tags = File.read("/app/hidden-root-tags.txt").split("\n").to_set
-            root_tags.reject! { |tag| hidden_root_tags.include?(tag) }
+            magic_word = hidden_root_tags.select { |x| x.start_with?("# magic word:") }.first.to_s.sub("# magic word:", "").strip
+            unless request.path.include?(magic_word)
+                root_tags.reject! { |tag| hidden_root_tags.include?(tag) }
+            end
         end
         root_tags
     end

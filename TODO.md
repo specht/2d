@@ -140,3 +140,10 @@ Matheolympiade 2025:
 
 - Tür / Falltür remote auslösen
 - Layer für Bewegung (Wind)
+
+Das Melee-System:
+
+- Nahkampfangriff mit Abstand nach links, rechts, oben und unten mit Pfeiltasten
+- Laufen mit WASD, Schießen mit Pfeiltasten
+- Hit und Dead-Zustand für Gegner
+- Hitpoints (Energie) von Einstellungen in Spielfigur verschieben
