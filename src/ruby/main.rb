@@ -652,7 +652,7 @@ class Main < Sinatra::Base
         respond(:query => query, :nodes => nodes)
     end
 
-    def all_root_tags
+    def all_root_tags(secret = '')
         root_tags = neo4j_query(<<~END_OF_QUERY).map { |x| x['tag'] }
             MATCH (r:Game)
             WHERE NOT (r)-[:PARENT]->(:Game)
@@ -661,7 +661,8 @@ class Main < Sinatra::Base
         if File.exist?("/app/hidden-root-tags.txt")
             hidden_root_tags = File.read("/app/hidden-root-tags.txt").split("\n").to_set
             magic_word = hidden_root_tags.select { |x| x.start_with?("# magic word:") }.first.to_s.sub("# magic word:", "").strip
-            unless request.path.include?(magic_word)
+            unless secret == magic_word
+                STDERR.puts "Hiding root tags: #{hidden_root_tags.to_a.join(", ")}"
                 root_tags.reject! { |tag| hidden_root_tags.include?(tag) }
             end
         end
@@ -721,8 +722,9 @@ class Main < Sinatra::Base
         nodes
     end
 
-    post "/api/get_games" do
-        root_tags = all_root_tags()
+    post "/api/get_games/:secret" do
+        STDERR.puts "Request for /api/get_games/#{params[:secret]}"
+        root_tags = all_root_tags(params[:secret] || '')
         nodes = get_current_tips_for_root_nodes(root_tags)
         respond(:nodes => nodes)
     end

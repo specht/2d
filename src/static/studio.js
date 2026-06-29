@@ -926,7 +926,9 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             let body = $('#load_games_list');
             body.empty();
             let self = this;
-            api_call('/api/get_games', {}, function (data) {
+            let secret = window.location.search.toString().replace('?', '').trim();
+            if (secret.length === 0) secret = 'x';
+            api_call(`/api/get_games/${secret}`, {}, function (data) {
                 console.log(data);
                 if (data.success) {
                     console.log(data);
