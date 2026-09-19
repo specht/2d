@@ -499,9 +499,9 @@ class LevelEditor {
                     step_aside_css: { top: '35px' },
                     gen_new_item_options: [
                         ['Levelwechsel erreicht', 'touching_level_complete'],
-                        ['Punkte gesammelt', 'min_points'],
-                        ['Sprite eingesammelt', 'need_sprite'],
-                        ['Gegner getötet', 'killed_baddie'],
+                        ['Punkte gesammelt (noch ohne Wirkung)', 'min_points'],
+                        ['Sprite eingesammelt (noch ohne Wirkung)', 'need_sprite'],
+                        ['Gegner getötet (noch ohne Wirkung)', 'killed_baddie'],
                     ],
                     gen_item: (layer, index) => {
                         let type = layer.type;
@@ -515,17 +515,23 @@ class LevelEditor {
                         } else if (type === 'killed_baddie') {
                             condition_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Gegner getötet')));
                         }
+                        if (type !== 'touching_level_complete') {
+                            condition_div.append($('<span>')
+                                .css({ 'margin-left': '0.4em', color: '#d8b34d' })
+                                .attr('title', 'Diese Bedingung wird im Spiel noch nicht geprüft.')
+                                .text('ⓘ'));
+                        }
                         return condition_div;
                     },
                     hint_with_heading_for_item: (item) => {
                         if (item.type === 'touching_level_complete')
-                            return ["Levelwechsel erreicht", "Damit das Level beendet werden kann, muss ein Sprite mit der Eigenschaft »Levelwechsel« eingesammelt worden sein."];
+                            return ["Levelwechsel erreicht", "Berührt die Spielfigur ein Sprite mit der Eigenschaft »Levelwechsel«, wechselt das Spiel direkt zum nächsten Level. Dieser Listeneintrag wird dabei nicht eigens geprüft."];
                         if (item.type === 'min_points')
-                            return ["Punkte gesammelt", "Damit das Level beendet werden kann, muss ein bestimmter Anteil der im Level vorhandenen Punkte eingesammelt worden sein."];
+                            return ["Punkte gesammelt", "Noch ohne Wirkung im Spiel: Der eingestellte Mindestanteil wird gespeichert, beim Levelwechsel aber nicht geprüft."];
                         if (item.type === 'need_sprite')
-                            return ["Sprite eingesammelt", "Damit das Level beendet werden kann, muss ein bestimmtes Sprite eingesammelt worden sein."];
+                            return ["Sprite eingesammelt", "Noch ohne Wirkung im Spiel: Das Einsammeln eines bestimmten Sprites wird beim Levelwechsel nicht geprüft."];
                         if (item.type === 'killed_baddie')
-                            return ["Gegner getötet", "Damit das Level beendet werden kann, muss ein bestimmter Gegner getötet worden sein."];
+                            return ["Gegner getötet", "Noch ohne Wirkung im Spiel: Das Besiegen eines Gegners wird beim Levelwechsel nicht geprüft."];
                     },
                     onclick: (e, index) => {
                         self.clear_selection();
@@ -840,6 +846,12 @@ class LevelEditor {
         $('#menu_conditions_properties').empty();
 
         let condition = self.game.data.levels[self.level_index].conditions[self.condition_index];
+
+        if (condition.type !== 'touching_level_complete') {
+            $('<div>').css({ margin: '4px 5px 8px', color: '#d8b34d', 'font-size': '0.9em' })
+                .text('Noch ohne Wirkung im Spiel.')
+                .appendTo($('#menu_conditions_properties'));
+        }
 
         if (condition.type === 'min_points') {
             new NumberWidget({
