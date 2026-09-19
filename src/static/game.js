@@ -625,6 +625,7 @@ class Game {
     build_sprite_traits_menu() {
         let self = this;
         let si = canvas.sprite_index;
+        this.door_state_help = null;
         $('#menu_sprite_properties').empty();
         $('#menu_sprite_properties_variable_part_following').nextAll().remove();
         let traits_menu = $('<div>').css('max-height', 'calc(50vh - 90px)').appendTo($('#menu_sprite_properties'));
@@ -698,7 +699,45 @@ class Game {
                 });
             }
         }
+        if (trait === 'door') this.add_door_state_help(div, si);
         div.insertAfter(element);
+    }
+
+    add_door_state_help(div, si) {
+        let help = $('<div>').css({
+            'border-top': '1px solid rgba(255, 255, 255, 0.15)',
+            'margin-top': '8px',
+            'padding': '9px 5px 3px',
+            'line-height': '1.4',
+        }).appendTo(div);
+        $('<div>').css('font-weight', 'bold').text('Tür-Check').appendTo(help);
+        let status = $('<div>').appendTo(help);
+        let advice = $('<div>').css({
+            'margin-top': '6px',
+            'font-size': '0.9em',
+            'color': '#ffcc66',
+        }).appendTo(help);
+
+        this.door_state_help = () => {
+            let states = this.data.sprites[si].states;
+            status.empty();
+            let missing = false;
+            for (let [trait, label] of [['closed', 'geschlossen'], ['open', 'geöffnet']]) {
+                let present = states.some((state) => trait in (state.traits?.door ?? {}));
+                missing ||= !present;
+                let row = $('<div>').css({
+                    'display': 'flex',
+                    'align-items': 'center',
+                    'gap': '7px',
+                    'margin-top': '5px',
+                }).appendTo(status);
+                $('<i>').addClass(present ? 'fa fa-check-circle' : 'fa fa-exclamation-circle')
+                    .css('color', present ? '#6dcd8d' : '#ffcc66').appendTo(row);
+                $('<span>').text(present ? `„${label}“ vorhanden` : `„${label}“ fehlt`).appendTo(row);
+            }
+            advice.text(missing ? 'Weise den fehlenden Zustand unter „Zustände“ zu.' : '');
+        };
+        this.door_state_help();
     }
 
     add_state_trait(sprite_trait, trait) {
@@ -710,6 +749,7 @@ class Game {
         self.data.sprites[si].states[sti].traits[sprite_trait] ??= {};
         self.data.sprites[si].states[sti].traits[sprite_trait][trait] ??= {};
         self.fix_game_data();
+        this.door_state_help?.();
     }
 
     remove_state_trait(sprite_trait, trait) {
@@ -719,6 +759,7 @@ class Game {
         // TODO: Check if this makes sense
         delete self.data.sprites[si].states[sti].traits[sprite_trait][trait];
         self.fix_game_data();
+        this.door_state_help?.();
     }
 
     build_state_traits_submenu(sprite_trait, traits) {

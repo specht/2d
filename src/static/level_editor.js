@@ -1760,11 +1760,11 @@ class LevelEditor {
                                 container: div,
                                 label: property.label ?? key,
                                 hint: property.hint ?? null,
-                                get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
+                                get: () => Boolean(((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default),
                                 set: (x) => {
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Math.round(x);
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Boolean(x);
                                 },
                             });
                         } else if (property.type === 'select') {

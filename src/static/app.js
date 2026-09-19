@@ -1364,6 +1364,8 @@ class Game {
 							for (let key of Object.keys(SPRITE_TRAITS[trait].placed_properties ?? {})) {
 								let data = SPRITE_TRAITS[trait].placed_properties[key];
 								let value = (placed_properties[trait] ?? {})[key] ?? data.default;
+								// Old games may store placed checkboxes as 0/1 instead of true/false.
+								if (data.type === 'bool') value = Boolean(value);
 								console.log(`setting placed prop: ${trait} / ${key}: ${value}`);
 								this.active_level_sprites[this.active_level_sprites.length - 1][key] = value;
 								console.log('look', this.active_level_sprites[this.active_level_sprites.length - 1]);
@@ -1378,8 +1380,6 @@ class Game {
 							this.active_level_sprites[this.active_level_sprites.length - 1].overlay_mesh = overlay_mesh;
 							overlay_mesh.visible = false;
 							this.overlay_meshes.push(overlay_mesh);
-							// TODO: Check if door is closed initially and use the
-							// appropriate state
 						}
 					}
 					mesh.position.set(placed[1], placed[2], 0);
@@ -1397,6 +1397,16 @@ class Game {
 					let fr = sprite.states[0].properties.phase_r;
 					let fo = Math.floor((mesh.position.x / sprite.width) * fx + (mesh.position.y / sprite.height) * fy + Math.random() * 1024 * fr);
 					this.state_for_mesh[mesh.uuid] = { state_index: 0, frame_offset: fo, frame_index: 0, loop: true };
+					if ('door' in sprite.traits) {
+						// Placed door state affects both collision and the initial appearance.
+						// Keep state 0 as a fallback for older, incomplete door sprites.
+						let initially_closed = Boolean(placed[3]?.door?.door_closed ?? true);
+						let state_name = initially_closed ? 'closed' : 'open';
+						let state_index = sprite.states.findIndex((state) => state_name in (state.traits?.door ?? {}));
+						if (state_index !== -1) {
+							this.state_for_mesh[mesh.uuid].state_index = state_index;
+						}
+					}
 					game_layer.add(mesh);
 				}
 			} else if (layer.type === 'backdrop') {
