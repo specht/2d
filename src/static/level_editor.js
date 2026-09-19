@@ -1689,6 +1689,7 @@ class LevelEditor {
         let placed_properties_need_update = false;
         if (this.selection.length !== 1) {
             $('#menu_placed_properties').empty();
+            this.placed_properties_for = null;
         } else {
             placed_properties_need_update = ((this.placed_properties_for ?? null) != this.selection[0]);
             this.placed_properties_for = this.selection[0];
@@ -1697,7 +1698,6 @@ class LevelEditor {
         if (placed_properties_need_update) {
             $('#menu_placed_properties').empty();
             if (this.selection.length === 1) {
-                this.placed_properties_for ??= selection[0];
                 let div = $(`<div>`).appendTo($('#menu_placed_properties'));
                 let entry_index = this.selection[0];
                 let entry = this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index];
@@ -1779,7 +1779,7 @@ class LevelEditor {
                                 set: (x) => {
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Math.round(x);
+                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = x;
                                 },
                             });
                         } else if (property.type === 'string') {

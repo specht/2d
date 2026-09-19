@@ -1355,10 +1355,12 @@ class Game {
 						if (x1 > this.maxx) this.maxx = x1;
 						if (y0 < this.miny) this.miny = y0;
 						if (y1 > this.maxy) this.maxy = y1;
+						let active_entry = null;
 						if (!('actor' in sprite.traits || 'baddie' in sprite.traits)) {
 							this.interval_tree_x.insert([x0, x1], this.active_level_sprites.length);
 							this.interval_tree_y.insert([y0, y1], this.active_level_sprites.length);
-							this.active_level_sprites.push({ layer_index: li, sprite_index: si, mesh: mesh });
+							active_entry = { layer_index: li, sprite_index: si, mesh: mesh };
+							this.active_level_sprites.push(active_entry);
 						}
 						for (let trait of Object.keys(sprite.traits)) {
 							for (let key of Object.keys(SPRITE_TRAITS[trait].placed_properties ?? {})) {
@@ -1367,17 +1369,17 @@ class Game {
 								// Old games may store placed checkboxes as 0/1 instead of true/false.
 								if (data.type === 'bool') value = Boolean(value);
 								console.log(`setting placed prop: ${trait} / ${key}: ${value}`);
-								this.active_level_sprites[this.active_level_sprites.length - 1][key] = value;
-								console.log('look', this.active_level_sprites[this.active_level_sprites.length - 1]);
+								if (active_entry !== null) active_entry[key] = value;
+								console.log('look', active_entry);
 							}
 						}
-						if ('door' in sprite.traits || 'text' in sprite.traits) {
-							this.active_level_sprites[this.active_level_sprites.length - 1].door_state = 'idle';
+						if (active_entry !== null && ('door' in sprite.traits || 'text' in sprite.traits)) {
+							active_entry.door_state = 'idle';
 							let overlay_mesh = this.overlay_mesh_catalogue['f_key'].clone();
 							overlay_mesh.geometry = overlay_mesh.geometry.clone();
 							overlay_mesh.position.set(placed[1], placed[2] + sprite.height / 2, 1.0);
 							game_layer.add(overlay_mesh);
-							this.active_level_sprites[this.active_level_sprites.length - 1].overlay_mesh = overlay_mesh;
+							active_entry.overlay_mesh = overlay_mesh;
 							overlay_mesh.visible = false;
 							this.overlay_meshes.push(overlay_mesh);
 						}
