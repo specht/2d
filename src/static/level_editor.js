@@ -574,14 +574,16 @@ class LevelEditor {
             gen_new_item: () => {
                 self.game.data.levels.push({});
                 self.game.fix_game_data();
-                return level;
+                return self.game.data.levels[self.game.data.levels.length - 1];
             },
             delete_item: (index) => {
                 self.game.data.levels.splice(index, 1);
+                self.label_for_level.splice(index, 1);
                 self.level_index = 0;
             },
             on_move_item: (from, to) => {
                 move_item_helper(self.game.data.levels, from, to);
+                move_item_helper(self.label_for_level, from, to);
             }
         });
 
