@@ -66,6 +66,8 @@ class Character {
 		else if ('baddie' in this.sprite.traits) {
 			this.character_trait = 'baddie';
 			this.traits = this.sprite.traits[this.character_trait];
+			// Each enemy has its own health; the sprite trait is the starting value.
+			this.energy = this.traits.energy;
 			this.traits.ex_top ??= 1.0;
 			this.traits.ex_left ??= 1.0;
 			this.traits.ex_right ??= 1.0;
@@ -574,9 +576,9 @@ class Character {
 
 	take_damage(damage) {
 		if (this.character_trait === 'baddie') {
-			this.traits.energy -= damage;
-			if (this.traits.energy < 0.0) this.traits_energy = 0.0;
-			if (this.traits.energy < 0.0001) {
+			this.energy -= damage;
+			if (this.energy < 0.0) this.energy = 0.0;
+			if (this.energy < 0.0001) {
 				// remove baddie from game
 				this.active = false;
 				this.update_state_and_direction('dead', 'front');
