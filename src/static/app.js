@@ -890,7 +890,7 @@ class Character {
 					let self = this;
 					let delta = entry.delta ?? 1;
 					let next_level_index = self.game.get_next_level_index(delta);
-					if (next_level_index < self.game.data.levels.length) {
+					if (next_level_index >= 0 && next_level_index < self.game.data.levels.length) {
 						let next_level_title = self.game.data.levels[next_level_index].properties.name.trim();
 						if (next_level_title.length > 0) {
 							next_level_title = `<div><span style='color: #aaa;'>Next up:</span> ${next_level_title}</div>`;
@@ -1180,7 +1180,7 @@ class Game {
 
 	get_next_level_index(delta) {
 		let li = this.level_index + delta;
-		while ((li < this.data.levels.length) && !this.data.levels[li].properties.use_level)
+		while ((li >= 0) && (li < this.data.levels.length) && !this.data.levels[li].properties.use_level)
 			li += 1;
 		return li;
 	}
