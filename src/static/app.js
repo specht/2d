@@ -1592,19 +1592,19 @@ class Game {
 		// this.prepare_run();
 		$('#stats').addClass('showing');
 		if (window.yt_player !== null) {
-			// window.yt_player.pauseVideo();
-			let yt_tag = null;
-			if ((window.game.data.properties.yt_tag ?? '').length > 0)
-				yt_tag = window.game.data.properties.yt_tag;
-			if ((window.game.data.levels[0].properties.yt_tag ?? '').length > 0)
-				yt_tag = window.game.data.levels[0].properties.yt_tag;
-			if (yt_tag !== null) {
-				if (yt_tag !== this.old_yt_tag) {
-					this.old_yt_tag = yt_tag;
+			// Level music overrides the game-wide track; an empty level tag uses the game default.
+			let game_music = this.data.properties.yt_tag ?? '';
+			let level_music = this.data.levels[this.level_index].properties.yt_tag ?? '';
+			let yt_tag = level_music.length > 0 ? level_music : (game_music.length > 0 ? game_music : null);
+			if (yt_tag !== this.old_yt_tag) {
+				if (yt_tag === null) {
+					window.yt_player.pauseVideo();
+				} else {
 					let parts = yt_tag.split('#');
 					let s = this.parse_yt_timestamp(parts[1]);
 					window.yt_player.loadVideoById(parts[0], s);
 				}
+				this.old_yt_tag = yt_tag;
 			}
 		}
 
