@@ -2012,7 +2012,8 @@ class Game {
 			result_y.add(i);
 		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
 		for (let entry_index of result) {
-			return this.baddies[entry_index];
+			let baddie = this.baddies[entry_index];
+			if (baddie.active) return baddie;
 		}
 		return null;
 	}
