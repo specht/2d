@@ -147,7 +147,7 @@ class Game {
                 condition.type ??= 'touching_level_complete';
                 condition.properties ??= {};
                 if (condition.type === 'min_points') {
-                    condition.properties.min_points_percent = 100.0;
+                    condition.properties.min_points_percent ??= 100.0;
                 }
             }
             for (let lyi = 0; lyi < this.data.levels[li].layers.length; lyi++) {
