@@ -190,13 +190,18 @@ class CombatSystem {
     apply_hit(instance, target, time) {
         if (!this.game_allows_combat() || !this.active.includes(instance) ||
             !this.owner_is_alive(instance.owner) || !this.owner_is_alive(target) ||
-            target === instance.owner || !Number.isFinite(time) ||
+            (target === instance.owner &&
+                !(instance.definition.delivery.detonation?.self_damage &&
+                    instance.team === 'actor')) || !Number.isFinite(time) ||
             time < instance.started_at || time > instance.expires_at) return false;
         if (instance.hit_targets.has(target)) {
             let interval = instance.definition.hit?.rehit_interval_s;
             if (interval === undefined || time < instance.last_hit_at.get(target) + interval) return false;
         }
-        if (instance.team === 'actor' && target.character_trait !== 'baddie') return false;
+        const owner_self_hit = target === instance.owner &&
+            instance.team === 'actor' && instance.definition.delivery.detonation?.self_damage;
+        if (instance.team === 'actor' && target.character_trait !== 'baddie' &&
+            !owner_self_hit) return false;
         if (instance.team === 'baddie' && target.character_trait !== 'actor') return false;
 
         let amount = instance.definition.effect.amount;

@@ -3,10 +3,16 @@
 function register_projectile(combat) {
     const RADIUS = 2; // Ordinary projectiles have a fixed 4x4 collision box.
     const bomb_mode = instance => !!instance.definition.delivery.detonation;
-    const fuse_state = sprite => sprite?.states?.findIndex(state =>
-        state.properties?.name?.trim().toLocaleLowerCase('de') === 'zündschnur') ?? -1;
-    const explosion_state = sprite => sprite?.states?.findIndex(state =>
-        state.properties?.name?.trim().toLocaleLowerCase('de') === 'explosion') ?? -1;
+    // New bomb sprites use explicit state traits. Existing artwork selected by
+    // the old title-based UI still works without migrating saved game JSON.
+    const bomb_state = (sprite, kind, old_name) => {
+        const tagged = sprite?.states?.findIndex(state => state.traits?.bomb?.[kind]);
+        if (tagged >= 0) return tagged;
+        return sprite?.states?.findIndex(state =>
+            state.properties?.name?.trim().toLocaleLowerCase('de') === old_name) ?? -1;
+    };
+    const fuse_state = sprite => bomb_state(sprite, 'fuse', 'zündschnur');
+    const explosion_state = sprite => bomb_state(sprite, 'explosion', 'explosion');
 
     function character_bounds(character) {
         const x = character.mesh.position.x;
@@ -69,11 +75,50 @@ function register_projectile(combat) {
         return nearest;
     }
 
+    // Bombs collide with surfaces, not with every rectangle having any block
+    // trait. A side wall cancels horizontal velocity but never suspends gravity.
+    // Floor/ceiling contacts only count when moving towards that surface.
+    function bomb_surface_contact(game, from, to, radius, axis) {
+        let best = null;
+        const delta = to[axis] - from[axis];
+        if (Math.abs(delta) < 1e-9) return null;
+        for (const entry of game.active_level_sprites ?? []) {
+            const sprite = game.data?.sprites?.[entry.sprite_index];
+            if (!sprite || !entry.mesh) continue;
+            const traits = sprite.traits ?? {};
+            const closed_door = traits.door && entry.door_closed;
+            const blocking = axis === 'x' ? traits.block_sides :
+                delta < 0 ? traits.block_above : traits.block_below;
+            if (!blocking && !closed_door) continue;
+            const rect = {
+                x0: entry.mesh.position.x - sprite.width / 2,
+                x1: entry.mesh.position.x + sprite.width / 2,
+                y0: entry.mesh.position.y,
+                y1: entry.mesh.position.y + sprite.height,
+            };
+            const other = axis === 'x' ? 'y' : 'x';
+            if (from[other] + radius <= rect[other + '0'] ||
+                from[other] - radius >= rect[other + '1']) continue;
+            const surface = delta > 0 ? rect[axis + '0'] - radius :
+                rect[axis + '1'] + radius;
+            // Do not collide with a surface already behind the starting point.
+            const t = (surface - from[axis]) / delta;
+            if (t < -1e-9 || t > 1 + 1e-9) continue;
+            const contact = { t: Math.max(0, t), surface };
+            if (!best || contact.t < best.t) best = contact;
+        }
+        return best;
+    }
+
     function update_projectile_mesh(instance, time) {
         if (!instance.projectile_mesh) return;
         if (instance.projectile_frames) {
-            const index = Math.floor((time - instance.started_at) * instance.projectile_fps) %
-                instance.projectile_frames.length;
+            const frame = Math.floor((time - instance.started_at) * instance.projectile_fps);
+            // Zündschnur burns through once. Hold its final frame until the
+            // configured fuse time, independently of the number of drawings.
+            const index = bomb_mode(instance) ?
+                Math.min(instance.projectile_frames.length - 1, frame) :
+                frame % instance.projectile_frames.length;
             instance.projectile_mesh.geometry = instance.projectile_frames[index].geometry;
             instance.projectile_mesh.material = instance.projectile_frames[index].material;
         }
@@ -162,7 +207,10 @@ function register_projectile(combat) {
             const drop = bomb && speed === 0;
             let aimX = Number.isFinite(instance.aim?.x) ? instance.aim.x :
                 (owner.last_horizontal_facing === 'left' ? -1 : 1);
+            // A horizontal bomb throw needs lift to clear the ground. Explicit
+            // mouse aiming keeps the direction selected by the player.
             let aimY = Number.isFinite(instance.aim?.y) ? instance.aim.y : 0;
+            if (bomb && !drop && aimY >= 0 && aimY < 0.35) aimY = 0.35;
             const norm = Math.hypot(aimX, aimY);
             if (!(norm > 1e-9)) {
                 aimX = owner.last_horizontal_facing === 'left' ? -1 : 1;
@@ -183,10 +231,13 @@ function register_projectile(combat) {
             instance.projectile_x = drop ? owner.mesh.position.x :
                 (instance.direction > 0 ? bounds.x1 + instance.projectile_radius :
                     bounds.x0 - instance.projectile_radius);
-            instance.projectile_y = drop ? bounds.y0 + instance.projectile_radius + 2 :
-                owner.mesh.position.y + owner.sprite.height / 2;
+            // Tall bomb artwork must not spawn inside the floor at the owner's
+            // feet: that made ground-level throws stop instantly.
+            instance.projectile_y = Math.max(bounds.y0 + instance.projectile_radius + 2,
+                owner.mesh.position.y + owner.sprite.height / 2);
             instance.projectile_start_x = instance.projectile_x;
             instance.projectile_start_y = instance.projectile_y;
+            instance.projectile_y_origin_at = 0;
             instance.projectile_elapsed = 0;
             instance.projectile_resting = false;
             instance.expires_at = instance.started_at +
@@ -200,46 +251,71 @@ function register_projectile(combat) {
             const bomb = !!detonation;
             const elapsed = Math.max(0, time - instance.started_at);
             const flight_limit = speed > 0 ? range / speed : Infinity;
-            const motion_time = Math.min(elapsed, flight_limit,
-                bomb ? detonation.fuse_s : Infinity);
+            const motion_time = Math.min(elapsed, bomb ? detonation.fuse_s : flight_limit);
 
             if (!instance.projectile_resting && motion_time > instance.projectile_elapsed) {
-                // Bombs with zero launch speed still fall under their own gravity.
                 const fromX = instance.projectile_x;
                 const fromY = instance.projectile_y;
-                const toX = instance.projectile_start_x + instance.projectile_vx * motion_time;
-                const toY = instance.projectile_start_y + instance.projectile_vy * motion_time -
-                    0.5 * instance.projectile_gravity * motion_time * motion_time;
-                const nearest = obstacle_contact(game, fromX, fromY, toX, toY,
-                    instance.projectile_radius);
-                let contact = nearest;
-                let targetAt = null;
-                if (!bomb) {
+                const radius = instance.projectile_radius;
+                if (bomb) {
+                    // Handle x and y separately: a wall arrests horizontal
+                    // travel while gravity keeps pulling the bomb down.
+                    const toX = instance.projectile_start_x + instance.projectile_vx *
+                        Math.min(motion_time, flight_limit);
+                    const wall = bomb_surface_contact(game,
+                        { x: fromX, y: fromY }, { x: toX, y: fromY }, radius, 'x');
+                    instance.projectile_x = wall ? wall.surface : toX;
+                    if (wall) {
+                        instance.projectile_vx = 0;
+                        instance.projectile_start_x = wall.surface;
+                    } else if (motion_time >= flight_limit) {
+                        // Maximum throw distance ends horizontal motion only.
+                        // The bomb continues falling until it lands or explodes.
+                        instance.projectile_vx = 0;
+                        instance.projectile_start_x = toX;
+                    }
+                    const age = motion_time - instance.projectile_y_origin_at;
+                    const toY = instance.projectile_start_y + instance.projectile_vy * age -
+                        0.5 * instance.projectile_gravity * age * age;
+                    const from = { x: instance.projectile_x, y: fromY };
+                    const roof_or_floor = bomb_surface_contact(game,
+                        from, { x: from.x, y: toY }, radius, 'y');
+                    instance.projectile_y = roof_or_floor ? roof_or_floor.surface : toY;
+                    if (roof_or_floor) {
+                        if (toY < fromY) instance.projectile_resting = true;
+                        else {
+                            // A ceiling cancels upward momentum, not gravity.
+                            instance.projectile_start_y = roof_or_floor.surface;
+                            instance.projectile_vy = 0;
+                            instance.projectile_y_origin_at = motion_time;
+                        }
+                    }
+                } else {
+                    // Preserve ordinary projectile collision and hit behaviour.
+                    const toX = instance.projectile_start_x + instance.projectile_vx * motion_time;
+                    const toY = instance.projectile_start_y + instance.projectile_vy * motion_time -
+                        0.5 * instance.projectile_gravity * motion_time * motion_time;
+                    let contact = obstacle_contact(game, fromX, fromY, toX, toY, radius);
+                    let targetAt = null;
                     const targets = instance.team === 'actor' ? game.baddies : [game.player_character];
                     for (const target of targets) {
                         if (!system.owner_is_alive(target)) continue;
                         const t = first_contact(fromX, fromY, toX, toY,
-                            character_bounds(target), instance.projectile_radius);
+                            character_bounds(target), radius);
                         if (t !== null && (contact === null || t < contact)) {
                             contact = t;
                             targetAt = target;
                         }
                     }
-                }
-                instance.projectile_x = contact === null ? toX : fromX + (toX - fromX) * contact;
-                instance.projectile_y = contact === null ? toY : fromY + (toY - fromY) * contact;
-                instance.projectile_elapsed = motion_time;
-                if (contact !== null) {
-                    if (bomb) instance.projectile_resting = true;
-                    else {
+                    instance.projectile_x = contact === null ? toX : fromX + (toX - fromX) * contact;
+                    instance.projectile_y = contact === null ? toY : fromY + (toY - fromY) * contact;
+                    if (contact !== null) {
                         update_projectile_mesh(instance, time);
-                        if (targetAt)
-                            system.apply_hit(instance, targetAt, time);
+                        if (targetAt) system.apply_hit(instance, targetAt, time);
                         return false;
                     }
                 }
-                if (bomb && motion_time >= flight_limit)
-                    instance.projectile_resting = true;
+                instance.projectile_elapsed = motion_time;
             }
             update_projectile_mesh(instance, time);
             if (bomb && elapsed >= detonation.fuse_s) {
@@ -247,7 +323,12 @@ function register_projectile(combat) {
                 const x = instance.projectile_x;
                 const y = instance.projectile_y;
                 const radius = detonation.radius_px;
-                const targets = instance.team === 'actor' ? game.baddies : [game.player_character];
+                // Owner self-damage is opt-in; allied units remain protected.
+                // Process opponents first so a lethal self-hit cannot suppress
+                // damage to enemies in the same explosion.
+                const targets = instance.team === 'actor' ?
+                    [...game.baddies, ...(detonation.self_damage ? [game.player_character] : [])] :
+                    [game.player_character];
                 for (const target of targets) {
                     if (!system.owner_is_alive(target)) continue;
                     const bounds = character_bounds(target);

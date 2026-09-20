@@ -10,6 +10,7 @@ var SPRITE_TRAITS_ORDER = [
         [
             'melee_attack',
             'ranged_attack',
+            'bomb',
         ],
     ],
     [
@@ -103,9 +104,11 @@ var STATE_TRAITS_ORDER = {
         'open',
         'transition',
     ],
+    bomb: ['fuse', 'explosion'],
 };
 
 var SPRITE_TRAITS = {
+    bomb: { label: 'Bombenbild' },
     ranged_attack: {
         label: 'Fernkampfangriff',
     },
@@ -824,5 +827,9 @@ var STATE_TRAITS = {
         closed: { label: 'geschlossen' },
         open: { label: 'geöffnet' },
         transition: { label: 'Übergang' },
+    },
+    bomb: {
+        fuse: { label: 'Zündschnur' },
+        explosion: { label: 'Explosion' },
     },
 };

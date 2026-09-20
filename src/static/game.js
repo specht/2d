@@ -914,7 +914,7 @@ class Game {
         this.add_trait_help(div, 'Hinweise zum Fernkampfangriff',
             'K: Schießen. Bei Maus-Zielen geht auch ein Linksklick ins Spielfeld. Eine Bombe explodiert nach Ablauf der Zündzeit, auch wenn sie noch fliegt. Die Schwerkraft betrifft nur dieses Projektil. Berührungsschaden ist unabhängig davon.');
         this.add_trait_help(div, 'Bomben zeichnen',
-            'Zeichne die Bombe im ersten Zustand (Ersatzbild). Füge einen Zustand namens „Zündschnur“ mit der Bombe und ihrer brennenden Schnur hinzu; er läuft ab dem Abwurf. Der Zustand „Explosion“ spielt nach der Zündzeit einmal. Die Titel müssen genau so heißen. Der Schaden hängt nicht von den Bildern ab.');
+            'Wähle für das Bombenbild die Eigenschaft „Bombenbild“ und zeichne den Normalzustand. Lege weitere Zustände an und ordne sie als „Zündschnur“ und „Explosion“ zu. Die Zündschnur läuft einmal und bleibt danach auf dem letzten Bild, bis die Zündzeit abläuft. Dann spielt die Explosion einmal. Bereits benannte Zustände „Zündschnur“ und „Explosion“ funktionieren weiterhin.');
         const section = label => $('<h5>').addClass('trait-section-title').text(label).appendTo(div);
         section('So funktioniert der Angriff');
         new LineEditWidget({
@@ -1010,6 +1010,14 @@ class Game {
                 attack.delivery.detonation.shake_strength = value;
             },
         });
+        new CheckboxWidget({
+            container: bomb_controls, label: 'Eigene Spielfigur verletzen:',
+            hint: 'Nur für selbst gelegte Bomben: Die Explosion kann auch deine Spielfigur treffen. Aus bedeutet, dass du gegen deine eigenen Bomben geschützt bist.',
+            get: () => attack.delivery?.detonation?.self_damage ?? false,
+            set: checked => {
+                if (attack.delivery.detonation) attack.delivery.detonation.self_damage = !!checked;
+            },
+        });
         bomb_controls.toggle(!!attack.delivery.detonation);
         new NumberWidget({
             container: div, label: 'Schwerkraft:',
@@ -1058,7 +1066,7 @@ class Game {
             },
         });
         this.ranged_projectile_picker = picker('Projektilsprite:', 'projectile_sprite_index',
-            'Zeichne normale Projektile nach rechts. Für eine Bombe kannst du zusätzliche Zustände „Zündschnur“ (Bombenkörper mit brennender Schnur) und „Explosion“ zeichnen. Die Zündschnur läuft ab dem Abwurf, die Explosion danach einmal.');
+            'Zeichne normale Projektile nach rechts. Für Bomben: Gib dem ausgewählten Sprite die Eigenschaft „Bombenbild“ und ordne seine Zustände „Zündschnur“ und „Explosion“ zu. Die Zündschnur spielt einmal und hält das letzte Bild bis zur Explosion.');
         this.ranged_hit_picker = picker('Treffereffekt:', 'hit_sprite_index',
             'Dieses Bild erscheint nur bei einem Treffer, unabhängig vom Projektilsprite.');
     }
