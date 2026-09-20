@@ -6,6 +6,12 @@ var SPRITE_TRAITS_ORDER = [
         ],
     ],
     [
+        'Kampf',
+        [
+            'melee_attack',
+        ],
+    ],
+    [
         'Blöcke',
         [
             'block_above',
@@ -95,6 +101,11 @@ var STATE_TRAITS_ORDER = {
 };
 
 var SPRITE_TRAITS = {
+    melee_attack: {
+        label: 'Nahkampfangriff',
+        // The attack definition is managed by the shared combat trait adapter.
+        // No default fields here: loading an old game must not create new JSON.
+    },
     actor: {
         label: 'Spielfigur',
         properties: {

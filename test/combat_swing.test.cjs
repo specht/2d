@@ -306,63 +306,89 @@ test('Old sword visuals retain their original direction and length; invalid visu
     }
 });
 
-test('Sword editor controls keep visual settings independent of hit reach for either character type', () => {
-    // Execute the real editor control fragment with small widget stubs, avoiding a DOM.
+test('Generic Nahkampfangriff editor displays and edits modern and legacy attacks for both roles', () => {
     const fs = require('node:fs');
     const path = require('node:path');
+    const { melee_attack_for_editor, add_melee_trait } = require('../src/static/combat_melee_trait.js');
     const source = fs.readFileSync(path.join(__dirname, '../src/static/game.js'), 'utf8');
-    const start = source.indexOf("        if (trait === 'actor' || trait === 'baddie') {");
-    const end = source.indexOf("        if (trait === 'door') this.add_door_state_help", start);
-    assert.ok(start >= 0 && end > start);
+    const start = source.indexOf('    add_melee_attack_trait_controls(div, si) {');
+    const end = source.indexOf('    add_door_state_help(div, si) {', start);
+    assert.ok(start >= 0 && end > start, 'Missing generic editor controls');
     const controls = [];
     const widget = (type) => class {
         constructor(options) { controls.push({ type, ...options }); }
     };
-    const render = new Function('self', 'si', 'trait', 'div',
-        'CheckboxWidget', 'SelectWidget', 'NumberWidget', source.slice(start, end));
-    const actorSword = {
-        id: 'sword', delivery: { kind: 'swing', range_px: 40 },
+    const $ = () => ({ text() { return this; }, appendTo() { return this; } });
+    const Editor = new Function('NumberWidget', 'SelectWidget', 'LineEditWidget', 'melee_attack_for_editor', '$',
+        `return class Editor { ${source.slice(start, end)} };`)(
+            widget('number'), widget('select'), widget('text'), melee_attack_for_editor, $);
+    const actorOld = {
+        id: 'sword', slot: 'nah', delivery: { kind: 'swing', range_px: 40 },
+        effect: { kind: 'damage', amount: 20 }, timing: { cooldown_s: 0.6 },
         visual: { kind: 'slash' },
     };
-    const enemySword = {
-        id: 'sword', delivery: { kind: 'swing', range_px: 40 },
+    const enemyOld = {
+        id: 'sword', slot: 'nah', delivery: { kind: 'swing', range_px: 60 },
+        effect: { kind: 'damage', amount: 30 }, timing: { cooldown_s: 1.2 },
         visual: { kind: 'swoosh', sweep: 'down', reach_px: 55 },
     };
-    const self = {
-        data: { sprites: [{ traits: { actor: { attacks: [actorSword] },
-            baddie: { attacks: [enemySword] } } }] },
-        build_sprite_traits_menu() { this.rebuilds = (this.rebuilds ?? 0) + 1; },
-    };
-    const paint = (trait) => {
+    const sprites = [
+        { traits: { actor: { attacks: [actorOld] } } },
+        { traits: { baddie: { attacks: [enemyOld] } } },
+    ];
+    const editor = new Editor();
+    editor.data = { sprites };
+    editor.build_sprite_traits_menu = () => { editor.rebuilds = (editor.rebuilds ?? 0) + 1; };
+    const paint = (si) => {
         controls.length = 0;
-        render(self, 0, trait, {}, widget('checkbox'), widget('select'), widget('number'));
+        editor.add_melee_attack_trait_controls({}, si);
         return (label) => {
             const control = controls.find(c => c.label === label);
-            assert.ok(control, `Missing ${label} for ${trait}`);
+            assert.ok(control, `Missing ${label} for sprite ${si}`);
             return control;
         };
     };
-    let control = paint('actor');
-    assert.equal(control('Swoosh:').get(), 'up'); // old 'slash' value still enabled
-    assert.ok(control('Swoosh-Länge:').get() > 28);
-    control('Swoosh:').set('none');
-    assert.equal(actorSword.visual.kind, 'none');
-    assert.equal(self.rebuilds, 1);
-    control = paint('actor');
-    assert.equal(controls.filter(c => c.label === 'Swoosh-Länge:').length, 0);
-    control('Swoosh:').set('down');
-    assert.equal(actorSword.visual.sweep, 'down');
-    assert.equal(actorSword.visual.kind, 'swoosh');
-    control = paint('actor');
-    control('Swoosh-Länge:').set(90);
+    const before = JSON.stringify(sprites);
+    let control = paint(0);
+    assert.equal(JSON.stringify(sprites), before); // virtual trait did not migrate on opening
+    assert.equal(control('Name des Angriffs:').get(), 'Nahkampfangriff');
+    control('Name des Angriffs:').set('U-Boot-Ramme');
+    assert.equal(actorOld.label, 'U-Boot-Ramme');
+    assert.equal(control('Schaden:').get(), 20);
+    assert.equal(control('Angriffsreichweite:').get(), 40);
+    assert.equal(control('Cooldown:').get(), 0.6);
+    assert.equal(control('Swoosh:').get(), 'up');
+    control('Schaden:').set(15);
+    control('Cooldown:').set(2.3);
     control('Angriffsreichweite:').set(70);
-    assert.equal(actorSword.visual.reach_px, 90);
-    assert.equal(actorSword.delivery.range_px, 70);
-    assert.equal(enemySword.delivery.range_px, 40);
-    assert.equal(enemySword.visual.reach_px, 55);
-    control = paint('baddie');
+    assert.equal(actorOld.effect.amount, 15);
+    assert.equal(actorOld.timing.cooldown_s, 2.3);
+    assert.equal(actorOld.delivery.range_px, 70);
+    assert.equal(sprites[0].traits.melee_attack, undefined);
+    control('Swoosh:').set('none');
+    assert.equal(actorOld.visual.kind, 'none');
+    control = paint(0);
+    assert.equal(controls.some(c => c.label === 'Swoosh-Länge:'), false);
+    control('Swoosh:').set('down');
+    control = paint(0);
+    control('Swoosh-Länge:').set(91);
+    assert.equal(actorOld.visual.reach_px, 91);
+    assert.equal(actorOld.visual.sweep, 'down');
+    assert.equal(actorOld.delivery.range_px, 70);
+    assert.ok(editor.rebuilds >= 2);
+
+    control = paint(1);
+    assert.equal(control('Schaden:').get(), 30);
+    assert.equal(control('Cooldown:').get(), 1.2);
     assert.equal(control('Swoosh:').get(), 'down');
-    control('Swoosh:').set('up');
-    assert.equal(enemySword.visual.sweep, 'up');
-    assert.equal(actorSword.visual.sweep, 'down');
+    assert.equal(control('Swoosh-Länge:').get(), 55);
+    assert.equal(actorOld.effect.amount, 15); // other owner remains independent
+    add_melee_trait(sprites[1].traits);
+    control = paint(1);
+    control('Schaden:').set(42);
+    control('Cooldown:').set(0.3);
+    assert.equal(sprites[1].traits.melee_attack.attack.id, 'sword');
+    assert.equal(sprites[1].traits.baddie.attacks, undefined);
+    assert.equal(enemyOld.effect.amount, 42);
+    assert.equal(enemyOld.timing.cooldown_s, 0.3);
 });

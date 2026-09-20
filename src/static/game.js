@@ -590,16 +590,18 @@ class Game {
     add_sprite_trait(trait) {
         let self = this;
         let si = canvas.sprite_index;
-        // TODO: Check if this makes sense
-        self.data.sprites[si].traits[trait] ??= {};
+        let traits = self.data.sprites[si].traits;
+        if (trait === 'melee_attack') add_melee_trait(traits);
+        else traits[trait] ??= {};
         self.fix_game_data();
     }
 
     remove_sprite_trait(trait) {
         let self = this;
         let si = canvas.sprite_index;
-        // TODO: Check if this makes sense
-        delete self.data.sprites[si].traits[trait];
+        let traits = self.data.sprites[si].traits;
+        if (trait === 'melee_attack') remove_melee_trait(traits);
+        else delete traits[trait];
         self.fix_game_data();
     }
 
@@ -636,6 +638,12 @@ class Game {
         for (let i = keys.length - 1; i >= 0; i--) {
             let trait = keys[i];
             this.add_sprite_trait_controls(trait, $('#menu_sprite_properties_variable_part_following'));
+        }
+        // Old sword configurations appear as a virtual melee trait. Displaying
+        // the controls does NOT migrate or otherwise modify saved game JSON.
+        if (!('melee_attack' in self.data.sprites[si].traits) &&
+            legacy_melee_attack(self.data.sprites[si].traits)) {
+            this.add_sprite_trait_controls('melee_attack', $('#menu_sprite_properties_variable_part_following'));
         }
         this.build_state_traits_menu();
     }
@@ -699,84 +707,95 @@ class Game {
                 });
             }
         }
-        if (trait === 'actor' || trait === 'baddie') {
-            new CheckboxWidget({
-                container: div,
-                label: 'Schwertkampf (J / automatisch)',
-                hint: 'Das vorhandene Bild reicht: J greift mit der Spielfigur an. Ein Gegner schlägt automatisch zu, wenn du vor ihm in Reichweite bist. Weitere Bilder sind nicht nötig. Berührungsschaden ist eine eigene Einstellung.',
-                get: () => (Array.isArray(self.data.sprites[si].traits[trait].attacks) ? self.data.sprites[si].traits[trait].attacks : []).some(a => a?.id === 'sword'),
-                set: (enabled) => {
-                    let traits = self.data.sprites[si].traits[trait];
-                    let attacks = Array.isArray(traits.attacks) ? [...traits.attacks] : [];
-                    if (enabled && !attacks.some(a => a?.id === 'sword')) {
-                        attacks.push({
-                            id: 'sword', slot: 'nah', label: 'Schwert', preset: 'sword',
-                            delivery: { kind: 'swing', range_px: 40 },
-                            effect: { kind: 'damage', amount: 20 },
-                            timing: { cooldown_s: 0.6 },
-                            visual: { kind: 'slash' },
-                        });
-                    } else if (!enabled) {
-                        attacks = attacks.filter(a => a?.id !== 'sword');
-                    }
-                    if (attacks.length) traits.attacks = attacks;
-                    else delete traits.attacks;
-                    // Show or hide the visual option when sword combat changes.
-                    self.build_sprite_traits_menu();
-                },
-            });
-            let attacks = self.data.sprites[si].traits[trait].attacks;
-            let sword = Array.isArray(attacks) ? attacks.find(a => a?.id === 'sword') : null;
-            if (sword) {
-                new NumberWidget({
-                    container: div,
-                    label: 'Angriffsreichweite:',
-                    hint: 'Wie weit vor der Figur kann das Schwert treffen? Dieser Wert bestimmt den Trefferbereich, nicht die Länge des gezeichneten Swooshs.',
-                    min: 1, max: 500, step: 1, decimalPlaces: 0, suffix: 'px',
-                    get: () => Number.isFinite(sword.delivery?.range_px) ? sword.delivery.range_px : 40,
-                    set: (value) => {
-                        if (Number.isFinite(value) && value >= 1 && value <= 500)
-                            sword.delivery.range_px = value;
-                    },
-                });
-                new SelectWidget({
-                    container: div,
-                    label: 'Swoosh:',
-                    hint: 'Aus: kein eingeblendeter Schwung. Von unten nach oben oder von oben nach unten: so bewegt sich der Swoosh beim Hieb. Die Figur greift weiterhin in ihre Blickrichtung an; Schaden und Trefferbereich ändern sich nicht.',
-                    options: {
-                        none: 'aus',
-                        up: 'hoch',
-                        down: 'runter',
-                    },
-                    get: () => sword.visual?.kind === 'none' ? 'none' :
-                        (sword.visual?.sweep === 'down' ? 'down' : 'up'),
-                    set: (choice) => {
-                        if (!['none', 'up', 'down'].includes(choice)) return;
-                        let visual = sword.visual && typeof sword.visual === 'object' ? sword.visual : {};
-                        sword.visual = choice === 'none' ? { ...visual, kind: 'none' } :
-                            { ...visual, kind: 'swoosh', sweep: choice };
-                        // Hide the irrelevant length field when the effect is off.
-                        self.build_sprite_traits_menu();
-                    },
-                });
-                if (sword.visual?.kind !== 'none') new NumberWidget({
-                    container: div,
-                    label: 'Swoosh-Länge:',
-                    hint: 'Wie weit reicht nur der sichtbare Schwung? Die Angriffsreichweite oben bestimmt unabhängig davon, welche Gegner getroffen werden. Ohne eigenen Wert bleibt die bisherige Swoosh-Länge erhalten.',
-                    min: 8, max: 200, step: 1, decimalPlaces: 0, suffix: 'px',
-                    get: () => Number.isFinite(sword.visual?.reach_px) ? sword.visual.reach_px :
-                        Math.max(8, Math.min((Number.isFinite(sword.delivery?.range_px) ?
-                            sword.delivery.range_px : 40) * 0.72, 38)),
-                    set: (value) => {
-                        if (!Number.isFinite(value) || value < 8 || value > 200) return;
-                        let visual = sword.visual && typeof sword.visual === 'object' ? sword.visual : {};
-                        sword.visual = { ...visual, reach_px: value };
-                    },
-                });
-            }
-        }
+        if (trait === 'melee_attack') this.add_melee_attack_trait_controls(div, si);
         if (trait === 'door') this.add_door_state_help(div, si);
         div.insertAfter(element);
+    }
+
+    add_melee_attack_trait_controls(div, si) {
+        const sprite_traits = this.data.sprites[si].traits;
+        const attack = melee_attack_for_editor(sprite_traits);
+        if (!attack) return;
+        if (!sprite_traits.actor && !sprite_traits.baddie) {
+            $('<p>').text('Füge auch die Eigenschaft „Spielfigur“ oder „Gegner“ hinzu.').appendTo(div);
+        }
+        $('<p>').text('Zum Ausprobieren brauchst du nur deine Figurenbilder. J: Nahkampfangriff der Spielfigur; Gegner greifen automatisch in Reichweite an. Berührungsschaden ist eine eigene Einstellung.').appendTo(div);
+        const section = (label) => $('<h5>').text(label).appendTo(div);
+        section('So funktioniert der Angriff');
+        new LineEditWidget({
+            container: div, label: 'Name des Angriffs:',
+            hint: 'Wie soll der Angriff heißen? Zum Beispiel Faustschlag, Kralle oder U-Boot-Ramme.',
+            get: () => attack.label ?? 'Nahkampfangriff',
+            set: (value) => {
+                if (typeof value === 'string' && value.trim())
+                    attack.label = value.trim().slice(0, 80);
+            },
+        });
+        new NumberWidget({
+            container: div, label: 'Schaden:',
+            hint: 'Wie viel Energie verliert die getroffene Figur? Dies ist nicht der Berührungsschaden.',
+            min: 1, max: 10000, step: 1, decimalPlaces: 0,
+            get: () => Number.isFinite(attack.effect?.amount) ? attack.effect.amount : 20,
+            set: (value) => {
+                if (!Number.isFinite(value) || value < 1 || value > 10000) return;
+                attack.effect ??= { kind: 'damage' };
+                attack.effect.amount = value;
+            },
+        });
+        new NumberWidget({
+            container: div, label: 'Angriffsreichweite:',
+            hint: 'Wie weit vor der Figur kann der Nahkampfangriff treffen? Unabhängig von der Länge des Swooshs.',
+            min: 1, max: 500, step: 1, decimalPlaces: 0, suffix: 'px',
+            get: () => Number.isFinite(attack.delivery?.range_px) ? attack.delivery.range_px : 40,
+            set: (value) => {
+                if (!Number.isFinite(value) || value < 1 || value > 500) return;
+                attack.delivery ??= { kind: 'swing' };
+                attack.delivery.range_px = value;
+            },
+        });
+        new NumberWidget({
+            container: div, label: 'Cooldown:',
+            hint: 'So viele Sekunden muss die Figur nach einem Angriff bis zum nächsten warten. Für Spielfigur und Gegner getrennt.',
+            min: 0, max: 60, step: 0.1, decimalPlaces: 1, suffix: 's',
+            get: () => Number.isFinite(attack.timing?.cooldown_s) ? attack.timing.cooldown_s : 0.6,
+            set: (value) => {
+                if (!Number.isFinite(value) || value < 0 || value > 60) return;
+                attack.timing ??= {};
+                attack.timing.cooldown_s = value;
+            },
+        });
+        section('So sieht der Angriff aus (optional)');
+        new SelectWidget({
+            container: div, label: 'Swoosh:',
+            hint: 'Aus: kein eingeblendeter Schwung. Die Bewegung des Swooshs verändert weder Schaden noch Angriffsreichweite.',
+            options: {
+                none: 'Aus',
+                up: 'Von unten nach oben',
+                down: 'Von oben nach unten',
+            },
+            get: () => attack.visual?.kind === 'none' ? 'none' :
+                (attack.visual?.sweep === 'down' ? 'down' : 'up'),
+            set: (choice) => {
+                if (!['none', 'up', 'down'].includes(choice)) return;
+                let visual = attack.visual && typeof attack.visual === 'object' ? attack.visual : {};
+                attack.visual = choice === 'none' ? { ...visual, kind: 'none' } :
+                    { ...visual, kind: 'swoosh', sweep: choice };
+                this.build_sprite_traits_menu();
+            },
+        });
+        if (attack.visual?.kind !== 'none') new NumberWidget({
+            container: div, label: 'Swoosh-Länge:',
+            hint: 'Nur die sichtbare Länge des Schwungs. Der tatsächliche Trefferbereich steht oben.',
+            min: 8, max: 200, step: 1, decimalPlaces: 0, suffix: 'px',
+            get: () => Number.isFinite(attack.visual?.reach_px) ? attack.visual.reach_px :
+                Math.max(8, Math.min((Number.isFinite(attack.delivery?.range_px) ?
+                    attack.delivery.range_px : 40) * 0.72, 38)),
+            set: (value) => {
+                if (!Number.isFinite(value) || value < 8 || value > 200) return;
+                let visual = attack.visual && typeof attack.visual === 'object' ? attack.visual : {};
+                attack.visual = { ...visual, reach_px: value };
+            },
+        });
     }
 
     add_door_state_help(div, si) {

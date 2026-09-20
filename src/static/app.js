@@ -75,6 +75,15 @@ class Character {
 			this.simulate_this = !this.traits.wait_until_seen;
 		}
 
+        // Normalize the new optional melee trait only in this character's
+        // runtime view. Legacy games keep their original trait object and JSON.
+        if (this.character_trait && this.sprite.traits.melee_attack?.attack) {
+            this.traits = {
+                ...this.traits,
+                attacks: resolved_character_attacks(this.sprite.traits, this.character_trait),
+            };
+        }
+
 		let state_prefixes = ['stand', 'walk', 'jump', 'fall'];
 
 		for (let sp of state_prefixes) {
