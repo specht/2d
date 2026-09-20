@@ -7,12 +7,13 @@ const { CombatSystem } = require('../src/static/combat.js');
 // The browser uses shared atlas ShaderMaterials. These small stand-ins check
 // that the flash clones a material rather than recolouring the shared atlas.
 class AtlasMaterial {
-    constructor(texture = 'atlas') {
+    constructor(texture = { atlas: true }) {
         this.uniforms = { texture1: { value: texture } };
         this.fragmentShader = 'original texture shader';
         this.disposed = false;
     }
-    clone() { return new AtlasMaterial(this.uniforms.texture1.value); }
+    // A cloned ShaderMaterial receives a *different* texture object by default.
+    clone() { return new AtlasMaterial({ ...this.uniforms.texture1.value }); }
     dispose() { this.disposed = true; }
 }
 const source = fs.readFileSync(require.resolve('../src/static/app.js'), 'utf8');

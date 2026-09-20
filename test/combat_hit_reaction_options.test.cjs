@@ -12,12 +12,13 @@ const Character = new Function('resolved_character_attacks',
     `${app.slice(start, end)}\nreturn Character;`)(() => []);
 
 class AtlasMaterial {
-    constructor(texture = 'atlas') {
+    constructor(texture = { atlas: true }) {
         this.uniforms = { texture1: { value: texture } };
         this.fragmentShader = 'original';
         this.disposed = false;
     }
-    clone() { return new AtlasMaterial(this.uniforms.texture1.value); }
+    // Model the texture copy made by THREE.ShaderMaterial.clone().
+    clone() { return new AtlasMaterial({ ...this.uniforms.texture1.value }); }
     dispose() { this.disposed = true; }
 }
 function fixture(role, setting) {

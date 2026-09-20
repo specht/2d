@@ -219,6 +219,9 @@ class Character {
         if (!cached || cached.kind !== kind || cached.color !== hex) {
             cached?.material.dispose();
             const material = base.clone();
+            // THREE.ShaderMaterial.clone() also clones texture uniforms. Reuse the
+            // original uploaded atlas texture, not an uninitialised texture copy.
+            material.uniforms.texture1.value = base.uniforms.texture1.value;
             if (kind === 'hide') {
                 material.fragmentShader = 'void main() { discard; }';
             } else {
