@@ -1,4 +1,4 @@
-// A sword swing is one delivery, not a player-specific damage path.
+// A melee swing is one delivery, not a player-specific damage path.
 // Optional character art will be layered onto the same instance later.
 function register_swing(combat) {
     const overlaps = (a0, a1, b0, b1) => a0 < b1 && b0 < a1;
@@ -94,13 +94,81 @@ function register_swing(combat) {
         draw_swoosh(instance, 0);
     }
 
-    function stop(instance, system) {
+    // The hit artwork is separate from the swing artwork: a punch can show POW
+    // even when the attacker has no swoosh. Both are independent of hit checks.
+    function start_hit_effect(instance, game, target_bounds) {
+        let kind = instance.definition.visual?.hit_kind;
+        if (kind !== 'star' && kind !== 'pow') return;
+        if (typeof THREE === 'undefined' || typeof document === 'undefined' ||
+            !THREE.CanvasTexture || !THREE.SpriteMaterial || !THREE.Sprite || !game.scene) return;
+        // Bound visual work for attacks that hit many targets; every target
+        // still receives its normal damage, regardless of its artwork.
+        instance.hit_effects ??= [];
+        if (instance.hit_effects.length >= 12) return;
+        let canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 128;
+        let ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.translate(64, 64);
+        ctx.beginPath();
+        for (let i = 0; i < 20; i++) {
+            let angle = i * Math.PI / 10 - Math.PI / 2;
+            let radius = i % 2 ? 36 : 54;
+            let x = Math.cos(angle) * radius;
+            let y = Math.sin(angle) * radius;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = kind === 'pow' ? '#ffdf55' : '#fff1a0';
+        ctx.strokeStyle = kind === 'pow' ? '#24213b' : '#ff9e35';
+        ctx.lineWidth = 6;
+        ctx.lineJoin = 'round';
+        ctx.fill();
+        ctx.stroke();
+        if (kind === 'pow') {
+            ctx.font = 'bold 35px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#24213b';
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeText('POW', 0, 2);
+            ctx.fillText('POW', 0, 2);
+        }
+        let texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        let material = new THREE.SpriteMaterial({
+            map: texture, transparent: true, opacity: 1, depthWrite: false,
+        });
+        let sprite = new THREE.Sprite(material);
+        let size = kind === 'pow' ? 56 : 42;
+        sprite.position.set((target_bounds.x0 + target_bounds.x1) / 2,
+            (target_bounds.y0 + target_bounds.y1) / 2, 3);
+        sprite.scale.set(size * 0.55, size * 0.55, 1);
+        game.scene.add(sprite);
+        instance.hit_effects.push({ sprite, material, texture, size });
+        // Extra visual lifetime only: collision was resolved in start() once.
+        instance.expires_at = Math.max(instance.expires_at, instance.started_at + 0.28);
+    }
+
+    function clear_swoosh(instance, game) {
         let mesh = instance.visual_mesh;
         if (!mesh) return;
-        system.game.scene?.remove(mesh);
+        game.scene?.remove(mesh);
         mesh.geometry.dispose();
         mesh.material.dispose();
         instance.visual_mesh = null;
+    }
+
+    function stop(instance, system) {
+        clear_swoosh(instance, system.game);
+        for (let effect of instance.hit_effects ?? []) {
+            system.game.scene?.remove(effect.sprite);
+            effect.material.dispose();
+            effect.texture.dispose();
+        }
+        instance.hit_effects = [];
     }
 
     combat.register_delivery('swing', {
@@ -135,16 +203,28 @@ function register_swing(combat) {
                 if (!overlaps(area.x0, area.x1, t.x0, t.x1) ||
                     !overlaps(area.y0, area.y1, t.y0, t.y1)) continue;
                 if (blocked(game, owner.mesh.position.x, target.mesh.position.x, y)) continue;
-                system.apply_hit(instance, target, instance.started_at);
+                if (system.apply_hit(instance, target, instance.started_at))
+                    start_hit_effect(instance, game, t);
             }
             start_swoosh(instance, game, edge, y, range);
         },
         step(instance, time, system) {
             if (time >= instance.expires_at) return false;
-            if (instance.visual_mesh) {
+            // The original swoosh still finishes after 0.15 s, even if a hit
+            // effect stays visible longer. Neither affects the hit geometry.
+            if (time >= instance.started_at + 0.15) {
+                clear_swoosh(instance, system.game);
+            } else if (instance.visual_mesh) {
                 let progress = Math.max(0, Math.min(1,
-                    (time - instance.started_at) / (instance.expires_at - instance.started_at)));
+                    (time - instance.started_at) / 0.15));
                 draw_swoosh(instance, progress);
+            }
+            for (let effect of instance.hit_effects ?? []) {
+                let progress = Math.max(0, Math.min(1,
+                    (time - instance.started_at) / 0.28));
+                let scale = effect.size * (0.55 + 0.55 * Math.min(1, progress * 5));
+                effect.sprite.scale.set(scale, scale, 1);
+                effect.material.opacity = Math.min(1, (1 - progress) * 3);
             }
             return true;
         },

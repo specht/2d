@@ -767,6 +767,17 @@ class Game {
         });
         section('So sieht der Angriff aus');
         new SelectWidget({
+            container: div, label: 'Treffereffekt:',
+            hint: 'Der Effekt erscheint nur, wenn die Figur tatsächlich trifft. Er verändert weder Schaden noch Reichweite. Du brauchst kein zusätzliches Bild.',
+            options: { none: 'aus', star: 'Trefferstern', pow: 'POW' },
+            get: () => attack.visual?.hit_kind ?? 'none',
+            set: (choice) => {
+                if (!['none', 'star', 'pow'].includes(choice)) return;
+                let visual = attack.visual && typeof attack.visual === 'object' ? attack.visual : {};
+                attack.visual = { ...visual, hit_kind: choice };
+            },
+        });
+        new SelectWidget({
             container: div, label: 'Swoosh:',
             hint: 'Aus: kein eingeblendeter Schwung. Die Bewegung des Swooshs verändert weder Schaden noch Angriffsreichweite.',
             options: {
