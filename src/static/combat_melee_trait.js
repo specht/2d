@@ -10,6 +10,26 @@ function default_melee_attack() {
     };
 }
 
+function default_ranged_attack() {
+    return {
+        id: 'ranged', slot: 'fern', label: 'Fernkampfangriff',
+        delivery: { kind: 'projectile', range_px: 280, speed_px_s: 240 },
+        effect: { kind: 'damage', amount: 15 },
+        timing: { cooldown_s: 0.8 },
+        visual: {},
+    };
+}
+
+function add_ranged_trait(sprite_traits) {
+    if (sprite_traits.ranged_attack) return false;
+    sprite_traits.ranged_attack = { attack: default_ranged_attack() };
+    return true;
+}
+
+function remove_ranged_trait(sprite_traits) {
+    delete sprite_traits.ranged_attack;
+}
+
 function melee_owner_role(sprite_traits) {
     if (!sprite_traits || typeof sprite_traits !== 'object') return null;
     if (sprite_traits.actor) return 'actor';
@@ -64,15 +84,20 @@ function remove_melee_trait(sprite_traits) {
 function resolved_character_attacks(sprite_traits, role) {
     const saved = sprite_traits?.[role]?.attacks;
     const legacy = Array.isArray(saved) ? saved : [];
-    const modern = sprite_traits?.melee_attack?.attack;
-    if (!modern || typeof modern !== 'object') return legacy;
-    return [modern, ...legacy.filter(attack =>
-        !is_legacy_sword_attack(attack) && attack?.id !== modern.id)];
+    const melee = sprite_traits?.melee_attack?.attack;
+    const ranged = sprite_traits?.ranged_attack?.attack;
+    const modern = [melee, ranged].filter(attack => attack && typeof attack === 'object');
+    if (!modern.length) return legacy;
+    return [...modern, ...legacy.filter(attack =>
+        !(melee && is_legacy_sword_attack(attack)) &&
+        !modern.some(selected => selected.id === attack?.id))];
 }
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        default_melee_attack, melee_owner_role, legacy_melee_attack,
+        default_melee_attack, default_ranged_attack,
+        add_ranged_trait, remove_ranged_trait,
+        melee_owner_role, legacy_melee_attack,
         melee_attack_for_editor, add_melee_trait, remove_melee_trait,
         resolved_character_attacks,
     };

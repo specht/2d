@@ -589,20 +589,23 @@ class Game {
         }
         this.attack_sprite_picker?.refresh();
         this.hit_sprite_picker?.refresh();
+        this.ranged_projectile_picker?.refresh();
+        this.ranged_hit_picker?.refresh();
     }
 
     // Combat effect sprites use the same array indices as placed level sprites.
     // Reordering/deleting an image must update both modern and legacy attacks.
     remap_hit_sprite_references(translation, deletedIndex = null) {
         for (const sprite of this.data.sprites) {
-            const attacks = [sprite.traits?.melee_attack?.attack];
+            const attacks = [sprite.traits?.melee_attack?.attack,
+                sprite.traits?.ranged_attack?.attack];
             for (const role of ['actor', 'baddie'])
                 if (Array.isArray(sprite.traits?.[role]?.attacks))
                     attacks.push(...sprite.traits[role].attacks);
             for (const attack of attacks) {
                 const visual = attack?.visual;
                 if (!visual || typeof visual !== 'object') continue;
-                for (const key of ['hit_sprite_index', 'attack_sprite_index']) {
+                for (const key of ['hit_sprite_index', 'attack_sprite_index', 'projectile_sprite_index']) {
                     if (!Number.isInteger(visual[key])) continue;
                     if (visual[key] === deletedIndex) {
                         delete visual[key];
@@ -616,6 +619,8 @@ class Game {
         }
         this.attack_sprite_picker?.refresh();
         this.hit_sprite_picker?.refresh();
+        this.ranged_projectile_picker?.refresh();
+        this.ranged_hit_picker?.refresh();
     }
 
     add_sprite_trait(trait) {
@@ -623,6 +628,7 @@ class Game {
         let si = canvas.sprite_index;
         let traits = self.data.sprites[si].traits;
         if (trait === 'melee_attack') add_melee_trait(traits);
+        else if (trait === 'ranged_attack') add_ranged_trait(traits);
         else traits[trait] ??= {};
         self.fix_game_data();
     }
@@ -632,6 +638,7 @@ class Game {
         let si = canvas.sprite_index;
         let traits = self.data.sprites[si].traits;
         if (trait === 'melee_attack') remove_melee_trait(traits);
+        else if (trait === 'ranged_attack') remove_ranged_trait(traits);
         else delete traits[trait];
         self.fix_game_data();
     }
@@ -661,6 +668,8 @@ class Game {
         this.door_state_help = null;
         this.attack_sprite_picker = null;
         this.hit_sprite_picker = null;
+        this.ranged_projectile_picker = null;
+        this.ranged_hit_picker = null;
         $('#menu_sprite_properties').empty();
         $('#menu_sprite_properties_variable_part_following').nextAll().remove();
         let traits_menu = $('<div>').css('max-height', 'calc(50vh - 90px)').appendTo($('#menu_sprite_properties'));
@@ -741,6 +750,7 @@ class Game {
             }
         }
         if (trait === 'melee_attack') this.add_melee_attack_trait_controls(div, si);
+        if (trait === 'ranged_attack') this.add_ranged_attack_trait_controls(div, si);
         if (trait === 'actor' || trait === 'baddie') this.add_hit_feedback_controls(div, si, trait);
         if (trait === 'door') this.add_door_state_help(div, si);
         div.insertAfter(element);
@@ -893,6 +903,88 @@ class Game {
                 attack.visual = { ...visual, reach_px: value };
             },
         });
+    }
+
+    add_ranged_attack_trait_controls(div, si) {
+        const traits = this.data.sprites[si].traits;
+        const attack = traits.ranged_attack?.attack;
+        if (!attack) return;
+        if (!traits.actor && !traits.baddie)
+            $('<p>').text('Füge auch die Eigenschaft „Spielfigur“ oder „Gegner“ hinzu.').appendTo(div);
+        this.add_trait_help(div, 'Hinweise zum Fernkampfangriff',
+            'K: Die Spielfigur schießt. Gegner schießen automatisch, wenn die Spielfigur vor ihnen steht. Ein Projektil fliegt waagerecht und verschwindet bei einem Treffer oder an einer festen Wand. Berührungsschaden ist eine eigene Einstellung.');
+        const section = label => $('<h5>').addClass('trait-section-title').text(label).appendTo(div);
+        section('So funktioniert der Angriff');
+        new LineEditWidget({
+            container: div, label: 'Name des Angriffs:',
+            hint: 'Zum Beispiel Pfeil, Feuerball oder Torpedo.',
+            get: () => attack.label ?? 'Fernkampfangriff',
+            set: value => {
+                if (typeof value === 'string' && value.trim())
+                    attack.label = value.trim().slice(0, 80);
+            },
+        });
+        new NumberWidget({
+            container: div, label: 'Schaden:',
+            hint: 'Wie viel Energie verliert die getroffene Figur? Unabhängig vom Berührungsschaden.',
+            min: 1, max: 10000, step: 1, decimalPlaces: 0,
+            get: () => attack.effect?.amount ?? 15,
+            set: value => {
+                if (!Number.isFinite(value) || value < 1 || value > 10000) return;
+                attack.effect ??= { kind: 'damage' };
+                attack.effect.amount = value;
+            },
+        });
+        new NumberWidget({
+            container: div, label: 'Reichweite:',
+            hint: 'Wie weit das Projektil höchstens fliegt. Die Bildgröße verändert die Reichweite nicht.',
+            min: 1, max: 1000, step: 1, decimalPlaces: 0, suffix: 'px',
+            get: () => attack.delivery?.range_px ?? 280,
+            set: value => {
+                if (!Number.isFinite(value) || value < 1 || value > 1000) return;
+                attack.delivery.range_px = value;
+            },
+        });
+        new NumberWidget({
+            container: div, label: 'Geschwindigkeit:',
+            hint: 'Wie viele Spielpixel das Projektil pro Sekunde fliegt.',
+            min: 40, max: 1200, step: 10, decimalPlaces: 0, suffix: 'px/s',
+            get: () => attack.delivery?.speed_px_s ?? 240,
+            set: value => {
+                if (!Number.isFinite(value) || value < 40 || value > 1200) return;
+                attack.delivery.speed_px_s = value;
+            },
+        });
+        new NumberWidget({
+            container: div, label: 'Cooldown:',
+            hint: 'So viele Sekunden muss die Figur bis zum nächsten Schuss warten.',
+            min: 0, max: 60, step: 0.1, decimalPlaces: 1, suffix: 's',
+            get: () => attack.timing?.cooldown_s ?? 0.8,
+            set: value => {
+                if (!Number.isFinite(value) || value < 0 || value > 60) return;
+                attack.timing ??= {};
+                attack.timing.cooldown_s = value;
+            },
+        });
+        section('So sieht der Angriff aus');
+        const picker = (field, key, hint) => new SpriteSelectWidget({
+            container: div, label: field,
+            hint, sprites: () => this.data.sprites,
+            get: () => Number.isInteger(attack.visual?.[key]) &&
+                this.data.sprites[attack.visual[key]] ? String(attack.visual[key]) : 'none',
+            set: choice => {
+                const index = Number(choice);
+                if (choice !== 'none' && (!Number.isInteger(index) || index < 0 ||
+                    !this.data.sprites[index])) return;
+                attack.visual ??= {};
+                if (choice === 'none') delete attack.visual[key];
+                else attack.visual[key] = index;
+            },
+        });
+        this.ranged_projectile_picker = picker('Projektilsprite:', 'projectile_sprite_index',
+            'Zeichne das fliegende Projektil. Mehrere Frames werden während des Fluges animiert. Ohne Bild erscheint ein kleiner heller Schuss.');
+        this.ranged_hit_picker = picker('Treffereffekt:', 'hit_sprite_index',
+            'Dieses Bild erscheint nur bei einem Treffer, unabhängig vom Projektilsprite.');
     }
 
     // Long trait explanations share a compact, keyboard-accessible disclosure.

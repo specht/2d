@@ -6,6 +6,7 @@ let KEY_RIGHT = 'right';
 let KEY_JUMP = 'jump';
 let KEY_ACTION = 'action';
 let KEY_MELEE = 'melee';
+let KEY_RANGED = 'ranged';
 window.yt_player = null;
 let OVERLAY_ICONS = {
 	f_key: [36, 36, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAf0lEQVRYw+2YQQqAIBQFv9GBWygE0SqCoM7nr9PUVtyEpJIwbye4GHjDAzWDc7uEMcZKxZyqR3ju5GcB6C197IyqVgW4vLdU1rhDidmWNen+OE9UhkNZHaEyHHrbpa9OURk7RGUAAQRQ6R3KvTtU1r5D8f9M/NYunVuE/6G2gR7lsx2d8NUeyQAAAABJRU5ErkJggg=="],
@@ -79,8 +80,9 @@ class Character {
 		}
 
         // Normalize the new optional melee trait only in this character's
-        // runtime view. Legacy games keep their original trait object and JSON.
-        if (this.character_trait && this.sprite.traits.melee_attack?.attack) {
+        // runtime view, alongside the ranged trait. Legacy JSON stays unchanged.
+        if (this.character_trait && (this.sprite.traits.melee_attack?.attack ||
+            this.sprite.traits.ranged_attack?.attack)) {
             this.traits = {
                 ...this.traits,
                 attacks: resolved_character_attacks(this.sprite.traits, this.character_trait),
@@ -1178,6 +1180,7 @@ class Game {
 		this.reset();
 		this.combat = new CombatSystem(this);
 		register_swing(this.combat);
+		register_projectile(this.combat);
 		window.addEventListener('resize', () => {
 			self.handle_resize();
 		});
@@ -2022,6 +2025,8 @@ class Game {
 			this.pressed_keys[KEY_ACTION] = true;
 		if (key === 'KeyJ' && this.player_character?.traits?.attacks?.length)
 			this.pressed_keys[KEY_MELEE] = true;
+		if (key === 'KeyK' && this.player_character?.traits?.attacks?.length)
+			this.pressed_keys[KEY_RANGED] = true;
 		if (this.development) {
 			if (key === 'Comma') {
 				this.clock.delta(-0.1);
@@ -2058,6 +2063,8 @@ class Game {
 			this.pressed_keys[KEY_ACTION] = false;
 		if (key === 'KeyJ')
 			this.pressed_keys[KEY_MELEE] = false;
+		if (key === 'KeyK')
+			this.pressed_keys[KEY_RANGED] = false;
 	}
 
     // The keyboard and enemy AI request the same registered delivery.
@@ -2091,13 +2098,43 @@ class Game {
         }
     }
 
+    // A second input/controller uses the same damage, cooldown and hit pipeline.
+    request_ranged_attacks(t) {
+        const actor = this.player_character;
+        if (!actor || !this.combat.owner_is_alive(actor)) return;
+        if (this.pressed_keys[KEY_RANGED]) {
+            const attack = actor.traits.attacks?.find(a =>
+                a?.slot === 'fern' && a.delivery?.kind === 'projectile');
+            if (attack) this.combat.request_attack(actor, attack.id, t);
+        }
+        for (const baddie of this.baddies) {
+            if (!baddie.simulate_this || !this.combat.owner_is_alive(baddie)) continue;
+            const attack = baddie.traits.attacks?.find(a =>
+                a?.slot === 'fern' && a.delivery?.kind === 'projectile');
+            if (!attack || !this.combat.valid_definition(attack)) continue;
+            const dx = actor.mesh.position.x - baddie.mesh.position.x;
+            const range = attack.delivery.range_px + (actor.sprite.width + baddie.sprite.width) / 2;
+            if (Math.abs(dx) > range ||
+                Math.abs(actor.mesh.position.y + actor.sprite.height / 2 -
+                    baddie.mesh.position.y - baddie.sprite.height / 2) > actor.sprite.height / 2 + 2)
+                continue;
+            const facing = baddie.last_horizontal_facing ??
+                (baddie.traits.start_dir === 'left' ? 'left' : 'right');
+            if ((dx < 0 && facing !== 'left') || (dx > 0 && facing !== 'right')) continue;
+            this.combat.request_attack(baddie, attack.id, t, { x: dx < 0 ? -1 : 1 });
+        }
+    }
+
 	// handle simulation at fixed rate
 	simulation_step(t) {
 		if (this.player_character !== null)
 			this.player_character.simulation_step(t);
 		for (let baddie of this.baddies)
 			baddie.simulation_step(t);
-		if (this.combat.game_allows_combat()) this.request_melee_attacks(t);
+		if (this.combat.game_allows_combat()) {
+			this.request_melee_attacks(t);
+			this.request_ranged_attacks(t);
+		}
 
 		let next_fel_entry = this.future_event_list.peek();
 		while ((next_fel_entry !== null) && (next_fel_entry <= t)) {

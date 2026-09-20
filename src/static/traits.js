@@ -9,6 +9,7 @@ var SPRITE_TRAITS_ORDER = [
         'Kampf',
         [
             'melee_attack',
+            'ranged_attack',
         ],
     ],
     [
@@ -105,6 +106,9 @@ var STATE_TRAITS_ORDER = {
 };
 
 var SPRITE_TRAITS = {
+    ranged_attack: {
+        label: 'Fernkampfangriff',
+    },
     melee_attack: {
         label: 'Nahkampfangriff',
         // The attack definition is managed by the shared combat trait adapter.
