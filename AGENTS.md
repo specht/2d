@@ -16,7 +16,7 @@ Read `2d-game-studio-next-steps.md` for the **current branch, verified implement
 
 ## Gameplay direction (combat in progress; remaining concepts are proposals)
 
-- **Combat:** Shared player/baddie melee is implemented on the `combat` branch. The planned **Nahkampfangriff** and **Fernkampfangriff** editor traits configure shared attack definitions; weapon names (Schwert, Bogen, Laser) are examples, not separate damage systems. The player's melee key is J; do not silently change F interactions or legacy games. See the combat document for implemented vs. planned features.
+- **Combat:** Shared actor/baddie melee and its generic editor trait are implemented. Keep one attack/effect/cooldown pipeline for all future delivery shapes, including symmetric area attacks; optional animation, HUD feedback and collected-item costs must not redefine damage or timing. J triggers melee; F remains interaction. Source-specific status and staged designs belong in the combat document, not here.
 - **Gravity and camera:** Entering a region or activating a switch may change gravity; the camera can rotate so gravity appears to point down on screen. Keep world coordinates, camera orientation, and screen-relative input distinct. Existing games retain their normal downward gravity.
 - **Houses:** Prefer a cutaway interior at the *same world position*. On entry, hide or fade exterior artwork to reveal the inside; restore it on exit. Do not default to teleportation or level reload. Visibility and collision are separate concerns.
 
@@ -30,7 +30,7 @@ All student-facing labels, explanations, hints, tutorials, and warnings must be 
 - `src/static/game.js`: studio editor and data normalization (`fix_game_data`).
 - `src/static/level_editor.js`, `src/static/widgets.js`: placement controls and UI widgets.
 - `src/static/app.js`: gameplay runtime, door/key interactions, collisions, camera.
-- `src/static/combat.js`, `src/static/combat_swing.js`: shared combat dispatch and current melee delivery.
+- `src/static/combat.js`, `src/static/combat_swing.js`, `src/static/combat_melee_trait.js`: shared combat dispatch, current melee delivery and legacy/new trait adapter.
 - `TODO.md`: historical ideas and bug reports, not an implementation contract; newer decisions in the two project documents supersede conflicting suggestions.
 
 Be clear whether an observation came from source review, an isolated check, or a real browser/gameplay test. Never claim existing games were tested unless they actually were.
