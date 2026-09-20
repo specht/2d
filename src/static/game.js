@@ -308,6 +308,7 @@ class Game {
             delete_item: (index) => {
                 canvas.detachSprite();
                 let tr = delete_item_helper(self.data.sprites, index);
+                self.remap_hit_sprite_references(tr, index);
                 console.log(tr);
                 for (let levels of self.data.levels) {
                     for (let layer of levels.layers) {
@@ -336,6 +337,7 @@ class Game {
             },
             on_move_item: (from, to) => {
                 let tr = move_item_helper(self.data.sprites, from, to);
+                self.remap_hit_sprite_references(tr);
                 for (let levels of self.data.levels) {
                     for (let layer of levels.layers) {
                         if (layer.type === 'sprites') {
@@ -587,6 +589,28 @@ class Game {
         }
     }
 
+    // Hit sprite references use the same array indices as placed level sprites.
+    // Reordering/deleting an image must update both modern and legacy attacks.
+    remap_hit_sprite_references(translation, deletedIndex = null) {
+        for (const sprite of this.data.sprites) {
+            const attacks = [sprite.traits?.melee_attack?.attack];
+            for (const role of ['actor', 'baddie'])
+                if (Array.isArray(sprite.traits?.[role]?.attacks))
+                    attacks.push(...sprite.traits[role].attacks);
+            for (const attack of attacks) {
+                const visual = attack?.visual;
+                if (!Number.isInteger(visual?.hit_sprite_index)) continue;
+                if (visual.hit_sprite_index === deletedIndex) {
+                    delete visual.hit_sprite_index;
+                    continue;
+                }
+                const next = translation[visual.hit_sprite_index];
+                if (Number.isInteger(next) && next >= 0) visual.hit_sprite_index = next;
+                else delete visual.hit_sprite_index;
+            }
+        }
+    }
+
     add_sprite_trait(trait) {
         let self = this;
         let si = canvas.sprite_index;
@@ -793,15 +817,27 @@ class Game {
             },
         });
         section('So sieht der Angriff aus');
+        const hitSprites = { none: 'aus' };
+        this.data.sprites.forEach((sprite, index) => {
+            const name = sprite.states?.[0]?.properties?.name;
+            const title = typeof name === 'string' ? name.trim() : '';
+            hitSprites[String(index)] = `Sprite ${index + 1}${title ? ` · ${title}` : ''}`;
+        });
         new SelectWidget({
             container: div, label: 'Treffereffekt:',
-            hint: 'Der Effekt erscheint nur, wenn die Figur tatsächlich trifft. Er verändert weder Schaden noch Reichweite. Du brauchst kein zusätzliches Bild.',
-            options: { none: 'aus', star: 'Trefferstern', pow: 'POW' },
-            get: () => attack.visual?.hit_kind ?? 'none',
+            hint: 'Zeichne einen eigenen Sprite (auch mehrere Frames möglich) und wähle ihn hier aus. Das Bild erscheint nur bei einem Treffer und ändert weder Schaden noch Reichweite.',
+            options: hitSprites,
+            get: () => Number.isInteger(attack.visual?.hit_sprite_index) &&
+                this.data.sprites[attack.visual.hit_sprite_index] ?
+                String(attack.visual.hit_sprite_index) : 'none',
             set: (choice) => {
-                if (!['none', 'star', 'pow'].includes(choice)) return;
-                let visual = attack.visual && typeof attack.visual === 'object' ? attack.visual : {};
-                attack.visual = { ...visual, hit_kind: choice };
+                if (choice !== 'none' && !Object.hasOwn(hitSprites, choice)) return;
+                const visual = attack.visual && typeof attack.visual === 'object' ? attack.visual : {};
+                if (choice === 'none') delete visual.hit_sprite_index;
+                else visual.hit_sprite_index = Number(choice);
+                // No legacy star/POW option is retained on this development branch.
+                delete visual.hit_kind;
+                attack.visual = visual;
             },
         });
         new SelectWidget({

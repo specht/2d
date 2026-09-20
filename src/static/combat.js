@@ -1,13 +1,69 @@
+// Visuals belong to accepted hits, not to a delivery's collision lifetime.
+// Reuse the ordinary sprite atlas: never clone/dispose atlas frames or textures.
+class CombatImpactEffects {
+    constructor(game) {
+        this.game = game;
+        this.active = [];
+    }
+
+    spawn(instance, target, time) {
+        const si = instance.definition.visual?.hit_sprite_index;
+        if (!Number.isInteger(si) || si < 0 || this.active.length >= 64 ||
+            typeof THREE === 'undefined' || !THREE.Mesh || !this.game.scene) return;
+        const sprite = this.game.data?.sprites?.[si];
+        const state = sprite?.states?.[0];
+        const frames = this.game.geometry_and_material_for_frame?.[si]?.[0];
+        if (!state?.frames?.length || !frames?.length || frames.length !== state.frames.length ||
+            !frames.every(frame => frame?.geometry && frame?.material)) return;
+        const fps = Number.isFinite(state.properties?.fps) && state.properties.fps > 0 ?
+            state.properties.fps : 8;
+        const mesh = new THREE.Mesh(frames[0].geometry, frames[0].material);
+        // Atlas planes are anchored at their bottom edge. Draw at native size,
+        // centred on the target and aligned to whole logical game pixels.
+        mesh.position.set(Math.round(target.mesh.position.x),
+            Math.round(target.mesh.position.y + target.sprite.height / 2 - sprite.height / 2), 3);
+        this.game.scene.add(mesh);
+        this.active.push({ mesh, frames, fps, started_at: time,
+            expires_at: time + Math.max(0.15, frames.length / fps), frame_index: 0 });
+    }
+
+    step(time) {
+        const still_active = [];
+        for (const effect of this.active) {
+            if (time >= effect.expires_at) {
+                this.game.scene?.remove(effect.mesh);
+                continue;
+            }
+            const index = Math.min(effect.frames.length - 1,
+                Math.max(0, Math.floor((time - effect.started_at) * effect.fps)));
+            if (index !== effect.frame_index) {
+                effect.frame_index = index;
+                effect.mesh.geometry = effect.frames[index].geometry;
+                effect.mesh.material = effect.frames[index].material;
+            }
+            still_active.push(effect);
+        }
+        this.active = still_active;
+    }
+
+    reset() {
+        for (const effect of this.active) this.game.scene?.remove(effect.mesh);
+        this.active = [];
+    }
+}
+
 // Shared combat foundation. Loaded by the game runtime when combat is integrated.
 // Existing games without an attacks array have no combat attacks.
 class CombatSystem {
     constructor(game) {
         this.game = game;
         this.deliveries = new Map();
+        this.impacts = new CombatImpactEffects(game);
         this.reset();
     }
 
     reset() {
+        this.impacts.reset();
         for (let instance of this.active ?? []) {
             this.deliveries.get(instance.definition.delivery.kind)?.stop?.(instance, this);
         }
@@ -138,6 +194,7 @@ class CombatSystem {
         }
         instance.hit_targets.add(target);
         instance.last_hit_at.set(target, time);
+        this.impacts.spawn(instance, target, time);
         // Only an accepted, nonlethal combat hit can start target-owned art.
         if (this.owner_is_alive(target)) {
             target.show_combat_visual?.('hit');
@@ -149,11 +206,13 @@ class CombatSystem {
     step(time) {
         if (!Number.isFinite(time)) return;
         if (!this.game_allows_combat()) {
+            this.impacts.reset();
             for (let instance of this.active)
                 this.deliveries.get(instance.definition.delivery.kind)?.stop?.(instance, this);
             this.active = [];
             return;
         }
+        this.impacts.step(time);
         let retired = new Set();
         // A delivery may spawn child attacks while stepping. Keep those new
         // instances rather than replacing the active array mid-iteration.
@@ -174,4 +233,4 @@ class CombatSystem {
     }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { CombatSystem };
+if (typeof module !== 'undefined' && module.exports) module.exports = { CombatSystem, CombatImpactEffects };
