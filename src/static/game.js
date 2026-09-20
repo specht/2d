@@ -699,6 +699,45 @@ class Game {
                 });
             }
         }
+        if (trait === 'actor' || trait === 'baddie') {
+            new CheckboxWidget({
+                container: div,
+                label: 'Schwertkampf (J / automatisch)',
+                hint: 'Das vorhandene Bild reicht: J greift mit der Spielfigur an. Ein Gegner schlägt automatisch zu, wenn du vor ihm in Reichweite bist. Weitere Bilder sind nicht nötig. Berührungsschaden ist eine eigene Einstellung.',
+                get: () => (Array.isArray(self.data.sprites[si].traits[trait].attacks) ? self.data.sprites[si].traits[trait].attacks : []).some(a => a?.id === 'sword'),
+                set: (enabled) => {
+                    let traits = self.data.sprites[si].traits[trait];
+                    let attacks = Array.isArray(traits.attacks) ? [...traits.attacks] : [];
+                    if (enabled && !attacks.some(a => a?.id === 'sword')) {
+                        attacks.push({
+                            id: 'sword', slot: 'nah', label: 'Schwert', preset: 'sword',
+                            delivery: { kind: 'swing', range_px: 40 },
+                            effect: { kind: 'damage', amount: 20 },
+                            timing: { cooldown_s: 0.6 },
+                            visual: { kind: 'slash' },
+                        });
+                    } else if (!enabled) {
+                        attacks = attacks.filter(a => a?.id !== 'sword');
+                    }
+                    if (attacks.length) traits.attacks = attacks;
+                    else delete traits.attacks;
+                    // Show or hide the visual option when sword combat changes.
+                    self.build_sprite_traits_menu();
+                },
+            });
+            let attacks = self.data.sprites[si].traits[trait].attacks;
+            let sword = Array.isArray(attacks) ? attacks.find(a => a?.id === 'sword') : null;
+            if (sword) new CheckboxWidget({
+                container: div,
+                label: 'Swoosh beim Schwertkampf',
+                hint: 'Zeigt einen kurzen, gebogenen Schwung beim Angriff. Ohne Swoosh verursacht das Schwert denselben Schaden. Zusätzliche Zeichnungen brauchst du nicht.',
+                get: () => sword.visual?.kind !== 'none',
+                set: (enabled) => {
+                    let visual = sword.visual && typeof sword.visual === 'object' ? sword.visual : {};
+                    sword.visual = { ...visual, kind: enabled ? 'swoosh' : 'none' };
+                },
+            });
+        }
         if (trait === 'door') this.add_door_state_help(div, si);
         div.insertAfter(element);
     }

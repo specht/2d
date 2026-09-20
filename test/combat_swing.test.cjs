@@ -116,3 +116,106 @@ test('Stopping gameplay retires active swings', () => {
     combat.step(0.01);
     assert.equal(combat.active.length, 0);
 });
+
+function fakeThree() {
+    const previous = global.THREE;
+    global.THREE = {
+        DoubleSide: 2,
+        BufferAttribute: class {
+            constructor(array, itemSize) { this.array = array; this.itemSize = itemSize; }
+        },
+        BufferGeometry: class {
+            constructor() { this.attributes = {}; }
+            setAttribute(name, value) { this.attributes[name] = value; return this; }
+            setIndex(indices) { this.indices = indices; return this; }
+            dispose() { this.disposed = true; }
+        },
+        MeshBasicMaterial: class {
+            constructor(options) { Object.assign(this, options); }
+            dispose() { this.disposed = true; }
+        },
+        Mesh: class {
+            constructor(geometry, material) { this.geometry = geometry; this.material = material; }
+        },
+    };
+    const scene = {
+        meshes: [],
+        add(mesh) { this.meshes.push(mesh); },
+        remove(mesh) { this.meshes = this.meshes.filter(x => x !== mesh); },
+    };
+    return { scene, restore() { if (previous === undefined) delete global.THREE; else global.THREE = previous; } };
+}
+
+test('Swoosh is a filled, curved shape that animates and cleans up for either owner', () => {
+    const gfx = fakeThree();
+    try {
+        const { game, actor, baddie, combat } = fixture();
+        game.scene = gfx.scene;
+        const enemy = baddie(35);
+        actor.traits.attacks[0].visual = { kind: 'slash' }; // existing M1 JSON
+        const playerSwing = combat.request_attack(actor, 'sword', 0);
+        const enemySwing = combat.request_attack(enemy, 'sword', 0);
+        assert.ok(playerSwing.visual_mesh);
+        assert.ok(enemySwing.visual_mesh);
+        assert.equal(gfx.scene.meshes.length, 2);
+        const mesh = playerSwing.visual_mesh;
+        assert.equal(mesh.geometry.indices.length, 8 * 6); // filled ribbon, not Line
+        const original = Array.from(mesh.geometry.attributes.position.array);
+        const originalAlpha = mesh.material.opacity;
+        combat.step(0.08);
+        assert.notDeepEqual(Array.from(mesh.geometry.attributes.position.array), original);
+        assert.equal(mesh.geometry.attributes.position.needsUpdate, true);
+        assert.ok(mesh.material.opacity > originalAlpha); // fade in at the beginning
+        const brightAlpha = mesh.material.opacity;
+        combat.step(0.13);
+        assert.ok(mesh.material.opacity < brightAlpha); // then fade out
+        combat.step(0.16);
+        assert.equal(gfx.scene.meshes.length, 0);
+        assert.equal(mesh.geometry.disposed, true);
+        assert.equal(mesh.material.disposed, true);
+    } finally {
+        gfx.restore();
+    }
+});
+
+test('No swoosh is drawn when disabled; both sides still deal exactly the same damage', () => {
+    const gfx = fakeThree();
+    try {
+        const { game, actor, baddie, combat } = fixture();
+        game.scene = gfx.scene;
+        const enemy = baddie(35);
+        actor.traits.attacks[0].visual = { kind: 'none' };
+        enemy.traits.attacks[0].visual = { kind: 'none' };
+        assert.ok(combat.request_attack(actor, 'sword', 0));
+        assert.equal(enemy.energy, 40);
+        assert.ok(combat.request_attack(enemy, 'sword', 0));
+        assert.equal(game.energy, 80);
+        assert.equal(gfx.scene.meshes.length, 0);
+        combat.step(0.16);
+        assert.equal(combat.active.length, 0);
+    } finally {
+        gfx.restore();
+    }
+});
+
+test('Leftward swoosh mirrors the arc and visual-free fallback needs no THREE', () => {
+    const gfx = fakeThree();
+    try {
+        const { game, actor, baddie, combat } = fixture();
+        game.scene = gfx.scene;
+        baddie(-35);
+        actor.last_horizontal_facing = 'left';
+        const swing = combat.request_attack(actor, 'sword', 0);
+        assert.ok(swing.visual_mesh);
+        const xs = Array.from(swing.visual_mesh.geometry.attributes.position.array)
+            .filter((_, i) => i % 3 === 0);
+        assert.ok(xs.every(x => x < 0));
+        combat.reset();
+        assert.equal(gfx.scene.meshes.length, 0);
+        delete global.THREE;
+        assert.ok(combat.request_attack(actor, 'sword', 0));
+        assert.equal(game.baddies[0].energy, 20);
+    } finally {
+        gfx.restore();
+    }
+});

@@ -31,6 +31,61 @@ function register_swing(combat) {
         return false;
     }
 
+    // A small, angular crescent rather than a straight line. Rendering never
+    // changes attack geometry, targets, damage or cooldowns.
+    function draw_swoosh(instance, progress) {
+        let mesh = instance.visual_mesh;
+        if (!mesh) return;
+        let vertices = mesh.geometry.attributes.position.array;
+        let visual = instance.swoosh;
+        let radius = Math.max(8, Math.min(visual.range * 0.72, 38));
+        let start_angle = -1.15 + progress * 1.85;
+        const segments = 8;
+        for (let i = 0; i <= segments; i++) {
+            let u = i / segments;
+            let angle = start_angle + 0.85 * u;
+            let thickness = 0.3 + 6 * Math.sin(Math.PI * u);
+            for (let side = 0; side < 2; side++) {
+                let r = radius - (side ? thickness : 0);
+                let n = (2 * i + side) * 3;
+                vertices[n] = visual.x + instance.direction * Math.cos(angle) * r;
+                vertices[n + 1] = visual.y + Math.sin(angle) * r;
+                vertices[n + 2] = 2;
+            }
+        }
+        mesh.geometry.attributes.position.needsUpdate = true;
+        mesh.material.opacity = 0.9 * Math.min(1, 0.25 + progress * 12) *
+            Math.pow(1 - progress, 0.8);
+    }
+
+    function start_swoosh(instance, game, edge, y, range) {
+        // An explicit "none" suppresses all procedural art. Old M1 definitions
+        // with "slash" still show the upgraded effect; missing art uses it too.
+        let kind = instance.definition.visual?.kind;
+        if ((kind !== undefined && kind !== 'slash' && kind !== 'swoosh') ||
+            typeof THREE === 'undefined' || !game.scene) return;
+        let vertices = new Float32Array(18 * 3);
+        let indices = [];
+        for (let i = 0; i < 8; i++) {
+            let a = 2 * i;
+            indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+        }
+        let geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        geometry.setIndex(indices);
+        let material = new THREE.MeshBasicMaterial({
+            color: 0xffe7ac, transparent: true, opacity: 0.9,
+            depthWrite: false, side: THREE.DoubleSide,
+        });
+        instance.visual_mesh = new THREE.Mesh(geometry, material);
+        instance.swoosh = {
+            x: edge + instance.direction * Math.min(4, range * 0.1),
+            y, range,
+        };
+        game.scene.add(instance.visual_mesh);
+        draw_swoosh(instance, 0);
+    }
+
     function stop(instance, system) {
         let mesh = instance.visual_mesh;
         if (!mesh) return;
@@ -74,20 +129,16 @@ function register_swing(combat) {
                 if (blocked(game, owner.mesh.position.x, target.mesh.position.x, y)) continue;
                 system.apply_hit(instance, target, instance.started_at);
             }
-            // Automatic visual fallback: no weapon sprite or attack state needed.
-            if (typeof THREE !== 'undefined' && game.scene) {
-                let geometry = new THREE.BufferGeometry().setFromPoints([
-                    new THREE.Vector3(edge, y - 4, 2),
-                    new THREE.Vector3(end, y + 4, 2),
-                ]);
-                let material = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
-                instance.visual_mesh = new THREE.Line(geometry, material);
-                game.scene.add(instance.visual_mesh);
-            }
+            start_swoosh(instance, game, edge, y, range);
         },
         step(instance, time, system) {
-            if (time < instance.expires_at) return true;
-            return false;
+            if (time >= instance.expires_at) return false;
+            if (instance.visual_mesh) {
+                let progress = Math.max(0, Math.min(1,
+                    (time - instance.started_at) / (instance.expires_at - instance.started_at)));
+                draw_swoosh(instance, progress);
+            }
+            return true;
         },
         stop,
     });

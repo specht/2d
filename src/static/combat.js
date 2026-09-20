@@ -8,6 +8,9 @@ class CombatSystem {
     }
 
     reset() {
+        for (let instance of this.active ?? []) {
+            this.deliveries.get(instance.definition.delivery.kind)?.stop?.(instance, this);
+        }
         this.active = [];
         this.cooldowns = new WeakMap();
         this.next_id = 1;
@@ -137,7 +140,13 @@ class CombatSystem {
     }
 
     step(time) {
-        if (!this.game_allows_combat() || !Number.isFinite(time)) return;
+        if (!Number.isFinite(time)) return;
+        if (!this.game_allows_combat()) {
+            for (let instance of this.active)
+                this.deliveries.get(instance.definition.delivery.kind)?.stop?.(instance, this);
+            this.active = [];
+            return;
+        }
         let retired = new Set();
         // A delivery may spawn child attacks while stepping. Keep those new
         // instances rather than replacing the active array mid-iteration.
@@ -150,7 +159,11 @@ class CombatSystem {
             if (!handler || (typeof handler.step === 'function' &&
                 handler.step(instance, time, this) === false)) retired.add(instance);
         }
-        if (retired.size) this.active = this.active.filter((instance) => !retired.has(instance));
+        if (retired.size) {
+            for (let instance of retired)
+                this.deliveries.get(instance.definition.delivery.kind)?.stop?.(instance, this);
+            this.active = this.active.filter((instance) => !retired.has(instance));
+        }
     }
 }
 

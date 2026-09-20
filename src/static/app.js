@@ -5,6 +5,7 @@ let KEY_LEFT = 'left';
 let KEY_RIGHT = 'right';
 let KEY_JUMP = 'jump';
 let KEY_ACTION = 'action';
+let KEY_MELEE = 'melee';
 window.yt_player = null;
 let OVERLAY_ICONS = {
 	f_key: [36, 36, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAf0lEQVRYw+2YQQqAIBQFv9GBWygE0SqCoM7nr9PUVtyEpJIwbye4GHjDAzWDc7uEMcZKxZyqR3ju5GcB6C197IyqVgW4vLdU1rhDidmWNen+OE9UhkNZHaEyHHrbpa9OURk7RGUAAQRQ6R3KvTtU1r5D8f9M/NYunVuE/6G2gR7lsx2d8NUeyQAAAABJRU5ErkJggg=="],
@@ -353,6 +354,7 @@ class Character {
 		let old_flipped = this.sti_for_state[this.state][this.direction].flipped;
 		this.state = state;
 		this.direction = direction;
+		if (direction === 'left' || direction === 'right') this.last_horizontal_facing = direction;
 		let sti = this.sti_for_state[this.state][this.direction].sti;
 		let flipped = this.sti_for_state[this.state][this.direction].flipped;
 		if (sti !== old_sti || flipped !== old_flipped) {
@@ -1051,6 +1053,8 @@ class Game {
 		this.action_key_targets = {};
 		this.future_event_list = new FutureEventList();
 		this.reset();
+		this.combat = new CombatSystem(this);
+		register_swing(this.combat);
 		window.addEventListener('resize', () => {
 			self.handle_resize();
 		});
@@ -1085,6 +1089,7 @@ class Game {
 	}
 
 	reset() {
+		this.combat?.reset();
 		this.old_yt_tag = null;
 		this.time_meshes = [];
 		this.level_index = 0;
@@ -1195,6 +1200,7 @@ class Game {
 	}
 
 	setup() {
+		this.combat.reset();
 		this.running = false;
 		this.time_meshes = [];
 		this.clock = new VariableClock();
@@ -1889,6 +1895,8 @@ class Game {
 			this.pressed_keys[KEY_JUMP] = true;
 		if (key === 'KeyF')
 			this.pressed_keys[KEY_ACTION] = true;
+		if (key === 'KeyJ' && this.player_character?.traits?.attacks?.length)
+			this.pressed_keys[KEY_MELEE] = true;
 		if (this.development) {
 			if (key === 'Comma') {
 				this.clock.delta(-0.1);
@@ -1923,7 +1931,40 @@ class Game {
 			this.pressed_keys[KEY_JUMP] = false;
 		if (key === 'KeyF')
 			this.pressed_keys[KEY_ACTION] = false;
+		if (key === 'KeyJ')
+			this.pressed_keys[KEY_MELEE] = false;
 	}
+
+    // The keyboard and enemy AI request the same registered delivery.
+    request_melee_attacks(t) {
+        let actor = this.player_character;
+        if (!actor || !this.combat.owner_is_alive(actor)) return;
+        if (this.pressed_keys[KEY_MELEE]) {
+            for (let attack of (Array.isArray(actor.traits.attacks) ? actor.traits.attacks : [])) {
+                if (attack?.slot === 'nah' && attack.delivery?.kind === 'swing') {
+                    this.combat.request_attack(actor, attack.id, t);
+                    break;
+                }
+            }
+        }
+        for (let baddie of this.baddies) {
+            // No new work for existing games without explicitly enabled attacks.
+            if (!Array.isArray(baddie.traits.attacks) || !baddie.traits.attacks.length ||
+                !baddie.simulate_this || !this.combat.owner_is_alive(baddie)) continue;
+            let attack = baddie.traits.attacks.find(a =>
+                a?.slot === 'nah' && a.delivery?.kind === 'swing');
+            if (!attack || !this.combat.valid_definition(attack)) continue;
+            let dx = actor.mesh.position.x - baddie.mesh.position.x;
+            let reach = attack.delivery.range_px + (baddie.sprite.width + actor.sprite.width) / 2;
+            if (Math.abs(dx) > reach ||
+                Math.abs(actor.mesh.position.y - baddie.mesh.position.y) >
+                    Math.max(actor.sprite.height, baddie.sprite.height)) continue;
+            let facing = baddie.last_horizontal_facing ??
+                (baddie.traits.start_dir === 'left' ? 'left' : 'right');
+            if ((dx < 0 && facing !== 'left') || (dx > 0 && facing !== 'right')) continue;
+            this.combat.request_attack(baddie, attack.id, t);
+        }
+    }
 
 	// handle simulation at fixed rate
 	simulation_step(t) {
@@ -1931,6 +1972,7 @@ class Game {
 			this.player_character.simulation_step(t);
 		for (let baddie of this.baddies)
 			baddie.simulation_step(t);
+		if (this.combat.game_allows_combat()) this.request_melee_attacks(t);
 
 		let next_fel_entry = this.future_event_list.peek();
 		while ((next_fel_entry !== null) && (next_fel_entry <= t)) {
@@ -1971,6 +2013,7 @@ class Game {
 		}
 		for (let index of delete_these)
 			delete this.falling_sprite_indices[index];
+		this.combat.step(t);
 	}
 
 	simulate() {
