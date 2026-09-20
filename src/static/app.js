@@ -1396,8 +1396,16 @@ class Game {
 
 		$('#screen').empty();
 		$('#screen').append(this.renderer.domElement);
-		this.renderer.domElement.addEventListener('pointerdown', (event) => {
-			if (event.button !== 0 || !this.combat.game_allows_combat()) return;
+		// Invisible fullscreen overlays (e.g. #curtain) can intercept canvas clicks.
+		// Capture on the play area instead; ignore visible UI and touch controls.
+		const play_area = this.renderer.domElement.closest('.play_container_inner');
+		// setup() runs again on level changes; do not accumulate click handlers.
+		this.mouse_click_surface?.removeEventListener('pointerdown', this.mouse_click_handler, true);
+		this.mouse_click_surface = play_area;
+		this.mouse_click_handler = (event) => {
+			if (event.button !== 0 || (event.pointerType && event.pointerType !== 'mouse') ||
+				!this.combat.game_allows_combat() ||
+				event.target?.closest?.('#overlay, #text_frame.showing, #touch_controls')) return;
 			const actor = this.player_character;
 			const attack = actor?.traits?.attacks?.find(a =>
 				a?.slot === 'fern' && a.delivery?.kind === 'projectile');
@@ -1407,7 +1415,8 @@ class Game {
 			if (!this.pointer_world.valid) return;
 			this.mouse_shot_world = { x: this.pointer_world.x, y: this.pointer_world.y };
 			this.mouse_shot_pending = true;
-		});
+		};
+		play_area?.addEventListener('pointerdown', this.mouse_click_handler, true);
 		this.mesh_catalogue = [];
 		this.overlay_mesh_catalogue = {};
 		this.layers = [];

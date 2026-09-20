@@ -108,7 +108,7 @@ var STATE_TRAITS_ORDER = {
 };
 
 var SPRITE_TRAITS = {
-    bomb: { label: 'Bombenbild' },
+    bomb: { label: 'Bombe' },
     ranged_attack: {
         label: 'Fernkampfangriff',
     },

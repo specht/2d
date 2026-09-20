@@ -97,13 +97,16 @@ function register_projectile(combat) {
                 y1: entry.mesh.position.y + sprite.height,
             };
             const other = axis === 'x' ? 'y' : 'x';
-            if (from[other] + radius <= rect[other + '0'] ||
-                from[other] - radius >= rect[other + '1']) continue;
             const surface = delta > 0 ? rect[axis + '0'] - radius :
                 rect[axis + '1'] + radius;
             // Do not collide with a surface already behind the starting point.
             const t = (surface - from[axis]) / delta;
             if (t < -1e-9 || t > 1 + 1e-9) continue;
+            // A bomb may enter the wall's height while moving diagonally.
+            // Its OLD y was not necessarily inside the wall's vertical span.
+            const at_other = from[other] + (to[other] - from[other]) * t;
+            if (at_other + radius <= rect[other + '0'] ||
+                at_other - radius >= rect[other + '1']) continue;
             const contact = { t: Math.max(0, t), surface };
             if (!best || contact.t < best.t) best = contact;
         }
@@ -258,37 +261,46 @@ function register_projectile(combat) {
                 const fromY = instance.projectile_y;
                 const radius = instance.projectile_radius;
                 if (bomb) {
-                    // Handle x and y separately: a wall arrests horizontal
-                    // travel while gravity keeps pulling the bomb down.
-                    const toX = instance.projectile_start_x + instance.projectile_vx *
-                        Math.min(motion_time, flight_limit);
-                    const wall = bomb_surface_contact(game,
-                        { x: fromX, y: fromY }, { x: toX, y: fromY }, radius, 'x');
-                    instance.projectile_x = wall ? wall.surface : toX;
-                    if (wall) {
-                        instance.projectile_vx = 0;
-                        instance.projectile_start_x = wall.surface;
-                    } else if (motion_time >= flight_limit) {
-                        // Maximum throw distance ends horizontal motion only.
-                        // The bomb continues falling until it lands or explodes.
-                        instance.projectile_vx = 0;
-                        instance.projectile_start_x = toX;
-                    }
-                    const age = motion_time - instance.projectile_y_origin_at;
-                    const toY = instance.projectile_start_y + instance.projectile_vy * age -
-                        0.5 * instance.projectile_gravity * age * age;
-                    const from = { x: instance.projectile_x, y: fromY };
-                    const roof_or_floor = bomb_surface_contact(game,
-                        from, { x: from.x, y: toY }, radius, 'y');
-                    instance.projectile_y = roof_or_floor ? roof_or_floor.surface : toY;
-                    if (roof_or_floor) {
-                        if (toY < fromY) instance.projectile_resting = true;
-                        else {
-                            // A ceiling cancels upward momentum, not gravity.
-                            instance.projectile_start_y = roof_or_floor.surface;
-                            instance.projectile_vy = 0;
-                            instance.projectile_y_origin_at = motion_time;
+                    // Sweep short segments of the *actual* arc. Previously x was
+                    // tested at the old height for the entire step; a bomb could
+                    // cross a side wall while rising or falling through it.
+                    while (instance.projectile_elapsed < motion_time - 1e-9 &&
+                        !instance.projectile_resting) {
+                        const next_time = Math.min(motion_time,
+                            instance.projectile_elapsed + 1 / 60);
+                        const x0 = instance.projectile_x;
+                        const y0 = instance.projectile_y;
+                        const toX = instance.projectile_start_x + instance.projectile_vx *
+                            Math.min(next_time, flight_limit);
+                        const age = next_time - instance.projectile_y_origin_at;
+                        const toY = instance.projectile_start_y + instance.projectile_vy * age -
+                            0.5 * instance.projectile_gravity * age * age;
+                        // Use the changing height when sweeping sideways.
+                        const wall = bomb_surface_contact(game,
+                            { x: x0, y: y0 }, { x: toX, y: toY }, radius, 'x');
+                        instance.projectile_x = wall ? wall.surface : toX;
+                        if (wall) {
+                            instance.projectile_vx = 0;
+                            instance.projectile_start_x = wall.surface;
+                        } else if (next_time >= flight_limit && instance.projectile_vx !== 0) {
+                            // Reaching throw range stops x only; gravity continues.
+                            instance.projectile_vx = 0;
+                            instance.projectile_start_x = toX;
                         }
+                        const from = { x: instance.projectile_x, y: y0 };
+                        const roof_or_floor = bomb_surface_contact(game,
+                            from, { x: from.x, y: toY }, radius, 'y');
+                        instance.projectile_y = roof_or_floor ? roof_or_floor.surface : toY;
+                        if (roof_or_floor) {
+                            if (toY < y0) instance.projectile_resting = true;
+                            else {
+                                // A ceiling cancels upward momentum, not gravity.
+                                instance.projectile_start_y = roof_or_floor.surface;
+                                instance.projectile_vy = 0;
+                                instance.projectile_y_origin_at = next_time;
+                            }
+                        }
+                        instance.projectile_elapsed = next_time;
                     }
                 } else {
                     // Preserve ordinary projectile collision and hit behaviour.

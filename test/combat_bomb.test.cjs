@@ -205,11 +205,11 @@ test('a bomb hits a vertical wall, slides down, and rests only when it reaches t
     const f = fixture();
     try {
         f.game.data.sprites = [
-            { width: 12, height: 100, traits: { block_sides: {} } },
+            { width: 12, height: 200, traits: { block_sides: {} } },
             { width: 300, height: 16, traits: { block_above: {} } },
         ];
         f.game.active_level_sprites = [
-            { sprite_index: 0, mesh: { position: { x: 64, y: -10 } } },
+            { sprite_index: 0, mesh: { position: { x: 64, y: -80 } } },
             { sprite_index: 1, mesh: { position: { x: 0, y: -80 } } },
         ];
         f.attack.delivery.speed_px_s = 100;
@@ -321,5 +321,37 @@ test('owner self-damage requires explicit opt-in and respects invincibility', ()
         f.combat.request_attack(f.actor, 'ranged', 2);
         f.combat.step(2.205);
         assert.equal(f.game.energy, 85);
+    } finally { f.restore(); }
+});
+
+test('a rising thrown bomb cannot tunnel through a side-blocking wall', () => {
+    const f = fixture();
+    try {
+        f.attack.delivery.speed_px_s = 120;
+        f.attack.delivery.gravity_px_s2 = 0;
+        f.attack.delivery.detonation.fuse_s = 1;
+        f.game.data.sprites = [{ width: 8, height: 100, traits: { block_sides: {} } }];
+        f.game.active_level_sprites.push({ sprite_index: 0,
+            mesh: { position: { x: 40, y: 18 } } });
+        const shot = f.combat.request_attack(f.actor, 'ranged', 0, { x: 2, y: 1 });
+        assert.ok(shot);
+        f.combat.step(0.5);
+        assert.equal(shot.projectile_x, 34); // x0 of wall (36) minus 2px radius
+        assert.equal(shot.projectile_vx, 0);
+        assert.equal(shot.projectile_resting, false); // wall is not a floor
+    } finally { f.restore(); }
+});
+
+test('a decorative sprite does not stop a thrown bomb', () => {
+    const f = fixture();
+    try {
+        f.attack.delivery.speed_px_s = 120;
+        f.attack.delivery.gravity_px_s2 = 0;
+        f.game.data.sprites = [{ width: 8, height: 100, traits: {} }];
+        f.game.active_level_sprites.push({ sprite_index: 0,
+            mesh: { position: { x: 40, y: 18 } } });
+        const shot = f.combat.request_attack(f.actor, 'ranged', 0, { x: 2, y: 1 });
+        f.combat.step(0.5);
+        assert.ok(shot.projectile_x > 50);
     } finally { f.restore(); }
 });

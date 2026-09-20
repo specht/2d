@@ -4,17 +4,21 @@ const fs = require('node:fs');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../src/static/app.js'), 'utf8');
 
-test('left-click on the game canvas queues one shot only for mouse-aimed weapons', () => {
-    const begin = source.indexOf("\t\tthis.renderer.domElement.addEventListener('pointerdown', (event) => {");
+test('left-click in the game area queues one shot even through invisible overlays', () => {
+    const begin = source.indexOf("\t\t// Invisible fullscreen overlays (e.g. #curtain) can intercept canvas clicks.");
     const end = source.indexOf('\n\t\tthis.mesh_catalogue = [];', begin);
     assert.ok(begin >= 0 && end > begin);
     const bind = new Function(source.slice(begin, end));
     let pointerdown;
     const attack = { slot: 'fern', delivery: { kind: 'projectile', aim_mode: 'mouse' } };
     const game = {
-        renderer: { domElement: { addEventListener(type, handler) {
-            assert.equal(type, 'pointerdown');
-            pointerdown = handler;
+        renderer: { domElement: { closest(selector) {
+            assert.equal(selector, '.play_container_inner');
+            return { addEventListener(type, handler, capture) {
+                assert.equal(type, 'pointerdown');
+                assert.equal(capture, true);
+                pointerdown = handler;
+            } };
         } } },
         combat: { game_allows_combat() { return true; } },
         player_character: { traits: { attacks: [attack] } },
@@ -23,13 +27,20 @@ test('left-click on the game canvas queues one shot only for mouse-aimed weapons
         mouse_shot_pending: false,
     };
     bind.call(game);
-    pointerdown({ button: 2, clientX: 10, clientY: 20 });
+    const canvas = { closest() { return null; } };
+    const invisibleCurtain = { closest() { return null; } };
+    const visibleMenu = { closest() { return {}; } };
+    pointerdown({ button: 2, clientX: 10, clientY: 20, target: canvas, pointerType: 'mouse' });
     assert.equal(game.mouse_shot_pending, false);
     attack.delivery.aim_mode = 'horizontal';
-    pointerdown({ button: 0, clientX: 10, clientY: 20 });
+    pointerdown({ button: 0, clientX: 10, clientY: 20, target: canvas, pointerType: 'mouse' });
     assert.equal(game.mouse_shot_pending, false);
     attack.delivery.aim_mode = 'mouse';
-    pointerdown({ button: 0, clientX: 10, clientY: 20 });
+    pointerdown({ button: 0, clientX: 10, clientY: 20, target: visibleMenu, pointerType: 'mouse' });
+    assert.equal(game.mouse_shot_pending, false);
+    pointerdown({ button: 0, clientX: 10, clientY: 20, target: canvas, pointerType: 'touch' });
+    assert.equal(game.mouse_shot_pending, false);
+    pointerdown({ button: 0, clientX: 10, clientY: 20, target: invisibleCurtain, pointerType: 'mouse' });
     assert.equal(game.mouse_shot_pending, true);
     assert.deepEqual(game.mouse_shot_world, { x: 10, y: 20 });
 });
