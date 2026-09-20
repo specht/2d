@@ -956,6 +956,16 @@ class Game {
             },
         });
         new NumberWidget({
+            container: div, label: 'Schwerkraft:',
+            hint: '0 bedeutet: Das Projektil fliegt geradeaus. Größere Werte ziehen es nach unten.',
+            min: 0, max: 4000, step: 10, decimalPlaces: 0, suffix: 'px/s²',
+            get: () => attack.delivery?.gravity_px_s2 ?? 0,
+            set: value => {
+                if (!Number.isFinite(value) || value < 0 || value > 4000) return;
+                attack.delivery.gravity_px_s2 = value;
+            },
+        });
+        new NumberWidget({
             container: div, label: 'Cooldown:',
             hint: 'So viele Sekunden muss die Figur bis zum nächsten Schuss warten.',
             min: 0, max: 60, step: 0.1, decimalPlaces: 1, suffix: 's',
@@ -964,6 +974,16 @@ class Game {
                 if (!Number.isFinite(value) || value < 0 || value > 60) return;
                 attack.timing ??= {};
                 attack.timing.cooldown_s = value;
+            },
+        });
+        new SelectWidget({
+            container: div, label: 'Zielen:',
+            hint: 'Waagerecht nutzt die Blickrichtung. Maus richtet den Schuss nach der Maus aus. Gegner zielen damit direkt auf die Spielfigur.',
+            options: { horizontal: 'waagerecht', mouse: 'Maus' },
+            get: () => attack.delivery?.aim_mode ?? 'horizontal',
+            set: choice => {
+                if (!['horizontal', 'mouse'].includes(choice)) return;
+                attack.delivery.aim_mode = choice;
             },
         });
         section('So sieht der Angriff aus');

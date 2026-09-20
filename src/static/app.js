@@ -1177,6 +1177,8 @@ class Game {
 		this.overlay_meshes = [];
 		this.action_key_targets = {};
 		this.future_event_list = new FutureEventList();
+		this.pointer_client = null;
+		this.pointer_world = { valid: false, x: 0, y: 0 };
 		this.reset();
 		this.combat = new CombatSystem(this);
 		register_swing(this.combat);
@@ -1192,6 +1194,14 @@ class Game {
 		});
 		window.addEventListener('touchstart', (e) => {
 			$('#touch_controls').show();
+		});
+		window.addEventListener('mousemove', (e) => {
+			this.pointer_client = { x: e.clientX, y: e.clientY };
+			this.update_pointer_world(e.clientX, e.clientY);
+		});
+		window.addEventListener('blur', () => {
+			this.pointer_world.valid = false;
+			this.pointer_client = null;
 		});
 
 		new TouchControl({
@@ -1360,6 +1370,7 @@ class Game {
 
 		this.minx = 0;
 		this.miny = 0;
+		this.pointer_world.valid = false;
 		this.maxx = 0;
 		this.maxy = 0;
 		this.pressed_keys = {};
@@ -1983,6 +1994,24 @@ class Game {
 		$('body').css('font-size', `${this.height / 30}px`);
 	}
 
+	update_pointer_world(clientX, clientY) {
+		const rect = this.renderer?.domElement?.getBoundingClientRect?.();
+		if (!rect || rect.width <= 0 || rect.height <= 0) {
+			this.pointer_world.valid = false;
+			return;
+		}
+		if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+			this.pointer_world.valid = false;
+			return;
+		}
+		const u = (clientX - rect.left) / rect.width;
+		const v = (clientY - rect.top) / rect.height;
+		this.pointer_world.x = this.camera.left + u * (this.camera.right - this.camera.left);
+		this.pointer_world.y = this.camera.top - v * (this.camera.top - this.camera.bottom);
+		this.pointer_world.valid = true;
+	}
+
+
 	handle_key_down(key) {
 		if (((this.running && this.lives === 0) || (this.level_index >= this.data.levels.length)) && key === 'Escape') {
 			this.stop();
@@ -2102,10 +2131,22 @@ class Game {
     request_ranged_attacks(t) {
         const actor = this.player_character;
         if (!actor || !this.combat.owner_is_alive(actor)) return;
+        const actorCenterY = actor.mesh.position.y + actor.sprite.height / 2;
         if (this.pressed_keys[KEY_RANGED]) {
             const attack = actor.traits.attacks?.find(a =>
                 a?.slot === 'fern' && a.delivery?.kind === 'projectile');
-            if (attack) this.combat.request_attack(actor, attack.id, t);
+            if (attack) {
+                let aim = null;
+                if (attack.delivery?.aim_mode === 'mouse' && this.pointer_client)
+                    this.update_pointer_world(this.pointer_client.x, this.pointer_client.y);
+                if (attack.delivery?.aim_mode === 'mouse' && this.pointer_world?.valid) {
+                    const dx = this.pointer_world.x - actor.mesh.position.x;
+                    const dy = this.pointer_world.y - actorCenterY;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist > 1e-6) aim = { x: dx / dist, y: dy / dist };
+                }
+                this.combat.request_attack(actor, attack.id, t, aim);
+            }
         }
         for (const baddie of this.baddies) {
             if (!baddie.simulate_this || !this.combat.owner_is_alive(baddie)) continue;
@@ -2113,10 +2154,15 @@ class Game {
                 a?.slot === 'fern' && a.delivery?.kind === 'projectile');
             if (!attack || !this.combat.valid_definition(attack)) continue;
             const dx = actor.mesh.position.x - baddie.mesh.position.x;
+            const dy = actorCenterY - (baddie.mesh.position.y + baddie.sprite.height / 2);
             const range = attack.delivery.range_px + (actor.sprite.width + baddie.sprite.width) / 2;
-            if (Math.abs(dx) > range ||
-                Math.abs(actor.mesh.position.y + actor.sprite.height / 2 -
-                    baddie.mesh.position.y - baddie.sprite.height / 2) > actor.sprite.height / 2 + 2)
+            if (attack.delivery?.aim_mode === 'mouse') {
+                const dist = Math.hypot(dx, dy);
+                if (!(dist > 1e-6) || dist > range) continue;
+                this.combat.request_attack(baddie, attack.id, t, { x: dx / dist, y: dy / dist });
+                continue;
+            }
+            if (Math.abs(dx) > range || Math.abs(dy) > actor.sprite.height / 2 + 2)
                 continue;
             const facing = baddie.last_horizontal_facing ??
                 (baddie.traits.start_dir === 'left' ? 'left' : 'right');
