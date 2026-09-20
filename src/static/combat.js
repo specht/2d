@@ -10,8 +10,9 @@ class CombatImpactEffects {
         if (!Number.isInteger(si) || si < 0 || this.active.length >= 64 ||
             typeof THREE === 'undefined' || !THREE.Mesh || !this.game.scene) return false;
         const sprite = this.game.data?.sprites?.[si];
-        const state = sprite?.states?.[0];
-        const frames = this.game.geometry_and_material_for_frame?.[si]?.[0];
+        const state_index = Number.isInteger(options.state_index) ? options.state_index : 0;
+        const state = sprite?.states?.[state_index];
+        const frames = this.game.geometry_and_material_for_frame?.[si]?.[state_index];
         if (!state?.frames?.length || !frames?.length || frames.length !== state.frames.length ||
             !frames.every(frame => frame?.geometry && frame?.material)) return false;
         const fps = Number.isFinite(state.properties?.fps) && state.properties.fps > 0 ?
@@ -150,7 +151,9 @@ class CombatSystem {
         // Snapshot the definition: editing a sprite cannot alter an active shot.
         let snapshot = {
             ...definition,
-            delivery: { ...definition.delivery },
+            delivery: { ...definition.delivery,
+                ...(definition.delivery.detonation ?
+                    { detonation: { ...definition.delivery.detonation } } : {}) },
             effect: { ...definition.effect },
             timing: { ...definition.timing },
             hit: definition.hit ? { ...definition.hit } : null,

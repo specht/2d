@@ -1,7 +1,12 @@
 // Projectile delivery owns only flight, artwork and collision. Damage,
 // cooldowns, hit reactions and target eligibility remain in the shared combat system.
 function register_projectile(combat) {
-    const RADIUS = 2; // Fixed collision half-size: student artwork cannot change hits.
+    const RADIUS = 2; // Ordinary projectiles have a fixed 4x4 collision box.
+    const bomb_mode = instance => !!instance.definition.delivery.detonation;
+    const fuse_state = sprite => sprite?.states?.findIndex(state =>
+        state.properties?.name?.trim().toLocaleLowerCase('de') === 'zündschnur') ?? -1;
+    const explosion_state = sprite => sprite?.states?.findIndex(state =>
+        state.properties?.name?.trim().toLocaleLowerCase('de') === 'explosion') ?? -1;
 
     function character_bounds(character) {
         const x = character.mesh.position.x;
@@ -16,12 +21,12 @@ function register_projectile(combat) {
 
     // Return the earliest time along a segment at which a 4x4 projectile touches
     // an expanded rectangle. This avoids tunnelling for both horizontal and arced shots.
-    function first_contact(fromX, fromY, toX, toY, rect) {
+    function first_contact(fromX, fromY, toX, toY, rect, radius = RADIUS) {
         const bounds = {
-            x0: rect.x0 - RADIUS,
-            x1: rect.x1 + RADIUS,
-            y0: rect.y0 - RADIUS,
-            y1: rect.y1 + RADIUS,
+            x0: rect.x0 - radius,
+            x1: rect.x1 + radius,
+            y0: rect.y0 - radius,
+            y1: rect.y1 + radius,
         };
         const dx = toX - fromX;
         const dy = toY - fromY;
@@ -45,7 +50,7 @@ function register_projectile(combat) {
         return entry >= 0 && entry <= 1 ? entry : null;
     }
 
-    function obstacle_contact(game, fromX, fromY, toX, toY) {
+    function obstacle_contact(game, fromX, fromY, toX, toY, radius = RADIUS) {
         let nearest = null;
         for (const entry of game.active_level_sprites ?? []) {
             const sprite = game.data?.sprites?.[entry.sprite_index];
@@ -58,7 +63,7 @@ function register_projectile(combat) {
                 y0: entry.mesh.position.y,
                 y1: entry.mesh.position.y + sprite.height,
             };
-            const t = first_contact(fromX, fromY, toX, toY, rect);
+            const t = first_contact(fromX, fromY, toX, toY, rect, radius);
             if (t !== null && (nearest === null || t < nearest)) nearest = t;
         }
         return nearest;
@@ -74,8 +79,10 @@ function register_projectile(combat) {
         }
         if (!instance.projectile_mesh.rotation)
             instance.projectile_mesh.rotation = { z: 0 };
-        const vy = instance.projectile_vy - instance.projectile_gravity * (time - instance.started_at);
-        instance.projectile_mesh.rotation.z = instance.direction * Math.atan2(vy, Math.abs(instance.projectile_vx));
+        const vy = instance.projectile_resting ? 0 :
+            instance.projectile_vy - instance.projectile_gravity * (time - instance.started_at);
+        instance.projectile_mesh.rotation.z = bomb_mode(instance) ? 0 :
+            instance.direction * Math.atan2(vy, Math.abs(instance.projectile_vx));
         const angle = instance.projectile_mesh.rotation.z;
         const halfHeight = instance.projectile_height / 2;
         instance.projectile_mesh.position.x = Math.round(instance.projectile_x + Math.sin(angle) * halfHeight);
@@ -87,8 +94,10 @@ function register_projectile(combat) {
         if (typeof THREE === 'undefined' || !THREE.Mesh || !game.scene) return;
         const si = instance.definition.visual?.projectile_sprite_index;
         const sprite = game.data?.sprites?.[si];
-        const state = sprite?.states?.[0];
-        const frames = game.geometry_and_material_for_frame?.[si]?.[0];
+        const selected_state = bomb_mode(instance) ? fuse_state(sprite) : -1;
+        const state_index = selected_state >= 0 ? selected_state : 0;
+        const state = sprite?.states?.[state_index];
+        const frames = game.geometry_and_material_for_frame?.[si]?.[state_index];
         if (Number.isInteger(si) && state?.frames?.length &&
             frames?.length === state.frames.length &&
             frames.every(frame => frame?.geometry && frame?.material)) {
@@ -97,7 +106,8 @@ function register_projectile(combat) {
                 state.properties.fps : 8;
             instance.projectile_height = sprite.height;
             instance.projectile_mesh = new THREE.Mesh(frames[0].geometry, frames[0].material);
-            if (instance.projectile_mesh.scale) instance.projectile_mesh.scale.x = instance.direction;
+            if (instance.projectile_mesh.scale)
+                instance.projectile_mesh.scale.x = bomb_mode(instance) ? 1 : instance.direction;
         } else if (THREE.PlaneGeometry && THREE.MeshBasicMaterial) {
             // Default artwork needs no student-drawn asset and no atlas texture.
             const geometry = new THREE.PlaneGeometry(6, 4);
@@ -128,17 +138,28 @@ function register_projectile(combat) {
 
     combat.register_delivery('projectile', {
         validate(definition) {
-            const { range_px: range, speed_px_s: speed, gravity_px_s2: gravity, aim_mode: aimMode } = definition.delivery;
+            const { range_px: range, speed_px_s: speed, gravity_px_s2: gravity,
+                aim_mode: aimMode, detonation } = definition.delivery;
+            const bomb = detonation !== undefined;
             return Number.isFinite(range) && range >= 1 && range <= 1000 &&
-                Number.isFinite(speed) && speed >= 40 && speed <= 1200 &&
+                Number.isFinite(speed) && speed >= (bomb ? 0 : 40) && speed <= 1200 &&
                 (gravity === undefined || (Number.isFinite(gravity) && gravity >= 0 && gravity <= 4000)) &&
-                (aimMode === undefined || ['horizontal', 'mouse'].includes(aimMode));
+                (aimMode === undefined || ['horizontal', 'mouse'].includes(aimMode)) &&
+                (!bomb || (!!detonation && Number.isFinite(detonation.fuse_s) &&
+                    detonation.fuse_s >= 0.1 && detonation.fuse_s <= 20 &&
+                    Number.isFinite(detonation.radius_px) && detonation.radius_px >= 1 &&
+                    detonation.radius_px <= 500 &&
+                    (detonation.shake_strength === undefined ||
+                        (Number.isFinite(detonation.shake_strength) &&
+                            detonation.shake_strength >= 0 && detonation.shake_strength <= 20))));
         },
         start(instance, system) {
             const owner = instance.owner;
             const speed = instance.definition.delivery.speed_px_s;
             const gravity = Number.isFinite(instance.definition.delivery.gravity_px_s2) ?
                 instance.definition.delivery.gravity_px_s2 : 0;
+            const bomb = bomb_mode(instance);
+            const drop = bomb && speed === 0;
             let aimX = Number.isFinite(instance.aim?.x) ? instance.aim.x :
                 (owner.last_horizontal_facing === 'left' ? -1 : 1);
             let aimY = Number.isFinite(instance.aim?.y) ? instance.aim.y : 0;
@@ -151,49 +172,111 @@ function register_projectile(combat) {
                 aimY /= norm;
             }
             instance.direction = aimX < 0 ? -1 : 1;
-            instance.projectile_vx = aimX * speed;
-            instance.projectile_vy = aimY * speed;
+            instance.projectile_vx = drop ? 0 : aimX * speed;
+            instance.projectile_vy = drop ? 0 : aimY * speed;
             instance.projectile_gravity = gravity;
             const bounds = character_bounds(owner);
-            instance.projectile_x = instance.direction > 0 ? bounds.x1 + RADIUS : bounds.x0 - RADIUS;
-            instance.projectile_y = owner.mesh.position.y + owner.sprite.height / 2;
+            const sprite_index = instance.definition.visual?.projectile_sprite_index;
+            const art_height = system.game.data?.sprites?.[sprite_index]?.height;
+            instance.projectile_radius = bomb && Number.isFinite(art_height) ?
+                Math.max(RADIUS, Math.min(24, art_height / 2)) : RADIUS;
+            instance.projectile_x = drop ? owner.mesh.position.x :
+                (instance.direction > 0 ? bounds.x1 + instance.projectile_radius :
+                    bounds.x0 - instance.projectile_radius);
+            instance.projectile_y = drop ? bounds.y0 + instance.projectile_radius + 2 :
+                owner.mesh.position.y + owner.sprite.height / 2;
             instance.projectile_start_x = instance.projectile_x;
             instance.projectile_start_y = instance.projectile_y;
             instance.projectile_elapsed = 0;
+            instance.projectile_resting = false;
             instance.expires_at = instance.started_at +
-                instance.definition.delivery.range_px / speed + 1 / 60;
+                (bomb ? instance.definition.delivery.detonation.fuse_s :
+                    instance.definition.delivery.range_px / speed) + 1 / 60;
             render_projectile(instance, system);
         },
         step(instance, time, system) {
             const game = system.game;
-            const { range_px: range, speed_px_s: speed } = instance.definition.delivery;
-            const elapsed = Math.min(range / speed, Math.max(0, time - instance.started_at));
-            if (elapsed <= instance.projectile_elapsed) return elapsed < range / speed;
-            const fromX = instance.projectile_x;
-            const fromY = instance.projectile_y;
-            const toX = instance.projectile_start_x + instance.projectile_vx * elapsed;
-            const toY = instance.projectile_start_y + instance.projectile_vy * elapsed -
-                0.5 * instance.projectile_gravity * elapsed * elapsed;
-            let nearest = obstacle_contact(game, fromX, fromY, toX, toY);
-            let targetAt = null;
-            const targets = instance.team === 'actor' ? game.baddies : [game.player_character];
-            for (const target of targets) {
-                if (!system.owner_is_alive(target)) continue;
-                const t = first_contact(fromX, fromY, toX, toY, character_bounds(target));
-                if (t !== null && (nearest === null || t < nearest)) {
-                    nearest = t;
-                    targetAt = target;
+            const { range_px: range, speed_px_s: speed, detonation } = instance.definition.delivery;
+            const bomb = !!detonation;
+            const elapsed = Math.max(0, time - instance.started_at);
+            const flight_limit = speed > 0 ? range / speed : Infinity;
+            const motion_time = Math.min(elapsed, flight_limit,
+                bomb ? detonation.fuse_s : Infinity);
+
+            if (!instance.projectile_resting && motion_time > instance.projectile_elapsed) {
+                // Bombs with zero launch speed still fall under their own gravity.
+                const fromX = instance.projectile_x;
+                const fromY = instance.projectile_y;
+                const toX = instance.projectile_start_x + instance.projectile_vx * motion_time;
+                const toY = instance.projectile_start_y + instance.projectile_vy * motion_time -
+                    0.5 * instance.projectile_gravity * motion_time * motion_time;
+                const nearest = obstacle_contact(game, fromX, fromY, toX, toY,
+                    instance.projectile_radius);
+                let contact = nearest;
+                let targetAt = null;
+                if (!bomb) {
+                    const targets = instance.team === 'actor' ? game.baddies : [game.player_character];
+                    for (const target of targets) {
+                        if (!system.owner_is_alive(target)) continue;
+                        const t = first_contact(fromX, fromY, toX, toY,
+                            character_bounds(target), instance.projectile_radius);
+                        if (t !== null && (contact === null || t < contact)) {
+                            contact = t;
+                            targetAt = target;
+                        }
+                    }
                 }
+                instance.projectile_x = contact === null ? toX : fromX + (toX - fromX) * contact;
+                instance.projectile_y = contact === null ? toY : fromY + (toY - fromY) * contact;
+                instance.projectile_elapsed = motion_time;
+                if (contact !== null) {
+                    if (bomb) instance.projectile_resting = true;
+                    else {
+                        update_projectile_mesh(instance, time);
+                        if (targetAt)
+                            system.apply_hit(instance, targetAt, time);
+                        return false;
+                    }
+                }
+                if (bomb && motion_time >= flight_limit)
+                    instance.projectile_resting = true;
             }
-            instance.projectile_x = nearest === null ? toX : fromX + (toX - fromX) * nearest;
-            instance.projectile_y = nearest === null ? toY : fromY + (toY - fromY) * nearest;
-            instance.projectile_elapsed = elapsed;
-            update_projectile_mesh(instance, instance.started_at + elapsed);
-            if (nearest !== null) {
-                if (targetAt) system.apply_hit(instance, targetAt, time);
-                return false; // Hit, invincible target, or solid obstacle: no piercing.
+            update_projectile_mesh(instance, time);
+            if (bomb && elapsed >= detonation.fuse_s) {
+                // One explosion, one shared damage gateway per target; art is optional.
+                const x = instance.projectile_x;
+                const y = instance.projectile_y;
+                const radius = detonation.radius_px;
+                const targets = instance.team === 'actor' ? game.baddies : [game.player_character];
+                for (const target of targets) {
+                    if (!system.owner_is_alive(target)) continue;
+                    const bounds = character_bounds(target);
+                    const px = Math.max(bounds.x0, Math.min(x, bounds.x1));
+                    const py = Math.max(bounds.y0, Math.min(y, bounds.y1));
+                    if (Math.hypot(x - px, y - py) <= radius)
+                        system.apply_hit(instance, target, time);
+                }
+                const si = instance.definition.visual?.projectile_sprite_index;
+                const sprite = game.data?.sprites?.[si];
+                const state_index = explosion_state(sprite);
+                if (state_index >= 0)
+                    system.impacts.spawn_sprite_index(si, x,
+                        y - sprite.height / 2, time, { state_index });
+                const strength = detonation.shake_strength ?? 0;
+                const actor = game.player_character;
+                if (strength > 0 && actor?.mesh && game.clock) {
+                    const dist = Math.hypot(x - actor.mesh.position.x,
+                        y - (actor.mesh.position.y + actor.sprite.height / 2));
+                    const intensity = strength * Math.max(0, 1 - dist / (radius * 4));
+                    if (intensity > 0) {
+                        game.ts_camera_shake = game.clock.getElapsedTime();
+                        game.camera_shake_strength = intensity;
+                    }
+                }
+                return false;
             }
-            return elapsed < range / speed;
+            if (bomb) return true;
+            return motion_time < flight_limit;
         },
         stop,
     });

@@ -62,7 +62,7 @@ test('gravity pulls a horizontal projectile downward and rotates its artwork', (
         const startY = shot.projectile_y;
         f.combat.step(0.2);
         assert.ok(shot.projectile_y < startY);
-        assert.ok(shot.projectile_mesh.rotation.z < -0.3);
+        assert.ok(Math.abs(shot.projectile_mesh.rotation.z - Math.atan2(-60, 240)) < 1e-6);
     } finally { f.restore(); }
 });
 

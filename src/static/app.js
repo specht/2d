@@ -1374,6 +1374,8 @@ class Game {
 		this.maxx = 0;
 		this.maxy = 0;
 		this.pressed_keys = {};
+		this.mouse_shot_pending = false;
+		this.mouse_shot_world = null;
 		this.simulated_to = 0;
 
 		this.interval_tree_x.clear();
@@ -1394,6 +1396,18 @@ class Game {
 
 		$('#screen').empty();
 		$('#screen').append(this.renderer.domElement);
+		this.renderer.domElement.addEventListener('pointerdown', (event) => {
+			if (event.button !== 0 || !this.combat.game_allows_combat()) return;
+			const actor = this.player_character;
+			const attack = actor?.traits?.attacks?.find(a =>
+				a?.slot === 'fern' && a.delivery?.kind === 'projectile');
+			if (attack?.delivery?.aim_mode !== 'mouse') return;
+			this.pointer_client = { x: event.clientX, y: event.clientY };
+			this.update_pointer_world(event.clientX, event.clientY);
+			if (!this.pointer_world.valid) return;
+			this.mouse_shot_world = { x: this.pointer_world.x, y: this.pointer_world.y };
+			this.mouse_shot_pending = true;
+		});
 		this.mesh_catalogue = [];
 		this.overlay_mesh_catalogue = {};
 		this.layers = [];
@@ -2132,20 +2146,26 @@ class Game {
         const actor = this.player_character;
         if (!actor || !this.combat.owner_is_alive(actor)) return;
         const actorCenterY = actor.mesh.position.y + actor.sprite.height / 2;
-        if (this.pressed_keys[KEY_RANGED]) {
+        const clicked = this.mouse_shot_pending;
+        const click_target = this.mouse_shot_world;
+        this.mouse_shot_pending = false;
+        this.mouse_shot_world = null;
+        if (this.pressed_keys[KEY_RANGED] || clicked) {
             const attack = actor.traits.attacks?.find(a =>
                 a?.slot === 'fern' && a.delivery?.kind === 'projectile');
             if (attack) {
                 let aim = null;
-                if (attack.delivery?.aim_mode === 'mouse' && this.pointer_client)
+                if (attack.delivery?.aim_mode === 'mouse' && !clicked && this.pointer_client)
                     this.update_pointer_world(this.pointer_client.x, this.pointer_client.y);
-                if (attack.delivery?.aim_mode === 'mouse' && this.pointer_world?.valid) {
-                    const dx = this.pointer_world.x - actor.mesh.position.x;
-                    const dy = this.pointer_world.y - actorCenterY;
+                const point = clicked ? click_target : this.pointer_world;
+                if (attack.delivery?.aim_mode === 'mouse' && point?.valid !== false && point) {
+                    const dx = point.x - actor.mesh.position.x;
+                    const dy = point.y - actorCenterY;
                     const dist = Math.hypot(dx, dy);
                     if (dist > 1e-6) aim = { x: dx / dist, y: dy / dist };
                 }
-                this.combat.request_attack(actor, attack.id, t, aim);
+                if (!clicked || attack.delivery?.aim_mode === 'mouse')
+                    this.combat.request_attack(actor, attack.id, t, aim);
             }
         }
         for (const baddie of this.baddies) {
@@ -2156,6 +2176,15 @@ class Game {
             const dx = actor.mesh.position.x - baddie.mesh.position.x;
             const dy = actorCenterY - (baddie.mesh.position.y + baddie.sprite.height / 2);
             const range = attack.delivery.range_px + (actor.sprite.width + baddie.sprite.width) / 2;
+            // Stationary dropped bombs have no line-of-sight aiming requirement;
+            // they are triggered when the player is nearby, just like other attacks.
+            if (attack.delivery?.detonation && attack.delivery.speed_px_s === 0) {
+                if (Math.abs(dx) <= attack.delivery.detonation.radius_px +
+                    (actor.sprite.width + baddie.sprite.width) / 2 &&
+                    Math.abs(dy) <= attack.delivery.detonation.radius_px * 2)
+                    this.combat.request_attack(baddie, attack.id, t);
+                continue;
+            }
             if (attack.delivery?.aim_mode === 'mouse') {
                 const dist = Math.hypot(dx, dy);
                 if (!(dist > 1e-6) || dist > range) continue;

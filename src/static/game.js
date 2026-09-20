@@ -912,7 +912,9 @@ class Game {
         if (!traits.actor && !traits.baddie)
             $('<p>').text('Füge auch die Eigenschaft „Spielfigur“ oder „Gegner“ hinzu.').appendTo(div);
         this.add_trait_help(div, 'Hinweise zum Fernkampfangriff',
-            'K: Die Spielfigur schießt. Gegner schießen automatisch, wenn die Spielfigur vor ihnen steht. Ein Projektil fliegt waagerecht und verschwindet bei einem Treffer oder an einer festen Wand. Berührungsschaden ist eine eigene Einstellung.');
+            'K: Schießen. Bei Maus-Zielen geht auch ein Linksklick ins Spielfeld. Eine Bombe explodiert nach Ablauf der Zündzeit, auch wenn sie noch fliegt. Die Schwerkraft betrifft nur dieses Projektil. Berührungsschaden ist unabhängig davon.');
+        this.add_trait_help(div, 'Bomben zeichnen',
+            'Zeichne die Bombe im ersten Zustand (Ersatzbild). Füge einen Zustand namens „Zündschnur“ mit der Bombe und ihrer brennenden Schnur hinzu; er läuft ab dem Abwurf. Der Zustand „Explosion“ spielt nach der Zündzeit einmal. Die Titel müssen genau so heißen. Der Schaden hängt nicht von den Bildern ab.');
         const section = label => $('<h5>').addClass('trait-section-title').text(label).appendTo(div);
         section('So funktioniert der Angriff');
         new LineEditWidget({
@@ -945,16 +947,70 @@ class Game {
                 attack.delivery.range_px = value;
             },
         });
+        let bomb_controls = null;
+        new SelectWidget({
+            container: div, label: 'Art:',
+            hint: 'Ein normales Projektil verschwindet beim Treffer. Eine Bombe kann liegen bleiben und nach einer Zündzeit explodieren.',
+            options: { projectile: 'Projektil', bomb: 'Bombe' },
+            get: () => attack.delivery?.detonation ? 'bomb' : 'projectile',
+            set: choice => {
+                if (choice === 'bomb') {
+                    attack.delivery.detonation ??= { fuse_s: 2, radius_px: 48, shake_strength: 0 };
+                    attack.delivery.gravity_px_s2 ??= 500;
+                } else if (choice === 'projectile') {
+                    delete attack.delivery.detonation;
+                    if (attack.delivery.speed_px_s < 40) attack.delivery.speed_px_s = 240;
+                }
+                bomb_controls?.toggle(!!attack.delivery.detonation);
+            },
+        });
         new NumberWidget({
             container: div, label: 'Geschwindigkeit:',
-            hint: 'Wie viele Spielpixel das Projektil pro Sekunde fliegt.',
-            min: 40, max: 1200, step: 10, decimalPlaces: 0, suffix: 'px/s',
+            hint: 'Wie viele Spielpixel das Projektil pro Sekunde fliegt. Bei Bomben bedeutet 0: direkt fallen lassen.',
+            min: 0, max: 1200, step: 10, decimalPlaces: 0, suffix: 'px/s',
             get: () => attack.delivery?.speed_px_s ?? 240,
             set: value => {
-                if (!Number.isFinite(value) || value < 40 || value > 1200) return;
+                if (!Number.isFinite(value) || value < (attack.delivery.detonation ? 0 : 40) ||
+                    value > 1200) return;
                 attack.delivery.speed_px_s = value;
             },
         });
+        bomb_controls = $('<div>').appendTo(div);
+        $('<h5>').addClass('trait-section-title').text('Bombe').appendTo(bomb_controls);
+        new NumberWidget({
+            container: bomb_controls, label: 'Zündzeit:',
+            hint: 'Sekunden ab dem Abwurf – die Bombe kann auch in der Luft explodieren.',
+            min: 0.1, max: 20, step: 0.1, decimalPlaces: 1, suffix: 's',
+            get: () => attack.delivery?.detonation?.fuse_s ?? 2,
+            set: value => {
+                if (!attack.delivery.detonation || !Number.isFinite(value) ||
+                    value < 0.1 || value > 20) return;
+                attack.delivery.detonation.fuse_s = value;
+            },
+        });
+        new NumberWidget({
+            container: bomb_controls, label: 'Explosionsradius:',
+            hint: 'Alle Gegner im Umkreis können genau einmal getroffen werden. Die Bildgröße ändert diesen Radius nicht.',
+            min: 1, max: 500, step: 1, decimalPlaces: 0, suffix: 'px',
+            get: () => attack.delivery?.detonation?.radius_px ?? 48,
+            set: value => {
+                if (!attack.delivery.detonation || !Number.isFinite(value) ||
+                    value < 1 || value > 500) return;
+                attack.delivery.detonation.radius_px = value;
+            },
+        });
+        new NumberWidget({
+            container: bomb_controls, label: 'Bodenerschütterung:',
+            hint: 'Wie stark die Kamera bei einer nahen Explosion wackelt. 0 schaltet den Effekt aus.',
+            min: 0, max: 20, step: 1, decimalPlaces: 0,
+            get: () => attack.delivery?.detonation?.shake_strength ?? 0,
+            set: value => {
+                if (!attack.delivery.detonation || !Number.isFinite(value) ||
+                    value < 0 || value > 20) return;
+                attack.delivery.detonation.shake_strength = value;
+            },
+        });
+        bomb_controls.toggle(!!attack.delivery.detonation);
         new NumberWidget({
             container: div, label: 'Schwerkraft:',
             hint: '0 bedeutet: Das Projektil fliegt geradeaus. Größere Werte ziehen es nach unten.',
@@ -1002,7 +1058,7 @@ class Game {
             },
         });
         this.ranged_projectile_picker = picker('Projektilsprite:', 'projectile_sprite_index',
-            'Zeichne das Projektil so, dass es nach rechts zeigt. Beim Schießen nach links wird es automatisch gespiegelt. Mehrere Frames werden während des Fluges animiert. Ohne Bild erscheint ein kleiner heller Schuss.');
+            'Zeichne normale Projektile nach rechts. Für eine Bombe kannst du zusätzliche Zustände „Zündschnur“ (Bombenkörper mit brennender Schnur) und „Explosion“ zeichnen. Die Zündschnur läuft ab dem Abwurf, die Explosion danach einmal.');
         this.ranged_hit_picker = picker('Treffereffekt:', 'hit_sprite_index',
             'Dieses Bild erscheint nur bei einem Treffer, unabhängig vom Projektilsprite.');
     }
