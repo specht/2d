@@ -803,31 +803,28 @@ class SeparatorWidget {
     }
 }
 
-// Image-backed picker: native <select> does not support thumbnails in options.
-// The selected image and the choices always come from the current sprite array.
+// Thumbnail-only picker for student-drawn effects. The options expand below
+// the control, inside the narrow trait panel instead of beside its label.
 class SpriteSelectWidget {
     static preview(sprite) {
-        const state = sprite?.states?.[0];
-        const frames = state?.frames ?? [];
+        const frames = sprite?.states?.[0]?.frames ?? [];
         const frame = frames[Math.max(0, Math.floor((frames.length - 1) / 2))];
-        const name = state?.properties?.name;
-        return {
-            src: frame?.src ?? null,
-            label: typeof name === 'string' && name.trim() ? name.trim() : 'Ohne Titel',
-        };
+        return frame?.src ?? null;
     }
 
     constructor(data) {
         this.data = data;
         this.root = $('<div>').addClass('item sprite-select-widget');
-        $('<div>').text(data.label).appendTo(this.root);
+        $('<div>').addClass('sprite-select-caption').text(data.label).appendTo(this.root);
         this.button = $('<button type="button">').addClass('sprite-select-current')
             .attr('aria-haspopup', 'true').attr('aria-expanded', 'false').appendTo(this.root);
-        this.previewImage = $('<img>').addClass('sprite-select-image').appendTo(this.button);
-        this.previewLabel = $('<span>').addClass('sprite-select-label').appendTo(this.button);
-        $('<span>').addClass('sprite-select-chevron').attr('aria-hidden', 'true')
-            .text('▾').appendTo(this.button);
+        this.previewImage = $('<img>').addClass('sprite-select-image')
+            .attr('alt', '').appendTo(this.button);
+        this.previewEmpty = $('<span>').addClass('sprite-select-empty')
+            .attr('aria-hidden', 'true').text('∅').appendTo(this.button);
         this.menu = $('<div>').addClass('sprite-select-menu').hide().appendTo(this.root);
+        this.grid = $('<div>').addClass('sprite-select-menu-grid').attr('role', 'group')
+            .attr('aria-label', 'Treffereffekt auswählen').appendTo(this.menu);
         $(data.container).append(this.root);
         install_hint_handler(this.root, data);
         this.button.on('click', () => {
@@ -855,32 +852,35 @@ class SpriteSelectWidget {
         this.button.attr('aria-expanded', 'false');
     }
 
-    // A chosen sprite may have moved to another index, or gained a new drawing.
-    // Never cache a thumbnail or a sprite array index in this widget.
+    // Resolve the current index on every refresh: reordering/deleting sprites
+    // is handled by the editor, and changing artwork updates this thumbnail.
     refresh() {
         const chosen = this.data.get();
         const index = chosen === 'none' ? -1 : Number(chosen);
         const sprite = Number.isInteger(index) && index >= 0 ?
             this.data.sprites()[index] : null;
-        const preview = sprite ? SpriteSelectWidget.preview(sprite) : null;
-        if (preview?.src) this.previewImage.attr('src', preview.src).show();
+        const src = sprite ? SpriteSelectWidget.preview(sprite) : null;
+        if (src) this.previewImage.attr('src', src).show();
         else this.previewImage.removeAttr('src').hide();
-        this.previewLabel.text(preview?.label ?? 'aus');
-        this.button.attr('aria-label', `${this.data.label} ${preview?.label ?? 'aus'}`);
+        if (src) this.previewEmpty.hide();
+        else this.previewEmpty.show();
+        this.button.attr('aria-label', src ?
+            `${this.data.label} ausgewähltes Bild ändern` : `${this.data.label} aus`);
         if (this.menu.is(':visible')) this.renderOptions();
     }
 
     renderOptions() {
-        this.menu.empty();
+        this.grid.empty();
         const selected = this.data.get();
-        const add = (value, preview) => {
+        const add = (value, src, ariaLabel) => {
             const option = $('<button type="button">').addClass('sprite-select-option')
-                .attr('aria-pressed', String(value === selected)).appendTo(this.menu);
+                .attr('aria-label', ariaLabel)
+                .attr('aria-pressed', String(value === selected)).appendTo(this.grid);
             if (value === selected) option.addClass('active');
-            if (preview?.src) $('<img>').addClass('sprite-select-image')
-                .attr('src', preview.src).appendTo(option);
-            else $('<span>').addClass('sprite-select-empty').appendTo(option);
-            $('<span>').text(preview?.label ?? 'aus').appendTo(option);
+            if (src) $('<img>').addClass('sprite-select-image')
+                .attr('alt', '').attr('src', src).appendTo(option);
+            else $('<span>').addClass('sprite-select-empty')
+                .attr('aria-hidden', 'true').text('∅').appendTo(option);
             option.on('click', () => {
                 this.data.set(value);
                 this.close();
@@ -888,9 +888,9 @@ class SpriteSelectWidget {
                 this.button.trigger('focus');
             });
         };
-        add('none', null);
+        add('none', null, 'Kein Treffereffekt');
         this.data.sprites().forEach((sprite, index) =>
-            add(String(index), SpriteSelectWidget.preview(sprite)));
+            add(String(index), SpriteSelectWidget.preview(sprite), `Bild ${index + 1}`));
     }
 }
 
