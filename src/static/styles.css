@@ -1513,3 +1513,27 @@ a, a:visited {
     stroke: var(--graph-highlight-color);
 }
 
+/* Pixel-art sprite picker for drawn attack effects. */
+.sprite-select-widget { position: relative; }
+.sprite-select-current, .sprite-select-option {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; min-width: 0; min-height: 42px;
+    color: inherit; background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px; padding: 4px 7px; cursor: pointer;
+    text-align: left; font: inherit;
+}
+.sprite-select-current:hover, .sprite-select-option:hover,
+.sprite-select-option.active { background: rgba(255, 255, 255, 0.16); }
+.sprite-select-current:focus-visible, .sprite-select-option:focus-visible {
+    outline: 2px solid #fff; outline-offset: 2px;
+}
+.sprite-select-image, .sprite-select-empty {
+    width: 34px; height: 34px; flex: 0 0 34px;
+    object-fit: contain; image-rendering: pixelated;
+    background: rgba(255, 255, 255, 0.07);
+}
+.sprite-select-label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sprite-select-chevron { margin-left: auto; }
+.sprite-select-menu { max-height: 240px; overflow-y: auto; margin-top: 4px; }
+.sprite-select-option { margin-bottom: 3px; }

@@ -803,6 +803,97 @@ class SeparatorWidget {
     }
 }
 
+// Image-backed picker: native <select> does not support thumbnails in options.
+// The selected image and the choices always come from the current sprite array.
+class SpriteSelectWidget {
+    static preview(sprite) {
+        const state = sprite?.states?.[0];
+        const frames = state?.frames ?? [];
+        const frame = frames[Math.max(0, Math.floor((frames.length - 1) / 2))];
+        const name = state?.properties?.name;
+        return {
+            src: frame?.src ?? null,
+            label: typeof name === 'string' && name.trim() ? name.trim() : 'Ohne Titel',
+        };
+    }
+
+    constructor(data) {
+        this.data = data;
+        this.root = $('<div>').addClass('item sprite-select-widget');
+        $('<div>').text(data.label).appendTo(this.root);
+        this.button = $('<button type="button">').addClass('sprite-select-current')
+            .attr('aria-haspopup', 'true').attr('aria-expanded', 'false').appendTo(this.root);
+        this.previewImage = $('<img>').addClass('sprite-select-image').appendTo(this.button);
+        this.previewLabel = $('<span>').addClass('sprite-select-label').appendTo(this.button);
+        $('<span>').addClass('sprite-select-chevron').attr('aria-hidden', 'true')
+            .text('▾').appendTo(this.button);
+        this.menu = $('<div>').addClass('sprite-select-menu').hide().appendTo(this.root);
+        $(data.container).append(this.root);
+        install_hint_handler(this.root, data);
+        this.button.on('click', () => {
+            if (this.menu.is(':visible')) this.close();
+            else {
+                this.renderOptions();
+                this.menu.show();
+                this.button.attr('aria-expanded', 'true');
+            }
+        });
+        this.root.on('keydown', event => {
+            if (event.key === 'Escape') {
+                this.close();
+                this.button.trigger('focus');
+            }
+        });
+        this.root.on('focusout', event => {
+            if (!this.root[0].contains(event.relatedTarget)) this.close();
+        });
+        this.refresh();
+    }
+
+    close() {
+        this.menu.hide();
+        this.button.attr('aria-expanded', 'false');
+    }
+
+    // A chosen sprite may have moved to another index, or gained a new drawing.
+    // Never cache a thumbnail or a sprite array index in this widget.
+    refresh() {
+        const chosen = this.data.get();
+        const index = chosen === 'none' ? -1 : Number(chosen);
+        const sprite = Number.isInteger(index) && index >= 0 ?
+            this.data.sprites()[index] : null;
+        const preview = sprite ? SpriteSelectWidget.preview(sprite) : null;
+        if (preview?.src) this.previewImage.attr('src', preview.src).show();
+        else this.previewImage.removeAttr('src').hide();
+        this.previewLabel.text(preview?.label ?? 'aus');
+        this.button.attr('aria-label', `${this.data.label} ${preview?.label ?? 'aus'}`);
+        if (this.menu.is(':visible')) this.renderOptions();
+    }
+
+    renderOptions() {
+        this.menu.empty();
+        const selected = this.data.get();
+        const add = (value, preview) => {
+            const option = $('<button type="button">').addClass('sprite-select-option')
+                .attr('aria-pressed', String(value === selected)).appendTo(this.menu);
+            if (value === selected) option.addClass('active');
+            if (preview?.src) $('<img>').addClass('sprite-select-image')
+                .attr('src', preview.src).appendTo(option);
+            else $('<span>').addClass('sprite-select-empty').appendTo(option);
+            $('<span>').text(preview?.label ?? 'aus').appendTo(option);
+            option.on('click', () => {
+                this.data.set(value);
+                this.close();
+                this.refresh();
+                this.button.trigger('focus');
+            });
+        };
+        add('none', null);
+        this.data.sprites().forEach((sprite, index) =>
+            add(String(index), SpriteSelectWidget.preview(sprite)));
+    }
+}
+
 class SpriteWidget {
     constructor(data) {
         this.data = data;

@@ -175,8 +175,8 @@ test('sprite selector does not mutate saved attacks on opening and leaves the sw
     const fields = [];
     const Widget = class { constructor(options) { fields.push(options); } };
     const $ = () => ({ addClass() { return this; }, text() { return this; }, appendTo() { return this; } });
-    const Editor = new Function('LineEditWidget', 'NumberWidget', 'SelectWidget', 'melee_attack_for_editor', '$',
-        `return class Editor { ${source.slice(start, end)} };`)(Widget, Widget, Widget,
+    const Editor = new Function('LineEditWidget', 'NumberWidget', 'SelectWidget', 'SpriteSelectWidget', 'melee_attack_for_editor', '$',
+        `return class Editor { ${source.slice(start, end)} };`)(Widget, Widget, Widget, Widget,
         (traits) => traits.melee_attack.attack, $);
     const attack = {
         id: 'melee', slot: 'nah', label: 'Faustschlag',
@@ -186,8 +186,8 @@ test('sprite selector does not mutate saved attacks on opening and leaves the sw
     };
     const editor = new Editor();
     editor.data = { sprites: [
-        { traits: { actor: {}, melee_attack: { attack } }, states: [{ properties: { name: '' } }] },
-        { traits: {}, states: [{ properties: { name: 'Funken' } }] },
+        { traits: { actor: {}, melee_attack: { attack } }, states: [{ properties: { name: '' }, frames: [{ src: 'actor-art' }] }] },
+        { traits: {}, states: [{ properties: { name: 'Funken' }, frames: [{ src: 'spark-art' }] }] },
     ] };
     editor.add_trait_help = () => {};
     editor.build_sprite_traits_menu = () => {};
@@ -195,7 +195,8 @@ test('sprite selector does not mutate saved attacks on opening and leaves the sw
     editor.add_melee_attack_trait_controls({}, 0);
     assert.equal(JSON.stringify(attack), before);
     const hit = fields.find(field => field.label === 'Treffereffekt:');
-    assert.deepEqual(hit.options, { none: 'aus', 0: 'Sprite 1', 1: 'Sprite 2 · Funken' });
+    assert.deepEqual(hit.sprites(), editor.data.sprites);
+    assert.equal(hit.sprites()[1].states[0].frames[0].src, 'spark-art');
     assert.equal(hit.get(), 'none');
     hit.set('1');
     assert.equal(hit.get(), '1');

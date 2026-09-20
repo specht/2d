@@ -587,6 +587,7 @@ class Game {
                 }
             }
         }
+        this.hit_sprite_picker?.refresh();
     }
 
     // Hit sprite references use the same array indices as placed level sprites.
@@ -609,6 +610,7 @@ class Game {
                 else delete visual.hit_sprite_index;
             }
         }
+        this.hit_sprite_picker?.refresh();
     }
 
     add_sprite_trait(trait) {
@@ -652,6 +654,7 @@ class Game {
         let self = this;
         let si = canvas.sprite_index;
         this.door_state_help = null;
+        this.hit_sprite_picker = null;
         $('#menu_sprite_properties').empty();
         $('#menu_sprite_properties_variable_part_following').nextAll().remove();
         let traits_menu = $('<div>').css('max-height', 'calc(50vh - 90px)').appendTo($('#menu_sprite_properties'));
@@ -817,24 +820,20 @@ class Game {
             },
         });
         section('So sieht der Angriff aus');
-        const hitSprites = { none: 'aus' };
-        this.data.sprites.forEach((sprite, index) => {
-            const name = sprite.states?.[0]?.properties?.name;
-            const title = typeof name === 'string' ? name.trim() : '';
-            hitSprites[String(index)] = `Sprite ${index + 1}${title ? ` · ${title}` : ''}`;
-        });
-        new SelectWidget({
+        this.hit_sprite_picker = new SpriteSelectWidget({
             container: div, label: 'Treffereffekt:',
             hint: 'Zeichne einen eigenen Sprite (auch mehrere Frames möglich) und wähle ihn hier aus. Das Bild erscheint nur bei einem Treffer und ändert weder Schaden noch Reichweite.',
-            options: hitSprites,
+            sprites: () => this.data.sprites,
             get: () => Number.isInteger(attack.visual?.hit_sprite_index) &&
                 this.data.sprites[attack.visual.hit_sprite_index] ?
                 String(attack.visual.hit_sprite_index) : 'none',
             set: (choice) => {
-                if (choice !== 'none' && !Object.hasOwn(hitSprites, choice)) return;
+                const index = Number(choice);
+                if (choice !== 'none' && (!Number.isInteger(index) || index < 0 ||
+                    !this.data.sprites[index])) return;
                 const visual = attack.visual && typeof attack.visual === 'object' ? attack.visual : {};
                 if (choice === 'none') delete visual.hit_sprite_index;
-                else visual.hit_sprite_index = Number(choice);
+                else visual.hit_sprite_index = index;
                 // No legacy star/POW option is retained on this development branch.
                 delete visual.hit_kind;
                 attack.visual = visual;
@@ -977,6 +976,7 @@ class Game {
             set: (x) => {
                 self.data.sprites[si].states[sti].properties.name = x;
                 canvas.update_state_label();
+                this.hit_sprite_picker?.refresh();
             },
         });
         new NumberWidget({
