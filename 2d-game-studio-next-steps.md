@@ -1,12 +1,20 @@
 # 2D Game Studio — handoff and next steps
 
 **Repository:** https://github.com/specht/2d  
-**Working branch:** `master`  
+**Working branch:** `combat`
 **Context:** This is a child-oriented 2D game engine with hundreds of existing student games. The user wants incremental improvements and small, focused patches, not a rewrite. All student-facing UI/help should be in **German** (common English gaming vocabulary is OK with a clear explanation). **Keep existing game JSON and legacy gameplay compatible** unless a behavior change is explicitly agreed. Do **not** write to, commit to, or push to GitHub or the user's local checkout: inspect the public repository read-only and supply a patch that the user can apply and test.
 
-## Where we stopped
+## Current state (verify against the branch before each patch)
 
-We worked through several small fixes. The user explicitly confirmed that all earlier work through the **level-exit bounds fix** was committed and pushed. Later patches were supplied but their application/commit status was **not explicitly confirmed**; check the current repository before assuming they are present.
+As of `combat` commit `a1f8e1bc45eff5c6fbb88f9a4f5ed2f9da5b573a` (2026-09-20), the user has committed and pushed M0 and M1a–M1c. Source inspection shows a shared `CombatSystem`, a swing delivery usable by actor and baddie, J to attack, automatic enemy melee, per-owner cooldowns and an optional directional swoosh with separately configurable visual length. The current editor still calls this **Schwertkampf**, identifies its attack as `sword`, and exposes reach and swoosh settings; **damage and cooldown exist in JSON/runtime but have no editor controls**. Browser gameplay of the first swordfight and swoosh was confirmed by the user; no general regression or legacy-game test is claimed.
+
+**Next agreed patch:** Add a **Nahkampfangriff** trait to the sprite editor, usable by player and enemy. Expose **Schaden**, **Angriffsreichweite**, **Cooldown** and the existing optional **Swoosh** direction/length, all in German. Treat Schwert/Faust/Kralle as examples rather than hardcoded attack types. Preserve the existing `attacks` schema, `sword` attack IDs and already-authored configurations through an explicit compatibility/precedence rule; do not double-register or double-fire legacy and new configurations. Keep runtime combat shared and old games unchanged. Check against the current branch before choosing the smallest implementation.
+
+**Still not implemented:** Generic melee editor trait, projectile/ranged delivery or trait, laser, configurable touch attack button, character attack/hit animations, and published/tested combat recipes. See the combat document for requirements; don't present drafts as available features.
+
+## Earlier cleanup history (archive; not the active task)
+
+Earlier fixes through the level-exit bounds change were user-confirmed. Historical patch names and statuses below describe the earlier work; inspect the current source rather than treating older `master`-era uncertainty as current branch status.
 
 | Work item | Status / notes |
 | --- | --- |
@@ -20,11 +28,11 @@ We worked through several small fixes. The user explicitly confirmed that all ea
 | Per-enemy health | Patch supplied: `2d-enemy-instance-health.patch`. On a subsequent read of `master`, `src/static/app.js` **did** contain `this.energy -= damage`, so the change appears present remotely. Each enemy should have runtime health initialized from its sprite's `Energie`; never decrement the shared sprite trait's energy. |
 | Skip inactive enemies when querying collision index | Patch supplied: `2d-enemy-collision-active-only.patch`. **Application/commit not confirmed** in conversation. Check current `master` or ask for the outcome. The change should skip inactive enemies in `has_baddie_at()` even when the interval tree is stale until the following frame. |
 
-**Important patching issue:** Several previous patches failed `git apply --check` because their generated hunk context contained an extra blank line or inaccurate source context. Do **not** claim full-file applicability after merely testing a reconstructed excerpt. Prefer downloading/verifying the **complete exact `master` source file** into a temporary local copy and run `git apply --check` against that copy. If full-file verification cannot be done, say so precisely. Confirm the generated `.patch` file **actually exists** before offering a sandbox link. If a patch fails on the user's checkout, ask for the relevant local source excerpt and adapt to it rather than retrying speculative context.
+**Patching requirement:** Pin the current `combat` HEAD, verify changes against the exact full source where possible, and report the scope of actual verification. Previous patches failed because of inaccurate context; a reconstructed excerpt alone does not establish full-repository applicability. Confirm the downloadable patch exists before linking it. Never write to GitHub on the user's behalf.
 
-## Next proposed task: falling-block damage, compatibly
+## Deferred cleanup idea: falling-block damage
 
-The user asked *“What's next?”* and we proposed a **per-sprite option for one hit per enemy per fall**, with **legacy repeated damage preserved by default**. The user has **not yet explicitly accepted implementation**; this Markdown handoff is the current request. The next chat can pick up by asking if the user wants the patch, or take a direct request to implement it as authorization.
+A previously discussed optional **one hit per enemy per falling block** setting remains a separate proposal, **not** the next combat task. Missing/false must preserve legacy repeated damage; first recheck present runtime behavior before implementation.
 
 **Current behavior to check in `src/static/app.js`:** falling blocks are stored in `this.falling_sprite_indices`. Each simulation step updates a falling block's position; if `falling_sprite.damage > 0`, the block queries `this.has_baddie_at(...)` and calls `baddie.take_damage(falling_sprite.damage)`. The same block can therefore hurt a continuously overlapping enemy on every step. The current query returns at most one enemy, so the precise behavior of blocks passing through multiple or overlapping enemies needs inspection before changing it.
 
@@ -37,17 +45,24 @@ The user asked *“What's next?”* and we proposed a **per-sprite option for on
 
 Do **not** conflate this patch with new melee/ranged attacks, energy-balancing changes, or a global change to all falling blocks.
 
-## Further backlog, in broad order
+## Project-wide trait direction (design intent, not implemented)
+
+- Keep **who controls a sprite** (player / AI), **how it moves** (platformer / free underwater movement), **what it can do** (attacks / interactions) and **how it looks** (sprite states / effects) conceptually separate. Prefer adding approachable, composable traits rather than a hardcoded submarine or spaceship character class. This is an architectural direction, not a request for an ECS rewrite.
+- A submarine is the next architectural test case: player-controlled and AI-controlled submarines should share movement and projectile mechanics, with different control sources. **Free swimming, buoyancy, torpedoes and new movement modes do not exist yet.** A movement mode must have clear precedence; never let competing controllers independently move the same object.
+- Interpret old `actor`/`baddie` movement properties using an **in-memory compatibility adapter** when introducing new movement traits. Do not eagerly rewrite old game JSON on load/save, force exports, or alter absent-field defaults. Specify precedence if old and new traits coexist, preserve legacy movement/collisions/input in regression tests, and migrate saved data only through a deliberately designed opt-in edit path.
+- Editor traits such as **Nahkampfangriff** and later **Fernkampfangriff** are authoring interfaces for the **same runtime combat machinery**. Existing `actor.attacks` / `baddie.attacks` JSON must remain readable during the transition. A weapon name is a label/preset, not a distinct combat class. Detailed combat contracts belong in `2d-combat-design-and-recipes.md`.
+
+## Other deferred backlog
 
 - **Level-end conditions:** The editor exposes `touching_level_complete`, `min_points`, `need_sprite`, and `killed_baddie`; the runtime currently handles `level_complete` contact, but does not enforce the other conditions. The editor has been updated to mark inactive options honestly. Before activating any, decide how to opt in so older levels containing these values do not suddenly become impossible to complete. Clarify combination semantics (AND/OR), count/percentage measurement, and UI feedback; implement as a separate, carefully scoped feature.
-- **Combat system:** The user wants **one melee attack key** (not the four-directional melee scheme in `TODO.md`) and a separate ranged attack using character facing and/or mouse-aim clicking. First agree on input mapping and legacy behavior; reuse per-enemy runtime health and active-enemy collision handling. Do not bundle full combat implementation into a cleanup patch.
+- **Combat extensions:** After the generic Nahkampfangriff trait, implement optional character attack states, touch controls and tested German recipes in focused patches; later implement the generic Fernkampfangriff trait and projectile/laser deliveries for both sides. See the combat document for exact contracts and status.
 - **Gravity zones/switches:** Variable gravity per area, with smoothly rotating camera so gravity appears visually downward. Default remains existing downward gravity for old games. Requires a considered physics/camera design rather than a small blind patch.
 - **Seamless interiors:** Preferred approach is house inside and exterior at the **same world coordinates**, hiding the roof/front wall as the player enters, not teleporting to a separate room. Design an opt-in rendering/visibility mechanic that does not break old layers.
 - **General small cleanups:** Investigate only with current source and reproducible behavior. Avoid repeated broad refactors or compulsory large test suites.
 
 ## Workflow for the next chat
 
-1. Read this file and, when preparing code, inspect current `master` read-only at https://github.com/specht/2d. Verify the state of the latest patch rather than assuming the user's local checkout matches GitHub.
+1. Read `AGENTS.md`, this file and, for combat work, `2d-combat-design-and-recipes.md`. Inspect the current `combat` branch read-only at https://github.com/specht/2d and pin its HEAD. Do not assume an old SHA or the user's working tree matches GitHub.
 2. Make **one small patch per iteration**, with no write access to GitHub. Keep changes backward compatible, preserve saved game data, and use German language for student-facing UI/help.
 3. Generate a real downloadable `.patch`, validate its hunks against the **complete exact original source** where possible, and provide `git apply --check ...` followed by `git apply ...`, plus a concise, targeted manual test. Never claim browser tests were run if they were not.
 4. After the user tests and commits, continue to the next focused issue. They prefer quick iteration, concrete code, and minimal questions when intent is clear.

@@ -5,18 +5,18 @@ Read `TODO.md` and inspect the current repository before proposing changes. This
 ## Working agreement
 
 - **Advice and patches only.** Never push to GitHub, create remote branches or pull requests, commit changes, or modify this repository on the user's behalf. Provide a patch based on the current branch for the user to inspect and apply locally. Do not assume a previous patch or this file has been applied.
-- **Saved JSON is a compatibility contract.** Old game descriptions must load unchanged. Preserve existing trait/state/property names, array layouts, defaults, references, and the meaning of absent fields. Do not require users to migrate or re-export games. New features should use optional fields with legacy-compatible defaults.
+- **Saved JSON is a compatibility contract.** Old game descriptions must load unchanged. Preserve existing trait/state/property names, array layouts, defaults, references, and the meaning of absent fields. Do not require users to migrate or re-export games. New features should use optional fields with legacy-compatible defaults. When modernizing mechanics, prefer a runtime compatibility adapter over rewriting stored JSON; keep legacy semantics and define explicit precedence if old and new fields coexist.
 - **Preserve established gameplay.** Runtime internals may change, but assess any visible change to old games. Identify an intentional bug fix and its compatibility implications instead of silently changing existing behavior. Do not enable formerly ignored level-completion conditions for old games without a compatibility strategy.
-- **Small cleanup patches first.** Identify and review one contained issue at a time, explain the change and supply short, practical manual checks for existing and new games. Automated tests are welcome when they materially help with a tricky change, but a large test suite is **not** a prerequisite for cleanup.
-- Keep the visual trait-based editor approachable; avoid large rewrites, unnecessary JSON migrations, or a generic ECS/physics framework as a default solution.
+- **Small, focused patches.** Implement one agreed issue or milestone at a time, explain the change and give practical checks for existing and new games. Add focused automated tests where they help; never substitute isolated tests for browser/gameplay verification.
+- Keep the visual trait-based editor approachable. Separate **control**, **movement/physics**, **abilities** and **presentation** where practical; combine capabilities through traits instead of hardcoding platformer-only character classes. Do not begin a wholesale ECS/physics rewrite.
 
-## Immediate direction
+## Current direction and document ownership
 
-Begin with the door-and-key workflow: placed checkbox values, matching initial visual state, and clear guidance about required door states. Reinspect the source and check what has already been changed before preparing the next patch. Other possible cleanup items from source review include shared enemy health, animation timing, level creation, music transitions, incomplete level-end conditions, sprite selection, and the reports in `TODO.md`. Treat these as issues to verify, not as fixes already completed.
+Read `2d-game-studio-next-steps.md` for the **current branch, verified implementation status, next patch and project-wide trait/legacy-JSON direction**. Read `2d-combat-design-and-recipes.md` for **combat-specific contracts, examples and recipes**. This file holds only standing working rules; do not copy the roadmap or the combat design into it. Reinspect the branch and source rather than trusting an older status note.
 
-## Agreed concepts for **later**, not requests to implement during cleanup
+## Gameplay direction (combat in progress; remaining concepts are proposals)
 
-- **Combat:** Melee normally attacks in the character's facing direction using one attack key. Ranged attacks can shoot in the facing direction using an attack key or optionally aim and shoot with the mouse. Four directional attack keys are not the chosen default. Consider mobile controls and camera rotation.
+- **Combat:** Shared player/baddie melee is implemented on the `combat` branch. The planned **Nahkampfangriff** and **Fernkampfangriff** editor traits configure shared attack definitions; weapon names (Schwert, Bogen, Laser) are examples, not separate damage systems. The player's melee key is J; do not silently change F interactions or legacy games. See the combat document for implemented vs. planned features.
 - **Gravity and camera:** Entering a region or activating a switch may change gravity; the camera can rotate so gravity appears to point down on screen. Keep world coordinates, camera orientation, and screen-relative input distinct. Existing games retain their normal downward gravity.
 - **Houses:** Prefer a cutaway interior at the *same world position*. On entry, hide or fade exterior artwork to reveal the inside; restore it on exit. Do not default to teleportation or level reload. Visibility and collision are separate concerns.
 
@@ -30,6 +30,7 @@ All student-facing labels, explanations, hints, tutorials, and warnings must be 
 - `src/static/game.js`: studio editor and data normalization (`fix_game_data`).
 - `src/static/level_editor.js`, `src/static/widgets.js`: placement controls and UI widgets.
 - `src/static/app.js`: gameplay runtime, door/key interactions, collisions, camera.
-- `TODO.md`: historical ideas and bug reports; the decisions above supersede conflicting older proposals.
+- `src/static/combat.js`, `src/static/combat_swing.js`: shared combat dispatch and current melee delivery.
+- `TODO.md`: historical ideas and bug reports, not an implementation contract; newer decisions in the two project documents supersede conflicting suggestions.
 
 Be clear whether an observation came from source review, an isolated check, or a real browser/gameplay test. Never claim existing games were tested unless they actually were.
