@@ -1517,7 +1517,7 @@ a, a:visited {
    .menu .item is otherwise display:flex, which squeezes a nested menu into a strip. */
 .menu .item.sprite-select-widget {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr) 32px;
     column-gap: 8px;
     row-gap: 5px;
     align-items: center;
@@ -1541,8 +1541,8 @@ a, a:visited {
 }
 .sprite-select-current {
     position: relative;
-    width: 44px;
-    height: 44px;
+    width: 32px;
+    height: 32px;
 }
 .sprite-select-current::after {
     content: '▾';
@@ -1562,6 +1562,9 @@ a, a:visited {
     object-fit: contain;
     image-rendering: pixelated;
 }
+/* The selected thumbnail matches adjacent controls; the open grid stays roomy. */
+.sprite-select-current .sprite-select-image { width: 24px; height: 24px; }
+.sprite-select-current .sprite-select-empty { font-size: 18px; }
 .sprite-select-empty { font-size: 22px; line-height: 1; }
 .sprite-select-menu {
     grid-column: 1 / -1;
