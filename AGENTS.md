@@ -12,13 +12,13 @@ Read `TODO.md` and inspect the current repository before proposing changes. This
 
 ## Current direction and document ownership
 
-Read `2d-game-studio-next-steps.md` for the **current branch, verified implementation status, next patch and project-wide trait/legacy-JSON direction**. Read `2d-combat-design-and-recipes.md` for **combat-specific contracts, examples and recipes**. This file holds only standing working rules; do not copy the roadmap or the combat design into it. Reinspect the branch and source rather than trusting an older status note.
+Read `2d-game-studio-next-steps.md` for the active branch, confirmed features and future roadmap. Read `2d-combat-design-and-recipes.md` for combat contracts and recipes. This file contains only standing rules; `TODO.md` is historical feedback rather than an approved feature list. Always inspect the current source instead of relying on old handoff SHAs.
 
-## Gameplay direction (interiors next; remaining combat extensions are proposals)
+## Established behavior and design boundaries
 
-- **Combat:** Shared actor/baddie melee, ranged projectiles, optional projectile gravity and mouse aiming, delayed bombs, one-shot fuse/explosion artwork, optional shake and opt-in bomb self-damage are implemented. Keep one attack/effect/cooldown pipeline for further deliveries. Cooldown HUD and collectible ammunition are deferred. J triggers melee, K ranged, and mouse-aimed ranged attacks accept a left-click; F remains interaction. Detailed status belongs in the combat document.
-- **Gravity and camera:** Entering a region or activating a switch may change gravity; the camera can rotate so gravity appears to point down on screen. Keep world coordinates, camera orientation, and screen-relative input distinct. Existing games retain their normal downward gravity.
-- **Interiors (next focus):** Prefer a cutaway at the *same world position*, with a marked room region and separately marked facade/roof art. Entering reveals the existing interior; exiting restores its cover. Do not teleport, reload, hide unrelated houses, or implicitly remove wall/floor collision. Exact grouping, doorway and enter/exit rules must be designed before implementation; old games remain unchanged.
+- **Seamless interiors are implemented:** A named Sichtbarkeitsbereich targets one layer via player-position rectangles; optional fading is visual only. Dedicated facade/roof art should have collision explicitly disabled. Hidden layers must retain their existing gameplay/collision structures.
+- **Combat foundation is implemented:** Shared actor/baddie melee, ranged projectiles and timed bombs; preserve legacy attacks and J/K/F controls. Instant lasers, bilateral area attacks, cooldown HUD and collectible ammunition remain distinct future proposals.
+- **Movement and gravity remain separate ideas:** Keep control, movement/physics, abilities and presentation conceptually separate. Variable gravity/camera changes must be opt-in; old games retain established downward gravity.
 
 ## Student-facing language and help
 
@@ -30,6 +30,7 @@ All student-facing labels, explanations, hints, tutorials, and warnings must be 
 - `src/static/game.js`: studio editor and data normalization (`fix_game_data`).
 - `src/static/level_editor.js`, `src/static/widgets.js`: placement controls and UI widgets.
 - `src/static/app.js`: gameplay runtime, door/key interactions, collisions, camera.
+- `src/static/visibility_regions.js`: opt-in layer targets and visual-only fading.
 - `src/static/combat.js`, `src/static/combat_swing.js`, `src/static/combat_projectile.js`, `src/static/combat_melee_trait.js`: shared attack, melee, projectile/bomb deliveries and legacy/new trait adapters.
 - `TODO.md`: historical ideas and bug reports, not an implementation contract; newer decisions in the two project documents supersede conflicting suggestions.
 

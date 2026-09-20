@@ -1,30 +1,28 @@
 # 2D Game Studio — handoff and next steps
 
 **Repository:** https://github.com/specht/2d  
-**Working branch:** `combat`
-**Context:** This is a child-oriented 2D game engine with hundreds of existing student games. The user wants incremental improvements and small, focused patches, not a rewrite. All student-facing UI/help should be in **German** (common English gaming vocabulary is OK with a clear explanation). **Keep existing game JSON and legacy gameplay compatible** unless a behavior change is explicitly agreed. Do **not** write to, commit to, or push to GitHub or the user's local checkout: inspect the public repository read-only and supply a patch that the user can apply and test.
+**Active branch:** `master`; the `combat` feature work was merged and pushed on 2026-09-20. Verify the actual branch and HEAD again before every patch.
+**Audience/contract:** A child-oriented 2D editor with hundreds of existing saved games. Only give reviewable downloadable patches; never alter the user's checkout or GitHub. Preserve old JSON/defaults/gameplay. All student-facing UI and help must be in German.
 
-## Current state (verify against the branch before each patch)
+## Current status (handoff, 2026-09-20)
 
-**Verified source snapshot (2026-09-20):** `combat` @ `23cda8f4567429157e1277d6772128e8f9d574ac`. The user confirmed that the mouse-click and bomb-wall fixes work in-game and committed/pushed them. Shared actor/baddie melee, optional Angriff/Treffer states and hit feedback, projectile gravity and mouse aiming, left-click shooting, and dropped/thrown bombs with one-shot Zündschnur/Explosion, wall/floor handling, optional shake and opt-in owner self-damage are implemented. These are targeted gameplay confirmations, **not** comprehensive saved-game regression tests.
+**Verified remote source:** `master` @ `e407c4644452e9d36d6650597cba7c0df1636c9c`. The user confirmed in-game that Sichtbarkeitsbereich, optional fade and the horizontal-overflow fix work; they merged to `master` and pushed. These are targeted user confirmations, not exhaustive browser or legacy-saved-game tests.
 
-**Current task:** Focus on **seamless interiors**. Do not implement collectible ranged ammunition now. Keep the work in small, backward-compatible patches; the combat document owns future combat details and recipes.
+**Seamless interiors are implemented, not pending.** A named `visibility_region` / **Sichtbarkeitsbereich** layer controls one other layer through a stable target ID. Its rectangle union tests the *current centre of the player* and applies **Im Bereich: sichtbar/versteckt** (the inverse outside). Target IDs are assigned only when a creator selects a target; merely loading a legacy game does not give all layers IDs. Duplicate/invalid target configurations are inert. Dedicated facades allow two houses to behave independently. **Überblendung** is optional (`fade_seconds` 0–2 s; omitted/0 is immediate); fade direction can reverse, while initial spawn and respawn set visibility immediately. Separate fading materials reuse the original atlas texture; the sidebar no longer overflows horizontally.
 
-**Still deferred:** Generic two-sided stomp and other reusable area editor geometry, ray/laser deliveries, per-attack cooldown HUD, consumable ammunition and pickups, extra attack slots, changes to overall level gravity, and browser-captured student documentation. Bomb radius damage does not imply a general-purpose area attack editor.
+**Authoring/collision contract:** Put facade and roof art in their own sprite layer above the furnished interior, at the **same world coordinates**. Disable **Kollisionen erkennen** on that decorative layer explicitly. A hidden layer's meshes are not removed from collision, door, enemy or pickup structures; other gameplay objects remain active. No level reload, generic events, hysteresis, door-linked fade or new behavior in levels without visibility regions.
 
-## Next focus: seamless interiors (design, not implemented)
+**Source/tests:** `src/static/visibility_regions.js` resolves rules and manages private fade materials; `src/static/app.js` builds collision objects independently and updates visibility; `src/static/level_editor.js` edits layer names, targets, rectangles and fade. `test/visibility_regions.test.cjs` covers geometry, references, restart, material independence and atlas texture reuse.
 
-**Goal:** Build an exterior and a furnished interior at the **same world coordinates**. Approaching/entering reveals the interior by hiding only the house's decorative cover (facade, roof), and leaving restores it. No teleportation or level reload; no change in unmarked old levels.
+## Roadmap: candidates, one focused patch at a time
 
-**Existing runtime seams:** Levels have sprite/backdrop layers and placed `[sprite_index, x, y, optional_properties]` entries. `app.js` creates a `game_layer` for each layer, separately registers collidable placed sprites in `active_level_sprites` and interval trees, and renders sprites through their meshes. The editor has layer-visibility controls; do **not** hide a whole global layer when unrelated houses share it. Doors already have independent opening and collision state.
+1. **German house-building recipe and contextual help.** Document exactly how to draw a furnished interior, create a separate noncolliding facade/roof, select the facade in a Sichtbarkeitsbereich, adjust several rectangles, choose an optional 0.4 s fade, and test spawn/respawn and two houses. Check the published steps against the live editor first.
+2. **Combat: instant laser for BOTH actor and baddie.** Reinspect current `CombatSystem`, collision and door logic first; use one shared ray/hit pipeline with nearest obstacle/target, solid walls and closed doors blocking, and a procedural beam so children need no laser sprite. Test both sides and their independent cooldowns. A sustained beam is another feature, not part of the instant-ray slice.
+3. **Combat: symmetric ground stomp / horizontal area pulse.** Separate milestone: configurable extent to both sides for actor and baddie, clear ground/obstacle policy, once-per-target hits. Do not silently generalize bomb explosions into a full area editor.
+4. **Optional future combat polish:** Per-attack cooldown display, additional slots and German recipes for playable mechanics. Collectible ammunition remains deliberately paused pending a separate inventory/reset design.
+5. **Longer-term, independent engine ideas:** Free-swimming/submarine movement with separate control/physics, gravity regions plus camera rotation, opt-in activation of currently inactive level-completion conditions, and optional once-per-enemy falling-block damage. Preserve all old defaults and do not bundle these with combat/interiors.
 
-**First implementation direction:** Introduce an *opt-in room region* with explicit world bounds and a stable per-house identity. Associate only dedicated facade/roof *decorative* meshes with that room; let the player entering/leaving the region toggle their visibility. Interior geometry, solid walls, doors, furniture, enemies, pickups and collision must remain independent of facade visibility. Define room boundary, initial state, enter/exit hysteresis and what happens at a doorway before coding. A single-room prototype is fine, but its grouping must not hide another house by accident.
-
-**Checks for the first interiors patch:** Starting outside shows the exterior. Entering reveals the room at the same player position, exiting restores the cover. Existing blocking/door/key behavior is unchanged and remains stable when art is hidden; restarting cleans up room state; unmarked levels behave exactly as before. Test two separate houses or demonstrate that the initial implementation explicitly supports only one. Inspect the live browser as well as focused source-level tests.
-
-## Combat architecture (deferred while interiors are active)
-
-`CombatSystem` validates attacks, tracks owner-local cooldowns and dispatches shared melee/projectile/bomb damage for actors and baddies. Preserve the legacy `sword` compatibility adapter and saved JSON. When combat resumes, treat bilateral stomp, rays/lasers, cooldown display and optional collectible ammunition as **separate** milestones rather than unfinished parts of the existing bomb feature.
+**Handoff decision:** These are proposals, not approval to implement everything. On resumption, choose one small slice with the user. Do not reopen completed interiors unless there is a reproducible bug or an agreed improvement.
 
 ## Earlier cleanup history (archive; not the active task)
 
@@ -42,7 +40,7 @@ Earlier fixes through the level-exit bounds change were user-confirmed. Historic
 | Per-enemy health | Patch supplied: `2d-enemy-instance-health.patch`. On a subsequent read of `master`, `src/static/app.js` **did** contain `this.energy -= damage`, so the change appears present remotely. Each enemy should have runtime health initialized from its sprite's `Energie`; never decrement the shared sprite trait's energy. |
 | Skip inactive enemies when querying collision index | Patch supplied: `2d-enemy-collision-active-only.patch`. **Application/commit not confirmed** in conversation. Check current `master` or ask for the outcome. The change should skip inactive enemies in `has_baddie_at()` even when the interval tree is stale until the following frame. |
 
-**Patching requirement:** Pin the current `combat` HEAD, verify changes against the exact full source where possible, and report the scope of actual verification. Previous patches failed because of inaccurate context; a reconstructed excerpt alone does not establish full-repository applicability. Confirm the downloadable patch exists before linking it. Never write to GitHub on the user's behalf.
+**Patching requirement:** Check the current *active* branch/HEAD, not the historical `combat` SHA above. Generate and verify an actual patch against complete source files before linking it. Never write to GitHub for the user.
 
 ## Deferred cleanup idea: falling-block damage
 
@@ -71,12 +69,12 @@ Do **not** conflate this patch with new melee/ranged attacks, energy-balancing c
 - **Level-end conditions:** The editor exposes `touching_level_complete`, `min_points`, `need_sprite`, and `killed_baddie`; the runtime currently handles `level_complete` contact, but does not enforce the other conditions. The editor has been updated to mark inactive options honestly. Before activating any, decide how to opt in so older levels containing these values do not suddenly become impossible to complete. Clarify combination semantics (AND/OR), count/percentage measurement, and UI feedback; implement as a separate, carefully scoped feature.
 - **Combat extensions (deferred):** Generic stomp/area delivery, ray/laser, opt-in cooldown HUD, finite ammunition and pickup/cost integration remain separate milestones. The ranged and bomb deliveries, mouse firing and basic attack/hit visuals are already present.
 - **Gravity zones/switches:** Variable gravity per area, with smoothly rotating camera so gravity appears visually downward. Default remains existing downward gravity for old games. Requires a considered physics/camera design rather than a small blind patch.
-- **Seamless interiors (active design above):** Same-world cutaway controlled by an opt-in room region and that room's cover artwork only. Decide grouping and doorway semantics before coding; never conflate visual occlusion with blocking physics.
+- **Seamless interiors (implemented):** Opt-in room regions, named per-house facade layers and visual-only optional fades are merged in `master`; see the current-status section above. Hysteresis, door dependencies and generic events are not part of this release.
 - **General small cleanups:** Investigate only with current source and reproducible behavior. Avoid repeated broad refactors or compulsory large test suites.
 
 ## Workflow for the next chat
 
-1. Read `AGENTS.md`, this file and, for combat work, `2d-combat-design-and-recipes.md`. Inspect the current `combat` branch read-only at https://github.com/specht/2d and pin its HEAD. Do not assume an old SHA or the user's working tree matches GitHub.
-2. Make **one small patch per iteration**, with no write access to GitHub. Keep changes backward compatible, preserve saved game data, and use German language for student-facing UI/help.
-3. Generate a real downloadable `.patch`, validate its hunks against the **complete exact original source** where possible, and provide `git apply --check ...` followed by `git apply ...`, plus a concise, targeted manual test. Never claim browser tests were run if they were not.
-4. After the user tests and commits, continue to the next focused issue. They prefer quick iteration, concrete code, and minimal questions when intent is clear.
+1. Read `AGENTS.md`, this roadmap and, when relevant, `2d-combat-design-and-recipes.md`. Treat `TODO.md` as historical feedback, not an implementation contract. Recheck the **current** branch/HEAD and relevant complete files; the snapshot here will become stale.
+2. Agree on one small change. Keep existing games and saved JSON compatible; make student-facing labels/help German. No GitHub writes, commits or pushes on the user's behalf.
+3. Deliver an actual downloadable `.patch`, not a patch generator. Validate `git apply --check` against complete original files, include `git apply` and focused test commands, and state clearly which checks were automated versus user-confirmed in a browser.
+4. For any interior regression check entering/leaving, spawn/respawn, two houses, multiple rectangles, renamed/reordered targets, invalid references, transitions, textures, collision independence and old levels. For new attacks, test actor and baddie symmetrically.
