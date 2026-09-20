@@ -982,7 +982,7 @@ class Game {
             },
         });
         this.ranged_projectile_picker = picker('Projektilsprite:', 'projectile_sprite_index',
-            'Zeichne das fliegende Projektil. Mehrere Frames werden während des Fluges animiert. Ohne Bild erscheint ein kleiner heller Schuss.');
+            'Zeichne das Projektil so, dass es nach rechts zeigt. Beim Schießen nach links wird es automatisch gespiegelt. Mehrere Frames werden während des Fluges animiert. Ohne Bild erscheint ein kleiner heller Schuss.');
         this.ranged_hit_picker = picker('Treffereffekt:', 'hit_sprite_index',
             'Dieses Bild erscheint nur bei einem Treffer, unabhängig vom Projektilsprite.');
     }
