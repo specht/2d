@@ -56,9 +56,15 @@ test('both character roles offer optional Angriff/Treffer states without new sav
     for (const role of ['actor', 'baddie']) {
         const menu = stateTraits.STATE_TRAITS_ORDER[role].flatMap(entry =>
             typeof entry === 'string' ? [entry] : entry[1]);
-        for (const tag of ['attack', 'attack_left', 'attack_right', 'hit', 'hit_left', 'hit_right']) {
-            assert.ok(menu.includes(tag), `${role}: ${tag}`);
-            assert.ok(stateTraits.STATE_TRAITS[role][tag].label);
+        for (const [name, prefix] of [['Angriff', 'attack'], ['Treffer', 'hit']]) {
+            const group = stateTraits.STATE_TRAITS_ORDER[role].find(entry => entry[0] === name);
+            assert.deepEqual(Array.from(group[1]),
+                ['front', 'back', 'left', 'right'].map(dir => `${prefix}_${dir}`));
+            for (const [direction, label] of Object.entries({
+                front: 'vorn', back: 'hinten', left: 'links', right: 'rechts',
+            })) assert.equal(stateTraits.STATE_TRAITS[role][`${prefix}_${direction}`].label, label);
+            assert.ok(!menu.includes(prefix)); // no extra generic menu entry
+            assert.ok(!Object.hasOwn(stateTraits.STATE_TRAITS[role], prefix));
         }
         const { addCharacter, sprite } = fixture(role);
         const before = JSON.stringify(sprite);
@@ -71,9 +77,21 @@ test('both character roles offer optional Angriff/Treffer states without new sav
     }
 });
 
+test('abandoned generic tags do not create combat poses', () => {
+    for (const role of ['actor', 'baddie']) {
+        const { addCharacter } = fixture(role, [pose(['attack']), pose(['hit'])]);
+        const c = addCharacter();
+        assert.equal(c.sti_for_state.attack, undefined);
+        assert.equal(c.sti_for_state.hit, undefined);
+        c.show_combat_visual('attack');
+        c.show_combat_visual('hit');
+        assert.equal(c.combat_visual, null);
+    }
+});
+
 test('one optional drawing flips horizontally and several frames play once at their own FPS', () => {
     for (const role of ['actor', 'baddie']) {
-        const { addCharacter, advance } = fixture(role, [pose(['attack'], 3, 10)]);
+        const { addCharacter, advance } = fixture(role, [pose(['attack_right'], 3, 10)]);
         const c = addCharacter();
         c.show_combat_visual('attack');
         assert.equal(c.combat_visual.kind, 'attack');
@@ -90,21 +108,23 @@ test('one optional drawing flips horizontally and several frames play once at th
     }
 });
 
-test('dedicated directions override generic drawings; one right pose mirrors left', () => {
-    const { addCharacter } = fixture('actor', [
-        pose(['attack']), pose(['attack_right']), pose(['hit_left']),
-    ]);
-    const c = addCharacter();
-    assert.equal(c.sti_for_state.attack.right.sti, 2);
-    assert.equal(c.sti_for_state.attack.left.sti, 2);
-    assert.equal(c.sti_for_state.attack.left.flipped, true);
-    assert.equal(c.sti_for_state.hit.left.sti, 3);
-    assert.equal(c.sti_for_state.hit.right.sti, 3);
-    assert.equal(c.sti_for_state.hit.right.flipped, true);
+test('one directional drawing mirrors left/right without a generic pose', () => {
+    for (const role of ['actor', 'baddie']) {
+        const { addCharacter } = fixture(role, [
+            pose(['attack_right']), pose(['hit_left']),
+        ]);
+        const c = addCharacter();
+        assert.equal(c.sti_for_state.attack.right.sti, 1);
+        assert.equal(c.sti_for_state.attack.left.sti, 1);
+        assert.equal(c.sti_for_state.attack.left.flipped, true);
+        assert.equal(c.sti_for_state.hit.left.sti, 2);
+        assert.equal(c.sti_for_state.hit.right.sti, 2);
+        assert.equal(c.sti_for_state.hit.right.flipped, true);
+    }
 });
 
 test('Treffer takes priority, death clears poses, and two placed enemies have isolated reactions', () => {
-    const { game, addCharacter, advance } = fixture('baddie', [pose(['attack']), pose(['hit'])]);
+    const { game, addCharacter, advance } = fixture('baddie', [pose(['attack_right']), pose(['hit_left'])]);
     const one = addCharacter(), two = addCharacter();
     one.show_combat_visual('attack');
     assert.equal(two.combat_visual, null);
@@ -126,7 +146,7 @@ test('Treffer takes priority, death clears poses, and two placed enemies have is
 });
 
 test('a dying player cannot show Treffer or Angriff over the dead state', () => {
-    const { addCharacter } = fixture('actor', [pose(['attack']), pose(['hit'])]);
+    const { addCharacter } = fixture('actor', [pose(['attack_right']), pose(['hit_left'])]);
     const actor = addCharacter();
     actor.show_combat_visual('attack');
     actor.die(null, null);
@@ -140,7 +160,7 @@ test('a dying player cannot show Treffer or Angriff over the dead state', () => 
 
 test('shared combat notifies only accepted attacks/hits; absent pose methods never block damage', () => {
     const attack = sword();
-    const { game, addCharacter } = fixture('actor', [pose(['attack']), pose(['hit'])], attack);
+    const { game, addCharacter } = fixture('actor', [pose(['attack_right']), pose(['hit_left'])], attack);
     const owner = addCharacter();
     const enemy = {
         game, character_trait: 'baddie', active: true, mesh: {}, energy: 20,

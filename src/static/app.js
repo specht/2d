@@ -138,21 +138,16 @@ class Character {
             let poses = {};
             for (let sti = 0; sti < this.sprite.states.length; sti++) {
                 let tags = this.sprite.states[sti].traits?.[this.character_trait] ?? {};
-                if (kind in tags) {
-                    for (let d of ['front', 'back', 'left', 'right'])
-                        poses[d] = { sti, confidence: 1, flipped: d === 'left' };
-                }
                 for (let d of ['front', 'back', 'left', 'right']) {
                     if (`${kind}_${d}` in tags)
-                        poses[d] = { sti, confidence: 100, flipped: false };
+                        poses[d] = { sti, flipped: false };
                 }
             }
             if (!Object.keys(poses).length) continue;
             // A single right/left drawing can face the other way by flipping.
             for (let [d, opposite] of [['left', 'right'], ['right', 'left']]) {
-                if ((!poses[d] || poses[d].confidence < 10) &&
-                    poses[opposite]?.confidence === 100)
-                    poses[d] = { ...poses[opposite], confidence: 10, flipped: true };
+                if (!poses[d] && poses[opposite])
+                    poses[d] = { ...poses[opposite], flipped: true };
             }
             let fallback = poses.right ?? poses.left ?? poses.front ?? poses.back;
             for (let d of ['front', 'back', 'left', 'right'])
