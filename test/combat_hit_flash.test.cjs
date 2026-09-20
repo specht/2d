@@ -67,7 +67,7 @@ function world(withHitArt = false) {
     return { game, material, combat, spawnBaddie, advance: delta => { now += delta; } };
 }
 
-test('movement and combat state menus use the same short directional labels for both roles', () => {
+test('applied state tags are descriptive for both roles', () => {
     for (const role of ['actor', 'baddie']) {
         for (const [name, prefix] of [
             ['Stehen', ''], ['Laufen', 'walk_'], ['Springen', 'jump_'],
@@ -79,7 +79,8 @@ test('movement and combat state menus use the same short directional labels for 
                 front: 'vorn', back: 'hinten', left: 'links', right: 'rechts',
             })) {
                 assert.ok(group[1].includes(`${prefix}${direction}`));
-                assert.equal(metadata.STATE_TRAITS[role][`${prefix}${direction}`].label, label);
+                assert.ok(metadata.STATE_TRAITS[role][`${prefix}${direction}`].label.includes(
+                    role === 'actor' ? 'Spielfigur' : 'Gegner'));
             }
         }
     }
@@ -96,7 +97,7 @@ test('accepted hit flashes only the struck placed enemy, even without Treffer ar
     assert.notEqual(one.mesh.material, material);
     assert.equal(two.mesh.material, material);
     assert.equal(material.fragmentShader, 'original texture shader');
-    assert.match(one.mesh.material.fragmentShader, /vec3\(1\.0, 0\.08, 0\.08\)/);
+    assert.match(one.mesh.material.fragmentShader, /vec3\(1\.0000, 0\.2510, 0\.2510\)/);
     assert.equal(one.mesh.material.uniforms.texture1.value, material.uniforms.texture1.value);
     assert.equal(one.energy, 20);
     const red = one.mesh.material;

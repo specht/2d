@@ -708,8 +708,35 @@ class Game {
             }
         }
         if (trait === 'melee_attack') this.add_melee_attack_trait_controls(div, si);
+        if (trait === 'actor' || trait === 'baddie') this.add_hit_feedback_controls(div, si, trait);
         if (trait === 'door') this.add_door_state_help(div, si);
         div.insertAfter(element);
+    }
+
+    // Target-owned visual feedback, independent of weapon/attack settings.
+    // Merely opening the editor does not add properties to saved game JSON.
+    add_hit_feedback_controls(div, si, role) {
+        const traits = this.data.sprites[si].traits[role];
+        new SelectWidget({
+            container: div, label: 'Trefferreaktion:',
+            hint: 'So sieht diese Figur nach einem Treffer kurz aus. Das ändert weder Schaden noch Unverwundbarkeit.',
+            options: { color: 'Farbe', hide: 'Ausblenden', none: 'aus' },
+            get: () => traits.hit_feedback?.kind ?? 'color',
+            set: kind => {
+                if (!['color', 'hide', 'none'].includes(kind)) return;
+                traits.hit_feedback = { ...traits.hit_feedback, kind };
+                this.build_sprite_traits_menu();
+            },
+        });
+        if ((traits.hit_feedback?.kind ?? 'color') === 'color') new ColorWidget({
+            container: div, label: 'Trefferfarbe:',
+            hint: 'Färbt die sichtbaren Pixel kurz ein; durchsichtige Pixel bleiben durchsichtbar.',
+            get: () => traits.hit_feedback?.color ?? '#ff4040',
+            set: color => {
+                if (!/^#[0-9a-f]{6}$/i.test(color)) return;
+                traits.hit_feedback = { ...traits.hit_feedback, kind: 'color', color };
+            },
+        });
     }
 
     add_melee_attack_trait_controls(div, si) {
@@ -881,7 +908,12 @@ class Game {
         return traits.map(function (x) {
             if (typeof (x) === 'string')
                 return {
-                    label: STATE_TRAITS[sprite_trait][x].label,
+                    // The selection menu already supplies the group (Stehen,
+                    // Angriff, ...). Applied tags below need the full label.
+                    label: (sprite_trait === 'actor' || sprite_trait === 'baddie') &&
+                        /^(?:(?:walk|jump|fall|attack|hit)_)?(?:front|back|left|right)$/.test(x) ?
+                        { front: 'vorn', back: 'hinten', left: 'links', right: 'rechts' }[
+                            x.split('_').at(-1)] : STATE_TRAITS[sprite_trait][x].label,
                     callback: () => {
                         self.add_state_trait(sprite_trait, x);
                         self.build_state_traits_menu();

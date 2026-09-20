@@ -62,7 +62,8 @@ test('both character roles offer optional Angriff/Treffer states without new sav
                 ['front', 'back', 'left', 'right'].map(dir => `${prefix}_${dir}`));
             for (const [direction, label] of Object.entries({
                 front: 'vorn', back: 'hinten', left: 'links', right: 'rechts',
-            })) assert.equal(stateTraits.STATE_TRAITS[role][`${prefix}_${direction}`].label, label);
+            })) assert.equal(stateTraits.STATE_TRAITS[role][`${prefix}_${direction}`].label.includes(
+                role === 'actor' ? 'Spielfigur' : 'Gegner'), true);
             assert.ok(!menu.includes(prefix)); // no extra generic menu entry
             assert.ok(!Object.hasOwn(stateTraits.STATE_TRAITS[role], prefix));
         }

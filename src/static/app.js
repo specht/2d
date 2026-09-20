@@ -190,39 +190,57 @@ class Character {
         this.t0 = now;
     }
 
-    // A confirmed, nonlethal combat hit briefly colours only this instance.
-    // The timer and materials are presentation only; no invincibility is added.
+    // Only a confirmed, nonlethal hit starts this target-owned visual.
+    // No extra invincibility or damage is introduced by the presentation.
     flash_on_hit() {
-        if (!this.active || (this.character_trait === 'actor' ? this.dead() : this.energy <= 0)) return;
+        if (!this.active || (this.character_trait === 'actor' ? this.dead() : this.energy <= 0) ||
+            this.traits?.hit_feedback?.kind === 'none') return;
         this.hit_flash_until = this.game.clock.getElapsedTime() + 0.18;
     }
 
-    // The atlas materials are shared by all placed copies of a sprite. Never
-    // recolour them: cache a red shader *per character* and restore the
-    // original material on the next normal frame when the flash has ended.
+    // All atlas materials are shared. The temporary shader belongs to this
+    // character instance, and uses the *normal* atlas frame as its source.
+    // In particular, do not multiply the atlas alpha by the chosen colour:
+    // 'Ausblenden' is a separate choice, never an accidental transparent tint.
     apply_hit_flash() {
         if (!(this.game.clock.getElapsedTime() < this.hit_flash_until) || !this.active ||
             (this.character_trait === 'actor' ? this.dead() : this.energy <= 0)) return;
+        const setting = this.traits?.hit_feedback ?? {};
+        if (setting.kind === 'none') return;
+        const kind = setting.kind === 'hide' ? 'hide' : 'color';
+        const hex = typeof setting.color === 'string' && /^#[0-9a-f]{6}$/i.test(setting.color) ?
+            setting.color : '#ff4040';
+        // update_state_and_direction restored the base material for this frame
+        // just before calling us. Never treat a previous flash as a new base.
         const base = this.mesh.material;
         if (!base?.uniforms?.texture1 || typeof base.clone !== 'function') return;
         this.hit_flash_materials ??= new Map();
-        let red = this.hit_flash_materials.get(base);
-        if (!red) {
-            red = base.clone();
-            red.fragmentShader = `uniform sampler2D texture1;
+        let cached = this.hit_flash_materials.get(base);
+        if (!cached || cached.kind !== kind || cached.color !== hex) {
+            cached?.material.dispose();
+            const material = base.clone();
+            if (kind === 'hide') {
+                material.fragmentShader = 'void main() { discard; }';
+            } else {
+                const rgb = [1, 3, 5].map(i =>
+                    (parseInt(hex.slice(i, i + 2), 16) / 255).toFixed(4)).join(', ');
+                material.fragmentShader = `uniform sampler2D texture1;
 varying vec2 vuv;
 void main() {
     vec4 pixel = texture2D(texture1, vuv);
-    gl_FragColor = vec4(mix(pixel.rgb, vec3(1.0, 0.08, 0.08), 0.75), pixel.a);
+    if (pixel.a <= 0.0) discard;
+    gl_FragColor = vec4(mix(pixel.rgb, vec3(${rgb}), 0.9), pixel.a);
 }`;
-            red.needsUpdate = true;
-            this.hit_flash_materials.set(base, red);
+            }
+            material.needsUpdate = true;
+            cached = { kind, color: hex, material };
+            this.hit_flash_materials.set(base, cached);
         }
-        this.mesh.material = red;
+        this.mesh.material = cached.material;
     }
 
     dispose_hit_flash() {
-        for (const material of this.hit_flash_materials?.values() ?? []) material.dispose();
+        for (const entry of this.hit_flash_materials?.values() ?? []) entry.material.dispose();
         this.hit_flash_materials = null;
     }
 
