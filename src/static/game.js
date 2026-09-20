@@ -765,7 +765,7 @@ class Game {
                 attack.timing.cooldown_s = value;
             },
         });
-        section('So sieht der Angriff aus (optional)');
+        section('So sieht der Angriff aus');
         new SelectWidget({
             container: div, label: 'Swoosh:',
             hint: 'Aus: kein eingeblendeter Schwung. Die Bewegung des Swooshs verändert weder Schaden noch Angriffsreichweite.',
