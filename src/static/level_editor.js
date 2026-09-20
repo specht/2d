@@ -399,7 +399,8 @@ class LevelEditor {
                     step_aside_css: { top: '35px' },
                     gen_new_item_options: [
                         ['Sprites', 'sprites'],
-                        ['Backdrop', 'backdrop'],
+                        ['Hintergrund', 'backdrop'],
+                        ['Sichtbarkeitsbereich', 'visibility_region'],
                         // ['Text', 'text'],
                     ],
                     gen_item: (layer, index) => {
@@ -429,13 +430,16 @@ class LevelEditor {
                         layer_div.append(button_show);
                         if (type === 'sprites') {
                             let sprite_count = $(`<span>`).text(`${layer.sprites.length}`);
-                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Sprites (')).append(sprite_count).append($('<span>').text(')')));
+                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Sprites (')).append(sprite_count).append($('<span>').text(') · ')));
                             self.layer_structs[index].el_sprite_count = sprite_count;
                         } else if (type === 'backdrop') {
-                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Backdrop')));
+                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Hintergrund · '));
+                        } else if (type === 'visibility_region') {
+                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Sichtbarkeitsbereich · '));
                         } else if (type === 'text') {
-                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Text')));
+                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Text · '));
                         }
+                        layer_div.append($('<span class="layer-name">').text(layer.properties.name || `Ebene ${index + 1}`));
                         return layer_div;
                     },
                     onclick: (e, index) => {
@@ -446,7 +450,7 @@ class LevelEditor {
                         if (self.game.data.levels[self.level_index].layers[self.layer_index].type !== 'sprites') {
                             menus.level.blur();
                         }
-                        if (self.game.data.levels[self.level_index].layers[self.layer_index].type == 'backdrop') {
+                        if (['backdrop', 'visibility_region'].includes(self.game.data.levels[self.level_index].layers[self.layer_index].type)) {
                             self.refresh_backdrop_controls();
                         }
                         self.setup_layer_properties();
@@ -458,9 +462,14 @@ class LevelEditor {
                         let layer_struct = new LayerStruct(self);
                         self.layer_structs.push(layer_struct);
                         let layer = { type: type };
+                        if (type === 'visibility_region') {
+                            let count = self.game.data.levels[self.level_index].layers.filter(x => x.type === type).length + 1;
+                            layer.properties = { name: `Sichtbarkeitsbereich ${count}` };
+                            layer.inside_visible = false;
+                        }
                         if (type === 'sprites') {
                             layer.sprites = [];
-                        } else if (type === 'backdrop') {
+                        } else if (type === 'backdrop' || type === 'visibility_region') {
                             let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
                             let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
                             let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
@@ -627,6 +636,18 @@ class LevelEditor {
         $('#menu_layer_properties').empty();
         let layer = self.game.data.levels[self.level_index].layers[self.layer_index];
 
+        new LineEditWidget({
+            container: $('#menu_layer_properties'),
+            label: 'Name',
+            hint: 'Gib jeder Ebene einen erkennbaren Namen, zum Beispiel »Haus 1 – Fassade«.',
+            get: () => layer.properties.name,
+            set: (name) => {
+                layer.properties.name = name;
+                $('#menu_layers').children('._dnd_item').eq(self.layer_index)
+                    .find('.layer-name').text(name || `Ebene ${self.layer_index + 1}`);
+            },
+        });
+
         if (layer.type === 'sprites') {
             new CheckboxWidget({
                 container: $('#menu_layer_properties'),
@@ -638,7 +659,7 @@ class LevelEditor {
                 },
             });
         }
-        if (layer.type === 'backdrop') {
+        if (layer.type === 'backdrop' || layer.type === 'visibility_region') {
             let backdrop = layer;
             // -----------------------------------------------------------
             let rect_div = $('<div>').appendTo($('#menu_layer_properties'));
@@ -693,6 +714,49 @@ class LevelEditor {
                 }
             });
 
+            if (layer.type === 'visibility_region') {
+                const layers = self.game.data.levels[self.level_index].layers;
+                const options = { '': 'Keine Ebene ausgewählt' };
+                let selectedIndex = -1;
+                for (let i = 0; i < layers.length; i++) {
+                    const candidate = layers[i];
+                    if (candidate.type === 'visibility_region') continue;
+                    const taken = candidate.id && layers.some(other =>
+                        other !== layer && other.type === 'visibility_region' &&
+                        other.target_layer_id === candidate.id);
+                    if (taken) continue;
+                    options[String(i)] = `${candidate.properties.name || `Ebene ${i + 1}`} (${candidate.type === 'sprites' ? 'Sprites' : 'Hintergrund'})`;
+                    if (candidate.id && candidate.id === layer.target_layer_id &&
+                        layers.filter(other => other.id === candidate.id).length === 1)
+                        selectedIndex = i;
+                }
+                if (layer.target_layer_id && selectedIndex < 0)
+                    options.__invalid = 'Ziel ungültig oder bereits belegt – bitte neu wählen';
+                new SelectWidget({
+                    container: $('#menu_layer_properties'),
+                    label: 'Zielebene',
+                    hint: 'Diese Ebene wird im Bereich ein- oder ausgeblendet. Verwende für jede Fassade eine eigene Ebene ohne Kollisionserkennung. Eine Zielebene kann nur einem Sichtbarkeitsbereich gehören.',
+                    options,
+                    get: () => selectedIndex >= 0 ? String(selectedIndex) : (layer.target_layer_id ? '__invalid' : ''),
+                    set: (value) => {
+                        if (value === '__invalid') return;
+                        const candidate = value === '' ? null : layers[Number(value)];
+                        if (candidate && (candidate.type === 'visibility_region' || layers.some(other =>
+                            other !== layer && other.type === 'visibility_region' &&
+                            other.target_layer_id && other.target_layer_id === candidate.id))) return;
+                        layer.target_layer_id = candidate ? VisibilityRegions.uniqueTargetId(layers, candidate) : null;
+                        self.setup_layer_properties();
+                    },
+                });
+                new SelectWidget({
+                    container: $('#menu_layer_properties'),
+                    label: 'Im Bereich',
+                    hint: 'Sichtbar: Die Zielebene erscheint, wenn die Mitte der Spielfigur in einem der Rechtecke liegt. Versteckt: Die Zielebene verschwindet dort. Außerhalb gilt jeweils das Gegenteil.',
+                    options: { 'false': 'versteckt', 'true': 'sichtbar' },
+                    get: () => String(layer.inside_visible === true),
+                    set: (value) => { layer.inside_visible = value === 'true'; },
+                });
+            } else {
             // -----------------------------------------------------------
             new SelectWidget({
                 container: $('#menu_layer_properties'),
@@ -822,8 +886,10 @@ class LevelEditor {
                     },
                 });
             }
+            }
         }
         // $('#menu_layer_properties').append($('<hr />'));
+        if (layer.type !== 'visibility_region') {
         new NumberWidget({
             container: $('#menu_layer_properties'),
             label: 'Parallaxe',
@@ -839,6 +905,7 @@ class LevelEditor {
                 self.render();
             },
         });
+        }
     }
 
     setup_condition_properties() {
@@ -1601,12 +1668,26 @@ class LevelEditor {
         this.scene.add(this.rect_group);
 
         this.backdrop_index = null;
-        if (this.game.data.levels[this.level_index].layers[this.layer_index].type === 'backdrop')
+        if (['backdrop', 'visibility_region'].includes(this.game.data.levels[this.level_index].layers[this.layer_index].type))
             this.backdrop_index = this.layer_index;
 
-        if (this.backdrop_index !== null && menus.level.active_key === null) {
+        if (this.backdrop_index !== null && menus.level.active_key === null &&
+            this.game.data.levels[this.level_index].layers[this.backdrop_index].rects?.[this.rect_index]) {
             let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
             this.backdrop_cursor.remove.apply(this.backdrop_cursor, this.backdrop_cursor.children);
+            if (backdrop.type === 'visibility_region') {
+                const outline = new THREE.LineBasicMaterial({ color: 0x56bde8, linewidth: 1.0, transparent: true, opacity: 0.65 });
+                for (const rect of backdrop.rects) {
+                    if (!VisibilityRegions.validRectangle(rect)) continue;
+                    const points = [
+                        new THREE.Vector3(rect.left, rect.bottom),
+                        new THREE.Vector3(rect.left + rect.width, rect.bottom),
+                        new THREE.Vector3(rect.left + rect.width, rect.bottom + rect.height),
+                        new THREE.Vector3(rect.left, rect.bottom + rect.height),
+                    ];
+                    this.backdrop_cursor.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), outline));
+                }
+            }
             let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true });
 
             let points = [];
@@ -1626,7 +1707,8 @@ class LevelEditor {
             for (let x of this.backdrop_controls)
                 $(x).remove();
             this.backdrop_controls = [];
-            if (this.backdrop_index !== null && menus.level.active_key === null) {
+            if (this.backdrop_index !== null && menus.level.active_key === null &&
+                this.game.data.levels[this.level_index].layers[this.backdrop_index].rects?.[this.rect_index]) {
                 let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
                 let rect = backdrop.rects[this.rect_index];
                 let p0 = this.world_to_ui([rect.left, rect.bottom]);

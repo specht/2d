@@ -1420,6 +1420,7 @@ class Game {
 		this.mesh_catalogue = [];
 		this.overlay_mesh_catalogue = {};
 		this.layers = [];
+		this.visibility_rules = [];
 
 		if (this.data === null)
 			return;
@@ -1690,6 +1691,9 @@ class Game {
 			}
 			this.layers.push(game_layer);
 		}
+		// Sichtbarkeit beeinflusst nur Three.js-Gruppen, nicht die Kollisionsindizes.
+		this.visibility_rules = VisibilityRegions.resolve(level.layers);
+		this.update_layer_visibility();
 		// console.log(this.minx, this.maxx, this.miny, this.maxy);
 
 		for (let i = this.layers.length - 1; i >= 0; i--)
@@ -1801,8 +1805,14 @@ class Game {
 		}
 	}
 
+	update_layer_visibility() {
+		VisibilityRegions.apply(this.visibility_rules, this.layers, this.player_character);
+	}
+
 	render() {
 		this.simulate();
+		// Auch nach Respawn, Positionstausch oder Frames ohne Simulationsschritt prüfen.
+		this.update_layer_visibility();
 
 		for (let mesh of this.time_meshes) {
 			mesh.mesh.material.uniforms.time.value = this.clock.getElapsedTime() * mesh.speed;
