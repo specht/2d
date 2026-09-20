@@ -727,16 +727,53 @@ class Game {
             });
             let attacks = self.data.sprites[si].traits[trait].attacks;
             let sword = Array.isArray(attacks) ? attacks.find(a => a?.id === 'sword') : null;
-            if (sword) new CheckboxWidget({
-                container: div,
-                label: 'Swoosh beim Schwertkampf',
-                hint: 'Zeigt einen kurzen, gebogenen Schwung beim Angriff. Ohne Swoosh verursacht das Schwert denselben Schaden. Zusätzliche Zeichnungen brauchst du nicht.',
-                get: () => sword.visual?.kind !== 'none',
-                set: (enabled) => {
-                    let visual = sword.visual && typeof sword.visual === 'object' ? sword.visual : {};
-                    sword.visual = { ...visual, kind: enabled ? 'swoosh' : 'none' };
-                },
-            });
+            if (sword) {
+                new NumberWidget({
+                    container: div,
+                    label: 'Angriffsreichweite:',
+                    hint: 'Wie weit vor der Figur kann das Schwert treffen? Dieser Wert bestimmt den Trefferbereich, nicht die Länge des gezeichneten Swooshs.',
+                    min: 1, max: 500, step: 1, decimalPlaces: 0, suffix: 'px',
+                    get: () => Number.isFinite(sword.delivery?.range_px) ? sword.delivery.range_px : 40,
+                    set: (value) => {
+                        if (Number.isFinite(value) && value >= 1 && value <= 500)
+                            sword.delivery.range_px = value;
+                    },
+                });
+                new SelectWidget({
+                    container: div,
+                    label: 'Swoosh:',
+                    hint: 'Aus: kein eingeblendeter Schwung. Von unten nach oben oder von oben nach unten: so bewegt sich der Swoosh beim Hieb. Die Figur greift weiterhin in ihre Blickrichtung an; Schaden und Trefferbereich ändern sich nicht.',
+                    options: {
+                        none: 'aus',
+                        up: 'hoch',
+                        down: 'runter',
+                    },
+                    get: () => sword.visual?.kind === 'none' ? 'none' :
+                        (sword.visual?.sweep === 'down' ? 'down' : 'up'),
+                    set: (choice) => {
+                        if (!['none', 'up', 'down'].includes(choice)) return;
+                        let visual = sword.visual && typeof sword.visual === 'object' ? sword.visual : {};
+                        sword.visual = choice === 'none' ? { ...visual, kind: 'none' } :
+                            { ...visual, kind: 'swoosh', sweep: choice };
+                        // Hide the irrelevant length field when the effect is off.
+                        self.build_sprite_traits_menu();
+                    },
+                });
+                if (sword.visual?.kind !== 'none') new NumberWidget({
+                    container: div,
+                    label: 'Swoosh-Länge:',
+                    hint: 'Wie weit reicht nur der sichtbare Schwung? Die Angriffsreichweite oben bestimmt unabhängig davon, welche Gegner getroffen werden. Ohne eigenen Wert bleibt die bisherige Swoosh-Länge erhalten.',
+                    min: 8, max: 200, step: 1, decimalPlaces: 0, suffix: 'px',
+                    get: () => Number.isFinite(sword.visual?.reach_px) ? sword.visual.reach_px :
+                        Math.max(8, Math.min((Number.isFinite(sword.delivery?.range_px) ?
+                            sword.delivery.range_px : 40) * 0.72, 38)),
+                    set: (value) => {
+                        if (!Number.isFinite(value) || value < 8 || value > 200) return;
+                        let visual = sword.visual && typeof sword.visual === 'object' ? sword.visual : {};
+                        sword.visual = { ...visual, reach_px: value };
+                    },
+                });
+            }
         }
         if (trait === 'door') this.add_door_state_help(div, si);
         div.insertAfter(element);

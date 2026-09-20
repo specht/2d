@@ -38,8 +38,10 @@ function register_swing(combat) {
         if (!mesh) return;
         let vertices = mesh.geometry.attributes.position.array;
         let visual = instance.swoosh;
-        let radius = Math.max(8, Math.min(visual.range * 0.72, 38));
+        // An unset visual length keeps the original M1b appearance for old games.
+        let radius = visual.reach;
         let start_angle = -1.15 + progress * 1.85;
+        let vertical = visual.sweep === 'down' ? -1 : 1;
         const segments = 8;
         for (let i = 0; i <= segments; i++) {
             let u = i / segments;
@@ -49,7 +51,7 @@ function register_swing(combat) {
                 let r = radius - (side ? thickness : 0);
                 let n = (2 * i + side) * 3;
                 vertices[n] = visual.x + instance.direction * Math.cos(angle) * r;
-                vertices[n + 1] = visual.y + Math.sin(angle) * r;
+                vertices[n + 1] = visual.y + vertical * Math.sin(angle) * r;
                 vertices[n + 2] = 2;
             }
         }
@@ -78,9 +80,15 @@ function register_swing(combat) {
             depthWrite: false, side: THREE.DoubleSide,
         });
         instance.visual_mesh = new THREE.Mesh(geometry, material);
+        let options = instance.definition.visual ?? {};
+        // Clamp malformed hand-edited JSON instead of making invalid geometry.
+        let default_reach = Math.max(8, Math.min(range * 0.72, 38));
+        let reach = Number.isFinite(options.reach_px) ?
+            Math.max(8, Math.min(options.reach_px, 200)) : default_reach;
         instance.swoosh = {
             x: edge + instance.direction * Math.min(4, range * 0.1),
-            y, range,
+            y, reach,
+            sweep: options.sweep === 'down' ? 'down' : 'up',
         };
         game.scene.add(instance.visual_mesh);
         draw_swoosh(instance, 0);
