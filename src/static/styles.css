@@ -330,6 +330,55 @@ body {
     padding: 1px 4px 1px 8px;
 }
 
+/* Compact, aligned headings and expandable hints inside sprite traits. */
+.menu .trait-section-title {
+    margin: 9px 0 4px;
+    padding: 0 5px;
+    font-size: 1em;
+    line-height: 1.35;
+    font-weight: 600;
+    text-align: left;
+}
+
+.menu .trait-help {
+    margin: 7px 0 2px;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    font-size: 1em;
+    line-height: 1.4;
+}
+
+.menu .trait-help > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+    padding: 4px 5px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.menu .trait-help > summary::-webkit-details-marker {
+    display: none;
+}
+
+.menu .trait-help > summary::after {
+    content: '▸';
+    flex: none;
+    color: #aaa;
+}
+
+.menu .trait-help[open] > summary::after {
+    content: '▾';
+}
+
+.menu .trait-help > p {
+    margin: 5px 5px 3px;
+}
+
+.menu .trait-help > div {
+    padding: 0 5px;
+}
+
 .menu {
     /* width: 152px; */
     border: 1px solid rgba(255, 255, 255, 0.2);

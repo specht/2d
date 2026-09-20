@@ -721,7 +721,7 @@ class Game {
         }
         this.add_trait_help(div, 'Hinweise zum Nahkampfangriff',
             'Zum Ausprobieren brauchst du nur deine Figurenbilder. J: Nahkampfangriff der Spielfigur; Gegner greifen automatisch in Reichweite an. Berührungsschaden ist eine eigene Einstellung.');
-        const section = (label) => $('<h5>').text(label).appendTo(div);
+        const section = (label) => $('<h5>').addClass('trait-section-title').text(label).appendTo(div);
         section('So funktioniert der Angriff');
         new LineEditWidget({
             container: div, label: 'Name des Angriffs:',
@@ -802,14 +802,8 @@ class Game {
     // Long trait explanations share a compact, keyboard-accessible disclosure.
     // Detailed field-specific help stays in the existing ? dialogs.
     add_trait_help(div, label, explanation = null) {
-        let help = $('<details>').css({
-            'border-top': '1px solid rgba(255, 255, 255, 0.15)',
-            'margin-top': '7px',
-            'padding': '5px 0',
-            'line-height': '1.4',
-            'font-size': '0.9em',
-        }).appendTo(div);
-        $('<summary>').css('cursor', 'pointer').text(label).appendTo(help);
+        let help = $('<details>').addClass('trait-help').appendTo(div);
+        $('<summary>').text(label).appendTo(help);
         if (explanation) $('<p>').text(explanation).appendTo(help);
         return help;
     }
