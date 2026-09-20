@@ -587,10 +587,11 @@ class Game {
                 }
             }
         }
+        this.attack_sprite_picker?.refresh();
         this.hit_sprite_picker?.refresh();
     }
 
-    // Hit sprite references use the same array indices as placed level sprites.
+    // Combat effect sprites use the same array indices as placed level sprites.
     // Reordering/deleting an image must update both modern and legacy attacks.
     remap_hit_sprite_references(translation, deletedIndex = null) {
         for (const sprite of this.data.sprites) {
@@ -600,16 +601,20 @@ class Game {
                     attacks.push(...sprite.traits[role].attacks);
             for (const attack of attacks) {
                 const visual = attack?.visual;
-                if (!Number.isInteger(visual?.hit_sprite_index)) continue;
-                if (visual.hit_sprite_index === deletedIndex) {
-                    delete visual.hit_sprite_index;
-                    continue;
+                if (!visual || typeof visual !== 'object') continue;
+                for (const key of ['hit_sprite_index', 'attack_sprite_index']) {
+                    if (!Number.isInteger(visual[key])) continue;
+                    if (visual[key] === deletedIndex) {
+                        delete visual[key];
+                        continue;
+                    }
+                    const next = translation[visual[key]];
+                    if (Number.isInteger(next) && next >= 0) visual[key] = next;
+                    else delete visual[key];
                 }
-                const next = translation[visual.hit_sprite_index];
-                if (Number.isInteger(next) && next >= 0) visual.hit_sprite_index = next;
-                else delete visual.hit_sprite_index;
             }
         }
+        this.attack_sprite_picker?.refresh();
         this.hit_sprite_picker?.refresh();
     }
 
@@ -654,6 +659,7 @@ class Game {
         let self = this;
         let si = canvas.sprite_index;
         this.door_state_help = null;
+        this.attack_sprite_picker = null;
         this.hit_sprite_picker = null;
         $('#menu_sprite_properties').empty();
         $('#menu_sprite_properties_variable_part_following').nextAll().remove();
@@ -820,6 +826,23 @@ class Game {
             },
         });
         section('So sieht der Angriff aus');
+        this.attack_sprite_picker = new SpriteSelectWidget({
+            container: div, label: 'Angriffssprite:',
+            hint: 'Zeichne einen eigenen Sprite (auch mehrere Frames möglich) und wähle ihn hier aus. Das Bild erscheint, sobald der Angriff startet – auch wenn niemand getroffen wird. Es ändert weder Schaden noch Reichweite.',
+            sprites: () => this.data.sprites,
+            get: () => Number.isInteger(attack.visual?.attack_sprite_index) &&
+                this.data.sprites[attack.visual.attack_sprite_index] ?
+                String(attack.visual.attack_sprite_index) : 'none',
+            set: (choice) => {
+                const index = Number(choice);
+                if (choice !== 'none' && (!Number.isInteger(index) || index < 0 ||
+                    !this.data.sprites[index])) return;
+                const visual = attack.visual && typeof attack.visual === 'object' ? attack.visual : {};
+                if (choice === 'none') delete visual.attack_sprite_index;
+                else visual.attack_sprite_index = index;
+                attack.visual = visual;
+            },
+        });
         this.hit_sprite_picker = new SpriteSelectWidget({
             container: div, label: 'Treffereffekt:',
             hint: 'Zeichne einen eigenen Sprite (auch mehrere Frames möglich) und wähle ihn hier aus. Das Bild erscheint nur bei einem Treffer und ändert weder Schaden noch Reichweite.',

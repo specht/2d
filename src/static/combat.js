@@ -6,25 +6,38 @@ class CombatImpactEffects {
         this.active = [];
     }
 
-    spawn(instance, target, time) {
-        const si = instance.definition.visual?.hit_sprite_index;
+    spawn_sprite_index(si, x, y, time, options = {}) {
         if (!Number.isInteger(si) || si < 0 || this.active.length >= 64 ||
-            typeof THREE === 'undefined' || !THREE.Mesh || !this.game.scene) return;
+            typeof THREE === 'undefined' || !THREE.Mesh || !this.game.scene) return false;
         const sprite = this.game.data?.sprites?.[si];
         const state = sprite?.states?.[0];
         const frames = this.game.geometry_and_material_for_frame?.[si]?.[0];
         if (!state?.frames?.length || !frames?.length || frames.length !== state.frames.length ||
-            !frames.every(frame => frame?.geometry && frame?.material)) return;
+            !frames.every(frame => frame?.geometry && frame?.material)) return false;
         const fps = Number.isFinite(state.properties?.fps) && state.properties.fps > 0 ?
             state.properties.fps : 8;
         const mesh = new THREE.Mesh(frames[0].geometry, frames[0].material);
-        // Atlas planes are anchored at their bottom edge. Draw at native size,
-        // centred on the target and aligned to whole logical game pixels.
-        mesh.position.set(Math.round(target.mesh.position.x),
-            Math.round(target.mesh.position.y + target.sprite.height / 2 - sprite.height / 2), 3);
+        mesh.position.set(Math.round(x), Math.round(y), Number.isFinite(options.z) ? options.z : 3);
+        if (mesh.scale) {
+            mesh.scale.x = options.mirror_x ? -1 : 1;
+            mesh.scale.y = 1;
+            mesh.scale.z = 1;
+        }
         this.game.scene.add(mesh);
         this.active.push({ mesh, frames, fps, started_at: time,
             expires_at: time + Math.max(0.15, frames.length / fps), frame_index: 0 });
+        return true;
+    }
+
+    spawn(instance, target, time) {
+        const si = instance.definition.visual?.hit_sprite_index;
+        const sprite = this.game.data?.sprites?.[si];
+        // Atlas planes are anchored at their bottom edge. Draw at native size,
+        // centred on the target and aligned to whole logical game pixels.
+        this.spawn_sprite_index(si,
+            target.mesh.position.x,
+            target.mesh.position.y + target.sprite.height / 2 - (sprite?.height ?? 0) / 2,
+            time, { z: 3 });
     }
 
     step(time) {

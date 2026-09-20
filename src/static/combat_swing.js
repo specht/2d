@@ -94,6 +94,25 @@ function register_swing(combat) {
         draw_swoosh(instance, 0);
     }
 
+    // Optional attack-owned artwork. The player's Angriff state is independent.
+    // The slash plays even when no target is hit and never affects the hitbox.
+    function spawn_attack_sprite(instance, system) {
+        const si = instance.definition.visual?.attack_sprite_index;
+        if (!Number.isInteger(si) || si < 0) return;
+        const owner = instance.owner;
+        const sprite = system.game.data?.sprites?.[si];
+        if (!sprite || !system.impacts?.spawn_sprite_index) return;
+        const dir = instance.direction;
+        const reach = instance.definition.delivery.range_px;
+        const offset = Math.max(
+            Math.round(((owner.sprite.width ?? 0) + (sprite.width ?? 0)) / 4),
+            Math.round(Math.min(20, Math.max(8, reach * 0.35))));
+        system.impacts.spawn_sprite_index(si,
+            owner.mesh.position.x + dir * offset,
+            owner.mesh.position.y + owner.sprite.height / 2 - sprite.height / 2,
+            instance.started_at, { mirror_x: dir < 0, z: 2.5 });
+    }
+
     function clear_swoosh(instance, game) {
         let mesh = instance.visual_mesh;
         if (!mesh) return;
@@ -142,6 +161,7 @@ function register_swing(combat) {
                 system.apply_hit(instance, target, instance.started_at);
             }
             start_swoosh(instance, game, edge, y, range);
+            spawn_attack_sprite(instance, system);
         },
         step(instance, time, system) {
             if (time >= instance.expires_at) return false;
