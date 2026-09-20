@@ -181,3 +181,37 @@ test('non-shader materials retain original opacity when a fade is prepared', () 
     assert.ok(Math.abs(child.material.opacity - 0.3) < 1e-8);
     assert.equal(material.opacity, 0.6);
 });
+
+// Three.js clones textures when it clones ShaderMaterial uniforms. An atlas
+// copy is not the already uploaded texture; the facade would stay invisible
+// even when the fade opacity becomes positive.
+test('a fading sprite layer retains the uploaded texture instead of the cloned texture', () => {
+    const atlas = { isTexture: true, image: { uploaded: true } };
+    const source = {
+        isShaderMaterial: true, transparent: true,
+        uniforms: { texture1: { value: atlas } },
+        fragmentShader: 'uniform sampler2D texture1; void main() { gl_FragColor = texture2D(texture1, vec2(0.5)); }',
+        clone() {
+            return { ...this, uniforms: { texture1: { value: { isTexture: true, image: null } } } };
+        },
+    };
+    const facade = { visible: true, children: [{ material: source, visible: true }] };
+    const neighbor = { visible: true, children: [{ material: source, visible: true }] };
+    const layers = [{ type: 'sprites', id: 'facade' }, { type: 'sprites', id: 'neighbor' },
+        { ...region('facade', [rect(0, 0)]), fade_seconds: 1 }];
+    const rules = VisibilityRegions.resolve(layers);
+    const groups = [facade, neighbor, group()];
+    VisibilityRegions.prepare(rules, groups);
+    const fadingMaterial = facade.children[0].material;
+    assert.notStrictEqual(fadingMaterial, source);
+    assert.strictEqual(fadingMaterial.uniforms.texture1.value, atlas);
+    assert.strictEqual(neighbor.children[0].material, source);
+    VisibilityRegions.apply(rules, groups, player(5, 0), 0, true);
+    assert.equal(facade.visible, false);
+    VisibilityRegions.apply(rules, groups, player(-1, 0), 0.1);
+    VisibilityRegions.apply(rules, groups, player(-1, 0), 0.6);
+    assert.equal(facade.visible, true);
+    assert.ok(Math.abs(fadingMaterial.uniforms.visibilityRegionOpacity.value - 0.5) < 1e-8);
+    assert.strictEqual(fadingMaterial.uniforms.texture1.value, atlas);
+    assert.strictEqual(neighbor.children[0].material.uniforms.texture1.value, atlas);
+});

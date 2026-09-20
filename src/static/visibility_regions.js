@@ -65,6 +65,12 @@ const VisibilityRegions = (() => {
                         if (!copies.has(original)) {
                             const copy = original.clone();
                             if (copy.isShaderMaterial) {
+                                // ShaderMaterial.clone() clones THREE.Texture uniforms too.
+                                // That copy is not the uploaded atlas texture and may render
+                                // transparent/empty: share the ORIGINAL texture, just as the
+                                // character hit-flash materials do in app.js.
+                                if (original.uniforms?.texture1 && copy.uniforms?.texture1)
+                                    copy.uniforms.texture1.value = original.uniforms.texture1.value;
                                 // Keep the original shader (and its animation uniforms)
                                 // but multiply its final alpha by this layer's opacity.
                                 if (!/}\s*$/.test(copy.fragmentShader)) return original;

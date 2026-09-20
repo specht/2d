@@ -1589,3 +1589,28 @@ a, a:visited {
     outline: 2px solid #fff;
     outline-offset: 1px;
 }
+
+/* Schmale Layer-Eigenschaften: lange Ebenennamen dürfen die Leiste nicht seitlich verschieben. */
+#menu_layer_properties {
+    overflow-x: hidden;
+}
+#menu_layer_properties > .item {
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+#menu_layer_properties > .item > div:first-child {
+    flex-shrink: 0;
+    max-width: 100%;
+    white-space: normal !important;
+}
+#menu_layer_properties > .item > select,
+#menu_layer_properties > .item > input[type="text"] {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 8em;
+}
+#menu_layer_properties > .item > input[type="text"] {
+    width: 0;
+}
