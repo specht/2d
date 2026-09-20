@@ -48,6 +48,8 @@ class Character {
 		this.t0 = 0.0;
 		this.sti_for_state = {};
 		this.combat_visual = null;
+		this.hit_flash_until = 0;
+		this.hit_flash_materials = null;
 		this.pressed_keys = {};
 		this.intention = null;
 		this.invincible_until = 0;
@@ -186,6 +188,42 @@ class Character {
         const duration = Math.min(2, Math.max(0.15, state.frames.length / fps));
         this.combat_visual = { kind, until: now + duration };
         this.t0 = now;
+    }
+
+    // A confirmed, nonlethal combat hit briefly colours only this instance.
+    // The timer and materials are presentation only; no invincibility is added.
+    flash_on_hit() {
+        if (!this.active || (this.character_trait === 'actor' ? this.dead() : this.energy <= 0)) return;
+        this.hit_flash_until = this.game.clock.getElapsedTime() + 0.18;
+    }
+
+    // The atlas materials are shared by all placed copies of a sprite. Never
+    // recolour them: cache a red shader *per character* and restore the
+    // original material on the next normal frame when the flash has ended.
+    apply_hit_flash() {
+        if (!(this.game.clock.getElapsedTime() < this.hit_flash_until) || !this.active ||
+            (this.character_trait === 'actor' ? this.dead() : this.energy <= 0)) return;
+        const base = this.mesh.material;
+        if (!base?.uniforms?.texture1 || typeof base.clone !== 'function') return;
+        this.hit_flash_materials ??= new Map();
+        let red = this.hit_flash_materials.get(base);
+        if (!red) {
+            red = base.clone();
+            red.fragmentShader = `uniform sampler2D texture1;
+varying vec2 vuv;
+void main() {
+    vec4 pixel = texture2D(texture1, vuv);
+    gl_FragColor = vec4(mix(pixel.rgb, vec3(1.0, 0.08, 0.08), 0.75), pixel.a);
+}`;
+            red.needsUpdate = true;
+            this.hit_flash_materials.set(base, red);
+        }
+        this.mesh.material = red;
+    }
+
+    dispose_hit_flash() {
+        for (const material of this.hit_flash_materials?.values() ?? []) material.dispose();
+        this.hit_flash_materials = null;
     }
 
 	has_trait_at(trait_or_traits, dx0, dx1, dy0, dy1) {
@@ -428,6 +466,7 @@ class Character {
 			this.mesh.geometry = info.geometry;
 			this.mesh.material = info.material;
 		}
+        this.apply_hit_flash();
 		this.mesh.scale.x = flipped ? -1.0 : 1.0;
 	}
 
@@ -591,6 +630,7 @@ class Character {
 	die(sprite, trait) {
 		if ((!this.game.running) || this.dead() || this.game.reached_flag) return;
 		this.combat_visual = null;
+		this.hit_flash_until = 0;
 		this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
 		this.game.lives -= 1;
 		if (this.game.lives < 0) this.game.lives = 0;
@@ -637,6 +677,7 @@ class Character {
 				// remove baddie from game
 				this.active = false;
 				this.combat_visual = null;
+				this.hit_flash_until = 0;
 				this.update_state_and_direction('dead', 'front');
 				// this.mesh.visible = false;
 			}
@@ -1262,6 +1303,8 @@ class Game {
 
 	setup() {
 		this.combat.reset();
+        for (const character of [this.player_character, ...(this.baddies ?? [])])
+            character?.dispose_hit_flash?.();
 		this.running = false;
 		this.time_meshes = [];
 		this.clock = new VariableClock();
