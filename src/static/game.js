@@ -719,7 +719,8 @@ class Game {
         if (!sprite_traits.actor && !sprite_traits.baddie) {
             $('<p>').text('Füge auch die Eigenschaft „Spielfigur“ oder „Gegner“ hinzu.').appendTo(div);
         }
-        $('<p>').text('Zum Ausprobieren brauchst du nur deine Figurenbilder. J: Nahkampfangriff der Spielfigur; Gegner greifen automatisch in Reichweite an. Berührungsschaden ist eine eigene Einstellung.').appendTo(div);
+        this.add_trait_help(div, 'Hinweise zum Nahkampfangriff',
+            'Zum Ausprobieren brauchst du nur deine Figurenbilder. J: Nahkampfangriff der Spielfigur; Gegner greifen automatisch in Reichweite an. Berührungsschaden ist eine eigene Einstellung.');
         const section = (label) => $('<h5>').text(label).appendTo(div);
         section('So funktioniert der Angriff');
         new LineEditWidget({
@@ -769,9 +770,9 @@ class Game {
             container: div, label: 'Swoosh:',
             hint: 'Aus: kein eingeblendeter Schwung. Die Bewegung des Swooshs verändert weder Schaden noch Angriffsreichweite.',
             options: {
-                none: 'Aus',
-                up: 'Von unten nach oben',
-                down: 'Von oben nach unten',
+                none: 'aus',
+                up: 'hoch',
+                down: 'runter',
             },
             get: () => attack.visual?.kind === 'none' ? 'none' :
                 (attack.visual?.sweep === 'down' ? 'down' : 'up'),
@@ -798,14 +799,24 @@ class Game {
         });
     }
 
-    add_door_state_help(div, si) {
-        let help = $('<div>').css({
+    // Long trait explanations share a compact, keyboard-accessible disclosure.
+    // Detailed field-specific help stays in the existing ? dialogs.
+    add_trait_help(div, label, explanation = null) {
+        let help = $('<details>').css({
             'border-top': '1px solid rgba(255, 255, 255, 0.15)',
-            'margin-top': '8px',
-            'padding': '9px 5px 3px',
+            'margin-top': '7px',
+            'padding': '5px 0',
             'line-height': '1.4',
+            'font-size': '0.9em',
         }).appendTo(div);
-        $('<div>').css('font-weight', 'bold').text('Tür-Check').appendTo(help);
+        $('<summary>').css('cursor', 'pointer').text(label).appendTo(help);
+        if (explanation) $('<p>').text(explanation).appendTo(help);
+        return help;
+    }
+
+    add_door_state_help(div, si) {
+        let help = this.add_trait_help(div, 'Tür-Check');
+        let summary = help.children('summary');
         let status = $('<div>').appendTo(help);
         let advice = $('<div>').css({
             'margin-top': '6px',
@@ -816,10 +827,10 @@ class Game {
         this.door_state_help = () => {
             let states = this.data.sprites[si].states;
             status.empty();
-            let missing = false;
+            let present_count = 0;
             for (let [trait, label] of [['closed', 'geschlossen'], ['open', 'geöffnet']]) {
                 let present = states.some((state) => trait in (state.traits?.door ?? {}));
-                missing ||= !present;
+                if (present) present_count++;
                 let row = $('<div>').css({
                     'display': 'flex',
                     'align-items': 'center',
@@ -830,7 +841,9 @@ class Game {
                     .css('color', present ? '#6dcd8d' : '#ffcc66').appendTo(row);
                 $('<span>').text(present ? `„${label}“ vorhanden` : `„${label}“ fehlt`).appendTo(row);
             }
-            advice.text(missing ? 'Weise den fehlenden Zustand unter „Zustände“ zu.' : '');
+            summary.text(`Tür-Check: ${present_count}/2 Zustände`);
+            summary.css('color', present_count === 2 ? '#6dcd8d' : '#ffcc66');
+            advice.text(present_count < 2 ? 'Weise den fehlenden Zustand unter „Zustände“ zu.' : '');
         };
         this.door_state_help();
     }

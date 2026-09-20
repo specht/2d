@@ -338,6 +338,8 @@ test('Generic Nahkampfangriff editor displays and edits modern and legacy attack
     ];
     const editor = new Editor();
     editor.data = { sprites };
+    const help_calls = [];
+    editor.add_trait_help = (_div, label, explanation) => help_calls.push({ label, explanation });
     editor.build_sprite_traits_menu = () => { editor.rebuilds = (editor.rebuilds ?? 0) + 1; };
     const paint = (si) => {
         controls.length = 0;
@@ -358,6 +360,9 @@ test('Generic Nahkampfangriff editor displays and edits modern and legacy attack
     assert.equal(control('Angriffsreichweite:').get(), 40);
     assert.equal(control('Cooldown:').get(), 0.6);
     assert.equal(control('Swoosh:').get(), 'up');
+    assert.deepEqual(control('Swoosh:').options, { none: 'aus', up: 'hoch', down: 'runter' });
+    assert.equal(help_calls[0].label, 'Hinweise zum Nahkampfangriff');
+    assert.match(help_calls[0].explanation, /Berührungsschaden/);
     control('Schaden:').set(15);
     control('Cooldown:').set(2.3);
     control('Angriffsreichweite:').set(70);
@@ -391,4 +396,55 @@ test('Generic Nahkampfangriff editor displays and edits modern and legacy attack
     assert.equal(sprites[1].traits.baddie.attacks, undefined);
     assert.equal(enemyOld.effect.amount, 42);
     assert.equal(enemyOld.timing.cooldown_s, 0.3);
+});
+
+
+test('Door and melee share compact disclosure help, with live door-state status', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const source = fs.readFileSync(path.join(__dirname, '../src/static/game.js'), 'utf8');
+    const start = source.indexOf('    add_trait_help(div, label, explanation = null) {');
+    const end = source.indexOf('    add_state_trait(sprite_trait, trait) {', start);
+    assert.ok(start > 0 && end > start, 'Shared trait disclosure or door help missing');
+
+    const nodes = [];
+    function $ (markup) {
+        const node = {
+            tag: markup.slice(1, -1), nodes: [], value: '', styles: {},
+            appendTo(parent) { parent.nodes.push(this); return this; },
+            css(name, value) {
+                if (typeof name === 'string') this.styles[name] = value;
+                else Object.assign(this.styles, name);
+                return this;
+            },
+            text(value) { if (value === undefined) return this.value;
+                this.value = value; return this; },
+            children(tag) { return this.nodes.find(node => node.tag === tag); },
+            empty() { this.nodes = []; return this; },
+            addClass() { return this; },
+        };
+        nodes.push(node);
+        return node;
+    }
+    const Editor = new Function('$', `return class Editor { ${source.slice(start, end)} };`)($);
+    const editor = new Editor();
+    const root = $('root');
+    const melee = editor.add_trait_help(root, 'Hinweise zum Nahkampfangriff', 'Nur die Figurenbilder reichen.');
+    assert.equal(melee.tag, 'details');
+    assert.equal(melee.children('summary').text(), 'Hinweise zum Nahkampfangriff');
+    assert.ok(!('open' in melee), 'Help is initially collapsed');
+    assert.equal(melee.nodes.find(n => n.tag === 'p').text(), 'Nur die Figurenbilder reichen.');
+
+    editor.data = { sprites: [{ states: [{ traits: { door: { closed: {} } } }] }] };
+    editor.add_door_state_help(root, 0);
+    const door = root.nodes.find(node => node !== melee && node.tag === 'details');
+    assert.ok(door, 'Door checklist uses the same disclosure');
+    const summary = door.children('summary');
+    assert.equal(summary.text(), 'Tür-Check: 1/2 Zustände');
+    assert.equal(summary.styles.color, '#ffcc66');
+    editor.data.sprites[0].states.push({ traits: { door: { open: {} } } });
+    editor.door_state_help();
+    assert.equal(summary.text(), 'Tür-Check: 2/2 Zustände');
+    assert.equal(summary.styles.color, '#6dcd8d');
+    assert.equal(door.nodes.find(node => node.tag === 'div' && node.styles.color === '#ffcc66').text(), '');
 });
