@@ -14,11 +14,11 @@ Read `TODO.md` and inspect the current repository before proposing changes. This
 
 Read `2d-game-studio-next-steps.md` for the **current branch, verified implementation status, next patch and project-wide trait/legacy-JSON direction**. Read `2d-combat-design-and-recipes.md` for **combat-specific contracts, examples and recipes**. This file holds only standing working rules; do not copy the roadmap or the combat design into it. Reinspect the branch and source rather than trusting an older status note.
 
-## Gameplay direction (combat in progress; remaining concepts are proposals)
+## Gameplay direction (interiors next; remaining combat extensions are proposals)
 
-- **Combat:** Shared actor/baddie melee and its generic editor trait are implemented. Keep one attack/effect/cooldown pipeline for all future delivery shapes, including symmetric area attacks; optional animation, HUD feedback and collected-item costs must not redefine damage or timing. J triggers melee; F remains interaction. Source-specific status and staged designs belong in the combat document, not here.
+- **Combat:** Shared actor/baddie melee, ranged projectiles, optional projectile gravity and mouse aiming, delayed bombs, one-shot fuse/explosion artwork, optional shake and opt-in bomb self-damage are implemented. Keep one attack/effect/cooldown pipeline for further deliveries. Cooldown HUD and collectible ammunition are deferred. J triggers melee, K ranged, and mouse-aimed ranged attacks accept a left-click; F remains interaction. Detailed status belongs in the combat document.
 - **Gravity and camera:** Entering a region or activating a switch may change gravity; the camera can rotate so gravity appears to point down on screen. Keep world coordinates, camera orientation, and screen-relative input distinct. Existing games retain their normal downward gravity.
-- **Houses:** Prefer a cutaway interior at the *same world position*. On entry, hide or fade exterior artwork to reveal the inside; restore it on exit. Do not default to teleportation or level reload. Visibility and collision are separate concerns.
+- **Interiors (next focus):** Prefer a cutaway at the *same world position*, with a marked room region and separately marked facade/roof art. Entering reveals the existing interior; exiting restores its cover. Do not teleport, reload, hide unrelated houses, or implicitly remove wall/floor collision. Exact grouping, doorway and enter/exit rules must be designed before implementation; old games remain unchanged.
 
 ## Student-facing language and help
 
@@ -30,7 +30,7 @@ All student-facing labels, explanations, hints, tutorials, and warnings must be 
 - `src/static/game.js`: studio editor and data normalization (`fix_game_data`).
 - `src/static/level_editor.js`, `src/static/widgets.js`: placement controls and UI widgets.
 - `src/static/app.js`: gameplay runtime, door/key interactions, collisions, camera.
-- `src/static/combat.js`, `src/static/combat_swing.js`, `src/static/combat_melee_trait.js`: shared combat dispatch, current melee delivery and legacy/new trait adapter.
+- `src/static/combat.js`, `src/static/combat_swing.js`, `src/static/combat_projectile.js`, `src/static/combat_melee_trait.js`: shared attack, melee, projectile/bomb deliveries and legacy/new trait adapters.
 - `TODO.md`: historical ideas and bug reports, not an implementation contract; newer decisions in the two project documents supersede conflicting suggestions.
 
 Be clear whether an observation came from source review, an isolated check, or a real browser/gameplay test. Never claim existing games were tested unless they actually were.
