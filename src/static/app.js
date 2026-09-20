@@ -1693,7 +1693,8 @@ class Game {
 		}
 		// Sichtbarkeit beeinflusst nur Three.js-Gruppen, nicht die Kollisionsindizes.
 		this.visibility_rules = VisibilityRegions.resolve(level.layers);
-		this.update_layer_visibility();
+		VisibilityRegions.prepare(this.visibility_rules, this.layers);
+		this.update_layer_visibility(true);
 		// console.log(this.minx, this.maxx, this.miny, this.maxy);
 
 		for (let i = this.layers.length - 1; i >= 0; i--)
@@ -1805,8 +1806,9 @@ class Game {
 		}
 	}
 
-	update_layer_visibility() {
-		VisibilityRegions.apply(this.visibility_rules, this.layers, this.player_character);
+	update_layer_visibility(immediate = false) {
+		VisibilityRegions.apply(this.visibility_rules, this.layers, this.player_character,
+			this.clock.getElapsedTime(), immediate);
 	}
 
 	render() {
@@ -2013,6 +2015,7 @@ class Game {
 			this.player_character.mesh.position.x = this.player_character.initial_position[0];
 			this.player_character.mesh.position.y = this.player_character.initial_position[1];
 			this.player_character.invincible_until = this.clock.getElapsedTime() + this.data.properties.respawn_invincible;
+			this.update_layer_visibility(true);
 		}
 	}
 

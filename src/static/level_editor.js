@@ -756,6 +756,19 @@ class LevelEditor {
                     get: () => String(layer.inside_visible === true),
                     set: (value) => { layer.inside_visible = value === 'true'; },
                 });
+                new NumberWidget({
+                    container: $('#menu_layer_properties'),
+                    label: 'Überblendung',
+                    hint: 'Wie lange die Zielebene beim Betreten oder Verlassen ein- oder ausgeblendet wird. 0 Sekunden bedeutet: sofort.',
+                    min: 0,
+                    max: 2,
+                    step: 0.1,
+                    decimalPlaces: 1,
+                    width: '3em',
+                    suffix: 's',
+                    get: () => layer.fade_seconds ?? 0,
+                    set: (value) => { layer.fade_seconds = value; },
+                });
             } else {
             // -----------------------------------------------------------
             new SelectWidget({

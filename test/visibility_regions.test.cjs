@@ -90,3 +90,94 @@ test('restart/level changes rebuild rules and groups; legacy levels do nothing',
     VisibilityRegions.apply(VisibilityRegions.resolve([{ type: 'sprites' }]), newLevelGroups, player(5, 0));
     assert.equal(newLevelGroups[0].visible, true);
 });
+
+
+test('fade defaults to immediate; invalid durations cannot affect saved games', () => {
+    for (const fade_seconds of [undefined, -1, 2.1, NaN, '1']) {
+        const layers = [{ type: 'sprites', id: 'facade' },
+            { ...region('facade', [rect(0, 0)]), fade_seconds }];
+        const rules = VisibilityRegions.resolve(layers);
+        assert.equal(rules[0].fadeSeconds, 0);
+        const groups = layers.map(group);
+        VisibilityRegions.apply(rules, groups, player(-1, 0), 1, true);
+        VisibilityRegions.apply(rules, groups, player(5, 0), 1.01);
+        assert.equal(groups[0].visible, false);
+    }
+});
+
+test('fade reverses smoothly and is immediately correct on spawn and respawn', () => {
+    const layers = [{ type: 'sprites', id: 'facade' },
+        { ...region('facade', [rect(0, 0)]), fade_seconds: 1 }];
+    const rules = VisibilityRegions.resolve(layers);
+    const groups = layers.map(group);
+    const facade = groups[0];
+    // In the absence of a material, group visibility alone still follows the rule.
+    VisibilityRegions.prepare(rules, groups);
+    VisibilityRegions.apply(rules, groups, player(-1, 0), 0, true);
+    assert.equal(rules[0].alpha, 1);
+    VisibilityRegions.apply(rules, groups, player(5, 0), 0.1);
+    VisibilityRegions.apply(rules, groups, player(5, 0), 0.6);
+    assert.ok(Math.abs(rules[0].alpha - 0.5) < 1e-8);
+    assert.equal(facade.visible, true);
+    VisibilityRegions.apply(rules, groups, player(-1, 0), 0.6);
+    assert.ok(Math.abs(rules[0].alpha - 0.5) < 1e-8);
+    VisibilityRegions.apply(rules, groups, player(-1, 0), 0.85);
+    assert.ok(Math.abs(rules[0].alpha - 0.75) < 1e-8);
+    VisibilityRegions.apply(rules, groups, player(5, 0), 0.85, true); // respawn
+    assert.equal(rules[0].alpha, 0);
+    assert.equal(facade.visible, false);
+    VisibilityRegions.apply(rules, groups, player(-1, 0), 1.0, true); // restart
+    assert.equal(rules[0].alpha, 1);
+    assert.equal(facade.visible, true);
+});
+
+test('fade uses private material clones, preserving other houses, children and collisions', () => {
+    const shared = {
+        isShaderMaterial: true, transparent: true,
+        uniforms: { texture1: { value: 'shared image' } },
+        fragmentShader: 'void main() { gl_FragColor = vec4(1.0); }',
+        clone() { return { ...this, uniforms: { ...this.uniforms } }; },
+    };
+    const visibleChild = { material: shared, visible: true, children: [] };
+    const hiddenChild = { material: shared, visible: false, children: [] };
+    const houseA = { visible: true, children: [visibleChild, hiddenChild] };
+    const houseB = { visible: true, children: [{ material: shared, visible: true }] };
+    const layers = [
+        { type: 'sprites', id: 'a' }, { type: 'sprites', id: 'b' },
+        { ...region('a', [rect(0, 0)]), fade_seconds: 1 },
+    ];
+    const rules = VisibilityRegions.resolve(layers);
+    const groups = [houseA, houseB, group()];
+    const collisions = [1, 2, 3];
+    VisibilityRegions.prepare(rules, groups);
+    assert.notEqual(visibleChild.material, shared);
+    assert.equal(visibleChild.material.depthWrite, false);
+    assert.equal(visibleChild.material, hiddenChild.material); // one clone per source material and layer
+    assert.equal(houseB.children[0].material, shared);
+    assert.equal(visibleChild.material.uniforms.texture1.value, shared.uniforms.texture1.value);
+    assert.match(visibleChild.material.fragmentShader, /gl_FragColor\.a \*= visibilityRegionOpacity/);
+    VisibilityRegions.apply(rules, groups, player(-1, 0), 0, true);
+    VisibilityRegions.apply(rules, groups, player(5, 0), 0.1);
+    VisibilityRegions.apply(rules, groups, player(5, 0), 0.6);
+    assert.ok(Math.abs(visibleChild.material.uniforms.visibilityRegionOpacity.value - 0.5) < 1e-8);
+    assert.equal(shared.uniforms.visibilityRegionOpacity, undefined);
+    assert.equal(hiddenChild.visible, false);
+    assert.equal(houseB.visible, true);
+    assert.deepEqual(collisions, [1, 2, 3]);
+});
+
+test('non-shader materials retain original opacity when a fade is prepared', () => {
+    const material = { opacity: 0.6, clone() { return { ...this }; } };
+    const child = { material, children: [] };
+    const groups = [{ visible: true, children: [child] }, group()];
+    const rules = VisibilityRegions.resolve([
+        { type: 'backdrop', id: 'a' },
+        { ...region('a', [rect(0, 0)]), fade_seconds: 2 },
+    ]);
+    VisibilityRegions.prepare(rules, groups);
+    VisibilityRegions.apply(rules, groups, player(-1, 0), 0, true);
+    VisibilityRegions.apply(rules, groups, player(5, 0), 1);
+    VisibilityRegions.apply(rules, groups, player(5, 0), 2);
+    assert.ok(Math.abs(child.material.opacity - 0.3) < 1e-8);
+    assert.equal(material.opacity, 0.6);
+});
