@@ -108,6 +108,8 @@ class CombatSystem {
             this.cooldowns.set(owner, times);
         }
         times.set(attack_id, time);
+        // Presentation is a notification, never a prerequisite for activation.
+        owner.show_combat_visual?.('attack');
         return instance;
     }
 
@@ -136,6 +138,8 @@ class CombatSystem {
         }
         instance.hit_targets.add(target);
         instance.last_hit_at.set(target, time);
+        // Only the struck character decides how to react; death takes priority.
+        if (this.owner_is_alive(target)) target.show_combat_visual?.('hit');
         return true;
     }
 

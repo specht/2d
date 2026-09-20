@@ -47,6 +47,7 @@ class Character {
 		this.direction = 'front';
 		this.t0 = 0.0;
 		this.sti_for_state = {};
+		this.combat_visual = null;
 		this.pressed_keys = {};
 		this.intention = null;
 		this.invincible_until = 0;
@@ -131,6 +132,33 @@ class Character {
 				}
 			}
 		}
+        // These are optional render poses, not movement states or attack hitboxes.
+        // Missing poses never replace the normal movement art in an old game.
+        for (let kind of ['attack', 'hit']) {
+            let poses = {};
+            for (let sti = 0; sti < this.sprite.states.length; sti++) {
+                let tags = this.sprite.states[sti].traits?.[this.character_trait] ?? {};
+                if (kind in tags) {
+                    for (let d of ['front', 'back', 'left', 'right'])
+                        poses[d] = { sti, confidence: 1, flipped: d === 'left' };
+                }
+                for (let d of ['front', 'back', 'left', 'right']) {
+                    if (`${kind}_${d}` in tags)
+                        poses[d] = { sti, confidence: 100, flipped: false };
+                }
+            }
+            if (!Object.keys(poses).length) continue;
+            // A single right/left drawing can face the other way by flipping.
+            for (let [d, opposite] of [['left', 'right'], ['right', 'left']]) {
+                if ((!poses[d] || poses[d].confidence < 10) &&
+                    poses[opposite]?.confidence === 100)
+                    poses[d] = { ...poses[opposite], confidence: 10, flipped: true };
+            }
+            let fallback = poses.right ?? poses.left ?? poses.front ?? poses.back;
+            for (let d of ['front', 'back', 'left', 'right'])
+                poses[d] ??= { ...fallback };
+            this.sti_for_state[kind] = poses;
+        }
 		console.log(this.sti_for_state);
 
 
@@ -144,6 +172,26 @@ class Character {
 			this.sti_for_state[state][direction] = { sti: sti, confidence: confidence, flipped: flipped };
 		}
 	}
+
+    // Called only after an accepted combat activation / accepted nonlethal hit.
+    // Character art plays once at its own FPS, irrespective of attack cooldowns.
+    show_combat_visual(kind) {
+        const poses = this.sti_for_state[kind];
+        if (!poses || !this.active ||
+            (this.character_trait === 'actor' ? this.dead() : this.energy <= 0)) return;
+        const now = this.game.clock.getElapsedTime();
+        // A reaction belongs to the target and takes priority over its attack pose.
+        if (kind === 'attack' && this.combat_visual?.kind === 'hit' &&
+            now < this.combat_visual.until) return;
+        const direction = poses[this.direction] ? this.direction :
+            (this.last_horizontal_facing ?? 'right');
+        const state = this.sprite.states[poses[direction].sti];
+        const fps = Number.isFinite(state.properties?.fps) && state.properties.fps > 0 ?
+            state.properties.fps : 8;
+        const duration = Math.min(2, Math.max(0.15, state.frames.length / fps));
+        this.combat_visual = { kind, until: now + duration };
+        this.t0 = now;
+    }
 
 	has_trait_at(trait_or_traits, dx0, dx1, dy0, dy1) {
 		if (typeof (trait_or_traits) === 'string')
@@ -375,8 +423,8 @@ class Character {
 		// animate character if there's more than one frame
 		if (this.game.data.sprites[this.sprite_index].states[sti].frames.length > 0) {
 			let fi = Math.floor((this.game.clock.getElapsedTime() - this.t0) * this.sprite.states[sti].properties.fps) % this.sprite.states[sti].frames.length;
-            if (state === 'dead') {
-                // if it's the dead state, don't loop the animation
+            if (state === 'dead' || state === 'attack' || state === 'hit') {
+                // Death and optional combat poses play once; never loop.
                 fi = Math.floor((this.game.clock.getElapsedTime() - this.t0) * this.sprite.states[sti].properties.fps);
                 if (fi > this.sprite.states[sti].frames.length - 1)
                     fi = this.sprite.states[sti].frames.length - 1;
@@ -547,6 +595,7 @@ class Character {
 
 	die(sprite, trait) {
 		if ((!this.game.running) || this.dead() || this.game.reached_flag) return;
+		this.combat_visual = null;
 		this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
 		this.game.lives -= 1;
 		if (this.game.lives < 0) this.game.lives = 0;
@@ -592,6 +641,7 @@ class Character {
 			if (this.energy < 0.0001) {
 				// remove baddie from game
 				this.active = false;
+				this.combat_visual = null;
 				this.update_state_and_direction('dead', 'front');
 				// this.mesh.visible = false;
 			}
@@ -714,6 +764,13 @@ class Character {
 			if (this.dead())
 				state = 'dead';
 		}
+        // Optional art overlays movement for a short time; physics runs as usual.
+        if (state !== 'dead' && this.combat_visual) {
+            if (this.game.clock.getElapsedTime() < this.combat_visual.until)
+                state = this.combat_visual.kind;
+            else
+                this.combat_visual = null;
+        }
 		let direction = this.direction;
 		if (dx > 0) direction = 'right';
 		if (dx < 0) direction = 'left';

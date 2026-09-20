@@ -78,6 +78,8 @@ var STATE_TRAITS_ORDER = {
         ['Laufen', ['walk_front', 'walk_back', 'walk_left', 'walk_right']],
         ['Springen', ['jump_front', 'jump_back', 'jump_left', 'jump_right']],
         ['Fallen', ['fall_front', 'fall_back', 'fall_left', 'fall_right']],
+        ['Angriff (optional)', ['attack', 'attack_front', 'attack_back', 'attack_left', 'attack_right']],
+        ['Treffer (optional)', ['hit', 'hit_front', 'hit_back', 'hit_left', 'hit_right']],
         'dead',
     ],
     baddie: [
@@ -85,6 +87,8 @@ var STATE_TRAITS_ORDER = {
         ['Laufen', ['walk_front', 'walk_back', 'walk_left', 'walk_right']],
         ['Springen', ['jump_front', 'jump_back', 'jump_left', 'jump_right']],
         ['Fallen', ['fall_front', 'fall_back', 'fall_left', 'fall_right']],
+        ['Angriff (optional)', ['attack', 'attack_front', 'attack_back', 'attack_left', 'attack_right']],
+        ['Treffer (optional)', ['hit', 'hit_front', 'hit_back', 'hit_left', 'hit_right']],
         'dead',
     ],
     checkpoint: [
@@ -769,6 +773,16 @@ var STATE_TRAITS = {
         fall_back: { label: 'Spielfigur fällt nach hinten' },
         fall_left: { label: 'Spielfigur fällt nach links' },
         fall_right: { label: 'Spielfigur fällt nach rechts' },
+        attack: { label: 'Angriff: ein Bild für beide Richtungen' },
+        attack_front: { label: 'Spielfigur greift nach vorn an' },
+        attack_back: { label: 'Spielfigur greift nach hinten an' },
+        attack_left: { label: 'Spielfigur greift nach links an' },
+        attack_right: { label: 'Spielfigur greift nach rechts an' },
+        hit: { label: 'Treffer: ein Bild für beide Richtungen' },
+        hit_front: { label: 'Spielfigur wird von vorn gezeigt, wenn getroffen' },
+        hit_back: { label: 'Spielfigur wird von hinten gezeigt, wenn getroffen' },
+        hit_left: { label: 'Spielfigur wird nach links gezeigt, wenn getroffen' },
+        hit_right: { label: 'Spielfigur wird nach rechts gezeigt, wenn getroffen' },
         dead: { label: 'Spielfigur tot' }
     },
     baddie: {
@@ -788,6 +802,16 @@ var STATE_TRAITS = {
         fall_back: { label: 'Gegner fällt nach hinten' },
         fall_left: { label: 'Gegner fällt nach links' },
         fall_right: { label: 'Gegner fällt nach rechts' },
+        attack: { label: 'Angriff: ein Bild für beide Richtungen' },
+        attack_front: { label: 'Gegner greift nach vorn an' },
+        attack_back: { label: 'Gegner greift nach hinten an' },
+        attack_left: { label: 'Gegner greift nach links an' },
+        attack_right: { label: 'Gegner greift nach rechts an' },
+        hit: { label: 'Treffer: ein Bild für beide Richtungen' },
+        hit_front: { label: 'Gegner wird von vorn gezeigt, wenn getroffen' },
+        hit_back: { label: 'Gegner wird von hinten gezeigt, wenn getroffen' },
+        hit_left: { label: 'Gegner wird nach links gezeigt, wenn getroffen' },
+        hit_right: { label: 'Gegner wird nach rechts gezeigt, wenn getroffen' },
         dead: { label: 'Gegner tot' }
     },
     checkpoint: {
