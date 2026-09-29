@@ -582,6 +582,7 @@ class Game {
         div.append($(`<p>`).css('margin', '4px 6px').text("Wenn du dein Spiel teilen möchtest, verwende diesen Link:"));
         let game_link = $(`<a>`).attr('id', 'game_link').css('margin', '4px 6px').attr('target', '_blank').html(``);
         div.append(game_link);
+        this.arrange_settings_cards($('#game-settings-here'));
         if (typeof (this.data.parent) !== 'undefined') {
             $('#play_iframe').hide();
             if ($('#play_iframe')[0].contentWindow.game) {
@@ -590,6 +591,33 @@ class Game {
                 $('#play_iframe').focus();
             }
         }
+    }
+
+    // Einstellungen: every section (a separator and the fields after it) becomes a
+    // card; the cards fill the width in columns instead of one long narrow list.
+    arrange_settings_cards(container) {
+        const cards = [];
+        let card = null;
+        for (const child of container.children().toArray()) {
+            const el = $(child);
+            const separator = el.is('.item') ? el.children('.separator') : el.children('.item').first().children('.separator');
+            if (separator.length) {
+                card = $('<section>').addClass('settings-karte');
+                $('<h3>').text(separator.text()).appendTo(card);
+                cards.push(card);
+                // a section wrapped in its own element (Link zum Spiel): move its content
+                if (el.is('.item')) { el.remove(); continue; }
+                separator.closest('.item').remove();
+                card.attr('id', el.attr('id') ?? null);
+                el.removeAttr('id');
+                el.appendTo(card);
+                continue;
+            }
+            if (!card) { card = $('<section>').addClass('settings-karte'); cards.push(card); }
+            el.appendTo(card);
+        }
+        container.empty().addClass('settings-raster');
+        for (const c of cards) c.appendTo(container);
     }
 
     refresh_frames_on_screen() {
