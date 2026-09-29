@@ -133,7 +133,15 @@ async function catalogue_images(strip, fps) {
 // Markdown with two small extensions:
 //   ![Laufen](katalog:pip/laufen 10)   animation from the catalogue (fps optional)
 //   > **Tipp:** … / > **Achtung:** …    styled hint boxes
-async function render_body(md, id) {
+async function render_body(md, id, scenes = []) {
+    // ![Nyx8: Nacht](variante:2) – a still picture of the recording (0) or of a
+    // variant (1, 2 …), for recipes with `einzelbilder: true`
+    for (const [all, label, n] of [...md.matchAll(/!\[([^\]]*)\]\(variante:(\d+)\)/g)]) {
+        const b = scenes[Number(n)];
+        if (!b) throw new Error(`${id}: variante:${n} gibt es nicht (einzelbilder: true und genug varianten?)`);
+        md = md.replace(all, `<figure class="rezept-szene"><img src="/rezepte/${b.bild}?${b.version}" width="${b.breite}" height="${b.hoehe}" ` +
+            `loading="lazy" decoding="async" alt="${label}"><figcaption>${label}</figcaption></figure>`);
+    }
     const refs = [...md.matchAll(/!\[([^\]]*)\]\(katalog:([^\s)]+)(?:\s+(\d+))?\)/g)];
     for (const [all, label, strip, fps] of refs) {
         const c = await catalogue_images(strip, fps ? Number(fps) : undefined);
@@ -152,6 +160,19 @@ async function render_body(md, id) {
     html = html.replace(/<blockquote>\s*<p><strong>(Tipp|Achtung|Profi-Tipp):<\/strong>/g,
         (_, kind) => `<blockquote class="rezept-${kind === 'Achtung' ? 'achtung' : 'tipp'}"><p><strong>${kind}:</strong>`);
     return html;
+}
+
+// The still frame of a recording: `standbild: 2.5` picks the moment in seconds, else 60 %.
+function still_frame(frames, recipe) {
+    const steps = recipe.schritte ?? 1;
+    return frames[Math.max(0, Math.min(frames.length - 1, recipe.standbild !== undefined ?
+        Math.round(Number(recipe.standbild) * 60 / steps) : Math.floor(frames.length * 0.6)))];
+}
+
+async function write_still(rel, f) {
+    const version = write_output(rel, await sharp(f.data, { raw: { width: f.w, height: f.h, channels: 4 } })
+        .webp({ lossless: true, effort: 6 }).toBuffer());
+    return { bild: rel, version, breite: f.w, hoehe: f.h };
 }
 
 // raster: the recording and its variants side by side, `columns` per row, all
@@ -325,15 +346,18 @@ async function main() {
             // Unchanged since the last build (and not asked for by name): keep the recording.
             const media_ok = f => f && fs.existsSync(path.join(out_dir, f));
             if (!force && !check_only && !only.includes(r.id) && old?.quelle === quelle &&
-                media_ok(old.bild) && (!old.standbild || media_ok(old.standbild))) {
+                media_ok(old.bild) && (!old.standbild || media_ok(old.standbild)) &&
+                (!r.einzelbilder || (old.einzelbilder?.length && old.einzelbilder.every(b => media_ok(b.bild))))) {
                 written.add(old.bild);
                 if (old.standbild) written.add(old.standbild);
+                for (const b of old.einzelbilder ?? []) written.add(b.bild);
                 entries.push({
                     id: r.id, titel: r.titel, kategorie: r.kategorie, stufe: r.stufe ?? 1, kurz: r.kurz,
                     bild: old.bild, version: old.version, standbild: old.standbild, standbild_version: old.standbild_version,
                     breite: old.breite, hoehe: old.hoehe, himmel: old.himmel,
                     ...(r.schleife ? { schleife: true } : {}),
-                    html: await render_body(r.body, r.id), quelle,
+                    ...(r.einzelbilder ? { einzelbilder: old.einzelbilder } : {}),
+                    html: await render_body(r.body, r.id, old.einzelbilder), quelle,
                 });
                 console.log(`= ${r.id} (unverändert)`);
                 continue;
@@ -342,8 +366,10 @@ async function main() {
             const main_count = frames.length;   // beschriftung: each part gets its own labels
             const problems = [...errors.map(e => `JavaScript-Fehler: ${e}`), ...check(r.erwartet, state)];
             // varianten: the same scene again with other settings, played one after
-            // another – or, with `raster: <columns>`, side by side at the same time.
+            // another – or, with `raster: <columns>`, side by side at the same time –
+            // or, with `einzelbilder: true`, only as still pictures for the text.
             const parts = [];
+            const scenes = [null];   // 0: the recording's own still frame (below)
             for (const [vi, v] of (r.varianten ?? []).entries()) {
                 const vr = variant_recipes[vi];
                 const res = await record(browser, repo, variant_games[vi], vr);
@@ -351,7 +377,9 @@ async function main() {
                     ...check(v.erwartet, res.state).map(p => `Variante ${vi + 1}: ${p}`));
                 if (res.frames[0].w !== frames[0].w || res.frames[0].h !== frames[0].h)
                     throw new Error(`${r.id}: Varianten brauchen denselben Ausschnitt`);
-                parts.push(await label_frames(res.frames, vr));
+                const labelled = await label_frames(res.frames, vr);
+                if (r.einzelbilder) scenes.push(await write_still(`standbild/${r.id}-${vi + 1}.webp`, still_frame(labelled, vr)));
+                else parts.push(labelled);
             }
             if (r.raster) frames = grid_frames([await label_frames(frames, r), ...parts], r.raster, r.skala ?? 3);
             else frames = [...frames, ...parts.flat()];
@@ -381,14 +409,10 @@ async function main() {
             else await write_webp(frames, tmp, r.schritte ?? 1);
             const version = write_output(`${r.id}.${ext}`, fs.readFileSync(tmp));
             // Still frame for the gallery cards (the recording only plays while a card
-            // is on screen): `standbild: 2.5` picks the moment in seconds, else 60 %.
-            const steps = r.schritte ?? 1;
-            const still_index = Math.max(0, Math.min(frames.length - 1, r.standbild !== undefined ?
-                Math.round(Number(r.standbild) * 60 / steps) : Math.floor(frames.length * 0.6)));
-            const still = frames[still_index];
-            const standbild = `standbild/${r.id}.webp`;
-            const standbild_version = write_output(standbild, await sharp(still.data,
-                { raw: { width: still.w, height: still.h, channels: 4 } }).webp({ lossless: true, effort: 6 }).toBuffer());
+            // is on screen).
+            const main_still = await write_still(`standbild/${r.id}.webp`, still_frame(frames, r));
+            const standbild = main_still.bild, standbild_version = main_still.version;
+            scenes[0] = main_still;
             if (check_only && problems.length) fs.renameSync(tmp, path.join(here, `fehler-${r.id}.${ext}`));
             else fs.rmSync(tmp, { force: true });
             const ms = Date.now() - t0;
@@ -403,7 +427,8 @@ async function main() {
                 bild: `${r.id}.${ext}`, version, standbild, standbild_version,
                 breite: size.width, hoehe: size.height, himmel: top_colour,
                 ...(r.schleife ? { schleife: true } : {}),
-                html: await render_body(r.body, r.id), quelle,
+                ...(r.einzelbilder ? { einzelbilder: scenes } : {}),
+                html: await render_body(r.body, r.id, scenes), quelle,
             });
         }
     } finally {

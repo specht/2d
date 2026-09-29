@@ -1960,6 +1960,27 @@ a, a:visited {
     margin: 0;
 }
 
+/* a still picture of a scene in the recipe text (einzelbilder: one per palette …) */
+.rezept-szene {
+    margin: 0.6em 0 1.2em 0;
+}
+
+.rezept-szene img {
+    display: block;
+    width: 100%;
+    max-width: 640px;
+    height: auto;
+    image-rendering: pixelated;
+    border-radius: 8px;
+    box-shadow: 0 0 16px rgba(0, 0, 0, 0.45);
+}
+
+.rezept-szene figcaption {
+    margin-top: 0.35em;
+    font-size: 90%;
+    color: #94b0c2;
+}
+
 .rezept-katalog {
     display: inline-flex;
     flex-direction: column;
