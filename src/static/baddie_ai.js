@@ -206,12 +206,21 @@ function baddie_decide(b, mem, w) {
         const m = b.moves ?? {};
         // Leitern klettern: the player is on another floor – climb the ladder here,
         // or walk to one nearby (LADDER_REACH) that leads there.
+        // Once on the way, he climbs to the end of the ladder (as long as the player
+        // is still above or below) – stopping halfway would leave him stuck below the edge.
         let target = p.dx;
-        if (m.ladders && Math.abs(p.dy) > 20) {
-            const way = p.dy > 0 ? 'up' : 'down';
-            if (way === 'up' ? w.ladder_up : w.ladder_down) return climb(way, { alert, speed: b.chase, pose: 'hunt' });
-            const ladder = w.ladder_near?.(way, LADDER_REACH);
-            if (Number.isFinite(ladder)) target = ladder;
+        if (m.ladders) {
+            const way = mem.climbing ?? (Math.abs(p.dy) > 20 ? (p.dy > 0 ? 'up' : 'down') : null);
+            const wanted = way === 'up' ? p.dy > 0 : way === 'down' ? p.dy < 0 : false;
+            if (wanted && (way === 'up' ? w.ladder_up : w.ladder_down)) {
+                mem.climbing = way;
+                return climb(way, { alert, speed: b.chase, pose: 'hunt' });
+            }
+            mem.climbing = null;
+            if (wanted && Math.abs(p.dy) > 20) {
+                const ladder = w.ladder_near?.(way, LADDER_REACH);
+                if (Number.isFinite(ladder)) target = ladder;
+            }
         }
         if (Math.abs(target) < 4) return stand({ alert, speed: b.chase, pose: 'hunt' });
         const dir = toward(target);

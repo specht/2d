@@ -252,3 +252,16 @@ test('a fleeing Angsthase escapes up any ladder – never towards the player', (
     assert.equal(baddie_decide(b, {}, world({ player: { dx: 40, dy: 60 }, ladder_up: true })).keys.up ?? false, false, 'the player is up there');
     assert.equal(baddie_decide(b, {}, world({ player: { dx: 40, dy: 60 }, ladder_down: true })).keys.down, true, 'so down instead');
 });
+
+test('a climbing Jäger goes on to the end of the ladder', () => {
+    const b = baddie_behavior({ behavior: { type: 'hunter' } }, { climbs_ladders: true });
+    const mem = { mode: 'chase', last_seen: 0 };
+    // starts: the player is a floor higher
+    assert.equal(baddie_decide(b, mem, world({ player: { dx: -54, dy: 96 }, ladder_up: true })).keys.up, true);
+    // nearly up: only 20 px to go – he must not stop below the edge
+    assert.equal(baddie_decide(b, mem, world({ player: { dx: -54, dy: 20 }, ladder_up: true, wall: () => true })).keys.up, true);
+    // at the top the ladder ends: now he walks to the player
+    const top = baddie_decide(b, mem, world({ player: { dx: -54, dy: 0 }, ladder_up: false }));
+    assert.equal(top.keys.left, true);
+    assert.equal(mem.climbing, null);
+});
