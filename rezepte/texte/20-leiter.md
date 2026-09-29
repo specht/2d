@@ -3,8 +3,8 @@ titel: Leitern hochklettern
 kategorie: Welt bauen
 stufe: 1
 kurz: Pip klettert eine Leiter hoch und läuft oben weiter.
+schleife: true
 szene:
-  ausschnitt: [0, 1, 10, 4]
   karte: |
     ..........
     ....H###..
@@ -15,10 +15,11 @@ ablauf:
   - { t: 0.3, halten: rechts, dauer: 0.4 }
   - { t: 0.9, halten: hoch, dauer: 0.75 }
   - { t: 1.9, halten: rechts, dauer: 0.3 }
-dauer: 3.0
-erwartet:
-  figur_hoeher_als: 3
-  figur_rechts_von: 5
+  - { t: 2.6, halten: links, dauer: 0.3 }
+  - { t: 3.1, halten: runter, dauer: 0.75 }
+  - { t: 4.1, halten: links, dauer: 0.4 }
+  - { t: 4.7, halten: rechts, dauer: 0.016667 }
+dauer: 5.0
 ---
 ## Kurz gesagt
 

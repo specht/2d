@@ -3,9 +3,10 @@ titel: Level dekorieren
 kategorie: Level gestalten
 stufe: 2
 kurz: Moos, Ranken und Fackeln liegen als durchsichtige Sprites auf derselben Mauer.
-farben: 256            # many colours: avoid banding in the sky
+farben: 256
+schleife: true
 szene:
-  ebenen: &deko_nachher
+  ebenen:
     - name: Hintergrund
       kollision: false
       karte: |
@@ -29,7 +30,8 @@ szene:
         ..r.nt.xr...
         .vr..v..rv..
         ............
-vorher:
+# The same world without decoration: shown right of Pip, the decorated one left of him.
+ohne:
   szene:
     ebenen:
       - name: Hintergrund
@@ -48,8 +50,10 @@ vorher:
           .P..........
           ############
 ablauf:
-  - { t: 0.3, halten: rechts, dauer: 1.1 }
-dauer: 2.2
+  - { t: 0.3, halten: rechts, dauer: 1.15 }
+  - { t: 1.9, halten: links, dauer: 1.166667 }
+  - { t: 3.5, halten: rechts, dauer: 0.016667 }
+dauer: 3.9
 ---
 ## Kurz gesagt
 

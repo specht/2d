@@ -4,6 +4,7 @@ kategorie: Kampf
 stufe: 2
 kurz: Mit K fliegen Pfeile – Pip trifft den Glibber aus sicherer Entfernung.
 szene:
+  anpassen: { glibber: { baddie: { hit_pause: 0.5 } } }
   legende: { P: pip_bogen }
   karte: |
     ..........
@@ -38,7 +39,7 @@ erwartet:
 3. **Art: Projektil**, **Zielen: waagerecht**.
 4. Pip schießt mit **Schaden 15**, **Reichweite 220 px**, **Geschwindigkeit 260 px/s**, **Cooldown 0,6 s**.
 5. Bei **Projektilsprite** wählst du den Pfeil.
-6. Probier es mit **K** aus. Der Gegner (Energie 40) ist nach drei Treffern besiegt.
+6. Probier es mit **K** aus. Der Gegner (Energie 40) ist nach drei Treffern besiegt. Hier hat er **Pause nach Treffer 0,5 s** – nach jedem Pfeil bleibt er kurz stehen.
 
 ## Tipps
 

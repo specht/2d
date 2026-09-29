@@ -1366,8 +1366,9 @@ input.clr-color {
     width: 100%;
     margin-top: 60px;
     padding-bottom: 300px;
-    padding-left: max(20px, calc((100% - 800px) / 2));
-    padding-right: max(20px, calc((100% - 800px) / 2));
+    /* On 1920 px school screens the gallery gets four large columns. */
+    padding-left: max(24px, calc((100% - 1480px) / 2));
+    padding-right: max(24px, calc((100% - 1480px) / 2));
     font-size: 120%;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
@@ -1409,7 +1410,7 @@ input.clr-color {
 }
 
 .help-tiles-3 div {
-    width: calc(48% - 20px);
+    width: calc(33% - 20px);
     display: inline-block;
     margin-bottom: 10px;
     margin-right: 20px;
@@ -1666,8 +1667,8 @@ a, a:visited {
 
 .rezept-galerie {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
 }
 
 .rezept-karte {
@@ -1676,17 +1677,33 @@ a, a:visited {
     text-align: left;
     padding: 0;
     border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
-    background-color: rgba(0, 0, 0, 0.35);
+    background: rgba(0, 0, 0, 0.35);
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
-    transition: transform 0.15s ease, border-color 0.15s ease;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
+/* Hover/focus: lift the card and let it glow in the sky colour of the recordings.
+   (The global button:hover rule would otherwise turn it grey.) */
 .rezept-karte:hover, .rezept-karte:focus-visible {
-    transform: translateY(-3px);
-    border-color: #ffcd75;
+    transform: translateY(-4px);
+    background: linear-gradient(rgba(115, 239, 247, 0.08), rgba(0, 0, 0, 0.35) 60%);
+    border-color: rgba(115, 239, 247, 0.55);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), 0 0 22px rgba(65, 166, 246, 0.28);
     outline: none;
+}
+
+.rezept-karte:focus:not(:focus-visible) {
+    outline: none;
+}
+
+.rezept-karte:hover .rezept-bild img, .rezept-karte:focus-visible .rezept-bild img {
+    transform: scale(1.035);
+}
+
+.rezept-karte:hover .rezept-titel, .rezept-karte:focus-visible .rezept-titel {
+    color: #ffcd75;
 }
 
 .rezept-bild {
@@ -1705,6 +1722,7 @@ a, a:visited {
     object-fit: cover;
     object-position: center bottom;
     display: block;
+    transition: transform 0.25s ease;
 }
 
 .rezept-bild img.ganz {
@@ -1746,6 +1764,11 @@ a, a:visited {
     line-height: 1.35;
 }
 
+.rezept-seite {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
 .rezept-nav {
     margin: 12px 0;
 }
@@ -1773,7 +1796,7 @@ a, a:visited {
 }
 
 .rezept-hauptbild {
-    width: auto;
+    width: 100%;
     max-width: 100%;
     image-rendering: pixelated;
     border-radius: 10px;
@@ -1841,12 +1864,19 @@ a, a:visited {
     image-rendering: pixelated;
     /* the same sky as in the recordings, so transparent sprites look like in the game */
     background: linear-gradient(#73eff7, #f4f4f4);
-    border-radius: 6px;
+    /* square corners and a thin outline = the exact size of the sprite, so you can
+       see whether a drawing sits at the top (a plank) or at the bottom (grass) */
+    border-radius: 0;
+    outline: 1px dashed rgba(26, 28, 44, 0.55);
+    outline-offset: -1px;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
 .rezept-katalog img.bilder {
     height: 48px;
-    background-color: transparent;
+    background: transparent;
+    outline: none;
+    box-shadow: none;
 }
 
 .rezept-katalog figcaption {
@@ -1867,4 +1897,58 @@ a, a:visited {
 
 .rezepte-hinweis {
     color: #aaa;
+}
+
+/* ------------------------------------------------ Einstellungen: Steuerung */
+.controls-settings {
+    margin: 4px 6px 12px 6px;
+}
+
+.controls-hint {
+    color: #aaa;
+    margin: 0 0 8px 0;
+}
+
+.controls-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.controls-label {
+    flex: 1;
+}
+
+.controls-key {
+    min-width: 4.5em;
+    font: inherit;
+    color: #fff;
+    background: linear-gradient(#3a3f55, #2a2e40);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    padding: 0.15em 0.6em;
+    cursor: pointer;
+}
+
+.controls-key.empty {
+    color: #888;
+    border-style: dashed;
+}
+
+.controls-key.waiting {
+    border-color: #ffcd75;
+    color: #ffcd75;
+}
+
+.controls-warning {
+    font-size: 90%;
+    color: #ffcd75;
+    margin: 0 0 6px 0;
+}
+
+.controls-reset {
+    margin-top: 6px;
+    font: inherit;
 }

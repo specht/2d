@@ -2,6 +2,23 @@ var menus = {};
 var canvas = null;
 var game = null;
 var current_pane = 'sprites';
+const PANE_HASH = { sprites: 'sprites', level: 'level', settings: 'einstellungen', play: 'spielen', help: 'hilfe', playtesting: 'playtesting' };
+
+function parse_studio_hash() {
+    const [pane_hash, recipe] = decodeURIComponent(window.location.hash.replace(/^#/, '')).split('/');
+    const pane = Object.keys(PANE_HASH).find(key => PANE_HASH[key] === pane_hash) ?? 'sprites';
+    return pane === 'help' && recipe ? { pane, recipe } : { pane };
+}
+
+function studio_url(state) {
+    let hash = PANE_HASH[state.pane] ?? 'sprites';
+    if (state.pane === 'help' && state.recipe) hash += '/' + encodeURIComponent(state.recipe);
+    return window.location.pathname + window.location.search + '#' + hash;
+}
+
+function studio_history_push(state) {
+    history.pushState(state, '', studio_url(state));
+}
 var selected_palette_index = 9;
 var current_palette_rgb = [];
 var tool_menu_items = {};
@@ -445,8 +462,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     $('.main_div').hide();
     $('#main_div_sprites').show();
 
-    $('.main-nav-item').click(function (e) {
-        let key = $(e.target).attr('id').replace('mi_', '');
+    function show_pane(key) {
+        let changed = key !== current_pane;
         $('.main-nav-item').removeClass('active');
         $(`#mi_${key}`).addClass('active');
         $('.main_div').hide();
@@ -475,7 +492,35 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         if (current_pane === 'playtesting') {
             refresh_playtesting_code();
         }
+        return changed;
+    }
+
+    // Browser history: every pane (and every opened recipe in Hilfe) gets its own
+    // entry, so the back button stays inside the studio instead of leaving it.
+    $('.main-nav-item').click(function (e) {
+        let key = $(e.target).attr('id').replace('mi_', '');
+        if (show_pane(key)) studio_history_push({ pane: key });
     })
+    window.studio_show_pane = show_pane;
+    window.addEventListener('popstate', (e) => {
+        const state = e.state ?? parse_studio_hash();
+        if (state.pane && $(`#mi_${state.pane}`).length) show_pane(state.pane);
+        if (state.pane === 'help') window.recipe_gallery?.restore(state);
+    });
+    {
+        // Only Hilfe can be opened directly (e.g. a link to one recipe); the
+        // editing panes need a loaded game first.
+        let state = parse_studio_hash();
+        if (state.pane !== 'help') state = { pane: 'sprites' };
+        history.replaceState(state, '', studio_url(state));
+        if (state.pane === 'help') {
+            show_pane('help');
+            // The gallery may or may not have loaded its recipes yet: restore()
+            // handles both, the variable covers a gallery created later.
+            window.pending_recipe_state = state;
+            window.recipe_gallery?.restore(state);
+        }
+    }
 
     $('#bu_save_game').click(function (e) {
         game.save();

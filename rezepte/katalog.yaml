@@ -282,6 +282,52 @@ sprites:
   tannen: { label: Tannen, groesse: [192, 64], states: [{ strip: welt/tannen }] }
   vordergrund: { label: Vordergrund, groesse: [192, 32], states: [{ strip: welt/vordergrund }] }
 
+  # ------------------------------------------------ große Schrägen (48x24)
+  hang_flach:
+    label: Sanfter Hang
+    groesse: [48, 24]
+    traits: { slope: { direction: positive } }
+    states: [{ strip: welt/hang_flach }]
+  hang_flach_ab:
+    label: Sanfter Hang abwärts
+    groesse: [48, 24]
+    traits: { slope: { direction: negative } }
+    states: [{ strip: welt/hang_flach_ab }]
+
+  # ------------------------------------------- Haus: Fassade und Möbel
+  hausfront: { label: Hausfront, groesse: [192, 72], states: [{ strip: welt/hausfront }] }
+  tisch: { label: Tisch, states: [{ strip: welt/tisch }] }
+  eingang: { label: Offene Tür (nur Bild), states: [{ strip: welt/tuer_auf }] }
+  pflanze: { label: Pflanze, states: [{ strip: welt/pflanze }] }
+
+  # ------------------------------------- halbdurchsichtige Sprites
+  wasser: { label: Wasser, states: [{ strip: welt/wasser }] }
+  wasser_oben: { label: Wasseroberfläche, states: [{ strip: welt/wasser_oben }] }
+  lichtkegel: { label: Lichtkegel, groesse: [48, 72], states: [{ strip: welt/lichtkegel }] }
+  laterne: { label: Laterne, groesse: [48, 72], states: [{ strip: welt/laterne }] }
+  glas: { label: Glasscheibe, states: [{ strip: welt/glas }] }
+  mauer_fenster:
+    label: Mauer mit Fenster
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/mauer_fenster }]
+  sterne: { label: Sterne, states: [{ strip: welt/sterne }] }
+  geist:
+    label: Geist
+    traits:
+      baddie:
+        energy: 40
+        damage: 0
+        vrun: 0.5
+        affected_by_gravity: false
+        patrols: true
+        start_dir: left
+        wait_until_seen: false
+        ex_left: 0.6
+        ex_right: 0.6
+        ex_top: 0.8
+    states:
+      - { strip: welt/geist, fps: 6, traits: { baddie: [right, walk_right] } }
+
   # ------------------------------------------- Bilder für Angriffe
   pfeil:
     label: Pfeil
@@ -346,3 +392,17 @@ legende:
   'W': wald
   'Q': tannen
   'Z': vordergrund
+  '(': hang_flach
+  ')': hang_flach_ab
+  'X': hausfront
+  'd': tisch
+  'p': pflanze
+  '~': wasser
+  'S': wasser_oben
+  'Y': lichtkegel
+  'J': laterne
+  'O': glas
+  'E': mauer_fenster
+  '+': sterne
+  'G': geist
+  'e': eingang

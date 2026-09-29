@@ -7,6 +7,9 @@ let KEY_JUMP = 'jump';
 let KEY_ACTION = 'action';
 let KEY_MELEE = 'melee';
 let KEY_RANGED = 'ranged';
+// Control action (controls.js) → internal pressed_keys entry.
+const ACTION_KEYS = { left: KEY_LEFT, right: KEY_RIGHT, up: KEY_UP, down: KEY_DOWN,
+	jump: KEY_JUMP, action: KEY_ACTION, melee: KEY_MELEE, ranged: KEY_RANGED };
 window.yt_player = null;
 let OVERLAY_ICONS = {
 	f_key: [36, 36, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAf0lEQVRYw+2YQQqAIBQFv9GBWygE0SqCoM7nr9PUVtyEpJIwbye4GHjDAzWDc7uEMcZKxZyqR3ju5GcB6C197IyqVgW4vLdU1rhDidmWNen+OE9UhkNZHaEyHHrbpa9OURk7RGUAAQRQ6R3KvTtU1r5D8f9M/NYunVuE/6G2gR7lsx2d8NUeyQAAAABJRU5ErkJggg=="],
@@ -54,6 +57,7 @@ class Character {
 		this.pressed_keys = {};
 		this.intention = null;
 		this.invincible_until = 0;
+		this.paused_until = 0;
 		this.accelerated_until = 0;
 		this.speed_boost_vrun = 1.0;
 		this.speed_boost_vjump = 1.0;
@@ -496,7 +500,8 @@ void main() {
 	standing_on_ground() {
 		// we're adding a coyote time effect here:
 		// keep this true for an additional 30 ms or something like this
-		let value = (this.has_trait_at(['block_above', 'ladder', 'slope'], -0.5, 0.5, -0.5, -0.01) !== null);
+		let value = (this.has_trait_at(['ladder', 'slope'], -0.5, 0.5, -0.5, -0.01) !== null) ||
+			this.standing_on_block_top();
 		this.standing_on_ground_cache ??= {
 			v0: false,
 			v1: false,
@@ -514,6 +519,23 @@ void main() {
 		} else {
 			return true;
 		}
+	}
+
+	// A "von oben" block (or a closed door) only carries a figure whose feet are
+	// at its top surface. Before, feet anywhere inside counted as ground, so a
+	// figure jumping up through a one-way platform stopped and stood inside it.
+	// Now it keeps moving and lands on the top edge (try_move_y lifts it there).
+	standing_on_block_top() {
+		const x = this.mesh.position.x, y = this.mesh.position.y;
+		const ids_x = new Set(this.game.interval_tree_x.search([x - 0.5, x + 0.5]));
+		for (const i of this.game.interval_tree_y.search([y - 0.5, y - 0.01])) {
+			if (!ids_x.has(i)) continue;
+			const entry = this.game.active_level_sprites[i];
+			const sprite = this.game.data.sprites[entry.sprite_index];
+			const carries = 'block_above' in sprite.traits || ('door' in sprite.traits && entry.door_closed);
+			if (carries && y >= entry.mesh.position.y + sprite.height - 1.0) return true;
+		}
+		return false;
 	}
 
 	center_on_entry(entry) {
@@ -630,6 +652,10 @@ void main() {
 		}
 	}
 
+	hit_paused() {
+		return this.character_trait === 'baddie' && this.paused_until > this.game.clock.getElapsedTime();
+	}
+
 	invincible() {
 		return this.game.clock.getElapsedTime() < this.invincible_until;
 	}
@@ -696,6 +722,10 @@ void main() {
 		if (this.character_trait === 'baddie') {
 			this.energy -= damage;
 			if (this.energy < 0.0) this.energy = 0.0;
+			// Optional "Pause nach Treffer": absent or 0 keeps the old behaviour.
+			const pause = Number(this.traits.hit_pause) || 0;
+			if (pause > 0 && this.energy >= 0.0001)
+				this.paused_until = this.game.clock.getElapsedTime() + pause;
 			if (this.energy < 0.0001) {
 				// remove baddie from game
 				this.active = false;
@@ -728,7 +758,12 @@ void main() {
 		// move left / right
 
 		if (this.character_trait === 'baddie') {
-			this.simulate_movement();
+			if (this.hit_paused()) {
+				// Stunned after a hit: stand still (gravity still applies).
+				for (const k of Object.keys(this.pressed_keys)) this.pressed_keys[k] = false;
+			} else {
+				this.simulate_movement();
+			}
 		}
 
 		if (this.character_trait === 'actor') {
@@ -1179,6 +1214,7 @@ class Game {
 		this.future_event_list = new FutureEventList();
 		this.pointer_client = null;
 		this.pointer_world = { valid: false, x: 0, y: 0 };
+		this.key_actions = controls_key_map(null);
 		this.reset();
 		this.combat = new CombatSystem(this);
 		register_swing(this.combat);
@@ -1187,6 +1223,10 @@ class Game {
 			self.handle_resize();
 		});
 		window.addEventListener('keydown', (e) => {
+			// Custom keys such as Tab or Alt must not trigger browser actions while
+			// playing. The established default keys keep their old behaviour.
+			if (this.running && this.key_actions.has(e.code) && !DEFAULT_CONTROL_KEYS.has(e.code))
+				e.preventDefault();
 			this.handle_key_down(e.code)
 		});
 		window.addEventListener('keyup', (e) => {
@@ -1202,6 +1242,9 @@ class Game {
 		window.addEventListener('blur', () => {
 			this.pointer_world.valid = false;
 			this.pointer_client = null;
+			// Alt+Tab, the Windows key or a system dialog steal the key-up event:
+			// release every key so the figure does not keep running.
+			for (const k of Object.keys(this.pressed_keys ?? {})) this.pressed_keys[k] = false;
 		});
 
 		new TouchControl({
@@ -1374,6 +1417,7 @@ class Game {
 		this.maxx = 0;
 		this.maxy = 0;
 		this.pressed_keys = {};
+		this.key_actions = controls_key_map(this.data?.properties);
 		this.mouse_shot_pending = false;
 		this.mouse_shot_world = null;
 		this.simulated_to = 0;
@@ -2068,30 +2112,12 @@ class Game {
 			this.stop();
 			return;
 		}
-		if (key === 'ArrowLeft')
-			this.pressed_keys[KEY_LEFT] = true;
-		if (key === 'ArrowRight')
-			this.pressed_keys[KEY_RIGHT] = true;
-		if (key === 'ArrowUp')
-			this.pressed_keys[KEY_UP] = true;
-		if (key === 'ArrowDown')
-			this.pressed_keys[KEY_DOWN] = true;
-		if (key === 'KeyA')
-			this.pressed_keys[KEY_LEFT] = true;
-		if (key === 'KeyD')
-			this.pressed_keys[KEY_RIGHT] = true;
-		if (key === 'KeyW')
-			this.pressed_keys[KEY_UP] = true;
-		if (key === 'KeyS')
-			this.pressed_keys[KEY_DOWN] = true;
-		if (key === 'Space')
-			this.pressed_keys[KEY_JUMP] = true;
-		if (key === 'KeyF')
-			this.pressed_keys[KEY_ACTION] = true;
-		if (key === 'KeyJ' && this.player_character?.traits?.attacks?.length)
-			this.pressed_keys[KEY_MELEE] = true;
-		if (key === 'KeyK' && this.player_character?.traits?.attacks?.length)
-			this.pressed_keys[KEY_RANGED] = true;
+		// Keys come from the game's controls (defaults when not customised).
+		for (const action of this.key_actions.get(key) ?? []) {
+			if ((action === 'melee' || action === 'ranged') && !this.player_character?.traits?.attacks?.length)
+				continue;
+			this.pressed_keys[ACTION_KEYS[action]] = true;
+		}
 		if (this.development) {
 			if (key === 'Comma') {
 				this.clock.delta(-0.1);
@@ -2106,30 +2132,8 @@ class Game {
 	}
 
 	handle_key_up(key) {
-		if (key === 'KeyA')
-			this.pressed_keys[KEY_LEFT] = false;
-		if (key === 'KeyD')
-			this.pressed_keys[KEY_RIGHT] = false;
-		if (key === 'KeyW')
-			this.pressed_keys[KEY_UP] = false;
-		if (key === 'KeyS')
-			this.pressed_keys[KEY_DOWN] = false;
-		if (key === 'ArrowLeft')
-			this.pressed_keys[KEY_LEFT] = false;
-		if (key === 'ArrowRight')
-			this.pressed_keys[KEY_RIGHT] = false;
-		if (key === 'ArrowUp')
-			this.pressed_keys[KEY_UP] = false;
-		if (key === 'ArrowDown')
-			this.pressed_keys[KEY_DOWN] = false;
-		if (key === 'Space')
-			this.pressed_keys[KEY_JUMP] = false;
-		if (key === 'KeyF')
-			this.pressed_keys[KEY_ACTION] = false;
-		if (key === 'KeyJ')
-			this.pressed_keys[KEY_MELEE] = false;
-		if (key === 'KeyK')
-			this.pressed_keys[KEY_RANGED] = false;
+		for (const action of this.key_actions.get(key) ?? [])
+			this.pressed_keys[ACTION_KEYS[action]] = false;
 	}
 
     // The keyboard and enemy AI request the same registered delivery.
@@ -2147,7 +2151,7 @@ class Game {
         for (let baddie of this.baddies) {
             // No new work for existing games without explicitly enabled attacks.
             if (!Array.isArray(baddie.traits.attacks) || !baddie.traits.attacks.length ||
-                !baddie.simulate_this || !this.combat.owner_is_alive(baddie)) continue;
+                !baddie.simulate_this || !this.combat.owner_is_alive(baddie) || baddie.hit_paused()) continue;
             let attack = baddie.traits.attacks.find(a =>
                 a?.slot === 'nah' && a.delivery?.kind === 'swing');
             if (!attack || !this.combat.valid_definition(attack)) continue;
@@ -2191,7 +2195,7 @@ class Game {
             }
         }
         for (const baddie of this.baddies) {
-            if (!baddie.simulate_this || !this.combat.owner_is_alive(baddie)) continue;
+            if (!baddie.simulate_this || !this.combat.owner_is_alive(baddie) || baddie.hit_paused()) continue;
             const attack = baddie.traits.attacks?.find(a =>
                 a?.slot === 'fern' && a.delivery?.kind === 'projectile');
             if (!attack || !this.combat.valid_definition(attack)) continue;

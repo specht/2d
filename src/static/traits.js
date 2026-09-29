@@ -566,6 +566,17 @@ var SPRITE_TRAITS = {
                 min: 0.0,
                 max: 10.0,
             },
+            hit_pause: {
+                label: 'Pause nach Treffer',
+                hint: 'So viele Sekunden bleibt der Gegner stehen, nachdem ihn ein Angriff getroffen hat. Er läuft dann nicht und greift nicht an. 0 bedeutet: Er macht sofort weiter.',
+                type: 'float',
+                default: 0.0,
+                suffix: 's',
+                decimalPlaces: 1,
+                step: 0.1,
+                min: 0.0,
+                max: 10.0,
+            },
             // knockback: {
             //     label: 'Knockback',
             //     type: 'float',
