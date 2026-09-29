@@ -32,7 +32,8 @@ export function load_catalog(root) {
         const def = catalog.sprites[id];
         if (!def) throw new Error(`Katalog: unbekannter Sprite "${id}"`);
         if (stack.includes(id)) throw new Error(`Katalog: Zyklus bei ${[...stack, id].join(' → ')}`);
-        let sprite = { id, label: def.label ?? id, traits: clone(def.traits ?? {}), states: clone(def.states ?? []) };
+        let sprite = { id, label: def.label ?? id, traits: clone(def.traits ?? {}), states: clone(def.states ?? []),
+            ...(def.groesse ? { groesse: def.groesse } : {}) };
         if (def.extends) {
             const parent = resolve(def.extends, [...stack, id]);
             const states = clone(parent.states);
@@ -51,24 +52,27 @@ export function load_catalog(root) {
 }
 
 const strip_cache = new Map();
-export async function load_strip(root, name) {
-    if (strip_cache.has(name)) return strip_cache.get(name);
+// A strip is a row of frames of size fw×fh (24×24 unless the sprite says
+// otherwise with `groesse: [w, h]`).
+export async function load_strip(root, name, fw = TILE, fh = TILE) {
+    const key = `${name}@${fw}x${fh}`;
+    if (strip_cache.has(key)) return strip_cache.get(key);
     const file = path.join(root, 'sprites', `${name}.png`);
     if (!fs.existsSync(file)) throw new Error(`Bild fehlt: sprites/${name}.png`);
     const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-    if (info.height !== TILE || info.width % TILE !== 0)
-        throw new Error(`sprites/${name}.png: erwartet ${TILE} px hoch und ein Vielfaches von ${TILE} px breit (ist ${info.width}×${info.height})`);
+    if (info.height !== fh || info.width % fw !== 0)
+        throw new Error(`sprites/${name}.png: erwartet ${fh} px hoch und ein Vielfaches von ${fw} px breit (ist ${info.width}×${info.height})`);
     const frames = [];
-    for (let fi = 0; fi < info.width / TILE; fi++) {
-        const raw = Buffer.alloc(TILE * TILE * 4);
-        for (let y = 0; y < TILE; y++)
-            data.copy(raw, y * TILE * 4, (y * info.width + fi * TILE) * 4, (y * info.width + (fi + 1) * TILE) * 4);
-        const png = await sharp(raw, { raw: { width: TILE, height: TILE, channels: 4 } }).png().toBuffer();
+    for (let fi = 0; fi < info.width / fw; fi++) {
+        const raw = Buffer.alloc(fw * fh * 4);
+        for (let y = 0; y < fh; y++)
+            data.copy(raw, y * fw * 4, (y * info.width + fi * fw) * 4, (y * info.width + (fi + 1) * fw) * 4);
+        const png = await sharp(raw, { raw: { width: fw, height: fh, channels: 4 } }).png().toBuffer();
         // Same frame naming scheme as the server: sha1 in base 36, 7 characters.
         const tag = BigInt('0x' + crypto.createHash('sha1').update(png).digest('hex')).toString(36).slice(0, 7);
-        frames.push({ raw, png, tag });
+        frames.push({ raw, png, tag, w: fw, h: fh });
     }
-    strip_cache.set(name, frames);
+    strip_cache.set(key, frames);
     return frames;
 }
 
@@ -161,8 +165,9 @@ export async function build_game(catalog, recipe, repo) {
         const def = catalog.sprites[id];
         const traits = replace_sprite_refs(deep_merge(def.traits, scene.anpassen?.[id] ?? {}), index_of);
         const states = [];
+        const [sw, sh] = def.groesse ?? [TILE, TILE];
         for (const st of def.states) {
-            let frames = await load_strip(catalog.root, st.strip);
+            let frames = await load_strip(catalog.root, st.strip, sw, sh);
             if (st.frames) frames = st.frames.map(i => frames[i]);
             const state_traits = {};
             for (const [trait, names] of Object.entries(st.traits ?? {})) {
@@ -176,7 +181,7 @@ export async function build_game(catalog, recipe, repo) {
             });
             frames_by_key.push(frames);
         }
-        sprites.push({ width: TILE, height: TILE, traits, states });
+        sprites.push({ width: sw, height: sh, traits, states });
     }
 
     // Placements: characters go to the front layer, maps back-to-front.
@@ -186,7 +191,8 @@ export async function build_game(catalog, recipe, repo) {
         if (ch === '.' || ch === ' ') return;
         const entry = lookup(ch);
         const si = index_of(entry.sprite);
-        const placed = [si, c * TILE + TILE / 2, (rows - 1 - r) * TILE];
+        // Big sprites start at their map cell (left edge) and stand on its bottom.
+        const placed = [si, c * TILE + sprites[si].width / 2, (rows - 1 - r) * TILE];
         if (entry.platziert) placed.push(clone(entry.platziert));
         const traits = sprites[si].traits;
         if ('actor' in traits || 'baddie' in traits) figures.push(placed);
@@ -202,19 +208,45 @@ export async function build_game(catalog, recipe, repo) {
     // The engine centres the camera on the bounding box of everything placed
     // in collision layers (when that box fits on screen). Choose the screen
     // height so that the box fits and the recorded area is fully visible.
-    const all = [...figures, ...tile_layers.filter((_, i) => layer_defs[i].kollision !== false).flat()];
+    const parallax = i => scene.parallaxe_aus ? 0 : Number(layer_defs[i].parallaxe ?? 0);
+    // Layers with parallax never collide and do not count for the level bounds.
+    const all = [...figures, ...tile_layers.filter((_, i) => layer_defs[i].kollision !== false && !parallax(i)).flat()];
     const bx0 = Math.min(...all.map(p => p[1] - TILE / 2)), bx1 = Math.max(...all.map(p => p[1] + TILE / 2));
     const by0 = Math.min(...all.map(p => p[2])), by1 = Math.max(...all.map(p => p[2] + TILE));
     const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
     const half_h = Math.max(cy - view.y0, view.y1 - cy, (by1 - by0) / 2);
     const half_w = Math.max(cx - view.x0, view.x1 - cx, (bx1 - bx0) / 2);
     const need = 2 * Math.max(half_h, half_w * 9 / 16) + 2 * TILE;
-    const screen_pixel_height = Math.ceil(need / 9) * 9;
+    let screen_pixel_height = Math.ceil(need / 9) * 9;
+    // kamera: { bildhoehe } — a level wider than the screen: the camera follows
+    // the player and the whole screen is recorded.
+    const follow = scene.kamera?.bildhoehe;
+    let view_out = view;
+    if (follow) {
+        if (follow % 9) throw new Error(`${recipe.id}: kamera.bildhoehe muss durch 9 teilbar sein`);
+        screen_pixel_height = follow;
+        view_out = 'kamera';
+    }
+    // The engine shifts a layer by camera × parallax. Place those layers so that
+    // they look exactly like their map when the level starts.
+    const half_screen_w = screen_pixel_height * 16 / 9 / 2;
+    const actor = figures.find(p => 'actor' in sprites[p[0]].traits);
+    let cam_x = actor ? actor[1] : cx;
+    if (bx1 - bx0 > 2 * half_screen_w) cam_x = Math.min(Math.max(cam_x, bx0 + half_screen_w), bx1 - half_screen_w);
+    else cam_x = cx;
+    const cam_y = cy;   // levels here are never taller than the screen
+    tile_layers.forEach((placed, i) => {
+        const p = parallax(i);
+        if (!p) return;
+        for (const pl of placed) { pl[1] -= cam_x * p; pl[2] -= cam_y * p; }
+    });
 
     const sky = scene.himmel ?? ['#73eff7', '#f4f4f4'];
     const layer = (name, placed, def = {}) => ({
         type: 'sprites', ...(def.id ? { id: def.id } : {}),
-        properties: { name, collision_detection: def.kollision !== false }, sprites: placed,
+        properties: { name, collision_detection: def.kollision !== false,
+            ...(def.parallaxe && !scene.parallaxe_aus ? { parallax: Number(def.parallaxe) } : {}) },
+        sprites: placed,
     });
     // Sichtbarkeitsbereiche: rectangles in tiles [column, row from top, width, height].
     const regions = (scene.bereiche ?? []).map((b, i) => {
@@ -250,32 +282,36 @@ export async function build_game(catalog, recipe, repo) {
     data = fix_game_data(data, repo);
     const sheet = await build_spritesheet(frames_by_key, sprites);
     const tag = 'rz' + crypto.createHash('sha1').update(JSON.stringify(data)).digest('hex').slice(0, 5);
-    return { tag, data, sheet, view, screen_pixel_height, rows, cols };
+    return { tag, data, sheet, view: view_out, screen_pixel_height, rows, cols };
 }
 
 // Packs frames like the Ruby renderer: 1 px replicated border, then 4x.
+// Frames are laid out in rows (tallest first); with only 24x24 frames this is
+// the same grid the recorder has always used.
 async function build_spritesheet(frames_by_state, sprites) {
-    const cell = TILE + 2;
-    const per_row = Math.floor(SHEET_WIDTH / cell);
-    const count = frames_by_state.reduce((n, f) => n + f.length, 0);
-    const height = Math.ceil(count / per_row) * cell;
+    const items = [];
+    let state_i = 0;
+    for (let si = 0; si < sprites.length; si++)
+        for (let sti = 0; sti < sprites[si].states.length; sti++, state_i++)
+            frames_by_state[state_i].forEach((frame, fi) => items.push({ si, sti, fi, frame }));
+    const order = [...items].sort((a, b) => b.frame.h - a.frame.h);   // stable
+    let x = 0, y = 0, row_h = 0;
+    for (const it of order) {
+        const cw = it.frame.w + 2, ch = it.frame.h + 2;
+        if (x + cw > SHEET_WIDTH) { x = 0; y += row_h; row_h = 0; }
+        it.x = x; it.y = y;
+        x += cw; row_h = Math.max(row_h, ch);
+    }
+    const height = y + row_h;
     const sheet = Buffer.alloc(SHEET_WIDTH * height * 4);
-    const put = (x, y, src, sx, sy) => src.copy(sheet, (y * SHEET_WIDTH + x) * 4, (sy * TILE + sx) * 4, (sy * TILE + sx) * 4 + 4);
-    const tiles = [];
-    let k = 0, state_i = 0;
-    for (let si = 0; si < sprites.length; si++) {
-        tiles.push([]);
-        for (let sti = 0; sti < sprites[si].states.length; sti++, state_i++) {
-            tiles[si].push([]);
-            for (const frame of frames_by_state[state_i]) {
-                const x = (k % per_row) * cell, y = Math.floor(k / per_row) * cell;
-                for (let yy = -1; yy <= TILE; yy++) for (let xx = -1; xx <= TILE; xx++)
-                    put(x + 1 + xx, y + 1 + yy, frame.raw,
-                        Math.min(TILE - 1, Math.max(0, xx)), Math.min(TILE - 1, Math.max(0, yy)));
-                tiles[si][sti].push([0, (x + 1) * SHEET_FACTOR, (y + 1) * SHEET_FACTOR]);
-                k++;
-            }
+    const tiles = sprites.map(sp => sp.states.map(() => []));
+    for (const it of items) {
+        const { w, h, raw } = it.frame;
+        for (let yy = -1; yy <= h; yy++) for (let xx = -1; xx <= w; xx++) {
+            const sx = Math.min(w - 1, Math.max(0, xx)), sy = Math.min(h - 1, Math.max(0, yy));
+            raw.copy(sheet, ((it.y + 1 + yy) * SHEET_WIDTH + it.x + 1 + xx) * 4, (sy * w + sx) * 4, (sy * w + sx) * 4 + 4);
         }
+        tiles[it.si][it.sti][it.fi] = [0, (it.x + 1) * SHEET_FACTOR, (it.y + 1) * SHEET_FACTOR];
     }
     const png = await sharp(sheet, { raw: { width: SHEET_WIDTH, height, channels: 4 } })
         .resize(SHEET_WIDTH * SHEET_FACTOR, height * SHEET_FACTOR, { kernel: 'nearest' })

@@ -88,18 +88,25 @@ szene:
   #   - name: Fassade          #   layer name shown in the editor
   #     id: fassade            #   stable id, needed as target of a Sichtbarkeitsbereich
   #     kollision: false       #   "Kollisionen erkennen" off (decoration, facades, supports)
+  #     parallaxe: 0.5         #   layer Parallaxe (-1 … 1); placed so the layer looks like
+  #                            #   its map when the level starts
   #     karte: |
   #       …
   # bereiche:                  # Sichtbarkeitsbereiche (visibility_region layers)
   #   - { ziel: fassade, rechtecke: [[4, 2, 6, 3]], im_bereich: versteckt, ueberblendung: 0.4 }
   #                            # rectangles in tiles: column, row from top, width, height
   # eigenschaften: { show_energy: true }   # game properties (Einstellungen)
+  # kamera: { bildhoehe: 144 } # level wider than the screen: the camera follows the
+  #                            # player and the whole screen is recorded (height in
+  #                            # game pixels, divisible by 9)
 ablauf:                        # input script, times in seconds
   - { t: 0.3, halten: rechts, dauer: 0.4 }
   - { t: 0.9, halten: hoch, dauer: 0.75 }
   - { t: 1.3, drücken: springen }      # a short tap (0.1 s)
 dauer: 3.0                     # length of the GIF
 # farben: 256                  # optional GIF palette size (default 128); more for colourful scenes
+# skala: 2                     # optional screen pixels per game pixel (default 3)
+# bildrate: 15                 # optional GIF frame rate (default 30); lower = smaller file
 erwartet:                      # outcome checks
   figur_hoeher_als: 3          # player y ≥ 3 tiles
   figur_rechts_von: 5          # player x > 5 tiles
@@ -108,6 +115,7 @@ erwartet:                      # outcome checks
 # vorher:                      # optional before/after: another scene, recorded with the same
 #   szene: { ebenen: [ … ] }   # input and played first. Both halves get a "Vorher"/"Nachher"
 #                              # label and must have the same size.
+#   parallaxe_aus: true        # …or: the same scene with every Parallaxe set to 0
 ---
 ## Kurz gesagt
 …
@@ -159,6 +167,13 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `ranke`, `riss`, `fackel` (3), `burgfenster`, `grasbuesche`, `innenwand`,
   `bild`, `lampe`, `fassade`, `fassade_fenster`, and the supports `pfosten`,
   `pfeiler`, `kette`.
+
+Big sprites set `groesse: [w, h]` in `katalog.yaml`; their strips use frames
+of that size. The parallax backgrounds (`berge_fern`, `berge`, `wald`,
+`tannen`, `vordergrund` 192 px wide, `wolke` 64×24) tile horizontally and are
+shaded with ordered 4×4 Bayer dithering. A big sprite placed in a map starts
+at its cell and stands on the cell's bottom edge. The sky is never a sprite
+but the level's colour backdrop (`himmel`).
 
 `katalog.yaml` turns strips into game sprites: a list of states with `strip`,
 optional `frames: [i, …]`, `fps` and the engine's **state traits** (the keys of

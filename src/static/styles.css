@@ -1837,8 +1837,10 @@ a, a:visited {
 }
 
 .rezept-katalog img.pixel {
+    max-width: 100%;
     image-rendering: pixelated;
-    background-color: rgba(255, 255, 255, 0.07);
+    /* the same sky as in the recordings, so transparent sprites look like in the game */
+    background: linear-gradient(#73eff7, #f4f4f4);
     border-radius: 6px;
 }
 
