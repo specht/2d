@@ -863,7 +863,7 @@ class Game {
         for (let key in info.properties ?? {}) {
             let property = info.properties[key];
             // Some settings only matter for some behaviours (e.g. patrolling).
-            if (typeof property.visible === 'function' && !property.visible(self.data.sprites[si].traits[trait])) continue;
+            if (typeof property.visible === 'function' && !property.visible(self.data.sprites[si].traits[trait], self.data.sprites[si].traits)) continue;
             let container = div;
             if (property.advanced) {
                 if (!advanced) {
@@ -994,6 +994,15 @@ class Game {
             });
             const chosen = this.data.sprites[baddie().drop?.sprite_index];
             if (!chosen) return;
+            new CheckboxWidget({
+                container: box, label: 'gibt die Beute ab, wenn man ihn berührt',
+                hint: 'Man muss den Gegner nicht besiegen: Wer ihn einholt und berührt, bekommt die Beute. Gut für einen Dieb, der wegläuft.',
+                get: () => baddie().drop?.on_touch === true,
+                set: (value) => {
+                    if (value) baddie().drop.on_touch = true;
+                    else delete baddie().drop.on_touch;
+                },
+            });
             if ('key' in chosen.traits) {
                 new NumberWidget({
                     container: box, label: 'Schlüssel-Code',

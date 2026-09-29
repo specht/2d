@@ -104,11 +104,11 @@ erwartet:
 ## Die Mischmodi
 
 - **Normal:** Die Farbe deckt so viel ab, wie sie undurchsichtig ist.
-- **Leuchten:** Die Farben werden **zusammengezählt**. Es wird nur heller, nie dunkler – wie echtes Licht. Gut für Lampen, Feuer, Funken und Glühwürmchen.
-- **Aufhellen:** Wie Leuchten, aber sanfter: Weiß bleibt Weiß, nichts wird grell. Gut für Geister, Nebel und Spiegelungen.
-- **Abdunkeln:** Die Farben werden **malgenommen**. Es wird nur dunkler, nie heller. Gut für Schatten, getöntes Glas und farbige Scheiben. Weiß ändert gar nichts, Schwarz macht alles schwarz.
+- **Leuchten:** Die Farben werden **addiert**. Es wird nur heller, nie dunkler – wie echtes Licht.
+- **Aufhellen:** Wie Leuchten, aber sanfter: Nichts wird grell.
+- **Abdunkeln:** Die Farben werden **multipliziert**. Es wird nur dunkler, nie heller.
 
-Den Mischmodus gibt es beim **Sprite** und bei der **Ebene**. Stellst du ihn bei einer Ebene ein, gilt er für alle Sprites darin – auch für Hintergrund-Ebenen mit Effekten.
+Was dabei genau passiert, zeigt das Rezept *Mischmodi verstehen*. Den Mischmodus gibt es beim **Sprite** und bei der **Ebene**. Stellst du ihn bei einer Ebene ein, gilt er für alle Sprites darin – auch für Hintergrund-Ebenen mit Effekten.
 
 ## Tipps
 
@@ -122,7 +122,7 @@ Den Mischmodus gibt es beim **Sprite** und bei der **Ebene**. Stellst du ihn bei
 ## Wenn's nicht klappt
 
 - **Man sieht einen Kasten um den Lichtkegel:** Die Pixel um den Kegel sind nicht ganz durchsichtig. Radier sie weg.
-- **Das Licht ist viel zu grell:** Mit **Leuchten** zählt jede Farbe voll mit. Nimm eine durchsichtigere Stufe aus der untersten Reihe.
+- **Das Licht ist viel zu grell:** Mit **Leuchten** wird jede Farbe voll addiert. Nimm eine durchsichtigere Stufe aus der untersten Reihe.
 - **Die Figur wird im Wasser nicht blau:** Die Wasser-Ebene liegt in der Layer-Liste unter der Figur. Schieb sie nach oben.
 - **Das Wasser sieht grau aus:** Hinter dem Wasser ist nur der Himmel. Setz in eine hintere Ebene Erde, dann sieht es wie ein Becken aus.
 - **Der Geist ist vor der Mauer:** Seine Ebene liegt in der Layer-Liste über der Mauer. Schieb sie unter die Mauer, aber über das Zimmer.

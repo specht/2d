@@ -88,11 +88,11 @@ erwartet:
 ## Die Mischmodi
 
 - **Normal:** Die Farbe deckt so viel ab, wie sie undurchsichtig ist.
-- **Leuchten:** Farben werden zusammengezählt. Gut für Licht, Feuer, Funken, Glühwürmchen, Zaubersprüche.
+- **Leuchten:** Die Farben werden **addiert**. Gut für Licht, Feuer, Funken, Glühwürmchen, Zaubersprüche.
 - **Aufhellen:** Wie Leuchten, aber sanfter – nichts wird grell. Gut für Geister, Nebel und Spiegelungen.
-- **Abdunkeln:** Farben werden malgenommen. Gut für Schatten, getöntes Glas und farbige Scheiben.
+- **Abdunkeln:** Die Farben werden **multipliziert**. Gut für Schatten, getöntes Glas und farbige Scheiben.
 
-Beim **Sprite** gilt der Mischmodus überall, wo der Sprite liegt. Bei der **Ebene** gilt er für alle Sprites darin – so kannst du denselben Sprite einmal normal und einmal leuchtend benutzen.
+Wie das genau funktioniert, zeigt das Rezept *Mischmodi verstehen*. Beim **Sprite** gilt der Mischmodus überall, wo der Sprite liegt. Bei der **Ebene** gilt er für alle Sprites darin – so kannst du denselben Sprite einmal normal und einmal leuchtend benutzen.
 
 ## Tipps
 

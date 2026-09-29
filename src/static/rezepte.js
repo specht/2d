@@ -6,7 +6,7 @@
 // closes the popup – and the gallery is still exactly where it was.
 //
 // Cards show a still frame and play their recording only while they are on
-// screen: 36 animations at once would keep the browser busy for nothing.
+// screen: forty animations at once would keep the browser busy for nothing.
 class RecipeGallery {
     constructor(container) {
         this.container = $(container);

@@ -6,6 +6,12 @@
 //   node build.mjs            build everything
 //   node build.mjs leiter     build only the named recipe(s)
 //   node build.mjs --check    record and check, but write nothing
+//   node build.mjs --force    record everything again, even unchanged recipes
+//
+// Like make: a recipe is only recorded again when something it depends on has
+// changed – its scene and settings, the sprites it uses, or the engine files
+// the player loads. The fingerprint (`quelle` in rezepte.json) is made from
+// the contents, not the timestamps, so a git checkout does not rebuild it all.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +31,39 @@ const out_dir = path.join(repo, 'src/static/rezepte');
 const args = process.argv.slice(2);
 const check_only = args.includes('--check');
 const only = args.filter(a => !a.startsWith('--'));
+const force = args.includes('--force');
+
+// Everything of the engine that can change a recording: the scripts
+// standalone.html loads, the shaders, the files game.mjs runs, and the tools.
+let engine_hash_cache = null;
+function engine_hash() {
+    if (engine_hash_cache) return engine_hash_cache;
+    const static_dir = path.join(repo, 'src/static');
+    const html = fs.readFileSync(path.join(static_dir, 'standalone.html'), 'utf8');
+    const scripts = [...html.matchAll(/<script src="([^"?]+)/g)].map(m => m[1]).filter(f => !/^https?:/.test(f));
+    const files = [...new Set([
+        'standalone.html', ...scripts, 'traits.js', 'baddie_ai.js', 'game.js',
+        ...fs.readdirSync(path.join(static_dir, 'shaders')).map(f => `shaders/${f}`),
+    ])].map(f => path.join(static_dir, f));
+    files.push(...['build.mjs', 'record.mjs', 'game.mjs'].map(f => path.join(here, f)));
+    const h = crypto.createHash('sha1');
+    for (const f of files.sort()) h.update(f).update(fs.existsSync(f) ? fs.readFileSync(f) : '');
+    h.update(process.env.REZEPT_FORMAT ?? '');
+    engine_hash_cache = h.digest('hex');
+    return engine_hash_cache;
+}
+
+// Fingerprint of one recording: the recipe settings (not its text), the built
+// games (scene, sprites and sprite sheets) and the engine.
+function fingerprint(recipe, games) {
+    const { body, ...meta } = recipe;
+    const h = crypto.createHash('sha1').update(engine_hash()).update(JSON.stringify(meta));
+    for (const g of games) {
+        h.update(JSON.stringify(g.data)).update(JSON.stringify(g.sheet.info)).update(g.sheet.png)
+            .update(JSON.stringify(g.view)).update(String(g.screen_pixel_height));
+    }
+    return h.digest('hex').slice(0, 16);
+}
 
 const KATEGORIEN = ['Loslegen', 'Figuren animieren', 'Welt bauen', 'Level gestalten', 'Türen & Schlüssel', 'Kampf', 'Gegner'];
 
@@ -115,6 +154,28 @@ async function render_body(md, id) {
     return html;
 }
 
+// raster: the recording and its variants side by side, `columns` per row, all
+// playing at once (so the moods can be compared), with a thin dark gap.
+function grid_frames(parts, columns, scale) {
+    const { w, h } = parts[0][0];
+    const cols = Math.max(1, Math.min(parts.length, Math.round(columns)));
+    const rows = Math.ceil(parts.length / cols);
+    const gap = 2 * scale;
+    const W = cols * w + (cols - 1) * gap, H = rows * h + (rows - 1) * gap;
+    const n = Math.min(...parts.map(p => p.length));
+    const out = [];
+    for (let i = 0; i < n; i++) {
+        const data = Buffer.alloc(W * H * 4);
+        for (let p = 0; p < data.length; p += 4) { data[p] = 0x1a; data[p + 1] = 0x1c; data[p + 2] = 0x2c; data[p + 3] = 255; }
+        parts.forEach((part, k) => {
+            const f = part[i], x0 = (k % cols) * (w + gap), y0 = Math.floor(k / cols) * (h + gap);
+            for (let y = 0; y < h; y++) f.data.copy(data, ((y0 + y) * W + x0) * 4, y * w * 4, (y + 1) * w * 4);
+        });
+        out.push({ ...parts[0][i], w: W, h: H, data });
+    }
+    return out;
+}
+
 // "ohne": the same scene without decoration/supports, recorded with the same
 // input. Left of Pip the finished world is shown, right of him the bare one, so
 // the world changes where he walks. A narrow dithered seam hides the edge.
@@ -179,6 +240,39 @@ async function keycap_frames(frames, recipe) {
     return out;
 }
 
+// beschriftung: [{ text, spalte, zeile }] – fixed labels over the scene, centred
+// on that tile (columns and rows as in the map; halves allowed). Only for scenes
+// that do not scroll. A variant (varianten) may bring its own.
+async function label_frames(frames, recipe) {
+    const labels = recipe.beschriftung ?? [];
+    if (!labels.length) return frames;
+    const scene = recipe.szene ?? {};
+    const first = (scene.ebenen?.[0]?.karte ?? scene.ebenen?.[0] ?? scene.karte ?? '');
+    const map_rows = String(first).split('\n').filter(l => l.trim()).length;
+    const [ax, ay, , ah] = scene.ausschnitt ?? [0, 0, 0, map_rows];
+    const f = frames[0];
+    const tile = f.h / ah;
+    const size = Math.round(f.h / 18);
+    const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    let parts = '';
+    for (const l of labels) {
+        const x = (l.spalte - ax + 0.5) * tile, y = (l.zeile - ay + 0.5) * tile + size * 0.35;
+        parts += `<text x="${x}" y="${y}" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold" ` +
+            `font-size="${size}" fill="#f4f4f4" stroke="#1a1c2c" stroke-width="${Math.max(2, size / 5)}" paint-order="stroke">${esc(l.text)}</text>`;
+    }
+    const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${f.w}" height="${f.h}">${parts}</svg>`);
+    const overlay = await sharp(svg).ensureAlpha().raw().toBuffer();
+    return frames.map(fr => {
+        const data = Buffer.from(fr.data);
+        for (let p = 0; p < data.length; p += 4) {
+            const a = overlay[p + 3] / 255;
+            if (!a) continue;
+            for (let k = 0; k < 3; k++) data[p + k] = Math.round(overlay[p + k] * a + data[p + k] * (1 - a));
+        }
+        return { ...fr, data };
+    });
+}
+
 // Share of pixels that differ between two frames (for the loop check).
 function frame_difference(a, b) {
     let n = 0;
@@ -222,26 +316,53 @@ async function main() {
             }
             const t0 = Date.now();
             const game = await build_game(catalog, r, repo);
+            const variant_recipes = (r.varianten ?? []).map(v => ({ ...r, ...v, szene: { ...r.szene, ...(v.szene ?? {}) } }));
+            const variant_games = [];
+            for (const vr of variant_recipes) variant_games.push(await build_game(catalog, vr, repo));
+            const plain_recipe = r.ohne ? { ...r, szene: { ...r.szene, ...(r.ohne.szene ?? {}) } } : null;
+            const plain_game = plain_recipe ? await build_game(catalog, plain_recipe, repo) : null;
+            const quelle = fingerprint(r, [game, ...variant_games, ...(plain_game ? [plain_game] : [])]);
+            // Unchanged since the last build (and not asked for by name): keep the recording.
+            const media_ok = f => f && fs.existsSync(path.join(out_dir, f));
+            if (!force && !check_only && !only.includes(r.id) && old?.quelle === quelle &&
+                media_ok(old.bild) && (!old.standbild || media_ok(old.standbild))) {
+                written.add(old.bild);
+                if (old.standbild) written.add(old.standbild);
+                entries.push({
+                    id: r.id, titel: r.titel, kategorie: r.kategorie, stufe: r.stufe ?? 1, kurz: r.kurz,
+                    bild: old.bild, version: old.version, standbild: old.standbild, standbild_version: old.standbild_version,
+                    breite: old.breite, hoehe: old.hoehe, himmel: old.himmel,
+                    ...(r.schleife ? { schleife: true } : {}),
+                    html: await render_body(r.body, r.id), quelle,
+                });
+                console.log(`= ${r.id} (unverändert)`);
+                continue;
+            }
             let { frames, state, errors } = await record(browser, repo, game, r);
+            const main_count = frames.length;   // beschriftung: each part gets its own labels
             const problems = [...errors.map(e => `JavaScript-Fehler: ${e}`), ...check(r.erwartet, state)];
-            // varianten: the same scene again with other settings, joined without labels.
+            // varianten: the same scene again with other settings, played one after
+            // another – or, with `raster: <columns>`, side by side at the same time.
+            const parts = [];
             for (const [vi, v] of (r.varianten ?? []).entries()) {
-                const vr = { ...r, ...v, szene: { ...r.szene, ...(v.szene ?? {}) } };
-                const res = await record(browser, repo, await build_game(catalog, vr, repo), vr);
+                const vr = variant_recipes[vi];
+                const res = await record(browser, repo, variant_games[vi], vr);
                 problems.push(...res.errors.map(e => `JavaScript-Fehler (Variante ${vi + 1}): ${e}`),
                     ...check(v.erwartet, res.state).map(p => `Variante ${vi + 1}: ${p}`));
                 if (res.frames[0].w !== frames[0].w || res.frames[0].h !== frames[0].h)
                     throw new Error(`${r.id}: Varianten brauchen denselben Ausschnitt`);
-                frames = [...frames, ...res.frames];
+                parts.push(await label_frames(res.frames, vr));
             }
+            if (r.raster) frames = grid_frames([await label_frames(frames, r), ...parts], r.raster, r.skala ?? 3);
+            else frames = [...frames, ...parts.flat()];
             if (r.ohne) {
-                const plain_recipe = { ...r, szene: { ...r.szene, ...(r.ohne.szene ?? {}) } };
-                const plain = await record(browser, repo, await build_game(catalog, plain_recipe, repo), plain_recipe);
+                const plain = await record(browser, repo, plain_game, plain_recipe);
                 problems.push(...plain.errors.map(e => `JavaScript-Fehler (ohne): ${e}`));
                 if (plain.frames[0].w !== frames[0].w || plain.frames[0].h !== frames[0].h)
                     throw new Error(`${r.id}: "ohne" braucht denselben Ausschnitt`);
                 frames = reveal_frames(plain.frames, frames);
             }
+            if (!r.raster) frames = [...(await label_frames(frames.slice(0, main_count), r)), ...frames.slice(main_count)];
             if (r.tasten_zeigen) frames = await keycap_frames(frames, r);
             if (r.schleife) {
                 // A looping recipe must end exactly as it began.
@@ -282,7 +403,7 @@ async function main() {
                 bild: `${r.id}.${ext}`, version, standbild, standbild_version,
                 breite: size.width, hoehe: size.height, himmel: top_colour,
                 ...(r.schleife ? { schleife: true } : {}),
-                html: await render_body(r.body, r.id),
+                html: await render_body(r.body, r.id), quelle,
             });
         }
     } finally {

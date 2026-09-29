@@ -1837,7 +1837,8 @@ a, a:visited {
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 14px;
     box-shadow: 0 10px 60px rgba(0, 0, 0, 0.6);
-    font-size: 120%;
+    /* the Hilfe pane already enlarges its text (120 %): no second step on top */
+    font-size: 100%;
     user-select: text;
 }
 
@@ -1898,6 +1899,7 @@ a, a:visited {
 
 .rezept-lead {
     font-size: 110%;
+    line-height: 1.55;
     color: #ddd;
     margin-top: 0;
 }
@@ -1914,7 +1916,7 @@ a, a:visited {
 }
 
 .rezept-inhalt {
-    line-height: 1.5;
+    line-height: 1.6;
 }
 
 .rezept-inhalt h2 {
@@ -2043,7 +2045,7 @@ a, a:visited {
         height: 100%;
         border-radius: 0;
         border: none;
-        font-size: 105%;
+        font-size: 100%;
     }
     .rezept-dialog-inhalt {
         padding: 12px 10px 60px 10px;

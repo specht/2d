@@ -99,7 +99,7 @@ class Character {
 
 		// Optional "Verhalten" (baddie_ai.js). null = the classic patrol code.
 		this.behavior = this.character_trait === 'baddie' && typeof baddie_behavior === 'function' ?
-			baddie_behavior(this.traits) : null;
+			baddie_behavior(this.traits, this.sprite?.traits?.smart) : null;
 		this.ai_memory = {};
 		this.ai_speed = 1.0;
 		this.ai_dy = 0;
@@ -601,8 +601,9 @@ void main() {
 			this.pressed_keys[KEY_LEFT] = Boolean(out.keys?.left);
 			this.pressed_keys[KEY_RIGHT] = Boolean(out.keys?.right);
 			this.pressed_keys[KEY_JUMP] = Boolean(out.keys?.jump);
-			this.pressed_keys[KEY_UP] = false;
-			this.pressed_keys[KEY_DOWN] = false;
+			// "Leitern klettern" (off by default): the behaviour may climb
+			this.pressed_keys[KEY_UP] = Boolean(out.keys?.up);
+			this.pressed_keys[KEY_DOWN] = Boolean(out.keys?.down);
 		}
 		this.ai_speed = out.speed ?? 1.0;
 		this.ai_dy = out.dy ?? 0;
@@ -641,7 +642,80 @@ void main() {
 				this.has_trait_at(['block_above', 'slope'], -w2, -w2 + 1, -1.0, 0.0) :
 				this.has_trait_at(['block_above', 'slope'], w2 - 1, w2, -1.0, 0.0)),
 			landing: dir => Boolean(this.has_trait_at(['block_above', 'slope'], side(dir) * hop - 2, side(dir) * hop + 2, -1.0, 0.0)),
+			clearable: dir => this.can_jump_over(dir),
+			safe_drop: dir => this.safe_drop(dir),
+			ladder_up: Boolean(this.has_trait_at(['ladder'], -0.5, 0.5, 0.1, 1.1)),
+			ladder_down: Boolean(this.has_trait_at(['ladder'], -0.5, 0.5, -1.1, -0.1)),
 		};
+	}
+
+	// "Intelligenz" (traits.js): the optional abilities of a walking enemy.
+	// Only enemies use it; the trait is looked up once.
+	movement_abilities() {
+		if (this._abilities === undefined) {
+			this._abilities = this.character_trait === 'baddie' && typeof baddie_moves === 'function' ?
+				baddie_moves(this.sprite?.traits?.smart) : {};
+		}
+		return this._abilities;
+	}
+
+	// Height of this enemy's jump in pixels (vy = vjump, minus gravity every step).
+	jump_height() {
+		const gravity = Number(this.game.data.properties.gravity) || 0.5;
+		const v = Number(this.traits.vjump) || 0;
+		return v * v / (2 * gravity);
+	}
+
+	// The wall ahead is low enough to jump over: above the jump height, there is room.
+	can_jump_over(dir) {
+		const w2 = this.sprite.width * 0.5, h = this.sprite.height;
+		const x0 = dir === 'left' ? -w2 - 6 : w2, x1 = dir === 'left' ? -w2 : w2 + 6;
+		const top = this.jump_height();
+		if (top < 4) return false;
+		return !this.has_trait_at(['block_sides'], x0, x1, top, top + h - 1);
+	}
+
+	// Below the ledge ahead there is ground – at most five blocks down.
+	safe_drop(dir) {
+		const w2 = this.sprite.width * 0.5;
+		const x0 = dir === 'left' ? -w2 - 2 : w2, x1 = dir === 'left' ? -w2 : w2 + 2;
+		return Boolean(this.has_trait_at(['block_above', 'slope'], x0, x1, -5 * 24, -1.0));
+	}
+
+	// One step of the patrol with abilities: slopes are ground, low walls are
+	// jumped over, gaps jumped across, ledges dropped down. Without abilities the
+	// classic code below runs unchanged.
+	smart_patrol_step(dir, a) {
+		const w2 = this.sprite.width * 0.5, h = this.sprite.height;
+		const key = dir === 'left' ? KEY_LEFT : KEY_RIGHT;
+		const turn = () => { this.intention.direction = dir === 'left' ? 'right' : 'left'; };
+		const ground_traits = a.slopes ? ['block_above', 'slope'] : ['block_above'];
+		const wall_traits = a.slopes ? ['block_sides'] : ['block_sides', 'slope'];
+		const ground = dir === 'left' ?
+			this.has_trait_at(ground_traits, -w2 - 1, -w2, -1.0, 0.0) :
+			this.has_trait_at(ground_traits, w2 - 1, w2, -1.0, 0.0);
+		const wall = dir === 'left' ?
+			this.has_trait_at(wall_traits, -w2 - 1, -w2, 0.1, h - 0.1) :
+			this.has_trait_at(wall_traits, w2, w2 + 1, 0.1, h - 0.1);
+		// walking up a slope: the slope under the feet counts as ground as well
+		const on_slope = a.slopes && this.has_trait_at(['slope'], -0.5, 0.5, -1.0, 0.1);
+		if (wall) {
+			if (a.obstacles && this.can_jump_over(dir)) { this.pressed_keys[key] = true; this.pressed_keys[KEY_JUMP] = true; }
+			else turn();
+		} else if (ground || on_slope) {
+			this.pressed_keys[key] = true;
+		} else {
+			const hop = this.traits.vrun * (this.traits.jump_vfactor ?? 1) * 2 * this.traits.vjump /
+				(Number(this.game.data.properties.gravity) || 0.5);
+			const s = dir === 'left' ? -1 : 1;
+			const landing = this.has_trait_at(['block_above', 'slope'], s * hop - 2, s * hop + 2, -1.0, 0.0);
+			if (a.gaps && landing) { this.pressed_keys[key] = true; this.pressed_keys[KEY_JUMP] = true; }
+			else if (a.drop && this.safe_drop(dir)) this.pressed_keys[key] = true;
+			else if (Math.random() < this.traits.jump_from_edge_probability / 100.0) {
+				this.pressed_keys[key] = true;
+				this.pressed_keys[KEY_JUMP] = true;
+			} else turn();
+		}
 	}
 
 	// Speed added by a conveyor belt or escalator under the character (0 = none).
@@ -715,7 +789,11 @@ void main() {
 					this.pressed_keys[KEY_UP] = false;
 					this.pressed_keys[KEY_DOWN] = false;
 					this.pressed_keys[KEY_JUMP] = false;
-					if (this.intention.direction === 'left') {
+					const abilities = this.movement_abilities();
+					if ((abilities.slopes || abilities.obstacles || abilities.gaps || abilities.drop) &&
+						(this.intention.direction === 'left' || this.intention.direction === 'right')) {
+						this.smart_patrol_step(this.intention.direction, abilities);
+					} else if (this.intention.direction === 'left') {
 						if (this.has_trait_at(['block_above'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, -1.0, 0.0)) {
 							if (this.has_trait_at(['block_sides', 'slope'], -this.sprite.width * 0.5 - 1, -this.sprite.width * 0.5, 0.1, this.sprite.height - 0.1)) {
 								this.intention.direction = 'right';
@@ -1237,10 +1315,13 @@ void main() {
 				}
 			}
 
-			if (!(this.invincible() || this.dead())) {
+			if (!this.dead()) {
 				entry = this.has_baddie_at(-this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 					this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
-				if (entry) {
+				// Beute "beim Berühren": caught – the enemy lets go of what it carries
+				// (once; spawn_drop remembers). Also while blinking after a hit.
+				if (entry?.traits?.drop?.on_touch === true && !entry.dropped) this.game.spawn_drop?.(entry);
+				if (entry && !this.invincible()) {
 					this.take_damage_from_sprite(entry.sprite, 'baddie');
 				}
 			}
