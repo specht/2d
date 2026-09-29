@@ -56,6 +56,7 @@ erwartet:
 - Zwischen zwei Sprüngen ist der Frosch am Boden – die beste Zeit, um über ihn zu springen.
 - Eine flache Welle wirkt ruhig, eine hohe Welle schwer vorhersehbar. Wird sie zu hoch, ist die Fledermaus kaum zu überspringen.
 - Flatterer drehen an Wänden um wie Wächter.
+- **Intelligenz** brauchen Hüpfer und Flatterer nicht: Der Hüpfer springt sowieso, der Flatterer fliegt. Bei ihnen gibt es dort nichts einzustellen.
 
 ## Wenn's nicht klappt
 

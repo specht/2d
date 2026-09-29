@@ -47,6 +47,14 @@ erwartet:
 7. **Beute:** Wähl beim Gegner unter **Beute** den Schlüssel aus, gib ihm einen **Schlüssel-Code** und setz das Häkchen bei **gibt die Beute ab, wenn man ihn berührt**.
 8. Spiel es aus: Pip geht auf die Maus zu, sie erschrickt und flitzt davon, bis die Mauer sie aufhält. Pip holt sie ein – und hat den Schlüssel wieder.
 
+## Mit Intelligenz
+
+Mit der Eigenschaft **Intelligenz** (unter **Fallen und Gegner**) ist der Dieb schwerer zu fangen (siehe *Intelligente Gegner*):
+
+- **Solange er keine Angst hat,** läuft er wie ein Wächter hin und her – mit Schrägen, Hindernissen, Lücken und Kanten, je nach Häkchen.
+- **Auf der Flucht** rennt er einfach weg. Mit **Leitern klettern** flüchtet er jede Leiter hoch oder runter, an der er vorbeikommt – nur nie dir entgegen.
+- **In der Ecke** helfen ihm **über Hindernisse springen**, **über Lücken springen** und **von Kanten hinunterspringen** hinaus. Nur wenn nichts davon geht, bleibt er zitternd stehen – und du erwischst ihn.
+
 ## Tipps
 
 > **Tipp:** Ein Angsthase ist der perfekte Dieb: eine Figur, die man jagen muss, statt vor ihr wegzulaufen. Gib ihm etwas Wertvolles – einen Schlüssel für die nächste Tür oder ein Extraleben.
@@ -55,7 +63,7 @@ erwartet:
 
 - Hat der Angsthase kein Bild für die Flucht, rennt er einfach mit seiner Lauf-Animation davon.
 - Mit einer großen **Angst ab**-Entfernung ist er kaum zu erwischen. Dann hilft nur eine Sackgasse.
-- An einer Kante springt er nicht hinunter, sondern bleibt zitternd stehen – genau wie an einer Wand.
+- An einer Kante springt er nicht hinunter, sondern bleibt zitternd stehen – genau wie an einer Wand. Außer du gibst ihm **Intelligenz**.
 
 ## Wenn's nicht klappt
 

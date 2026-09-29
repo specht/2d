@@ -45,6 +45,17 @@ erwartet:
 5. **Schaden: 30.** Berührt die Figur den Wächter, verliert sie Energie.
 6. Spiel es aus: Pip springt im richtigen Moment über den Glibber – oben auf der Plattform läuft der andere von Kante zu Kante.
 
+## Mit Intelligenz
+
+Gib dem Wächter die Eigenschaft **Intelligenz** (unter **Fallen und Gegner**), dann bewacht er mehr als eine gerade Plattform (siehe *Intelligente Gegner*):
+
+- **Schrägen und Treppen laufen:** Er läuft Hänge und Treppen hinauf und hinunter, statt dort umzudrehen – so bewacht er ein ganzes Treppenhaus.
+- **über Hindernisse springen:** Über niedrige Blöcke springt er, statt umzudrehen. Wie hoch, bestimmt seine **Sprungkraft**.
+- **über Lücken springen:** Über eine Lücke springt er, wenn er drüben landen kann.
+- **von Kanten hinunterspringen:** Er lässt sich hinunterfallen, wenn höchstens fünf Blöcke tiefer Boden ist – und kommt vielleicht nie zurück.
+
+Er macht das jedes Mal, wenn es geht. Leitern klettert ein Wächter nie: Er hat keinen Grund, das Stockwerk zu wechseln. Sein **Bereich** gilt weiterhin. Ein Gegner, der **Steht still**, braucht keine Intelligenz – bei ihm gibt es dort nichts einzustellen.
+
 ## Tipps
 
 > **Tipp:** Ein Wächter ist der einfachste Gegner – und gerade deshalb gut für den Anfang eines Spiels. Wer ihn beobachtet, erkennt das Muster und fühlt sich schlau, wenn er vorbeikommt.

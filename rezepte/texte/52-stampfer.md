@@ -62,6 +62,7 @@ erwartet:
 - Gib dem Stampfer viel **Energie** (Pip: **1000**), wenn man ihn nicht besiegen können soll.
 - Ein Klotz, der **nur einmal** fällt, versperrt danach den Weg – oder wird zur Stufe, auf die man springen muss.
 - Mehrere Stampfer hintereinander ergeben einen Rhythmus: warten, rennen, warten.
+- **Intelligenz** braucht der Stampfer nicht: Er fällt nur herunter und steigt wieder auf. Bei ihm gibt es dort nichts einzustellen.
 
 ## Wenn's nicht klappt
 

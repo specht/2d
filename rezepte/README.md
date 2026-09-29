@@ -306,8 +306,18 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `baddie`): `walks_slopes`, `jumps_obstacles`, `jumps_gaps`, `drops_down`,
   `climbs_ladders`, all off by default. Wächter, Jäger and Angsthase use the
   first four; `climbs_ladders` only Jäger and Angsthase (the editor shows only
-  what fits the enemy's behaviour). Without the trait – every older game –
-  enemies move exactly as before.
+  what fits the enemy's behaviour; other behaviours ignore the trait). Without
+  the trait – every older game – enemies move exactly as before. Abilities are
+  used every time they apply (no chance involved):
+  - *patrolling* (Wächter; Jäger and Angsthase while calm): slopes, obstacles
+    (only if lower than the jump), gaps (only with a landing), drops (ground at
+    most 5 blocks down) – `smart_patrol_step` in app.js;
+  - *Jäger chasing*: slopes and hopping at walls as always; gaps; ladders
+    (climbs here, or walks to one within `LADDER_REACH` = 5 blocks when the
+    player is on another floor); follows the player down a ledge as always,
+    but with the trait only onto ground at most 5 blocks below;
+  - *Angsthase fleeing*: climbs every ladder it passes, never towards the
+    player; when cornered: obstacle, gap, drop, else it trembles.
 * **Behaviour poses** are optional enemy states (traits.js
   `STATE_TRAITS.baddie`): `hunt_*` (*Gegner jagt*: Jäger chasing, Lauerer
   charging), `flee_*` (*Gegner flieht*: Angsthase), `stunned_*` (*Gegner ist

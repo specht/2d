@@ -47,14 +47,25 @@ erwartet:
 5. **gibt auf nach:** **2 s**. So lange sucht er noch, wenn er die Spielfigur nicht mehr sieht.
 6. Schalte **zeigt „!“** ein. Dann weiß man sofort, dass es gleich losgeht.
 7. Ein neuer Zustand mit **Gegner jagt nach rechts** zeigt, dass es ernst wird: Solange er verfolgt, sieht man dieses Bild. Ohne den Zustand rennt er einfach mit seinem Laufbild.
-8. Bau einen sicheren Ort: Hier klettert Pip eine Leiter hoch. Gegner klettern nicht.
+8. Bau einen sicheren Ort: Hier klettert Pip eine Leiter hoch. Ohne **Intelligenz** klettern Gegner nicht.
+
+## Mit Intelligenz
+
+Mit der Eigenschaft **Intelligenz** (unter **Fallen und Gegner**) wird der Jäger viel hartnäckiger (siehe *Intelligente Gegner*):
+
+- **Solange er dich nicht gesehen hat,** läuft er wie ein Wächter hin und her – mit Schrägen, Hindernissen, Lücken und Kanten, je nach Häkchen.
+- **Beim Verfolgen** schafft er Schrägen und kleine Hindernisse sowieso. Mit **über Lücken springen** springt er dir über Lücken nach.
+- **Leitern klettern:** Bist du über oder unter ihm, sucht er eine Leiter, die höchstens fünf Blöcke entfernt ist, und klettert hinterher. Findet er keine, wartet er.
+- **Hinunterspringen:** Bist du unter ihm, springt er dir nach – mit Intelligenz aber nur, wenn unten Boden ist. In einen Abgrund folgt er dir nicht.
+
+Damit ist die Leiter kein sicherer Ort mehr. Bau dann ein anderes Versteck – oder lass das Häkchen **Leitern klettern** weg.
 
 ## Tipps
 
 > **Tipp:** Ein Jäger ist nur fair, wenn man ihm entkommen kann. Gib ihm eine kleinere **Geschwindigkeit** als der Spielfigur – oder baue Verstecke und Leitern ein.
 
 - Der Jäger springt über kleine Hindernisse. Wie hoch, bestimmt seine **Sprungkraft**. Pips Käfer hat nur **5** und kommt über hohe Mauern nicht drüber.
-- An einer Kante bleibt er stehen und wartet – außer die Spielfigur ist unter ihm. Dann lässt er sich hinunterfallen.
+- An einer Kante bleibt er stehen und wartet – außer die Spielfigur ist unter ihm. Dann lässt er sich hinunterfallen. Mit **Intelligenz** macht er das nur, wenn unten Boden ist.
 - Alte Gegner und neue Gegner ohne Einstellung sind **Wächter**: Sie laufen hin und her wie schon immer. Beim Wächter kannst du jetzt auch einen **Bereich** in Blöcken einstellen.
 - Das Gegenteil vom Jäger ist der **Angsthase**: Er rennt davon, sobald die Spielfigur zu nah kommt. Toll für einen Dieb, den man fangen muss.
 
