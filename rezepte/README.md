@@ -1,8 +1,8 @@
-# Rezepte – how-to recipes with recorded GIFs
+# Rezepte – how-to recipes with recorded animations
 
 The **Hilfe** tab shows a gallery of short German recipes ("Rezepte"). Every
-recipe has an animated GIF that is **recorded automatically from the real game
-engine**: `src/static/standalone.html` and `app.js` run unmodified in headless
+recipe has an animation (lossless animated WebP, or a GIF for scenes full of
+shader noise) that is **recorded automatically from the real game engine**: `src/static/standalone.html` and `app.js` run unmodified in headless
 Chromium, and only the recorded area is kept.
 
 ```
@@ -11,7 +11,7 @@ rezepte/
   sprites/…/*.png     editable pixel art, one PNG strip per animation
   texte/NN-id.md      one recipe per file: YAML head (scene, input, checks) + German Markdown
   tools/              build + recorder (Node, Playwright, sharp)
-src/static/rezepte/   generated: <id>.gif, katalog/*.gif|png, rezepte.json  (commit these)
+src/static/rezepte/   generated: <id>.webp|gif, katalog/*.png|webp, rezepte.json  (commit these)
 src/static/rezepte.js gallery in the Hilfe tab (reads rezepte.json)
 ```
 
@@ -33,14 +33,14 @@ recipe. The build takes about ten seconds per recipe.
 **Every recipe checks its own outcome.** The `erwartet` block (see below) is
 evaluated after recording. If an engine change breaks, say, doors, the door
 recipe fails and the build exits with status 1. The failing recording is
-written to `tools/fehler-<id>.gif` when using `--check`. Page errors
+written to `tools/fehler-<id>.webp` (or `.gif`) when using `--check`. Page errors
 (JavaScript exceptions) also fail the build. This is a real browser/gameplay
 check of exactly what children are told to do, not an isolated unit test.
 
 `REZEPT_DEBUG=1 node build.mjs <id>` prints the player's position, state,
 direction and pressed keys every few frames (`REZEPT_DEBUG=alle`: every step),
 plus each enemy's position, energy and behaviour mode — the quickest way to tune a
-scene. `node contact.mjs <gif> <png> [step]` makes a contact sheet of a GIF;
+scene. `node contact.mjs <webp|gif> <png> [step]` makes a contact sheet of a recording;
 `node preview.mjs <prefix> [recipe title]` screenshots the Hilfe tab of the
 studio.
 
@@ -54,16 +54,37 @@ studio.
 * `record.mjs` serves `src/static` plus the generated `/gen/…` files through
   Playwright request interception (no server, no Docker), seeds
   `Math.random`, replaces `game.clock` with a manual clock, and calls
-  `game.render()` once per GIF frame. Key presses go through
+  `game.render()` once per frame. Key presses go through
   `game.handle_key_down/up`, the same path as a real keyboard, and are
   snapped to whole simulation steps. Frames are read back with
   `gl.readPixels`.
-* **Frame timing:** every GIF frame is exactly one 60 Hz simulation step and
-  is shown for 20 ms (GIF delays are whole hundredths of a second; 16.7 ms
-  is not possible). The recordings therefore play at 5/6 of real speed, but
-  perfectly evenly – no dropped or doubled steps. `schritte: 2` records two
-  steps per frame (40 ms, real speed) for long scenes.
-* Runs are deterministic: the same inputs give the same GIF.
+* **Frame timing:** every frame is exactly one 60 Hz simulation step
+  (`schritte: 2`: two steps). WebP delays are whole milliseconds; they are
+  rounded cumulatively (17, 17, 16, …), so every frame ends at the exact
+  millisecond of its step and the recording plays at real speed. Identical
+  consecutive frames are merged. GIFs (`format: gif`) can only store whole
+  hundredths: 20 ms per step, i.e. 5/6 of real speed, but perfectly even.
+* **Scale:** recordings are rendered at `skala` screen pixels per game pixel
+  (default 3) – exactly what the game shows, including parallax and camera
+  shake. The recorded area follows the camera *without* its shake, so the
+  shake stays visible.
+* **Encoding:** libvips joins all frames of an animation into one tall image
+  and garbles frames beyond roughly 65,000 rows. `write_webp` therefore
+  encodes chunks of at most 32,000 rows and joins their frames (`ANMF`
+  chunks) into one file itself.
+* Runs are deterministic: the same inputs give the same recording.
+* **Catalogue images** (`![…](katalog:…)`) are written at their native size
+  with real transparency: a PNG for a single frame, otherwise an animated
+  WebP plus one PNG per frame (`katalog/<strip>_<n>.png`). Scaling, the
+  checkerboard and the dashed outline are CSS only – whoever copies or saves
+  an image gets exactly the pixels to paste into the sprite editor. Sprites
+  with the Mischmodus *Leuchten* or *Aufhellen* are shown on a dark
+  checkerboard.
+* **Cache busting:** every generated file gets a content hash (`?3f9a0c1b2d`
+  in `rezepte.json` and in the HTML). nginx (`config.rb`) serves URLs with a
+  query string as immutable and everything else with `no-cache`; the app
+  loads its own files with `window.CACHE_BUSTER`. A full build (no ids, no
+  `--check`) deletes generated files that are no longer referenced.
 
 The recorder relies on these runtime entry points: `window.game`,
 `Game.load(tag)`, `reset()`, `setup()`, `render()`, `clock.getElapsedTime()`,
@@ -98,6 +119,9 @@ szene:
   #     kollision: false       #   "Kollisionen erkennen" off (decoration, facades, supports)
   #     parallaxe: 0.5         #   layer Parallaxe (-1 … 1); placed so the layer looks like
   #                            #   its map when the level starts
+  #     mischmodus: leuchten   #   the layer's Mischmodus: leuchten | aufhellen | abdunkeln
+  #     figuren: true          #   characters stay in this layer (a ghost behind a window)
+  #                            #   instead of the common layer "Figuren"
   #     karte: |
   #       …
   # bereiche:                  # Sichtbarkeitsbereiche (visibility_region layers)
@@ -114,8 +138,17 @@ szene:
   #                            # dither: noise | bayer, stufen: 8 (colour steps of the ramp)
   # effekte:                   # backdrop effect layers (in front of the world unless vorne: false)
   #   - { effekt: snow, farbe: '#ffffffff', skala: 1.0, tempo: 1.0, pixel: true }
-  #     # snow | rain | smoke | fire | lightrays | stars | aurora | clouds | fireflies | bubbles
-  #     # (BACKDROP_EFFECTS in src/static/backdrops.js); punkte: [[x, y], …] control points
+  #     # snow | rain | smoke | fire | lightrays | stars | aurora | clouds | fireflies |
+  #     # bubbles | dust (Staubwirbel) – BACKDROP_EFFECTS in src/static/backdrops.js
+  #     # punkte: [[x, y], …]      control points (0…1 of the effect rectangle)
+  #     # bereich: [c, r, w, h]    rectangle in tiles (default: the whole scene) – e.g.
+  #     #                          only the air above the ground
+  #     # vorne: false             behind all layers · hinter: Figuren | <layer name or id>:
+  #     #                          right behind that layer (fireflies between the trees)
+  #     # menge: 1.5               snow, rain, dust: amount (1 = normal)
+  #     # neigung: 65              dust: seen from the side at an angle (0 … 85°, default 60)
+  #     # mischmodus: leuchten     the layer's Mischmodus
+  #     # id: wirbel               target of a Sichtbarkeitsbereich (bereiche: ziel: wirbel)
   # kamera: { bildhoehe: 144 } # level wider than the screen: the camera follows the
   #                            # player and the whole screen is recorded (height in
   #                            # game pixels, divisible by 9)
@@ -123,24 +156,27 @@ ablauf:                        # input script, times in seconds
   - { t: 0.3, halten: rechts, dauer: 0.4 }
   - { t: 0.9, halten: hoch, dauer: 0.75 }
   - { t: 1.3, drücken: springen }      # a short tap (0.1 s)
-dauer: 3.0                     # length of the GIF
-# farben: 256                  # optional GIF palette size (default 128); more for colourful scenes
+dauer: 3.0                     # length of the recording
 # skala: 2                     # optional screen pixels per game pixel (default 3)
-# schritte: 2                  # optional simulation steps per GIF frame (default 1); 2 = half the size
-# toleranz: 16                # optional: ignore tiny colour changes between frames (shimmering
+# schritte: 2                  # optional simulation steps per frame (default 1); 2 = half the size
+# format: gif                  # optional: a GIF instead of a lossless WebP – for scenes full of
+#                              # shader noise (weather), where a GIF is much smaller.
+#                              # REZEPT_FORMAT=gif forces GIFs for every recipe (to compare builds)
+# farben: 256                  # GIF only: palette size (default 128); more for colourful scenes
+# toleranz: 16                 # GIF only: ignore tiny colour changes between frames (shimmering
 #                              # backdrop effects); much smaller files
-# schleife: true               # the GIF must loop seamlessly: the last frame has to match the first
+# schleife: true               # the recording must loop seamlessly: the last frame has to match the first
 #                              # (checked, ≤ 0.4 % different pixels) and is then dropped
-# tasten_zeigen: true          # draws the pressed keys as keycaps (German labels) into the GIF
+# tasten_zeigen: true          # draws the pressed keys as keycaps (German labels) into the recording
 erwartet:                      # outcome checks
   figur_hoeher_als: 3          # player y ≥ 3 tiles
   figur_rechts_von: 5          # player x > 5 tiles
   # gegner_besiegt: 1 · gegner_leben: 0 · schluessel: [7] · tuer_offen: true
   # punkte: 60 · energie_unter: 100 · energie_gleich: 100 · lebt: true · checkpoint_aktiv: true
   # Enemy behaviours (some enemy in the scene): gegner_modi: [chase, idle] (modes of
-  # baddie_ai.js: chase/idle, wait/windup/charge/rest, shake/drop/bottom/rise/cool) ·
+  # baddie_ai.js: chase/idle, wait/windup/charge/rest, shake/drop/bottom/rise/cool/done) ·
   # gegner_ausrufezeichen: true · gegner_weg: 96 (px sideways) · gegner_hub: 24 (px up/down)
-# ohne:                        # optional: the same world without decoration. The GIF shows
+# ohne:                        # optional: the same world without decoration. The recording shows
 #   szene: { ebenen: [ … ] }   # the finished world left of Pip and this one right of him –
 #                              # he "paints" the level as he walks. Same size required.
 # varianten:                   # optional: the same input again with changed scene parts,
@@ -162,9 +198,10 @@ dazumalen*) → **Schritt für Schritt** with the exact editor labels →
 extensions:
 
 * `![Laufen](katalog:pip/laufen 10)` shows a catalogue animation (at 10 fps)
-  together with its single frames, on the recipe's sky. A thin dashed frame
-  marks the sprite's bounds, so children see whether a drawing sits at the
-  top or the bottom of its 24×24 tile.
+  together with its single frames, on a checkerboard (so transparent pixels
+  are visible) and at native size underneath (see *Catalogue images*). A thin
+  dashed frame marks the sprite's bounds, so children see whether a drawing
+  sits at the top or the bottom of its 24×24 tile.
 * `> **Tipp:** …`, `> **Profi-Tipp:** …`, `> **Achtung:** …` become coloured
   hint boxes.
 
@@ -191,29 +228,50 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `treffer`, `tot` (3).
 * **Welt**: `boden`, `erde`, `mauer`, `dach`, `leiter`, `schraege`, `treppe`,
   `brett` (jump-through), `eis`, `eishang` (slope down, slippery),
-  `broeckel` + `broeckel_zerfall` (3, crumbling bricks), `stacheln`,
+  `broeckel` + `broeckel_zerfall` (6, crumbling bricks: irregular fragments
+  that break off and fall – drawn from a Voronoi pattern), `stacheln`,
   `fahne_aus` / `fahne_an` (2, checkpoint), `wurzeln`, `tuer_zu`, `tuer_auf`,
   `tuer_uebergang` (3), `schlosstuer_zu`, `schluessel` (2), `muenze` (4),
   `pfeil`, `stein`, `spore` (2), `bombe_zuendschnur` (4), `bombe_explosion`
   (4), `treffer_funke` (3).
 * **Deko** (transparent, no traits, own layer without collisions): `moos`,
   `ranke`, `riss`, `fackel` (3), `burgfenster`, `grasbuesche`, `innenwand`,
-  `bild`, `lampe`, `tisch`, `pflanze`, `fassade`, `fassade_fenster`,
+  `bild`, `lampe`, `tisch`, `pflanze`, `fassade`, `fassade_fenster`, `zimmer`
+  (dark wallpaper),
   `hausfront` (192×72, transparent doorway), `eingang` (open door, no
   traits), `sterne`, and the supports `pfosten`, `pfeiler`, `kette`.
-* **Semi-transparent** (RGBA pixels): `wasser`, `wasser_oben`, `glas` with
-  `mauer_fenster`, `lichtkegel` + `laterne` (48×72), and the ghost enemy
-  `geist`.
+* **Semi-transparent** (RGBA pixels): `wasser`, `wasser_oben` (8 frames,
+  waves move 1 px per frame, `phase_r: 0`), `glas` (Mischmodus *Abdunkeln*)
+  with `mauer_fenster`, `lichtkegel` (*Leuchten*) + `laterne` (48×72), the
+  ghost enemy `geist` (*Aufhellen*), `leuchtschein` (120×120, glows through
+  its layer's Mischmodus) and `schatten` (*Abdunkeln*).
 * **Gentle slopes**: `hang_flach`, `hang_flach_ab` (48×24).
-* **Conveyors**: `band`, `band_anfang`, `band_ende` (4 frames, moving right),
-  `band_links…` (the mirror images, moving left), `rolltreppe` (3 frames,
+* **Conveyors**: `band`, `band_anfang`, `band_ende` (8 frames, moving right),
+  `band_links…` (the mirror images, moving left), `rolltreppe` (6 frames,
   escalator: slope + conveyor), `maschine` (housing block). Their states use
-  `fps: 30` and `phase_r: 0` (all tiles animate in step; `phase_x`, `phase_y`,
-  `phase_r` are passed to the state).
-* **Enemies with a behaviour** (`traits.baddie.behavior`): `kaefer` (Jäger),
-  `keiler` (Lauerer: `stehen`, `laufen`), `frosch` (Hüpfer: `stehen`,
-  `springen`), `fledermaus` (Flatterer: `fliegen`), `klotz` (Stampfer:
-  `stehen`, `fallen`); each with `treffer` and `tot`.
+  `fps: 60` – the stripes move exactly 1 px per frame, without temporal
+  aliasing – and `phase_r: 0` (all tiles animate in step; `phase_x`,
+  `phase_y`, `phase_r` are passed to the state).
+* **Enemies with a behaviour** (`traits.baddie.behavior`): `kaefer` (Jäger:
+  `laufen`, `jagen`), `keiler` (Lauerer: `stehen`, `laufen`, `stuermen`,
+  `benommen`), `frosch` (Hüpfer: `stehen`, `springen`), `fledermaus`
+  (Flatterer: `fliegen`), `klotz` (Stampfer: `stehen`, `fallen`, `landen`;
+  `klotz_einmal` falls only once); each with `treffer` and `tot`. `maus`
+  (Angsthase: `stehen`, `laufen`, `fliehen`).
+* **Behaviour poses** are optional enemy states (traits.js
+  `STATE_TRAITS.baddie`): `hunt_*` (*Gegner jagt*: Jäger chasing, Lauerer
+  charging), `flee_*` (*Gegner flieht*: Angsthase), `stunned_*` (*Gegner ist
+  benommen*: Lauerer after a wall), `landed_*` (*Gegner ist aufgeschlagen*:
+  Stampfer at the bottom, played once). Without such a state the enemy keeps
+  its normal movement animation.
+* **Old enemies** without a `behavior` are promoted when a game is loaded
+  (`promote_baddie_behavior`): *Wächter* (`guard`), or *Steht still*
+  (`still`) if they did not patrol. The classic fields stay, so they move
+  exactly as before, also after saving again.
+
+A sprite in `katalog.yaml` may set `mischmodus: leuchten | aufhellen |
+abdunkeln` (the sprite's Mischmodus, saved as `sprite.blend`: `add`,
+`screen`, `multiply`); `extends` inherits it.
 
 Big sprites set `groesse: [w, h]` in `katalog.yaml`; their strips use frames
 of that size. The parallax backgrounds (`berge_fern`, `berge`, `wald`,
@@ -238,7 +296,8 @@ character, e.g. `#` ground, `M` wall, `-` plank, `B` crumbling brick, `^`
 spikes, `f` flag, `h` house door, `F`/`V` facade, `z` moss, `t` torch, `|`
 post, `c` chain, `[` `>` `]` belt (start, middle, end), `<` belt to the left,
 `s` escalator, `_` machine, `K` beetle, `a` boar, `q` frog, `j` bat, `U`
-stone block.
+stone block, `8` stone block that falls once, `@` mouse, `y` dark room,
+`*` glow, `%` shadow.
 
 Design rules the scenes follow (and the recipes teach): doors sit in walls
 that are higher than a jump, nothing floats without a support, ground has

@@ -23,6 +23,7 @@ class LayerStruct {
     // clear layer struct and apply layer from game data
     apply_layer(layer) {
         this.reset();
+        this.layer = layer;
         console.log(`apply_layer`, layer, this.layer_index);
         if (layer.type !== 'sprites') return;
         for (let i = 0; i < layer.sprites.length; i++) {
@@ -32,6 +33,16 @@ class LayerStruct {
         if (this.el_sprite_count !== null)
             $(this.el_sprite_count).text(`${layer.sprites.length}`);
         // console.log(layer);
+    }
+
+    // after a Mischmodus change of the layer or of a sprite
+    refresh_materials() {
+        if (this.layer?.type !== 'sprites') return;
+        for (const pos of Object.keys(this.mesh_for_pos)) {
+            const si = this.layer.sprites[this.placed_sprite_index_for_pos[pos]]?.[0];
+            if (si === undefined) continue;
+            this.mesh_for_pos[pos].material = this.level_editor.game.editor_sprite_material(si, this.layer.properties?.blend);
+        }
     }
 
     remove_from_interval_trees(psi) {
@@ -111,7 +122,8 @@ class LayerStruct {
                 use_placed_sprite_index = this.placed_sprite_index_for_pos[pos];
                 this.remove_sprite(p, true);
             }
-            let mesh = new THREE.Mesh(this.level_editor.game.geometry_for_sprite[sprite_index], this.level_editor.game.material_for_sprite[sprite_index]);
+            let mesh = new THREE.Mesh(this.level_editor.game.geometry_for_sprite[sprite_index],
+                this.level_editor.game.editor_sprite_material(sprite_index, this.layer?.properties?.blend));
             mesh.position.x = p[0];
             mesh.position.y = p[1];
             this.group.add(mesh);
@@ -232,6 +244,10 @@ class LevelEditor {
         this.backdrop_move_point_old_coordinates = null;
         this.backdrop_move_point_old_size = null;
         this.show_grid = true;
+        // live preview of effect backdrops (snow, rain, Staubwirbel, …)
+        this.animate_backdrops = false;
+        this.backdrop_time_meshes = [];
+        this.backdrop_animation_frame = null;
         this.camera_mode = false;
 
         this.texture_loader = new THREE.TextureLoader();
@@ -246,6 +262,20 @@ class LevelEditor {
                 self.show_grid = x;
                 self.refresh();
                 self.render();
+            },
+        });
+        new CheckboxWidget({
+            container: $('#tool_menu_level_settings'),
+            label: 'Effekte bewegen',
+            hint: 'Schnee, Regen, Staubwirbel und die anderen Effekte bewegen sich schon hier im Level-Editor – so wie später im Spiel.',
+            get: () => self.animate_backdrops,
+            set: (x) => {
+                self.animate_backdrops = x;
+                if (x) self.start_backdrop_animation();
+                else {
+                    self.set_backdrop_time(0);
+                    self.render();
+                }
             },
         });
         this.grid_size_widget = new NumberWidget({
@@ -937,10 +967,62 @@ class LevelEditor {
                         self.render();
                     },
                 });
+                if (BACKDROP_TILT_EFFECTS.includes(backdrop.effect)) {
+                    new NumberWidget({
+                        container: $('#menu_layer_properties'),
+                        label: 'Neigung',
+                        hint: 'Von wo man auf den Wirbel schaut: 0° genau von vorn, 60° schräg von der Seite, 85° fast ganz von der Seite.',
+                        min: BACKDROP_TILT.min,
+                        max: BACKDROP_TILT.max,
+                        step: 5,
+                        decimalPlaces: 0,
+                        suffix: '°',
+                        get: () => backdrop_tilt(backdrop),
+                        set: (x) => {
+                            backdrop.tilt = x;
+                            self.refresh();
+                            self.render();
+                        },
+                    });
+                }
+                if (BACKDROP_DENSITY_EFFECTS.includes(backdrop.effect)) {
+                    new NumberWidget({
+                        container: $('#menu_layer_properties'),
+                        label: 'Menge',
+                        hint: 'Wie dicht es schneit oder regnet: 1 ist normal, 0,5 die Hälfte, 2 doppelt so viel.',
+                        min: BACKDROP_DENSITY.min,
+                        max: BACKDROP_DENSITY.max,
+                        step: 0.1,
+                        decimalPlaces: 1,
+                        get: () => backdrop_density(backdrop),
+                        set: (x) => {
+                            // 1 = the old amount: keep old games unchanged
+                            if (Math.abs(x - 1) < 1e-6) delete backdrop.density; else backdrop.density = x;
+                            self.refresh();
+                            self.render();
+                        },
+                    });
+                }
             }
             }
         }
         // $('#menu_layer_properties').append($('<hr />'));
+        if (layer.type === 'sprites' || layer.type === 'backdrop') {
+            new SelectWidget({
+                container: $('#menu_layer_properties'),
+                label: 'Mischmodus',
+                hint: 'So wird die Ebene mit allem dahinter gemischt. Leuchten: Farben werden addiert (Licht, Feuer). Aufhellen: wie Leuchten, aber sanfter (Geister, Nebel). Abdunkeln: Farben werden multipliziert (Schatten, getöntes Glas, Wasser). Normal: jeder Sprite behält seinen eigenen Mischmodus.',
+                options: BLEND_MODES,
+                get: () => self.game.data.levels[self.level_index].layers[self.layer_index].properties.blend ?? 'normal',
+                set: (x) => {
+                    const props = self.game.data.levels[self.level_index].layers[self.layer_index].properties;
+                    if (x === 'normal') delete props.blend; else props.blend = x;
+                    self.refresh_blend_materials();
+                    self.refresh();
+                    self.render();
+                },
+            });
+        }
         if (layer.type !== 'visibility_region') {
         new NumberWidget({
             container: $('#menu_layer_properties'),
@@ -1577,6 +1659,39 @@ class LevelEditor {
         this.backdrop_controls_setup_for = null;
     }
 
+    // Effect time for the preview: 0 = still (as before), else the clock.
+    backdrop_time() {
+        return this.animate_backdrops ? this.clock.getElapsedTime() : 0;
+    }
+
+    set_backdrop_time(t) {
+        for (const entry of this.backdrop_time_meshes) {
+            const time = entry.mesh.material?.uniforms?.time;
+            if (time) time.value = t * entry.speed;
+        }
+    }
+
+    start_backdrop_animation() {
+        if (this.backdrop_animation_frame !== null) return;
+        const step = () => {
+            if (!this.animate_backdrops) {
+                this.backdrop_animation_frame = null;
+                return;
+            }
+            // only while the level editor is on screen and there is something to move
+            if (this.backdrop_time_meshes.length && $(this.element).is(':visible')) {
+                this.set_backdrop_time(this.backdrop_time());
+                this.render();
+            }
+            this.backdrop_animation_frame = requestAnimationFrame(step);
+        };
+        this.backdrop_animation_frame = requestAnimationFrame(step);
+    }
+
+    refresh_blend_materials() {
+        for (const layer_struct of this.layer_structs ?? []) layer_struct.refresh_materials();
+    }
+
     refresh() {
         let self = this;
         this.scene.remove.apply(this.scene, this.scene.children);
@@ -1587,6 +1702,7 @@ class LevelEditor {
         // this.scene.remove.apply(this.scene, this.scene.children);
         // if (game === null) return;
 
+        this.backdrop_time_meshes = [];
         // re-create all sprite sheets
         this.sheets = [];
         for (let si = 0; si < this.game.data.sprites.length; si++) {
@@ -1622,6 +1738,11 @@ class LevelEditor {
                         if (backdrop.backdrop_type === 'effect' || backdrop.backdrop_type === 'color')
                             set_backdrop_uv(geometry, rect);
                         let mesh = new THREE.Mesh(geometry, material);
+                        if (backdrop.backdrop_type === 'effect' && material.uniforms?.time) {
+                            const entry = { mesh, speed: backdrop.speed ?? 1.0 };
+                            this.backdrop_time_meshes.push(entry);
+                            material.uniforms.time.value = this.backdrop_time() * entry.speed;
+                        }
                         this.scene.add(mesh);
                     }
                 }

@@ -34,10 +34,11 @@ erwartet:
 ## Das brauchst du
 
 - **Das musst du zeichnen:** einen Gegner mit einer ruhigen Steh-Animation und einer schnellen Lauf-Animation.
-- **Das kannst du später dazumalen:** Treffer und Tot, damit man ihn besiegen kann.
+- **Das kannst du später dazumalen:** ein Bild für den Angriff (tief gesenkter Kopf, Staub), eins für „benommen“ (Sternchen über dem Kopf) und Treffer und Tot.
 
 ![Keiler steht](katalog:keiler/stehen 3)
-![Keiler stürmt](katalog:keiler/laufen 16)
+![Keiler stürmt](katalog:keiler/stuermen 18)
+![Keiler ist benommen](katalog:keiler/benommen 6)
 
 ## Schritt für Schritt
 
@@ -46,7 +47,8 @@ erwartet:
 3. **Tempo beim Angriff: 5×.** So schnell ist er, wenn er losstürmt.
 4. **benommen nach Aufprall: 1,5 s.** So lange bleibt er nach dem Aufprall stehen.
 5. Stell die **Energie** auf **60** – dann braucht Pips Schwert drei Treffer.
-6. Spiel es aus: Warte, bis er losrennt, spring drüber und schlag zu, solange er benommen ist.
+6. Zwei Zustände machen ihn lebendig: **Gegner jagt nach rechts** für den Angriff und **Gegner ist benommen (rechts)** für die Zeit nach dem Aufprall.
+7. Spiel es aus: Warte, bis er losrennt, spring drüber und schlag zu, solange er benommen ist.
 
 ## Tipps
 

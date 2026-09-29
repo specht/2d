@@ -7,11 +7,12 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { chromium } from 'playwright';
 
-export const SCALE = 3;          // screen pixels per game pixel in the GIF
-// One GIF frame per simulation step (60 Hz), shown for 20 ms: GIFs cannot do
-// 60 fps and uneven 30/30/40 ms delays judder. The GIF therefore plays at 5/6 of
-// real time, but every step is visible and the motion is perfectly even.
-export const FRAME_MS = 20;
+// Screen pixels per game pixel in a recording (recipes may set `skala`). The
+// recording keeps this scale: sub-pixel scrolling and camera shake look as in the game.
+export const RENDER_SCALE = 3;
+// One frame per simulation step (60 Hz). WebP delays are whole milliseconds, so
+// they are rounded cumulatively (17, 17, 16, …): real speed, no drift.
+export const STEP_MS = 1000 / 60;
 
 const KEYS = {
     rechts: 'ArrowRight', links: 'ArrowLeft', hoch: 'ArrowUp', runter: 'ArrowDown',
@@ -20,7 +21,7 @@ const KEYS = {
 
 const MIME = {
     '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
-    '.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.svg': 'image/svg+xml',
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
     '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.fs': 'text/plain', '.vs': 'text/plain',
 };
 
@@ -51,7 +52,7 @@ export function key_events(script) {
 
 export async function record(browser, repo, game, recipe) {
     const sph = game.screen_pixel_height;
-    const scale = recipe.skala ?? SCALE;
+    const scale = recipe.skala ?? RENDER_SCALE;
     const height = sph * scale, width = Math.round(height * 16 / 9);
     const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
     const page = await context.newPage();
@@ -118,13 +119,18 @@ export async function record(browser, repo, game, recipe) {
             g.render();
             const gl = g.renderer.getContext();
             const cam = g.camera;
-            if (view === 'kamera') view = { x0: cam.left, x1: cam.right, y0: cam.bottom, y1: cam.top };
-            const sx = gl.drawingBufferWidth / (cam.right - cam.left);
-            const sy = gl.drawingBufferHeight / (cam.top - cam.bottom);
-            const x = Math.round((view.x0 - cam.left) * sx);
-            const y = Math.round((view.y0 - cam.bottom) * sy);
+            // The camera without its shake: the recorded area follows the camera,
+            // but not the shake – so the shake stays visible in the recording.
+            const cw = cam.right - cam.left, ch = cam.top - cam.bottom;
+            const left = g.camera_x - cw / 2, bottom = g.camera_y - ch / 2;
+            if (view === 'kamera') view = { x0: left, x1: left + cw, y0: bottom, y1: bottom + ch };
+            const sx = gl.drawingBufferWidth / cw;
+            const sy = gl.drawingBufferHeight / ch;
             const w = Math.round((view.x1 - view.x0) * sx);
             const h = Math.round((view.y1 - view.y0) * sy);
+            // fixed on the screen: where the area would be without the shake
+            const x = Math.max(0, Math.min(gl.drawingBufferWidth - w, Math.round((view.x0 - left) * sx)));
+            const y = Math.max(0, Math.min(gl.drawingBufferHeight - h, Math.round((view.y0 - bottom) * sy)));
             const buf = new Uint8Array(w * h * 4);
             gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
             let bin = '';
@@ -180,16 +186,16 @@ export async function record(browser, repo, game, recipe) {
     return { frames, state, errors };
 }
 
-// Frames -> looping GIF. Identical consecutive frames are merged.
-// tolerance: pixels that changed less than this (colour distance) are kept from the previous
-// frame – much smaller files for scenes where effects shimmer across the whole picture.
-export async function write_gif(frames, file, colours = 128, delay_ms = FRAME_MS, tolerance = 0) {
+// Fallback for scenes full of shader noise (weather), where lossless WebP gets
+// big: a GIF with a limited palette. GIFs cannot do 60 fps, so every step is
+// shown for 20 ms (5/6 of real speed, but even). tolerance: ignore tiny colour
+// changes between frames.
+export async function write_gif(frames, file, colours = 128, steps = 1, tolerance = 0) {
     const merged = [];
-    for (let i = 0; i < frames.length; i++) {
-        const delay = delay_ms;
+    for (const frame of frames) {
         const last = merged[merged.length - 1];
-        if (last && last.frame.data.equals(frames[i].data)) last.delay += delay;
-        else merged.push({ frame: frames[i], delay });
+        if (last && last.frame.data.equals(frame.data)) last.delay += 20 * steps;
+        else merged.push({ frame, delay: 20 * steps });
     }
     const { w, h } = frames[0];
     const pngs = await Promise.all(merged.map(m =>
@@ -199,6 +205,84 @@ export async function write_gif(frames, file, colours = 128, delay_ms = FRAME_MS
             ...(tolerance ? { interFrameMaxError: tolerance } : {}) })
         .toFile(file);
     return { width: w, height: h, frames: merged.length };
+}
+
+// Frames -> looping, lossless animated WebP (exact colours, exact timing). Identical
+// consecutive frames are merged; `steps` simulation steps per frame.
+export async function write_webp(frames, file, steps = 1) {
+    const merged = [];
+    for (let i = 0; i < frames.length; i++) {
+        const last = merged[merged.length - 1];
+        if (last && last.frame.data.equals(frames[i].data)) last.steps += steps;
+        else merged.push({ frame: frames[i], start: i * steps, steps });
+    }
+    // cumulative rounding: every frame ends at the exact millisecond of its step
+    const delay = merged.map(m => Math.round((m.start + m.steps) * STEP_MS) - Math.round(m.start * STEP_MS));
+    const { w, h } = frames[0];
+    const pngs = await Promise.all(merged.map(m =>
+        sharp(m.frame.data, { raw: { width: w, height: h, channels: 4 } }).png().toBuffer()));
+    if (merged.length === 1) {
+        await sharp(pngs[0]).webp({ lossless: true, effort: 6 }).toFile(file);
+        return { width: w, height: h, frames: 1 };
+    }
+    // libvips joins all frames into one tall image; beyond about 65,000 rows the
+    // later frames come out garbled (in browsers, too). So: encode chunks that
+    // stay well below that, then join their frames (ANMF chunks) into one file.
+    const per_chunk = Math.max(2, Math.floor(32000 / h));
+    const parts = [];
+    for (let i = 0; i < pngs.length; i += per_chunk) {
+        const chunk = pngs.slice(i, i + per_chunk);
+        const image = chunk.length === 1 ? sharp(chunk[0]) : sharp(chunk, { join: { animated: true } });
+        parts.push(await image.webp({ lossless: true, effort: 6, loop: 0, delay: delay.slice(i, i + per_chunk) }).toBuffer());
+    }
+    fs.writeFileSync(file, join_animated_webp(parts, delay.slice(-1)[0]));
+    return { width: w, height: h, frames: merged.length };
+}
+
+// RIFF chunks of a WebP file: [{ id, data }]
+function webp_chunks(buf) {
+    if (buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WEBP') throw new Error('keine WebP-Datei');
+    const chunks = [];
+    for (let p = 12; p + 8 <= buf.length;) {
+        const id = buf.toString('ascii', p, p + 4), size = buf.readUInt32LE(p + 4);
+        chunks.push({ id, data: buf.subarray(p + 8, p + 8 + size) });
+        p += 8 + size + (size & 1);
+    }
+    return chunks;
+}
+
+// One animation from several: header (VP8X, ANIM) of the first part, then the
+// frames of all parts in order. A part with a single frame is a plain image
+// (VP8L), which becomes one full-size frame with the given duration.
+function join_animated_webp(parts, last_delay) {
+    const first = webp_chunks(parts[0]);
+    const head = first.filter(c => c.id === 'VP8X' || c.id === 'ANIM');
+    const frames = [];
+    for (const part of parts) {
+        const chunks = webp_chunks(part);
+        const anmf = chunks.filter(c => c.id === 'ANMF');
+        if (anmf.length) { frames.push(...anmf.map(c => c.data)); continue; }
+        const image = chunks.find(c => c.id === 'VP8L' || c.id === 'VP8 ');
+        const [cw, ch] = [head[0].data.readUIntLE(4, 3) + 1, head[0].data.readUIntLE(7, 3) + 1];
+        const header = Buffer.alloc(16);
+        header.writeUIntLE(0, 0, 3); header.writeUIntLE(0, 3, 3);
+        header.writeUIntLE(cw - 1, 6, 3); header.writeUIntLE(ch - 1, 9, 3);
+        header.writeUIntLE(last_delay, 12, 3);
+        header[15] = 0b10;   // do not blend, keep the canvas
+        frames.push(Buffer.concat([header, riff_chunk(image.id, image.data)]));
+    }
+    const body = Buffer.concat([Buffer.from('WEBP'), ...head.map(c => riff_chunk(c.id, c.data)), ...frames.map(f => riff_chunk('ANMF', f))]);
+    return Buffer.concat([Buffer.from('RIFF'), u32(body.length), body]);
+}
+
+function riff_chunk(id, data) {
+    return Buffer.concat([Buffer.from(id, 'ascii'), u32(data.length), data, Buffer.alloc(data.length & 1)]);
+}
+
+function u32(n) {
+    const b = Buffer.alloc(4);
+    b.writeUInt32LE(n);
+    return b;
 }
 
 // Checks from the recipe's "erwartet" block. Returns a list of failures.

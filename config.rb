@@ -41,6 +41,15 @@ nginx_config = <<~eos
                         '$status $body_bytes_sent "$http_referer" '
                         '"$http_user_agent" "$request_time"';
 
+    # Cache busting: URLs with a version (?… – the server's cache buster or a
+    # content hash from the recipe build) never change and may be cached forever.
+    # Everything else is revalidated on every load (cheap 304), so an update is
+    # always picked up.
+    map $args $static_cache_control {
+        ""      "no-cache";
+        default "public, max-age=31536000, immutable";
+    }
+
     server {
         listen 80;
         server_name localhost;
@@ -81,6 +90,7 @@ nginx_config = <<~eos
 
         location / {
             root /usr/share/nginx/html;
+            add_header Cache-Control $static_cache_control;
             try_files $uri @ruby;
         }
 

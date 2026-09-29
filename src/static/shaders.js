@@ -4,7 +4,7 @@ class Shaders {
     constructor() {
         this.files = ['basic.vs', 'texture.fs', 'screen.fs', 'gradient.fs',
             'snow.fs', 'smoke.fs', 'fire.fs', 'lightrays.fs',
-            'stars.fs', 'aurora.fs', 'rain.fs', 'clouds.fs', 'fireflies.fs', 'bubbles.fs'];
+            'stars.fs', 'aurora.fs', 'rain.fs', 'clouds.fs', 'fireflies.fs', 'bubbles.fs', 'dust.fs'];
         this.shaders = {};
         this.control_points_for_effect = {
             'snow': [[0.5, 0.0], [0.5, -0.1]],
@@ -19,6 +19,8 @@ class Shaders {
             'clouds': [[0.5, 0.0], [0.5, -0.1]],
             'fireflies': [[0.5, 0.0], [0.5, -0.1]],
             'bubbles': [[0.5, 0.0], [0.5, -0.1]],
+            // Staubwirbel: the eye of the whirl, and a point on its edge
+            'dust': [[0.5, 0.5], [0.85, 0.5]],
         };
         shaders = this;
     }
@@ -30,7 +32,8 @@ class Shaders {
     }
 
     async load_shader(path) {
-        return await (await fetch(`/shaders/${path}?${Math.random()}`)).text();
+        // the server's version: cached until the next update (see config.rb)
+        return await (await fetch(`/shaders/${path}?${window.CACHE_BUSTER || Math.random()}`)).text();
     }
 
     get(path) {

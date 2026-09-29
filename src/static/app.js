@@ -105,6 +105,7 @@ class Character {
 		this.ai_dy = 0;
 		this.ai_no_gravity = false;
 		this.ai_face = null;
+		this.ai_pose = null;
 		this.alert_until = 0;
 		this.alert_mesh = null;
 
@@ -157,7 +158,8 @@ class Character {
 		}
         // These are optional render poses, not movement states or attack hitboxes.
         // Missing poses never replace the normal movement art in an old game.
-        for (let kind of ['attack', 'hit']) {
+        // hunt / flee / stunned / landed: poses of enemy behaviours (baddie_ai.js).
+        for (let kind of ['attack', 'hit', 'hunt', 'flee', 'stunned', 'landed']) {
             let poses = {};
             for (let sti = 0; sti < this.sprite.states.length; sti++) {
                 let tags = this.sprite.states[sti].traits?.[this.character_trait] ?? {};
@@ -255,6 +257,8 @@ void main() {
     if (pixel.a <= 0.0) discard;
     gl_FragColor = vec4(mix(pixel.rgb, vec3(${rgb}), 0.9), pixel.a);
 }`;
+                // blended sprites (Mischmodus) expect premultiplied colour
+                if (base.userData?.blend) material.fragmentShader = premultiplied_shader(material.fragmentShader);
             }
             material.needsUpdate = true;
             cached = { kind, color: hex, material };
@@ -493,12 +497,12 @@ void main() {
 			this.t0 = this.game.clock.getElapsedTime();
 			let info = this.game.geometry_and_material_for_frame[this.sprite_index][sti][0];
 			this.mesh.geometry = info.geometry;
-			this.mesh.material = info.material;
+			this.mesh.material = this.game.material_for_frame?.(info, this.mesh) ?? info.material;
 		}
 		// animate character if there's more than one frame
 		if (this.game.data.sprites[this.sprite_index].states[sti].frames.length > 0) {
 			let fi = Math.floor((this.game.clock.getElapsedTime() - this.t0) * this.sprite.states[sti].properties.fps) % this.sprite.states[sti].frames.length;
-            if (state === 'dead' || state === 'attack' || state === 'hit') {
+            if (state === 'dead' || state === 'attack' || state === 'hit' || state === 'landed') {
                 // Death and optional combat poses play once; never loop.
                 fi = Math.floor((this.game.clock.getElapsedTime() - this.t0) * this.sprite.states[sti].properties.fps);
                 if (fi > this.sprite.states[sti].frames.length - 1)
@@ -506,7 +510,7 @@ void main() {
             }
 			let info = this.game.geometry_and_material_for_frame[this.sprite_index][sti][fi];
 			this.mesh.geometry = info.geometry;
-			this.mesh.material = info.material;
+			this.mesh.material = this.game.material_for_frame?.(info, this.mesh) ?? info.material;
 		}
         this.apply_hit_flash();
 		this.mesh.scale.x = flipped ? -1.0 : 1.0;
@@ -586,6 +590,7 @@ void main() {
 		this.ai_dy = 0;
 		this.ai_no_gravity = false;
 		this.ai_face = null;
+		this.ai_pose = null;
 		if (!this.behavior) return this.simulate_patrol();
 		const now = this.game.clock.getElapsedTime();
 		const out = baddie_decide(this.behavior, this.ai_memory, this.ai_perception());
@@ -602,6 +607,7 @@ void main() {
 		this.ai_speed = out.speed ?? 1.0;
 		this.ai_dy = out.dy ?? 0;
 		this.ai_face = out.face ?? null;
+		this.ai_pose = out.pose ?? null;
 		// The "!" is optional (off by default).
 		if (out.alert && this.behavior.alert) this.alert_until = now + 0.8;
 		if (out.stun > 0) this.paused_until = now + out.stun;
@@ -811,7 +817,7 @@ void main() {
 				$('#screen').hide();
 			});
 		} else {
-			this.game.curtain.show('Drück eine Taste, um fortzufahren', 0.5, 1.0, function () {
+			this.game.curtain.show(`${this.game.continue_prompt?.() ?? 'Drück eine Taste'}, um fortzufahren`, 0.5, 1.0, function () {
 				self.mesh.position.x = self.initial_position[0];
 				self.mesh.position.y = self.initial_position[1];
 				if (sprite !== null) {
@@ -884,6 +890,8 @@ void main() {
 				for (const k of Object.keys(this.pressed_keys)) this.pressed_keys[k] = false;
 				this.ai_dy = 0;
 				this.ai_speed = 1.0;
+				// a lurker that ran into a wall shows its "benommen" pose meanwhile
+				this.ai_pose = (this.ai_memory.stunned_until ?? 0) > this.game.clock.getElapsedTime() ? 'stunned' : null;
 			} else {
 				this.simulate_movement();
 			}
@@ -995,6 +1003,8 @@ void main() {
 			if (this.dead())
 				state = 'dead';
 		}
+        // Behaviour poses (only if the sprite has such a state): jagt, benommen, aufgeschlagen.
+        if (state !== 'dead' && this.ai_pose && this.sti_for_state[this.ai_pose]) state = this.ai_pose;
         // Optional art overlays movement for a short time; physics runs as usual.
         if (state !== 'dead' && this.combat_visual) {
             if (this.game.clock.getElapsedTime() < this.combat_visual.until)
@@ -1025,6 +1035,9 @@ void main() {
 					this.center_on_entry(entry);
 			}
 		}
+		// Climbing a ladder turns the character to the back – slopes and escalators
+		// (their height correction below) must not.
+		const climbing = dy !== 0;
 		// handle slopes: if we're on a slope, correct y coordinate
 		// let value = (this.has_trait_at(['block_above', 'ladder'], -0.5, 0.5, -0.1, -0.01) !== null);
 		entry = this.has_trait_at(['slope'], -0.5, 0.5, -0.01, 0.1);
@@ -1037,7 +1050,7 @@ void main() {
 		}
 
 		dy = this.try_move_y(dy);
-		if (Math.abs(dy) > 0.1)
+		if (climbing && Math.abs(dy) > 0.1)
 			direction = 'back';
 		if (this.ai_dy) {
 			// Flying and stomping enemies move themselves; this is not climbing.
@@ -1377,7 +1390,11 @@ class Game {
 			this.handle_key_up(e.code)
 		});
 		window.addEventListener('touchstart', (e) => {
+			const first = !this.touch_seen;
+			this.touch_seen = true;
 			$('#touch_controls').show();
+			// the start screen now explains the touch controls
+			if (first) this.render_start_screen();
 		});
 		window.addEventListener('mousemove', (e) => {
 			this.pointer_client = { x: e.clientX, y: e.clientY };
@@ -1404,11 +1421,31 @@ class Game {
 			element: $('#touch_controls'),
 			game: self,
 			radius: '20vh',
+			label: '⤒',
 			css: {
 				right: '10vh',
 				bottom: '10vh',
 			},
 		});
+		// Attack buttons: only shown when the figure of the current level can
+		// attack that way (update_touch_buttons, called for every level).
+		this.touch_melee_button = new TouchButton({
+			element: $('#touch_controls'),
+			game: self,
+			key: KEY_MELEE,
+			radius: '14vh',
+			label: '⚔',
+			css: { right: '33vh', bottom: '6vh' },
+		});
+		this.touch_ranged_button = new TouchButton({
+			element: $('#touch_controls'),
+			game: self,
+			key: KEY_RANGED,
+			radius: '14vh',
+			label: '➶',
+			css: { right: '13vh', bottom: '33vh' },
+		});
+		this.update_touch_buttons();
 	}
 
 	reset() {
@@ -1437,6 +1474,23 @@ class Game {
 		this.lives = this.data.properties.lives_at_begin;
 		this.energy = this.data.properties.energy_at_begin;
 		this.points = 0;
+	}
+
+	// Sprite sheet material with a blend mode (backdrops.js); null = plain.
+	blend_material(sheet_index, mode) {
+		const base = this.spritesheets[sheet_index];
+		mode = blend_mode_of(mode);
+		if (!mode || !base) return base;
+		this.blend_materials ??= {};
+		const key = `${sheet_index}:${mode}`;
+		this.blend_materials[key] ??= blended_copy(base, mode);
+		return this.blend_materials[key];
+	}
+
+	// Material for a frame, honouring a layer's Mischmodus (stored on the mesh).
+	material_for_frame(info, mesh) {
+		const mode = mesh?.userData?.blend;
+		return mode ? this.blend_material(info.sheet, mode) : info.material;
 	}
 
 	async load(tag) {
@@ -1469,6 +1523,8 @@ class Game {
 			});
 			this.spritesheets.push(material);
 		}
+		// blended copies of the sprite sheet materials, created on first use
+		this.blend_materials = {};
 
 		this.overlay_icons_material = {};
 		for (let key in OVERLAY_ICONS) {
@@ -1491,6 +1547,7 @@ class Game {
 
 		$('#game_title').text(this.data.properties.title);
 		$('#game_author').text(this.data.properties.author);
+		this.render_start_screen();
 		this.setup();
 		this.ts_zoom_actor = -1;
 		this.reached_flag = false;
@@ -1591,9 +1648,25 @@ class Game {
 		this.mouse_click_surface?.removeEventListener('pointerdown', this.mouse_click_handler, true);
 		this.mouse_click_surface = play_area;
 		this.mouse_click_handler = (event) => {
+			const touch = event.pointerType === 'touch' || event.pointerType === 'pen';
+			if (event.target?.closest?.('#touch_controls') || (event.target?.closest?.('#overlay') && !this.curtain?.showing)) return;
+			// Touch: a tap closes a sign's text and continues after the curtain,
+			// like any key on the keyboard.
+			if (touch && ((typeof document !== 'undefined' && document.querySelector('#text_frame.showing')) || this.curtain?.showing)) {
+				this.handle_key_down('Tap');
+				return;
+			}
+			if (event.target?.closest?.('#text_frame.showing')) return;
+			if (this.running && this.action_box_at?.(event.clientX, event.clientY)) {
+				// a tap is over in a moment: hold the key long enough for the game to see it
+				this.pressed_keys[KEY_ACTION] = true;
+				clearTimeout(this.action_tap_timer);
+				this.action_tap_timer = setTimeout(() => { this.pressed_keys[KEY_ACTION] = false; }, 120);
+				return;
+			}
+			// Aiming with the mouse (a touch fires with the ➶ button instead).
 			if (event.button !== 0 || (event.pointerType && event.pointerType !== 'mouse') ||
-				!this.combat.game_allows_combat() ||
-				event.target?.closest?.('#overlay, #text_frame.showing, #touch_controls')) return;
+				!this.combat.game_allows_combat()) return;
 			const actor = this.player_character;
 			const attack = actor?.traits?.attacks?.find(a =>
 				a?.slot === 'fern' && a.delivery?.kind === 'projectile');
@@ -1645,8 +1718,9 @@ class Game {
 					uv.setXY(1, (tile_info[1] + sprite.width * 4) / tw, tile_info[2] / th);
 					uv.setXY(2, tile_info[1] / tw, (tile_info[2] + sprite.height * 4) / th);
 					uv.setXY(3, (tile_info[1] + sprite.width * 4) / tw, (tile_info[2] + sprite.height * 4) / th);
-					let material = this.spritesheets[tile_info[0]];
-					this.geometry_and_material_for_frame[si][sti][fi] = { geometry: geometry, material: material }
+					// Mischmodus of the sprite (absent = the plain sprite sheet material)
+					let material = this.blend_material(tile_info[0], sprite.blend);
+					this.geometry_and_material_for_frame[si][sti][fi] = { geometry: geometry, material: material, sheet: tile_info[0] }
 					if (sti === 0 && fi === 0) {
 						let mesh = new THREE.Mesh(geometry, material);
 						// mesh.scale.x *= -1;
@@ -1697,6 +1771,12 @@ class Game {
 					let si = placed[0];
 					let mesh = this.mesh_catalogue[si].clone();
 					mesh.geometry = mesh.geometry.clone();
+					// Mischmodus of the layer overrides the sprite's own
+					const layer_blend = blend_mode_of(layer.properties.blend);
+					if (layer_blend) {
+						mesh.material = this.blend_material(this.geometry_and_material_for_frame[si][0][0].sheet, layer_blend);
+						mesh.userData.blend = layer_blend;
+					}
 					mesh.geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
 					// mesh.material = mesh.material.clone();
 					// console.log(mesh.material.uniforms.texture1);
@@ -1792,6 +1872,8 @@ class Game {
 			}
 			this.layers.push(game_layer);
 		}
+		// touch buttons for this level's figure (melee / ranged only if it has them)
+		this.update_touch_buttons();
 		// Sichtbarkeit beeinflusst nur Three.js-Gruppen, nicht die Kollisionsindizes.
 		this.visibility_rules = VisibilityRegions.resolve(level.layers);
 		VisibilityRegions.prepare(this.visibility_rules, this.layers);
@@ -1852,13 +1934,13 @@ class Game {
 		if (this.level_index < this.data.levels.length) {
 			let level = this.data.levels[this.level_index];
 			let level_title = level.properties.name.trim();
-			this.curtain.show(`<div>${level_title}</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, 0.0, 0.0, function () {
+			this.curtain.show(`<div>${level_title}</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>${this.continue_prompt()}</div>`, 0.0, 0.0, function () {
 				self.frame = 0;
 				self.clock.start();
 				self.run();
 			});
 		} else {
-			this.curtain.show(`<div>THE END</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>Drück eine Taste</div>`, 0.0, 0.0, function () {
+			this.curtain.show(`<div>THE END</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>${this.continue_prompt()}</div>`, 0.0, 0.0, function () {
 				self.stop();
 			});
 		}
@@ -2156,6 +2238,102 @@ class Game {
 		else
 			$('.play_container_inner').css('height', '').css('width', '100%');
 		$('body').css('font-size', `${this.height / 30}px`);
+	}
+
+	// Start screen: the controls this game really uses, with its own keys.
+	render_start_screen() {
+		const panel = $('#start_controls');
+		if (!panel.length || !this.data) return;
+		panel.empty();
+		const placed = new Set();
+		for (const level of this.data.levels ?? [])
+			for (const layer of level.layers ?? [])
+				if (layer.type === 'sprites') for (const p of layer.sprites ?? []) placed.add(p[0]);
+		const sprites = [...placed].map(si => this.data.sprites[si]).filter(Boolean);
+		const has = (fn) => sprites.some(sp => fn(sp.traits ?? {}));
+		// the same attack list a Character gets (new melee/ranged traits or old swords)
+		const actor_attack = (slot, kind) => has(t => {
+			if (!('actor' in t)) return false;
+			const attacks = (t.melee_attack?.attack || t.ranged_attack?.attack) && typeof resolved_character_attacks === 'function' ?
+				resolved_character_attacks(t, 'actor') : t.actor?.attacks;
+			return Array.isArray(attacks) && attacks.some(a => a?.slot === slot && a.delivery?.kind === kind);
+		});
+		const uses = {
+			left: true, right: true, jump: true,
+			up: has(t => 'ladder' in t), down: has(t => 'ladder' in t),
+			action: has(t => ('door' in t && !t.door?.automatic) || 'text' in t),
+			melee: actor_attack('nah', 'swing'),
+			ranged: actor_attack('fern', 'projectile'),
+		};
+		const touch = this.touch_seen || window.matchMedia?.('(pointer: coarse)')?.matches;
+		const rows = touch ? [
+			['Laufen', ['linker Kreis']],
+			...(uses.up ? [['Leiter', ['linker Kreis hoch / runter']]] : []),
+			['Springen', ['⤒']],
+			...(uses.action ? [['Tür, Text', ['auf das F tippen']]] : []),
+			...(uses.melee ? [['Nahkampf', ['⚔']]] : []),
+			...(uses.ranged ? [['Fernkampf', ['➶']]] : []),
+		] : (() => {
+			const keys = resolve_controls(this.data.properties);
+			const k = (...ids) => ids.flatMap(id => keys[id].map(key_label));
+			return [
+				['Laufen', k('left', 'right')],
+				...(uses.up ? [['Leiter', k('up', 'down')]] : []),
+				['Springen', k('jump')],
+				...(uses.action ? [['Tür, Text', k('action')]] : []),
+				...(uses.melee ? [['Nahkampf', k('melee')]] : []),
+				...(uses.ranged ? [['Fernkampf', k('ranged')]] : []),
+			];
+		})();
+		for (const [label, keys] of rows) {
+			panel.append($('<div class="label">').text(label));
+			const cell = $('<div class="keys">');
+			for (const k of keys) cell.append($(touch ? '<span>' : '<span class="key">').text(k));
+			panel.append(cell);
+		}
+		const fullscreen = typeof window.toggle_game_fullscreen === 'function';
+		$('#start_hint').text(touch ?
+			(fullscreen ? 'Vollbild: Tipp unten rechts auf ⛶' : '') :
+			'Vollbild: Strg + Enter oder ⛶ unten rechts · Esc beendet das Spiel');
+	}
+
+	// "Press a key" – or "tap", once the game has been touched.
+	continue_prompt() {
+		return this.touch_seen ? 'Tipp auf den Bildschirm' : 'Drück eine Taste';
+	}
+
+	// Touch buttons for the attacks the figure of this level really has.
+	player_attack(slot) {
+		const kind = slot === 'nah' ? 'swing' : 'projectile';
+		return this.player_character?.traits?.attacks?.find?.(a => a?.slot === slot && a.delivery?.kind === kind) ?? null;
+	}
+
+	update_touch_buttons() {
+		const melee = Boolean(this.player_attack('nah'));
+		const ranged = Boolean(this.player_attack('fern'));
+		this.touch_melee_button?.show(melee);
+		this.touch_ranged_button?.show(ranged);
+		// a single attack button sits right next to the jump button
+		this.touch_ranged_button?.bg_element.css(melee ? { right: '13vh', bottom: '33vh' } : { right: '33vh', bottom: '6vh' });
+	}
+
+	// A tap (or click) on a visible "F" box above a door or a sign works like
+	// the action key.
+	action_box_at(clientX, clientY) {
+		const rect = this.renderer?.domElement?.getBoundingClientRect?.();
+		if (!rect || !(rect.width > 0) || !this.camera) return false;
+		const u = (clientX - rect.left) / rect.width, v = (clientY - rect.top) / rect.height;
+		if (u < 0 || u > 1 || v < 0 || v > 1) return false;
+		const x = this.camera.left + u * (this.camera.right - this.camera.left);
+		const y = this.camera.top - v * (this.camera.top - this.camera.bottom);
+		const p = new THREE.Vector3();
+		for (const mesh of this.overlay_meshes ?? []) {
+			if (!mesh.visible) continue;
+			mesh.getWorldPosition(p);
+			// generous: a fingertip is much bigger than the box
+			if (Math.abs(p.x - x) <= 16 && Math.abs(p.y - y) <= 16) return true;
+		}
+		return false;
 	}
 
 	update_pointer_world(clientX, clientY) {
@@ -2542,6 +2720,7 @@ class TouchControl {
 			self.handle_touch(e);
 		});
 		this.bg_element.on('touchend touchcancel', function (e) {
+			if (e.targetTouches?.length) return;
 			self.fg_element.css('transform', `translate(-50%, -50%) scale(0.7) translate(0px, 0px)`);
 			self.options.game.pressed_keys[KEY_RIGHT] = false;
 			self.options.game.pressed_keys[KEY_LEFT] = false;
@@ -2559,7 +2738,9 @@ class TouchControl {
 			return;
 		}
 		let self = this;
-		let touch = e.touches[0];
+		e.preventDefault?.();
+		// the finger on the stick – not a finger on the jump button
+		let touch = e.targetTouches?.[0] ?? e.touches[0];
 		let width = self.bg_element.width();
 		let height = self.bg_element.height();
 		let dx = (touch.clientX - self.bg_element.position().left - width / 2) / (width / 2);
@@ -2604,15 +2785,31 @@ class TouchButton {
 		this.bg_element.on('touchmove', function (e) {
 			self.handle_touch(e);
 		});
+		if (options.label) {
+			this.fg_element.text(options.label).css({ display: 'flex', 'align-items': 'center', 'justify-content': 'center',
+				color: '#fff', 'font-size': `calc(${options.radius} * 0.4)`, 'line-height': 1 });
+		}
 		this.bg_element.on('touchend touchcancel', function (e) {
+			// other fingers may still be on this button
+			if (e.targetTouches?.length) return;
 			self.fg_element.css('transform', `translate(-50%, -50%) scale(0.7) translate(0px, 0px)`);
-			self.options.game.pressed_keys[KEY_JUMP] = false;
+			self.options.game.pressed_keys[self.key] = false;
 		});
+	}
+
+	get key() {
+		return this.options.key ?? KEY_JUMP;
+	}
+
+	show(flag) {
+		this.bg_element.toggle(Boolean(flag));
+		if (!flag && this.options.game.pressed_keys) this.options.game.pressed_keys[this.key] = false;
 	}
 
 	handle_touch(e) {
 		let self = this;
-		let touch = e.touches[0];
+		e.preventDefault?.();
+		let touch = e.targetTouches?.[0] ?? e.touches[0];
 		let width = self.bg_element.width();
 		let height = self.bg_element.height();
 		let dx = (touch.clientX - self.bg_element.position().left - width / 2) / (width / 2);
@@ -2625,7 +2822,7 @@ class TouchButton {
 		dy *= fr / r;
 		let phi = Math.atan2(dy, dx) / Math.PI * 180;
 		self.fg_element.css('transform', `translate(-50%, -50%) scale(0.7) translate(${dx * (width / 2)}px, ${dy * (height / 2)}px)`);
-		self.options.game.pressed_keys[KEY_JUMP] = true;
+		self.options.game.pressed_keys[self.key] = true;
 	}
 }
 

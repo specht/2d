@@ -1,4 +1,4 @@
-// Dev helper: contact sheet of every Nth GIF frame -> PNG.
+// Dev helper: contact sheet of every Nth frame of a recording (WebP or GIF) -> PNG.
 import sharp from 'sharp';
 const [,, file, out, step = '6'] = process.argv;
 const meta = await sharp(file, { animated: true }).metadata();

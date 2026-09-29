@@ -65,6 +65,8 @@ test('a coward runs away and trembles when cornered', () => {
     const cornered = baddie_decide(b, mem, world({ now: 0.1, player: { dx: 40, dy: 0 }, wall: d => d === 'left' }));
     assert.equal(cornered.keys.left, false);
     assert.equal(cornered.face, 'right');
+    assert.equal(run.pose, 'flee');
+    assert.equal(cornered.pose, 'flee', 'trembling in the corner');
     assert.equal(baddie_decide(b, mem, world({ now: 3, player: { dx: 500, dy: 0 } })).patrol, true);
 });
 
@@ -128,4 +130,62 @@ test('hunters do not hop up ladders', () => {
     const b = baddie_behavior({ behavior: { type: 'hunter' } });
     const out = baddie_decide(b, {}, world({ on_ladder: true, player: { dx: -30, dy: 0 }, facing: 'left', wall: () => true }));
     assert.equal(out.keys.jump, false);
+});
+
+const { promote_baddie_behavior, set_baddie_behavior_type, behavior_uses } = require('../src/static/baddie_ai.js');
+
+test('old enemies are promoted to the type they already have', () => {
+    const walker = { patrols: true, start_dir: 'left' };
+    assert.equal(promote_baddie_behavior(walker), true);
+    assert.deepEqual(walker.behavior, { type: 'guard' });
+    assert.equal(walker.patrols, true, 'classic fields stay');
+    const turret = { patrols: false };
+    promote_baddie_behavior(turret);
+    assert.equal(turret.behavior.type, 'still');
+    const flyer = { patrols: true, affected_by_gravity: false };
+    promote_baddie_behavior(flyer);
+    assert.equal(flyer.behavior.type, 'guard', 'a flying patrol stays the classic flying patrol');
+    // idempotent: loading, saving and loading again changes nothing
+    const again = JSON.parse(JSON.stringify(turret));
+    assert.equal(promote_baddie_behavior(again), false);
+    assert.deepEqual(again, turret);
+    const hunter = { behavior: { type: 'hunter', sight: 100 } };
+    assert.equal(promote_baddie_behavior(hunter), false);
+    assert.equal(hunter.behavior.sight, 100);
+});
+
+test('switching the type keeps the classic patrol consistent', () => {
+    const t = { patrols: true, behavior: { type: 'guard' } };
+    set_baddie_behavior_type(t, 'still');
+    assert.equal(t.patrols, false);
+    set_baddie_behavior_type(t, 'guard');
+    assert.equal(t.patrols, true);
+    assert.equal(behavior_uses({ behavior: { type: 'stomper' } }, 'speed'), false);
+    assert.equal(behavior_uses({ behavior: { type: 'hopper' } }, 'jump'), true);
+    assert.equal(behavior_uses({ patrols: false }, 'patrol'), false, 'an old turret hides the patrol settings');
+});
+
+test('stomper: warning time, fall speed, landed pose and "fällt nur einmal"', () => {
+    const b = baddie_behavior({ behavior: { type: 'stomper', warn: 0.5, fall: 300, once: true } });
+    const mem = {};
+    baddie_decide(b, mem, world({ player: { dx: 0, dy: -40 } }));
+    assert.equal(baddie_decide(b, mem, world({ now: 0.4 })).dy, 0, 'still warning');
+    let out;
+    for (let i = 0; i < 20; i++) out = baddie_decide(b, mem, world({ now: 0.5 + i / 60 }));
+    assert.ok(out.dy >= -5 - 1e-9, 'never faster than 300 px/s = 5 px per step');
+    mem.blocked = true;
+    assert.equal(baddie_decide(b, mem, world({ now: 1 })).pose, 'landed');
+    assert.equal(baddie_decide(b, mem, world({ now: 30 })).pose, 'landed', 'stays down');
+    assert.equal(mem.mode, 'done');
+});
+
+test('hunter and lurker poses', () => {
+    const h = baddie_behavior({ behavior: { type: 'hunter' } });
+    assert.equal(baddie_decide(h, {}, world({ player: { dx: 60, dy: 0 } })).pose, 'hunt');
+    const l = baddie_behavior({ behavior: { type: 'lurker' } });
+    const mem = {};
+    baddie_decide(l, mem, world({ player: { dx: -100, dy: 0 } }));
+    assert.equal(baddie_decide(l, mem, world({ now: 0.4 })).pose, 'hunt');
+    assert.equal(baddie_decide(l, mem, world({ now: 0.8, wall: () => true })).pose, 'stunned');
+    assert.equal(baddie_decide(l, mem, world({ now: 1.0 })).pose, 'stunned', 'still dazed');
 });

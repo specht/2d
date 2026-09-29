@@ -23,6 +23,14 @@ function deep_merge(base, extra) {
     return out;
 }
 
+// mischmodus: leuchten | aufhellen | abdunkeln (or the engine's add | screen | multiply)
+const BLEND = { leuchten: 'add', aufhellen: 'screen', abdunkeln: 'multiply', add: 'add', screen: 'screen', multiply: 'multiply' };
+export function blend_of(value, where = '') {
+    if (value === undefined || value === null || value === 'normal') return undefined;
+    if (!BLEND[value]) throw new Error(`${where}unbekannter Mischmodus "${value}" (leuchten, aufhellen, abdunkeln)`);
+    return BLEND[value];
+}
+
 // ------------------------------------------------------------ catalogue
 export function load_catalog(root) {
     const catalog = YAML.parse(fs.readFileSync(path.join(root, 'katalog.yaml'), 'utf8'));
@@ -33,9 +41,11 @@ export function load_catalog(root) {
         if (!def) throw new Error(`Katalog: unbekannter Sprite "${id}"`);
         if (stack.includes(id)) throw new Error(`Katalog: Zyklus bei ${[...stack, id].join(' → ')}`);
         let sprite = { id, label: def.label ?? id, traits: clone(def.traits ?? {}), states: clone(def.states ?? []),
-            ...(def.groesse ? { groesse: def.groesse } : {}) };
+            ...(def.groesse ? { groesse: def.groesse } : {}),
+            ...(def.mischmodus ? { mischmodus: blend_of(def.mischmodus, `Katalog ${id}: `) } : {}) };
         if (def.extends) {
             const parent = resolve(def.extends, [...stack, id]);
+            if (parent.mischmodus && !('mischmodus' in def)) sprite.mischmodus = parent.mischmodus;
             const states = clone(parent.states);
             for (const st of sprite.states) {
                 const i = states.findIndex(s => s.strip === st.strip);
@@ -84,7 +94,7 @@ function fix_game_data(data, repo) {
     if (!fixer) {
         const ctx = { console, DEFAULT_WIDTH: TILE, DEFAULT_HEIGHT: TILE, createDataUrlForImageSize: () => undefined };
         vm.createContext(ctx);
-        for (const f of ['traits.js', 'game.js'])
+        for (const f of ['traits.js', 'baddie_ai.js', 'game.js'])
             vm.runInContext(fs.readFileSync(path.join(repo, 'src/static', f), 'utf8'), ctx, { filename: f });
         vm.runInContext('globalThis.__fix = (d) => { const g = { data: d }; Game.prototype.fix_game_data.call(g); return g.data; };', ctx);
         fixer = ctx.__fix;
@@ -183,7 +193,8 @@ export async function build_game(catalog, recipe, repo) {
             });
             frames_by_key.push(frames);
         }
-        sprites.push({ width: sw, height: sh, traits, states });
+        const blend = def.mischmodus;
+        sprites.push({ width: sw, height: sh, ...(blend ? { blend } : {}), traits, states });
     }
 
     // Placements: characters go to the front layer, maps back-to-front.
@@ -197,7 +208,8 @@ export async function build_game(catalog, recipe, repo) {
         const placed = [si, c * TILE + sprites[si].width / 2, (rows - 1 - r) * TILE];
         if (entry.platziert) placed.push(clone(entry.platziert));
         const traits = sprites[si].traits;
-        if ('actor' in traits || 'baddie' in traits) figures.push(placed);
+        // figuren: true keeps characters in their own map layer (e.g. behind a window)
+        if (('actor' in traits || 'baddie' in traits) && !layer_defs[li].figuren) figures.push(placed);
         else tile_layers[li].push(placed);
     })));
 
@@ -256,28 +268,39 @@ export async function build_game(catalog, recipe, repo) {
         stars: [[0.5, 1.0], [0.5, 0.25]], aurora: [[0.5, 0.35], [0.5, 1.0]],
         rain: [[0.5, 0.0], [0.5, -0.1]], clouds: [[0.5, 0.0], [0.5, -0.1]],
         fireflies: [[0.5, 0.0], [0.5, -0.1]], bubbles: [[0.5, 0.0], [0.5, -0.1]],
+        dust: [[0.5, 0.5], [0.85, 0.5]],
     };
     const effect_layer = e => {
         if (!EFFECT_POINTS[e.effekt]) throw new Error(`${recipe.id}: unbekannter Effekt "${e.effekt}"`);
         return {
-            type: 'backdrop', backdrop_type: 'effect', effect: e.effekt,
+            type: 'backdrop', backdrop_type: 'effect', effect: e.effekt, ...(e.id ? { id: e.id } : {}),
             properties: { name: e.name ?? e.effekt }, scale: e.skala ?? 1.0, speed: e.tempo ?? 1.0,
             color: e.farbe ?? '#ffffffff', control_points: e.punkte ?? EFFECT_POINTS[e.effekt],
             ...(e.pixel ? { pixelated: true } : {}),
-            rects: [{ left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
+            ...(e.menge !== undefined ? { density: Number(e.menge) } : {}),
+            ...(e.neigung !== undefined ? { tilt: Number(e.neigung) } : {}),
+            ...(e.mischmodus ? { properties: { name: e.name ?? e.effekt, blend: blend_of(e.mischmodus, `${recipe.id}: `) } } : {}),
+            // bereich: [column, row from top, width, height] in tiles – e.g. only the air above the ground
+            rects: [e.bereich ?
+                { left: e.bereich[0] * TILE, bottom: (rows - e.bereich[1] - e.bereich[3]) * TILE, width: e.bereich[2] * TILE, height: e.bereich[3] * TILE } :
+                { left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
         };
     };
-    const effects_front = (scene.effekte ?? []).filter(e => e.vorne !== false).map(effect_layer);
-    const effects_back = (scene.effekte ?? []).filter(e => e.vorne === false).map(effect_layer);
+    // vorne: false = behind all layers; hinter: <Ebene> = right behind that layer
+    // (its name or id, or 'Figuren'); otherwise in front of everything.
+    const effects_front = (scene.effekte ?? []).filter(e => e.vorne !== false && !e.hinter).map(effect_layer);
+    const effects_back = (scene.effekte ?? []).filter(e => e.vorne === false && !e.hinter).map(effect_layer);
+    const effects_between = (scene.effekte ?? []).filter(e => e.hinter);
     const layer = (name, placed, def = {}) => ({
         type: 'sprites', ...(def.id ? { id: def.id } : {}),
         properties: { name, collision_detection: def.kollision !== false,
-            ...(def.parallaxe && !scene.parallaxe_aus ? { parallax: Number(def.parallaxe) } : {}) },
+            ...(def.parallaxe && !scene.parallaxe_aus ? { parallax: Number(def.parallaxe) } : {}),
+            ...(def.mischmodus ? { blend: blend_of(def.mischmodus, `${recipe.id}: `) } : {}) },
         sprites: placed,
     });
     // Sichtbarkeitsbereiche: rectangles in tiles [column, row from top, width, height].
     const regions = (scene.bereiche ?? []).map((b, i) => {
-        if (!layer_defs.some(d => d.id === b.ziel)) throw new Error(`${recipe.id}: Bereich zielt auf unbekannte Ebene "${b.ziel}"`);
+        if (!layer_defs.some(d => d.id === b.ziel) && !(scene.effekte ?? []).some(e => e.id === b.ziel)) throw new Error(`${recipe.id}: Bereich zielt auf unbekannte Ebene "${b.ziel}"`);
         return {
             type: 'visibility_region', properties: { name: b.name ?? `Sichtbarkeitsbereich ${i + 1}` },
             target_layer_id: b.ziel, inside_visible: b.im_bereich === 'sichtbar',
@@ -289,6 +312,7 @@ export async function build_game(catalog, recipe, repo) {
         vorne: Boolean(layer_defs[i].vorne),
         layer: layer(layer_defs[i].name ?? `Ebene ${i + 1}`, p, layer_defs[i]),
     })).reverse();
+    const figure_layers = [layer('Figuren', figures)];
     const level = {
         properties: { name: recipe.titel, background_color: sky[1] },
         layers: [
@@ -296,7 +320,7 @@ export async function build_game(catalog, recipe, repo) {
             ...effects_front,
             // `vorne: true` puts a layer in front of the characters (e.g. water Pip wades through)
             ...tile_layer_list.filter(l => l.vorne).map(l => l.layer),
-            layer('Figuren', figures),
+            ...figure_layers,
             ...tile_layer_list.filter(l => !l.vorne).map(l => l.layer),
             ...effects_back,
             {
@@ -310,6 +334,11 @@ export async function build_game(catalog, recipe, repo) {
             },
         ],
     };
+    for (const e of effects_between) {
+        const i = level.layers.findIndex(l => l.type === 'sprites' && (l.id === e.hinter || l.properties.name === e.hinter));
+        if (i < 0) throw new Error(`${recipe.id}: Effekt ${e.effekt}: unbekannte Ebene "${e.hinter}" bei hinter`);
+        level.layers.splice(i + 1, 0, effect_layer(e));
+    }
     let data = {
         properties: {
             title: recipe.titel, author: '2D Game Studio Rezepte',

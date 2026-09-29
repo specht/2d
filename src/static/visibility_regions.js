@@ -74,8 +74,11 @@ const VisibilityRegions = (() => {
                                 // Keep the original shader (and its animation uniforms)
                                 // but multiply its final alpha by this layer's opacity.
                                 if (!/}\s*$/.test(copy.fragmentShader)) return original;
+                                // Mischmodus (backdrops.js): the colour is premultiplied
+                                // and must fade as well, not only the alpha.
+                                const fade = copy.userData?.blend ? 'gl_FragColor' : 'gl_FragColor.a';
                                 copy.fragmentShader = 'uniform float visibilityRegionOpacity;\n' +
-                                    copy.fragmentShader.replace(/}\s*$/, '    gl_FragColor.a *= visibilityRegionOpacity;\n}');
+                                    copy.fragmentShader.replace(/}\s*$/, `    ${fade} *= visibilityRegionOpacity;\n}`);
                                 copy.uniforms.visibilityRegionOpacity = { value: 1 };
                                 copy.needsUpdate = true;
                                 rule.fadeMaterials.push({ material: copy, shader: true });

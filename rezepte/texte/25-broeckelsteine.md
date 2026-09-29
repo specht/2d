@@ -26,7 +26,7 @@ erwartet:
 ## Das brauchst du
 
 - **Das musst du zeichnen:** einen Stein, der fast wie eine normale Mauer aussieht – aber schon einen kleinen Riss hat.
-- **Das kannst du später dazumalen:** einen Zustand **zerbröselt** mit immer größeren Rissen.
+- **Das kannst du später dazumalen:** einen Zustand **zerbröselt**: Erst wandern Risse durch den Stein, dann gehen sie auf, kleine Stücke bröckeln ab und Staub rieselt – zum Schluss sacken die Bruchstücke auseinander.
 
 ![Bröckelstein](katalog:welt/broeckel)
 ![zerbröselt](katalog:welt/broeckel_zerfall 6)
@@ -43,6 +43,8 @@ erwartet:
 ## Tipps
 
 > **Tipp:** Die Frames von **zerbröselt** werden genau einmal abgespielt – verteilt auf die Zeit bei **fällt nach**. Der letzte Frame ist der Moment kurz vor dem Fallen.
+
+> **Profi-Tipp:** Zeichne die Risse entlang unregelmäßiger Bruchstücke, nicht entlang der Mauerfugen. Lass Stücke an den Rändern abbrechen statt gerade Kästchen herauszuradieren – dann sieht es nach echtem Stein aus.
 
 - Mit **akkumuliert Schaden** bröckelt der Stein nur, solange jemand draufsteht. Geht man runter, hört er auf zu bröckeln – bis man wieder draufsteigt.
 - Ein kleiner Riss im normalen Bild ist ein fairer Hinweis: Aufmerksame Spieler erkennen den Bröckelstein.

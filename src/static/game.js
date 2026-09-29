@@ -104,6 +104,10 @@ class Game {
                     this.data.sprites[si].states[sti].traits[trait] ??= {};
                 }
             }
+            // Old enemies get the behaviour they already have (Wächter / Steht still);
+            // their classic settings stay and keep them moving exactly as before.
+            if (this.data.sprites[si].traits.baddie && typeof promote_baddie_behavior === 'function')
+                promote_baddie_behavior(this.data.sprites[si].traits.baddie);
             this.data.sprites[si].states ??= [];
             if (this.data.sprites[si].states.length === 0) {
                 this.data.sprites[si].states.push({});
@@ -217,6 +221,7 @@ class Game {
     }
 
     create_geometry_and_material_for_sprite(si) {
+        if (this.blend_materials_for_sprite) this.blend_materials_for_sprite[si] = {};
         this.geometry_for_sprite[si] = new THREE.PlaneGeometry(1, 1, 1, 1);
         this.material_for_sprite[si] = new THREE.ShaderMaterial({
             uniforms: {
@@ -247,7 +252,22 @@ class Game {
             let texture = this.texture_loader.load(frame.src);
             texture.magFilter = THREE.NearestFilter;
             this.material_for_sprite[si].uniforms.texture1.value = texture;
+            for (const material of Object.values(this.blend_materials_for_sprite?.[si] ?? {}))
+                material.uniforms.texture1.value = texture;
         }
+    }
+
+    // Level editor: the sprite's material with the Mischmodus of the layer
+    // (or else of the sprite itself), like in the game.
+    editor_sprite_material(si, layer_blend) {
+        const base = this.material_for_sprite[si];
+        const mode = blend_mode_of(layer_blend) ?? blend_mode_of(this.data.sprites[si]?.blend);
+        if (!mode || !base) return base;
+        this.blend_materials_for_sprite ??= [];
+        this.blend_materials_for_sprite[si] ??= {};
+        const material = this.blend_materials_for_sprite[si][mode] ??= blended_copy(base, mode);
+        material.uniforms.texture1.value = base.uniforms.texture1.value;
+        return material;
     }
 
     _load() {
@@ -735,6 +755,27 @@ class Game {
         });
     }
 
+    // Mischmodus: how the sprite is mixed with everything behind it.
+    // Absent = normal transparency (old games).
+    add_sprite_blend_control(si) {
+        let self = this;
+        new SelectWidget({
+            container: $('#menu_sprite_properties'),
+            label: 'Mischmodus',
+            hint: 'So wird der Sprite mit allem dahinter gemischt. Leuchten: Farben werden addiert – gut für Licht, Feuer und Funken. Aufhellen: wie Leuchten, aber sanfter – gut für Geister und Nebel. Abdunkeln: Farben werden multipliziert – gut für Schatten, getöntes Glas und Wasser.',
+            options: BLEND_MODES,
+            get: () => self.data.sprites[si].blend ?? 'normal',
+            set: (x) => {
+                if (x === 'normal') delete self.data.sprites[si].blend; else self.data.sprites[si].blend = x;
+                if (self.level_editor?.layer_structs?.length) {
+                    self.level_editor.refresh_blend_materials();
+                    self.level_editor.refresh();
+                    self.level_editor.render();
+                }
+            },
+        });
+    }
+
     build_sprite_traits_menu() {
         let self = this;
         let si = canvas.sprite_index;
@@ -749,6 +790,7 @@ class Game {
         let traits_menu_data = [];
         traits_menu_data.push({ label: 'Eigenschaft hinzufügen', children: this.build_sprite_traits_submenu(SPRITE_TRAITS_ORDER) });
         setupDropdownMenu(traits_menu, traits_menu_data);
+        this.add_sprite_blend_control?.(si);
         let keys = Object.keys(self.data.sprites[si].traits);
         for (let i = keys.length - 1; i >= 0; i--) {
             let trait = keys[i];
@@ -775,13 +817,24 @@ class Game {
         let title = $(`<h4>`).append($('<span>').text(SPRITE_TRAITS[trait].label)).append(bu_delete).appendTo(div);
         let info = SPRITE_TRAITS[trait] ?? {};
         if (trait === 'baddie' && typeof BADDIE_BEHAVIORS !== 'undefined') this.add_behavior_controls(div, si);
+        // Rarely needed settings (hitbox, screen shake …) sit in a folded "Erweitert" section.
+        let advanced = null;
         for (let key in info.properties ?? {}) {
             let property = info.properties[key];
             // Some settings only matter for some behaviours (e.g. patrolling).
             if (typeof property.visible === 'function' && !property.visible(self.data.sprites[si].traits[trait])) continue;
+            let container = div;
+            if (property.advanced) {
+                if (!advanced) {
+                    const details = $('<details>').addClass('trait-advanced').appendTo(div);
+                    $('<summary>').text('Erweitert').appendTo(details);
+                    advanced = $('<div>').appendTo(details);
+                }
+                container = advanced;
+            }
             if (property.type === 'float') {
                 new NumberWidget({
-                    container: div,
+                    container: container,
                     label: property.label ?? key,
                     hint: property.hint ?? null,
                     min: property.min ?? null,
@@ -804,7 +857,7 @@ class Game {
                 });
             } else if (property.type === 'bool') {
                 new CheckboxWidget({
-                    container: div,
+                    container: container,
                     label: property.label ?? key,
                     hint: property.hint ?? null,
                     get: () => self.data.sprites[si].traits[trait][key],
@@ -814,7 +867,7 @@ class Game {
                 });
             } else if (property.type === 'select') {
                 new SelectWidget({
-                    container: div,
+                    container: container,
                     label: property.label ?? key,
                     hint: property.hint ?? null,
                     options: property.options ?? null,
@@ -833,7 +886,7 @@ class Game {
     }
 
     // "Verhalten": one select with named enemy types, each with only its own
-    // settings. Wächter without changes stores nothing, so old games stay as they are.
+    // settings. Loading a game gives old enemies their type (promote_baddie_behavior).
     add_behavior_controls(div, si) {
         const traits = this.data.sprites[si].traits.baddie;
         const type = baddie_behavior_type(traits);
@@ -845,8 +898,7 @@ class Game {
             get: () => type,
             set: (x) => {
                 if (!(x in BADDIE_BEHAVIORS) || x === type) return;
-                if (x === 'guard') delete traits.behavior;
-                else traits.behavior = { type: x };
+                set_baddie_behavior_type(traits, x);
                 this.build_sprite_traits_menu();
             },
         });

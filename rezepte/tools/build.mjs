@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Builds src/static/rezepte/: one GIF per recipe (recorded from the real
-// engine), animation-catalogue GIFs and rezepte.json for the help tab.
+// Builds src/static/rezepte/: one animated WebP per recipe (recorded from the
+// real engine), the catalogue sprites at native size and rezepte.json for the
+// help tab. File URLs carry a content hash (cache busting).
 //
 //   node build.mjs            build everything
 //   node build.mjs leiter     build only the named recipe(s)
@@ -12,7 +13,8 @@ import YAML from 'yaml';
 import { marked } from 'marked';
 import sharp from 'sharp';
 import { load_catalog, load_strip, build_game, TILE } from './game.mjs';
-import { launch, record, write_gif, check, FRAME_MS, key_events } from './record.mjs';
+import { launch, record, write_webp, write_gif, check, key_events } from './record.mjs';
+import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 const controls = createRequire(import.meta.url)('../../src/static/controls.js');
 
@@ -40,75 +42,70 @@ function read_recipe(file) {
     return meta;
 }
 
-// An animation from the catalogue as a big looping GIF plus its frame strip,
-// so recipes can show "these are the frames you draw".
-let catalog_for_strips = null;
-// [top, bottom] colour of a recipe's sky, for the catalogue pictures.
-const DEFAULT_SKY = ['#73eff7', '#f4f4f4'];
-function sky_pair(himmel) {
-    if (!himmel) return DEFAULT_SKY;
-    if (Array.isArray(himmel)) return [himmel[0], himmel[1]];
-    const points = [...himmel.farben].sort((a, b) => b[2] - a[2]);
-    return [points[0][0], points[points.length - 1][0]];
+// Short content hash for cache busting: /rezepte/leiter.webp?3f9a0c1b2d
+function content_hash(buffer) {
+    return crypto.createHash('sha1').update(buffer).digest('hex').slice(0, 10);
 }
 
-async function catalogue_gif(strip, fps, sky = DEFAULT_SKY) {
-    // Frame strips have the sky painted in; recipes with another sky get their own copy.
-    const own_sky = sky.join() !== DEFAULT_SKY.join();
+// Every file the build writes (relative to out_dir): a full build removes the rest.
+const written = new Set();
+function write_output(rel, buffer) {
+    written.add(rel);
+    if (check_only) return content_hash(buffer);
+    const file = path.join(out_dir, rel);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, buffer);
+    return content_hash(buffer);
+}
+
+// A sprite from the catalogue at its real size, with real transparency: whoever
+// copies or saves it gets exactly the pixels to paste into the sprite editor.
+// Animations: one animated WebP plus every frame as its own PNG. Scaling, the
+// checkerboard and the dashed outline are CSS only (see styles.css).
+let catalog_for_strips = null;
+async function catalogue_images(strip, fps) {
     const name = strip.replace('/', '_');
-    const strip_name = own_sky ? `${name}_${sky.map(c => c.slice(1, 7)).join('_')}` : name;
     // Big sprites (groesse: [w, h]) are cut with their own frame size.
-    const owner = Object.values(catalog_for_strips?.sprites ?? {}).find(sp => sp.groesse && sp.states.some(st => st.strip === strip));
+    const owner = Object.values(catalog_for_strips?.sprites ?? {}).find(sp => sp.states.some(st => st.strip === strip));
     const [fw, fh] = owner?.groesse ?? [TILE, TILE];
     const frames = await load_strip(root, strip, fw, fh);
-    const S = fw > TILE || fh > TILE ? 2 : 4;   // big background sprites: 2×
-    const scaled = await Promise.all(frames.map(f =>
-        sharp(f.raw, { raw: { width: fw, height: fh, channels: 4 } })
-            .resize(fw * S, fh * S, { kernel: 'nearest' }).png().toBuffer()));
-    // GIFs know only "see-through or not". Sprites with half-transparent pixels
-    // (water, light, ghosts) therefore get the recipe's sky painted in.
-    const translucent = frames.some(f => { for (let i = 3; i < f.raw.length; i += 4) if (f.raw[i] > 0 && f.raw[i] < 255) return true; return false; });
-    const gif_name = translucent ? strip_name : name;
-    const gif = path.join(out_dir, 'katalog', `${gif_name}.gif`);
-    const delay = Math.round(1000 / (fps ?? 8));
-    const W = fw * S, H = fh * S;
-    const sky_svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">` +
-        `<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/>` +
-        `<stop offset="1" stop-color="${sky[1]}"/></linearGradient></defs><rect width="${W}" height="${H}" fill="url(#g)"/></svg>`);
-    if (!check_only) {
-        fs.mkdirSync(path.dirname(gif), { recursive: true });
-        const one = scaled.length === 1;
-        const shown = translucent ? await Promise.all(scaled.map(png =>
-            sharp(sky_svg).composite([{ input: png }]).png().toBuffer())) : scaled;
-        await (one ? sharp(shown[0]) : sharp(shown, { join: { animated: true } }))
-            .gif({ delay: shown.map(() => delay), loop: 0, dither: 0 }).toFile(gif);
-        // The frame strip is only shown for real animations. Every frame gets a
-        // thin outline: children see where the drawing sits inside the sprite.
-        if (!one) {
-            const b = 2;
-            const outline = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">` +
-                `<rect x="${b / 2}" y="${b / 2}" width="${W - b}" height="${H - b}" fill="none" stroke="#1a1c2c" stroke-opacity="0.5" stroke-width="${b}" stroke-dasharray="${b * 2} ${b * 2}"/></svg>`);
-            const framed = await Promise.all(scaled.map(png =>
-                sharp(sky_svg).composite([{ input: png }, { input: outline }]).png().toBuffer()));
-            await sharp(framed, { join: { across: framed.length, shim: 8, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-                .png().toFile(path.join(out_dir, 'katalog', `${strip_name}_bilder.png`));
-        }
+    const pngs = await Promise.all(frames.map(f =>
+        sharp(f.raw, { raw: { width: fw, height: fh, channels: 4 } }).png({ compressionLevel: 9 }).toBuffer()));
+    const result = { w: fw, h: fh, frames: [], anzahl: frames.length,
+        // glowing sprites (Mischmodus Leuchten) are shown on a dark background
+        dunkel: owner?.mischmodus === 'add' || owner?.mischmodus === 'screen' };
+    if (frames.length === 1) {
+        result.bild = `katalog/${name}.png`;
+        result.version = write_output(result.bild, pngs[0]);
+    } else {
+        const delay = Math.round(1000 / (fps ?? 8));
+        const webp = await sharp(pngs, { join: { animated: true } })
+            .webp({ lossless: true, effort: 6, loop: 0, delay: pngs.map(() => delay) }).toBuffer();
+        result.bild = `katalog/${name}.webp`;
+        result.version = write_output(result.bild, webp);
+        pngs.forEach((png, i) => {
+            const rel = `katalog/${name}_${i + 1}.png`;
+            result.frames.push({ bild: rel, version: write_output(rel, png) });
+        });
     }
-    return { gif: `katalog/${gif_name}.gif`, bilder: `katalog/${strip_name}_bilder.png`, anzahl: frames.length };
+    return result;
 }
 
 // Markdown with two small extensions:
 //   ![Laufen](katalog:pip/laufen 10)   animation from the catalogue (fps optional)
 //   > **Tipp:** … / > **Achtung:** …    styled hint boxes
-async function render_body(md, id, himmel) {
-    const sky = sky_pair(himmel);
+async function render_body(md, id) {
     const refs = [...md.matchAll(/!\[([^\]]*)\]\(katalog:([^\s)]+)(?:\s+(\d+))?\)/g)];
     for (const [all, label, strip, fps] of refs) {
-        const c = await catalogue_gif(strip, fps ? Number(fps) : undefined, sky);
-        // the recipe's own sky behind the sprite, so see-through pixels look like in the recording
-        const style = sky === DEFAULT_SKY ? '' : ` style="background: linear-gradient(${sky[0]}, ${sky[1]})"`;
-        const html = `<figure class="rezept-katalog"><img class="pixel"${style} src="/rezepte/${c.gif}" alt="${label}">` +
-            (c.anzahl > 1 ? `<img class="pixel bilder" src="/rezepte/${c.bilder}" alt="Einzelbilder: ${label}">` : '') +
+        const c = await catalogue_images(strip, fps ? Number(fps) : undefined);
+        // shown 4× (big sprites 2×); the frames below at half that size
+        const S = c.w > TILE || c.h > TILE ? 2 : 4;
+        const img = (src, version, scale, cls, alt) =>
+            `<img class="pixel${cls}" src="/rezepte/${src}?${version}" width="${c.w * scale}" height="${c.h * scale}" ` +
+            `style="--pixel: ${scale}px" alt="${alt}">`;
+        const html = `<figure class="rezept-katalog${c.dunkel ? ' dunkel' : ''}">` + img(c.bild, c.version, S, '', label) +
+            (c.frames.length ? `<span class="bilder">${c.frames.map((f, i) =>
+                img(f.bild, f.version, S / 2, ' bild', `${label}, Bild ${i + 1}`)).join('')}</span>` : '') +
             `<figcaption>${label} · ${c.anzahl} ${c.anzahl === 1 ? 'Bild' : 'Bilder'}</figcaption></figure>`;
         md = md.replace(all, html);
     }
@@ -213,7 +210,13 @@ async function main() {
         for (const r of recipes) {
             const skip = only.length && !only.includes(r.id);
             const old = previous.rezepte.find(e => e.id === r.id);
-            if (skip && old) { entries.push(old); continue; }
+            if (skip && old) {
+                // kept from the last build: its files stay as they are
+                entries.push(old);
+                for (const m of (old.html ?? '').matchAll(/\/rezepte\/([^"?]+)\?/g)) written.add(m[1]);
+                if (old.bild) written.add(old.bild);
+                continue;
+            }
             const t0 = Date.now();
             const game = await build_game(catalog, r, repo);
             let { frames, state, errors } = await record(browser, repo, game, r);
@@ -243,12 +246,18 @@ async function main() {
                 if (diff > 0.004) problems.push(`Schleife: letztes Bild weicht zu ${(diff * 100).toFixed(1)} % vom ersten ab`);
                 frames = frames.slice(0, -1);
             }
-            const gif_file = path.join(out_dir, `${r.id}.gif`);
-            let size = { width: frames[0].w, height: frames[0].h };
+            const size = { width: frames[0].w, height: frames[0].h };
             const sky = frames[0].data;   // top-left pixel: sky colour for the card background
             const top_colour = '#' + [sky[0], sky[1], sky[2]].map(v => v.toString(16).padStart(2, '0')).join('');
-            if (!check_only) size = await write_gif(frames, gif_file, r.farben ?? 128, FRAME_MS * (r.schritte ?? 1), r.toleranz ?? 0);
-            else if (problems.length) await write_gif(frames, path.join(here, `fehler-${r.id}.gif`));
+            // Lossless WebP (default) or, for scenes full of shader noise, `format: gif`.
+            // REZEPT_FORMAT=gif forces GIFs (to compare with older builds)
+            const ext = (process.env.REZEPT_FORMAT ?? r.format) === 'gif' ? 'gif' : 'webp';
+            const tmp = path.join(here, `.${r.id}.${ext}`);
+            if (ext === 'gif') await write_gif(frames, tmp, r.farben ?? 128, r.schritte ?? 1, r.toleranz ?? 0);
+            else await write_webp(frames, tmp, r.schritte ?? 1);
+            const version = write_output(`${r.id}.${ext}`, fs.readFileSync(tmp));
+            if (check_only && problems.length) fs.renameSync(tmp, path.join(here, `fehler-${r.id}.${ext}`));
+            else fs.rmSync(tmp, { force: true });
             const ms = Date.now() - t0;
             if (problems.length) {
                 failed++;
@@ -258,16 +267,33 @@ async function main() {
             }
             entries.push({
                 id: r.id, titel: r.titel, kategorie: r.kategorie, stufe: r.stufe ?? 1, kurz: r.kurz,
-                gif: `${r.id}.gif`, breite: size.width, hoehe: size.height, himmel: top_colour, ...(r.schleife ? { schleife: true } : {}),
-                html: await render_body(r.body, r.id, r.szene?.himmel),
+                bild: `${r.id}.${ext}`, version, breite: size.width, hoehe: size.height, himmel: top_colour,
+                ...(r.schleife ? { schleife: true } : {}),
+                html: await render_body(r.body, r.id),
             });
         }
     } finally {
         await browser.close();
     }
     entries.sort((a, b) => KATEGORIEN.indexOf(a.kategorie) - KATEGORIEN.indexOf(b.kategorie));
-    if (!check_only)
+    if (!check_only) {
         fs.writeFileSync(index_file, JSON.stringify({ kategorien: KATEGORIEN, rezepte: entries }, null, 1) + '\n');
+    }
+    if (!check_only && !only.length) {
+        // Full build: remove what no recipe uses any more (old GIFs, renamed sprites …).
+        written.add('rezepte.json');
+        const stale = [];
+        const walk = (dir, rel = '') => {
+            for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
+                const r = rel ? `${rel}/${f.name}` : f.name;
+                if (f.isDirectory()) walk(path.join(dir, f.name), r);
+                else if (!written.has(r)) stale.push(r);
+            }
+        };
+        walk(out_dir);
+        for (const r of stale) fs.rmSync(path.join(out_dir, r));
+        if (stale.length) console.log(`${stale.length} alte Datei(en) entfernt (${stale.slice(0, 3).join(', ')}${stale.length > 3 ? ', …' : ''})`);
+    }
     if (failed) {
         console.log(`\n${failed} Rezept(e) zeigen nicht, was sie versprechen. Siehe oben.`);
         process.exitCode = 1;
