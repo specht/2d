@@ -2,18 +2,21 @@
 titel: Eine Tür mit F öffnen
 kategorie: Türen & Schlüssel
 stufe: 1
-kurz: Vor der Tür erscheint ein F – drück es, und die Tür geht auf.
+kurz: Die Mauer ist zu hoch zum Drüberspringen – also F drücken und durch die Tür.
 szene:
   karte: |
-    .........
-    .........
-    .P...D...
-    #########
+    .....M....
+    .....M....
+    .....M....
+    .....M....
+    .P...D....
+    ##########
 ablauf:
   - { t: 0.3, halten: rechts, dauer: 0.8 }
-  - { t: 1.3, drücken: aktion }
-  - { t: 1.9, halten: rechts, dauer: 0.4 }
-dauer: 3.0
+  - { t: 0.9, drücken: springen }
+  - { t: 1.9, drücken: aktion }
+  - { t: 2.5, halten: rechts, dauer: 0.45 }
+dauer: 3.6
 erwartet:
   tuer_offen: true
   figur_rechts_von: 6
@@ -38,7 +41,8 @@ erwartet:
 3. Schalte **ist verschließbar** und **automatische Tür** aus.
 4. Beim ersten Zustand: **Eigenschaft hinzufügen → ist eine Tür → geschlossen**, beim zweiten **geöffnet**.
 5. Optional: dritter Zustand mit **Übergang**. Die Frames zeigen die Tür von zu nach auf.
-6. Setz die Tür im **Level** auf den Boden und probiere es aus.
+6. Setz die Tür im **Level** in eine **Mauer**: Über der Tür kommen so viele Mauersteine, dass man nicht drüberspringen kann.
+7. Probier es aus. Erst springen – geht nicht –, dann F drücken.
 
 ## Tipps
 
@@ -50,6 +54,7 @@ erwartet:
 
 ## Wenn's nicht klappt
 
+- **Man springt einfach über die Tür:** Eine Tür allein ist kein Hindernis. Sie braucht eine Mauer, die höher ist als der Sprung – bei Pip mindestens drei Blöcke über der Tür.
 - **Es erscheint kein F:** Wahrscheinlich ist **automatische Tür** noch an – dann gibt es kein F.
 - **F geht nicht, die Tür bleibt zu:** **ist verschließbar** ist an. Dann braucht man einen Schlüssel (siehe nächstes Rezept).
 - **Die Tür geht auf, sieht aber immer gleich aus:** Den Zuständen fehlen *geschlossen* und *geöffnet*.

@@ -142,6 +142,11 @@ export async function record(browser, repo, game, recipe) {
             energy: g.energy, points: g.points, lives: g.lives,
             found_keys: Object.keys(g.found_keys ?? {}).map(Number),
             doors_open: doors.map(d => d.door_closed === false),
+            checkpoints_active: g.active_level_sprites.filter(e => {
+                const sp = g.data.sprites[e.sprite_index];
+                const st = sp.states[g.state_for_mesh[e.mesh.uuid]?.state_index ?? 0];
+                return 'checkpoint' in (sp.traits ?? {}) && 'active' in (st?.traits?.checkpoint ?? {});
+            }).length,
             baddies: g.baddies.map(b => ({ energy: b.energy, active: b.active })),
         };
     });
@@ -150,7 +155,7 @@ export async function record(browser, repo, game, recipe) {
 }
 
 // Frames -> looping GIF. Identical consecutive frames are merged.
-export async function write_gif(frames, file) {
+export async function write_gif(frames, file, colours = 128) {
     const merged = [];
     for (let i = 0; i < frames.length; i++) {
         // 30 fps expressed in GIF centiseconds: 30, 30, 40 ms …
@@ -163,7 +168,7 @@ export async function write_gif(frames, file) {
     const pngs = await Promise.all(merged.map(m =>
         sharp(m.frame.data, { raw: { width: w, height: h, channels: 4 } }).png().toBuffer()));
     await sharp(pngs, { join: { animated: true } })
-        .gif({ delay: merged.map(m => m.delay), loop: 0, dither: 0, effort: 7, colours: 128 })
+        .gif({ delay: merged.map(m => m.delay), loop: 0, dither: 0, effort: 7, colours })
         .toFile(file);
     return { width: w, height: h, frames: merged.length };
 }
@@ -190,6 +195,9 @@ export function check(expect, state) {
         fail.push(`Figur steht bei x=${state.player?.x?.toFixed(1)}, erwartet rechts von Spalte ${e.figur_rechts_von}`);
     if (e.figur_hoeher_als !== undefined && !(state.player?.y >= e.figur_hoeher_als * 24))
         fail.push(`Figur steht bei y=${state.player?.y?.toFixed(1)}, erwartet mindestens auf Höhe ${e.figur_hoeher_als}`);
+    if (e.checkpoint_aktiv && !state.checkpoints_active) fail.push('Checkpoint wurde nicht aktiviert');
+    if (e.energie_gleich !== undefined && state.energy !== e.energie_gleich)
+        fail.push(`energie: ${state.energy} statt ${e.energie_gleich}`);
     if (e.punkte !== undefined && state.points < e.punkte) fail.push(`punkte: ${state.points} statt ${e.punkte}`);
     if (e.energie_unter !== undefined && !(state.energy < e.energie_unter))
         fail.push(`energie: ${state.energy}, erwartet weniger als ${e.energie_unter}`);

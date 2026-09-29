@@ -49,7 +49,7 @@ class RecipeGallery {
             if (this.filter && recipe.kategorie !== this.filter) continue;
             const card = $('<button>').addClass('rezept-karte').on('click', () => self.show_recipe(recipe.id)).appendTo(grid);
             // Wide recordings are shown whole; taller ones lose a little sky.
-            const wide = recipe.breite / recipe.hoehe >= 2.4;
+            const wide = recipe.vergleich || recipe.breite / recipe.hoehe >= 2.4;
             $('<div>').addClass('rezept-bild').css('background', recipe.himmel ?? '').append(
                 $('<img>').toggleClass('ganz', wide)
                     .attr({ src: `/rezepte/${recipe.gif}`, alt: recipe.titel, loading: 'lazy' })).appendTo(card);
