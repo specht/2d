@@ -34,30 +34,31 @@ erwartet:
 - **Das musst du zeichnen:** ein Band-Stück, das man aneinanderreihen kann, mit ein paar Bildern, in denen die Streifen weiterwandern. Für die Rolltreppe eine Treppe mit wandernden Stufen.
 - **Das kannst du später dazumalen:** runde Enden mit Rollen und einen Maschinenblock darunter.
 
-![Förderband (Anfang)](katalog:welt/band_anfang 30)
-![Förderband](katalog:welt/band 30)
-![Förderband (Ende)](katalog:welt/band_ende 30)
-![Rolltreppe](katalog:welt/rolltreppe 30)
+![Förderband (Anfang)](katalog:welt/band_anfang 60)
+![Förderband](katalog:welt/band 60)
+![Förderband (Ende)](katalog:welt/band_ende 60)
+![Rolltreppe](katalog:welt/rolltreppe 60)
 ![Maschine](katalog:welt/maschine)
 
 ## Schritt für Schritt
 
-1. Zeichne das Band: oben die Lauffläche mit schrägen Streifen, darunter Rollen. Im nächsten Bild wandern die Streifen **2 Pixel** weiter. Nach vier Bildern passt das Muster wieder zum ersten.
+1. Zeichne das Band: oben die Lauffläche mit schrägen Streifen, darunter Rollen. Im nächsten Bild wandern die Streifen **1 Pixel** weiter. Wiederholt sich das Muster alle 8 Pixel, brauchst du 8 Bilder – dann passt das letzte wieder zum ersten.
 2. Gib dem Sprite die Block-Eigenschaften (*man kann nicht von oben reinfallen* usw.) – man soll ja darauf stehen können.
 3. **Eigenschaft hinzufügen → Förderbänder → Förderband / Rolltreppe**. Pip benutzt **Richtung: nach rechts** und **Geschwindigkeit 1**.
-4. Im Zustand: **Framerate 30** und **Phase** überall auf **0**. Dann laufen alle Band-Stücke im Gleichtakt, und die Streifen passen über die ganze Länge.
-5. Für die Rolltreppe: eine Treppe mit Stufen, die schräg nach oben wandern. Sie bekommt **Schräge / Treppe** mit **Richtung: nach rechts oben** und **Förderband / Rolltreppe** mit **Richtung: nach rechts**.
+4. Im Zustand: **Framerate 60** und **Phase** überall auf **0**. Dann laufen alle Band-Stücke im Gleichtakt, und die Streifen passen über die ganze Länge.
+5. Für die Rolltreppe: eine Treppe mit Stufen, die schräg nach oben wandern – auch hier 1 Pixel pro Bild (bei 6 Pixel breiten Stufen also 6 Bilder). Sie bekommt **Schräge / Treppe** mit **Richtung: nach rechts oben** und **Förderband / Rolltreppe** mit **Richtung: nach rechts**.
 6. Setz unter jede Rolltreppe einen festen Block, damit sie nicht in der Luft hängt.
 7. Spiel es aus: Stell dich aufs Band und lass alle Tasten los.
 
 ## Tipps
 
-> **Tipp:** Die Animation soll zur Geschwindigkeit passen. Wandern die Streifen 2 Pixel pro Bild, dann gilt: **Framerate = Geschwindigkeit × 30**. Bei Geschwindigkeit 1 also 30 fps.
+> **Tipp:** Die Animation soll zur Geschwindigkeit passen. Wandern die Streifen 1 Pixel pro Bild, dann gilt: **Framerate = Geschwindigkeit × 60**. Bei Geschwindigkeit 1 also 60 fps. Kleine Schritte von 1 Pixel sehen viel ruhiger aus als große – große Sprünge flimmern.
 
 - Läuft die Figur **mit** dem Band, ist sie schneller. Läuft sie **dagegen**, wird sie langsamer – und auf einem schnellen Band kommt sie kaum vom Fleck, wie auf einem Laufband.
 - Ein Band **nach links** ist einfach das gespiegelte Bild – die Bewegung dreht sich beim Spiegeln mit.
 - Normalerweise fahren auch Gegner mit. Ein Band kann einen Gegner also direkt in die Stacheln tragen. Soll er stehen bleiben, schalte **nimmt auch Gegner mit** aus.
 - Beim Springen nimmt das Band dich nicht mit. Erst wenn du wieder landest, geht es weiter.
+- Auf der Rolltreppe schaut die Figur weiter in ihre Richtung – anders als auf einer Leiter.
 
 ## Wenn's nicht klappt
 

@@ -466,6 +466,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         let changed = key !== current_pane;
         $('.main-nav-item').removeClass('active');
         $(`#mi_${key}`).addClass('active');
+        // narrow screens: the tab bar scrolls sideways – keep the active tab in view
+        $(`#mi_${key}`)[0]?.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });
         $('.main_div').hide();
         $(`#main_div_${key}`).show();
         current_pane = key;

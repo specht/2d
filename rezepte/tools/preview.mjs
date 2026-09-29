@@ -17,7 +17,7 @@ await p.route('**/*', async r => {
     let body = fs.readFileSync(f);
     if (f.endsWith('.html')) body = body.toString().replace(/#\{[^}]*\}/g, '');
     const ext = path.extname(f);
-    r.fulfill({ status: 200, body, contentType: { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.gif': 'image/gif', '.png': 'image/png', '.jpg': 'image/jpeg' }[ext] ?? 'application/octet-stream' });
+    r.fulfill({ status: 200, body, contentType: { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.gif': 'image/gif', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg' }[ext] ?? 'application/octet-stream' });
 });
 await p.goto('http://studio.local/');
 await p.waitForTimeout(800);

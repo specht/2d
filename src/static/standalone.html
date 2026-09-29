@@ -72,6 +72,54 @@
         transition: none;
       }
 
+      #overlay {
+        /* the start screen scales with the game (17px at 1280 × 720) */
+        font-size: min(2.4vh, 1.35vw);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      #overlay .poster {
+        padding: 0 1em 0.3em 1em;
+      }
+      #start_controls {
+        margin-top: 1.2em;
+        display: grid;
+        grid-template-columns: auto auto;
+        gap: 0.35em 1.2em;
+        align-items: center;
+        color: #ccc;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 120%;
+      }
+      #start_controls .label {
+        text-align: right;
+        color: #999;
+      }
+      #start_controls .keys {
+        display: flex;
+        gap: 0.3em;
+        flex-wrap: wrap;
+      }
+      #start_controls .key {
+        display: inline-block;
+        min-width: 1.4em;
+        padding: 0.05em 0.45em;
+        border: 1px solid #777;
+        border-bottom-width: 3px;
+        border-radius: 0.3em;
+        color: #fff;
+        text-align: center;
+      }
+      #start_hint {
+        margin-top: 1.4em;
+        color: #888;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 100%;
+        text-align: center;
+      }
       #screen, #overlay, #curtain, #curtain_text {
         position: absolute;
         left: 0;
@@ -180,8 +228,18 @@
         top: 0;
         right: 0;
         bottom: 0;
+        /* taps between the buttons reach the game (F boxes, aiming) */
+        pointer-events: none;
+      }
+      #touch_controls > * {
+        pointer-events: auto;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
       }
     </style>
+    <script>window.CACHE_BUSTER = '#{@@cache_buster}';</script>
     <script src="three.min.js"></script>
     <script src="jquery-3.6.0.min.js"></script>
     <script src="misc.js?#{@@cache_buster}"></script>
@@ -221,9 +279,10 @@
           </div>
           <div class="menu">
             <div class='item' id="mi_start">Start</div>
-            <div class='item'>Highscores</div>
-            <div class='item'>Hilfe</div>
           </div>
+          <!-- the game's own controls (filled in by app.js: render_start_screen) -->
+          <div id="start_controls"></div>
+          <div id="start_hint"></div>
         </div>
         <div id="stats">
           <div class="item la_level">

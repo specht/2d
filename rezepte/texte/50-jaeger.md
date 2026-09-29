@@ -33,9 +33,10 @@ erwartet:
 ## Das brauchst du
 
 - **Das musst du zeichnen:** einen Gegner mit einer Lauf-Animation.
-- **Das kannst du später dazumalen:** eine Treffer- und eine Tot-Animation für den Kampf.
+- **Das kannst du später dazumalen:** ein Bild für die Jagd – wütender Blick, Staub hinter ihm – und Treffer und Tot für den Kampf.
 
 ![Käfer läuft](katalog:kaefer/laufen 10)
+![Käfer jagt](katalog:kaefer/jagen 16)
 
 ## Schritt für Schritt
 
@@ -45,7 +46,8 @@ erwartet:
 4. **Tempo beim Verfolgen:** hier **3×** so schnell wie beim normalen Laufen.
 5. **gibt auf nach:** **2 s**. So lange sucht er noch, wenn er die Spielfigur nicht mehr sieht.
 6. Schalte **zeigt „!“** ein. Dann weiß man sofort, dass es gleich losgeht.
-7. Bau einen sicheren Ort: Hier klettert Pip eine Leiter hoch. Gegner klettern nicht.
+7. Ein neuer Zustand mit **Gegner jagt nach rechts** zeigt, dass es ernst wird: Solange er verfolgt, sieht man dieses Bild. Ohne den Zustand rennt er einfach mit seinem Laufbild.
+8. Bau einen sicheren Ort: Hier klettert Pip eine Leiter hoch. Gegner klettern nicht.
 
 ## Tipps
 

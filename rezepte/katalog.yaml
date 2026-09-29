@@ -259,6 +259,7 @@ sprites:
 
   # ------------------------------ Deko (keine Eigenschaften, eigene Ebene)
   innenwand: { label: Tapete, states: [{ strip: welt/innenwand }] }
+  zimmer: { label: Dunkles Zimmer, states: [{ strip: welt/zimmer }] }
   bild: { label: Bild, states: [{ strip: welt/bild }] }
   lampe: { label: Lampe, states: [{ strip: welt/lampe }] }
   fassade: { label: Fassade, states: [{ strip: welt/fassade }] }
@@ -302,17 +303,23 @@ sprites:
 
   # ------------------------------------- halbdurchsichtige Sprites
   wasser: { label: Wasser, states: [{ strip: welt/wasser }] }
-  wasser_oben: { label: Wasseroberfläche, states: [{ strip: welt/wasser_oben }] }
-  lichtkegel: { label: Lichtkegel, groesse: [48, 72], states: [{ strip: welt/lichtkegel }] }
+  # all water tiles move in step (phase_r: 0): the waves run on across tiles
+  wasser_oben: { label: Wasseroberfläche, states: [{ strip: welt/wasser_oben, fps: 8, phase_r: 0 }] }
+  # mischmodus: leuchten | aufhellen | abdunkeln (the sprite's Mischmodus)
+  lichtkegel: { label: Lichtkegel, groesse: [48, 72], mischmodus: leuchten, states: [{ strip: welt/lichtkegel }] }
   laterne: { label: Laterne, groesse: [48, 72], states: [{ strip: welt/laterne }] }
-  glas: { label: Glasscheibe, states: [{ strip: welt/glas }] }
+  glas: { label: Glasscheibe, mischmodus: abdunkeln, states: [{ strip: welt/glas }] }
   mauer_fenster:
     label: Mauer mit Fenster
     traits: { block_above: {}, block_sides: {}, block_below: {} }
     states: [{ strip: welt/mauer_fenster }]
   sterne: { label: Sterne, states: [{ strip: welt/sterne }] }
+  # Mischmodi: the glow gets "Leuchten" from its layer, the shadow has its own "Abdunkeln"
+  leuchtschein: { label: Lichtschein, groesse: [120, 120], states: [{ strip: welt/leuchtschein }] }
+  schatten: { label: Schatten, mischmodus: abdunkeln, states: [{ strip: welt/schatten }] }
   geist:
     label: Geist
+    mischmodus: aufhellen
     traits:
       baddie:
         energy: 40
@@ -350,34 +357,35 @@ sprites:
 
   # ---------------------------------- Förderbänder und Rolltreppe (Runde 5)
   # phase_r: 0 → every tile shows the same frame, so the treads line up.
+  # 1 px per frame at 60 fps = speed 1 (60 px/s): the treads move exactly as fast as the belt.
   band:
     label: Förderband
     traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: right, speed: 1.0 } }
-    states: [{ strip: welt/band, fps: 30, phase_r: 0 }]
+    states: [{ strip: welt/band, fps: 60, phase_r: 0 }]
   band_anfang:
     label: Förderband (Anfang)
     traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: right, speed: 1.0 } }
-    states: [{ strip: welt/band_anfang, fps: 30, phase_r: 0 }]
+    states: [{ strip: welt/band_anfang, fps: 60, phase_r: 0 }]
   band_ende:
     label: Förderband (Ende)
     traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: right, speed: 1.0 } }
-    states: [{ strip: welt/band_ende, fps: 30, phase_r: 0 }]
+    states: [{ strip: welt/band_ende, fps: 60, phase_r: 0 }]
   band_links:
     label: Förderband nach links
     traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: left, speed: 1.0 } }
-    states: [{ strip: welt/band_links, fps: 30, phase_r: 0 }]
+    states: [{ strip: welt/band_links, fps: 60, phase_r: 0 }]
   band_links_anfang:
     label: Förderband nach links (Anfang)
     traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: left, speed: 1.0 } }
-    states: [{ strip: welt/band_links_anfang, fps: 30, phase_r: 0 }]
+    states: [{ strip: welt/band_links_anfang, fps: 60, phase_r: 0 }]
   band_links_ende:
     label: Förderband nach links (Ende)
     traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: left, speed: 1.0 } }
-    states: [{ strip: welt/band_links_ende, fps: 30, phase_r: 0 }]
+    states: [{ strip: welt/band_links_ende, fps: 60, phase_r: 0 }]
   rolltreppe:
     label: Rolltreppe
     traits: { slope: { direction: positive }, conveyor: { direction: right, speed: 1.0 } }
-    states: [{ strip: welt/rolltreppe, fps: 30, phase_r: 0 }]
+    states: [{ strip: welt/rolltreppe, fps: 60, phase_r: 0 }]
   maschine:
     label: Maschine
     traits: { block_above: {}, block_sides: {}, block_below: {} }
@@ -399,8 +407,26 @@ sprites:
         behavior: { type: hunter }
     states:
       - { strip: kaefer/laufen, fps: 10, traits: { baddie: [right, walk_right] } }
+      - { strip: kaefer/jagen, fps: 16, traits: { baddie: [hunt_right] } }
       - { strip: kaefer/treffer, traits: { baddie: [hit_right] } }
       - { strip: kaefer/tot, fps: 8, traits: { baddie: [dead] } }
+  maus:
+    label: Maus (Angsthase)
+    traits:
+      baddie:
+        energy: 20
+        damage: 0
+        vrun: 0.6
+        start_dir: left
+        wait_until_seen: false
+        ex_left: 0.7
+        ex_right: 0.7
+        ex_top: 0.55
+        behavior: { type: coward, alert: true }
+    states:
+      - { strip: maus/stehen, traits: { baddie: [right] } }
+      - { strip: maus/laufen, fps: 10, traits: { baddie: [walk_right] } }
+      - { strip: maus/fliehen, fps: 16, traits: { baddie: [flee_right] } }
   keiler:
     label: Keiler (Lauerer)
     traits:
@@ -417,6 +443,8 @@ sprites:
     states:
       - { strip: keiler/stehen, fps: 3, traits: { baddie: [right] } }
       - { strip: keiler/laufen, fps: 16, traits: { baddie: [walk_right] } }
+      - { strip: keiler/stuermen, fps: 18, traits: { baddie: [hunt_right] } }
+      - { strip: keiler/benommen, fps: 6, traits: { baddie: [stunned_right] } }
       - { strip: keiler/treffer, traits: { baddie: [hit_right] } }
       - { strip: keiler/tot, fps: 8, traits: { baddie: [dead] } }
   frosch:
@@ -472,8 +500,13 @@ sprites:
     states:
       - { strip: klotz/stehen, traits: { baddie: [front] } }
       - { strip: klotz/fallen, traits: { baddie: [fall_front] } }
+      - { strip: klotz/landen, fps: 10, traits: { baddie: [landed_front] } }
       - { strip: klotz/treffer, traits: { baddie: [hit_front] } }
       - { strip: klotz/tot, fps: 8, traits: { baddie: [dead] } }
+  klotz_einmal:
+    extends: klotz
+    label: Steinklotz (fällt nur einmal)
+    traits: { baddie: { behavior: { type: stomper, once: true } } }
 
 # Map characters used by the recipe scenes (recipes may add their own).
 legende:
@@ -500,6 +533,7 @@ legende:
   'f': fahne
   'u': wurzeln
   'w': innenwand
+  'y': zimmer
   'b': bild
   'l': lampe
   'F': fassade
@@ -546,3 +580,7 @@ legende:
   'q': frosch
   'j': fledermaus
   'U': klotz
+  '8': klotz_einmal
+  '@': maus
+  '*': leuchtschein
+  '%': schatten

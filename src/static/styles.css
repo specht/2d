@@ -1667,7 +1667,7 @@ a, a:visited {
 
 .rezept-galerie {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
     gap: 20px;
 }
 
@@ -1719,14 +1719,14 @@ a, a:visited {
     inset: 0;
     width: 100%;
     height: 100%;
+    /* always fill the card; anchored at the bottom, so ground and figures stay
+       in view and at most a little sky is cut off – never an empty band */
     object-fit: cover;
     object-position: center bottom;
+    image-rendering: pixelated;
     display: block;
     transition: transform 0.25s ease;
-}
-
-.rezept-bild img.ganz {
-    object-fit: contain;
+    transform-origin: center bottom;
 }
 
 .rezept-text {
@@ -1798,6 +1798,7 @@ a, a:visited {
 .rezept-hauptbild {
     width: 100%;
     max-width: 100%;
+    height: auto;
     image-rendering: pixelated;
     border-radius: 10px;
     display: block;
@@ -1860,10 +1861,15 @@ a, a:visited {
 }
 
 .rezept-katalog img.pixel {
+    /* files are the sprite's real size: scaled here with crisp pixels, so
+       copying or saving an image gives exactly the drawn pixels */
     max-width: 100%;
+    height: auto;
     image-rendering: pixelated;
-    /* the same sky as in the recordings, so transparent sprites look like in the game */
-    background: linear-gradient(#73eff7, #f4f4f4);
+    /* a subtle checkerboard shows the transparent pixels; one square per game pixel */
+    background-color: #c9d6de;
+    background-image: conic-gradient(#b7c5cf 25%, transparent 0 50%, #b7c5cf 0 75%, transparent 0);
+    background-size: calc(var(--pixel, 4px) * 2) calc(var(--pixel, 4px) * 2);
     /* square corners and a thin outline = the exact size of the sprite, so you can
        see whether a drawing sits at the top (a plank) or at the bottom (grass) */
     border-radius: 0;
@@ -1872,11 +1878,16 @@ a, a:visited {
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
-.rezept-katalog img.bilder {
-    height: 48px;
-    background: transparent;
-    outline: none;
-    box-shadow: none;
+/* glowing sprites (Mischmodus Leuchten/Aufhellen) only show on a dark background */
+.rezept-katalog.dunkel img.pixel {
+    background-color: #1a1c2c;
+    background-image: conic-gradient(#232638 25%, transparent 0 50%, #232638 0 75%, transparent 0);
+}
+
+.rezept-katalog .bilder {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
 .rezept-katalog figcaption {
@@ -1893,6 +1904,61 @@ a, a:visited {
 
 .rezept-karte.klein .rezept-bild {
     aspect-ratio: 3 / 1;
+}
+
+/* Phones: the text gets the whole width – just a little room at the sides. */
+@media (max-width: 700px) {
+    /* all tabs fit (or scroll sideways); the keyboard shortcuts are no use on a phone */
+    .main-nav-item {
+        width: auto;
+        padding: 0.7em 0.9em;
+    }
+    #status-bar {
+        display: none;
+    }
+    #main_div_help {
+        max-height: calc(100vh - 60px);
+        max-height: calc(100dvh - 60px);
+        margin-top: 44px;
+        padding-bottom: 120px;
+    }
+    #main_div_help {
+        padding-left: 10px;
+        padding-right: 10px;
+        font-size: 105%;
+    }
+    .rezept-seite {
+        max-width: none;
+    }
+    .rezept h2 {
+        font-size: 150%;
+    }
+    .rezept-hauptbild {
+        border-radius: 6px;
+    }
+    .rezept-inhalt ol, .rezept-inhalt ul {
+        padding-left: 1.2em;
+    }
+    .rezept-inhalt blockquote {
+        padding: 0.5em 0.7em;
+    }
+    .rezept-katalog {
+        margin-right: 0.8em;
+    }
+    /* previous / next recipe: one below the other, as small wide cards */
+    .rezept-weiter {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .rezept-weiter > span:empty {
+        display: none;
+    }
+    .rezept-karte.klein .rezept-bild {
+        aspect-ratio: 4 / 1;
+    }
+    .rezept-filter {
+        gap: 6px;
+    }
 }
 
 .rezepte-hinweis {
@@ -1964,4 +2030,38 @@ a, a:visited {
 .behavior-separator {
     border-bottom: 1px solid rgba(148, 176, 194, 0.25);
     margin: 0.4em 0 0.6em 0;
+}
+
+/* folded section for rarely needed settings (Gegner: Kollisionsbox, Camera Shake …) */
+details.trait-advanced {
+    margin: 0.3em 0 0.4em 0;
+}
+
+details.trait-advanced > summary {
+    cursor: pointer;
+    color: #94b0c2;
+    font-size: 90%;
+    padding: 0.2em 5px;
+    user-select: none;
+}
+
+details.trait-advanced[open] > summary {
+    color: #fff;
+}
+
+/* folded section for rarely needed settings (Gegner: Kollisionsbox, Camera Shake …) */
+details.trait-advanced {
+    margin: 0.3em 0 0.4em 0;
+}
+
+details.trait-advanced > summary {
+    cursor: pointer;
+    color: #94b0c2;
+    font-size: 90%;
+    padding: 0.2em 5px;
+    user-select: none;
+}
+
+details.trait-advanced[open] > summary {
+    color: #fff;
 }

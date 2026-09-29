@@ -14,7 +14,8 @@ class RecipeGallery {
 
     async load() {
         try {
-            const response = await fetch('/rezepte/rezepte.json', { cache: 'no-cache' });
+            // versioned like the scripts; the images inside carry a content hash
+            const response = await fetch(`/rezepte/rezepte.json?${window.CACHE_BUSTER || Date.now()}`);
             if (!response.ok) throw new Error(response.statusText);
             const data = await response.json();
             this.recipes = data.rezepte ?? [];
@@ -54,14 +55,18 @@ class RecipeGallery {
         if (pane) pane.scrollTop = Math.max(0, this.container.position().top + pane.scrollTop - 70);
     }
 
+    // The recording (animated WebP; older builds: GIF) with its content hash.
+    media_url(recipe) {
+        const file = recipe.bild ?? recipe.gif;
+        return `/rezepte/${file}${recipe.version ? '?' + recipe.version : ''}`;
+    }
+
     card(recipe, extra_class = '', label = null) {
         const card = $('<button>').addClass('rezept-karte').addClass(extra_class)
             .on('click', () => { this.show_recipe(recipe.id); this.scroll_to_top(); });
-        // Wide recordings are shown whole; taller ones lose a little sky.
-        const wide = recipe.breite / recipe.hoehe >= 2.4;
+        // The recording fills the card, anchored at the bottom (see styles.css).
         $('<div>').addClass('rezept-bild').css('background', recipe.himmel ?? '').append(
-            $('<img>').toggleClass('ganz', wide)
-                .attr({ src: `/rezepte/${recipe.gif}`, alt: recipe.titel, loading: 'lazy' })).appendTo(card);
+            $('<img>').attr({ src: this.media_url(recipe), alt: recipe.titel, loading: 'lazy' })).appendTo(card);
         const text = $('<div>').addClass('rezept-text').appendTo(card);
         $('<div>').addClass('rezept-kopf')
             .append($('<span>').addClass('rezept-kategorie').text(label ?? recipe.kategorie))
@@ -116,7 +121,8 @@ class RecipeGallery {
             .append(this.stars(recipe.stufe)).appendTo(article);
         $('<h2>').text(recipe.titel).appendTo(article);
         $('<p>').addClass('rezept-lead').text(recipe.kurz).appendTo(article);
-        $('<img>').addClass('rezept-hauptbild').attr({ src: `/rezepte/${recipe.gif}`, alt: recipe.titel }).appendTo(article);
+        $('<img>').addClass('rezept-hauptbild').attr({ src: this.media_url(recipe), alt: recipe.titel,
+            width: recipe.breite, height: recipe.hoehe }).appendTo(article);
         // Generated at build time from the Markdown sources in rezepte/texte.
         $('<div>').addClass('rezept-inhalt').html(recipe.html).appendTo(article);
         const more = $('<div>').addClass('rezept-weiter').appendTo(page);

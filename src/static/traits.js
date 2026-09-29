@@ -97,6 +97,10 @@ var STATE_TRAITS_ORDER = {
         ['Fallen', ['fall_front', 'fall_back', 'fall_left', 'fall_right']],
         ['Angriff', ['attack_front', 'attack_back', 'attack_left', 'attack_right']],
         ['Treffer', ['hit_front', 'hit_back', 'hit_left', 'hit_right']],
+        ['Jagt (Jäger, Lauerer)', ['hunt_front', 'hunt_back', 'hunt_left', 'hunt_right']],
+        ['Flieht (Angsthase)', ['flee_front', 'flee_back', 'flee_left', 'flee_right']],
+        ['Benommen (Lauerer)', ['stunned_front', 'stunned_back', 'stunned_left', 'stunned_right']],
+        ['Aufgeschlagen (Stampfer)', ['landed_front', 'landed_back', 'landed_left', 'landed_right']],
         'dead',
     ],
     checkpoint: [
@@ -623,6 +627,7 @@ var SPRITE_TRAITS = {
             //     max: 100.0,
             // },
             vrun: {
+                visible: (t) => typeof behavior_uses !== 'function' || behavior_uses(t, 'speed'),
                 label: 'Geschwindigkeit',
                 hint: 'Gib hier die Geschwindigkeit an, mit der sich der Gegner bewegen soll.',
                 type: 'float',
@@ -633,14 +638,14 @@ var SPRITE_TRAITS = {
                 step: 0.1,
             },
             affected_by_gravity: {
-                visible: (t) => typeof baddie_behavior_type !== 'function' || !['flutter', 'stomper'].includes(baddie_behavior_type(t)),
+                visible: (t) => typeof behavior_uses !== 'function' || behavior_uses(t, 'gravity'),
                 label: 'beeinflusst durch Schwerkraft',
                 hint: 'Wenn der Gegner durch die Schwerkraft beeinflusst wird, fällt er nach unten.',
                 type: 'bool',
                 default: true,
             },
             vjump: {
-                visible: (t) => typeof baddie_behavior_type !== 'function' || ['guard', 'hunter', 'hopper'].includes(baddie_behavior_type(t)),
+                visible: (t) => typeof behavior_uses !== 'function' || behavior_uses(t, 'jump'),
                 label: 'Sprungkraft',
                 hint: 'Mit welcher Kraft soll der Gegner abspringen, wenner sprint?',
                 type: 'float',
@@ -651,13 +656,15 @@ var SPRITE_TRAITS = {
                 step: 0.1,
             },
             patrols: {
-                visible: (t) => typeof behavior_uses_patrol !== 'function' || behavior_uses_patrol(t),
+                // Wächter / Steht still: the type decides; Jäger and Angsthase may wait instead of patrolling
+                visible: (t) => typeof baddie_behavior_type !== 'function' || ['hunter', 'coward'].includes(baddie_behavior_type(t)),
                 label: 'patrouilliert',
                 hint: 'Ein patrouillierender Gegner läuft hin und her und bewacht ein begrenztes Gebiet.',
                 type: 'bool',
                 default: true,
             },
             start_dir: {
+                visible: (t) => typeof baddie_behavior_type !== 'function' || baddie_behavior_type(t) !== 'stomper',
                 label: 'Startrichtung',
                 hint: 'In welche Richtung soll der Gegner zuerst laufen?',
                 type: 'select',
@@ -669,7 +676,7 @@ var SPRITE_TRAITS = {
                 default: 'random',
             },
             jump_from_edge_probability: {
-                visible: (t) => typeof behavior_uses_patrol !== 'function' || behavior_uses_patrol(t),
+                visible: (t) => typeof behavior_uses !== 'function' || behavior_uses(t, 'patrol'),
                 label: 'springt von Plattformen',
                 hint: 'Gegner können auch von Plattformen abspringen, anstatt umzukehren. Dadurch kannst du komplexe Patrouille-Muster entwerfen.',
                 type: 'float',
@@ -680,7 +687,8 @@ var SPRITE_TRAITS = {
                 suffix: '%',
             },
             jump_vfactor: {
-                visible: (t) => typeof baddie_behavior_type !== 'function' || ['guard', 'hunter', 'hopper'].includes(baddie_behavior_type(t)),
+                advanced: true,
+                visible: (t) => typeof behavior_uses !== 'function' || behavior_uses(t, 'jump'),
                 label: 'Sprungfaktor',
                 type: 'float',
                 min: 0.0,
@@ -689,6 +697,7 @@ var SPRITE_TRAITS = {
                 default: 3.0,
             },
             camera_shake_on_land: {
+                advanced: true,
                 label: 'Camera Shake bei Landung',
                 type: 'float',
                 min: 0.0,
@@ -698,6 +707,7 @@ var SPRITE_TRAITS = {
                 suffix: 'px',
             },
             camera_shake_max_dist: {
+                advanced: true,
                 label: 'Camera Shake max. Entfernung',
                 type: 'float',
                 min: 0.0,
@@ -712,7 +722,7 @@ var SPRITE_TRAITS = {
                 default: true,
             },
             takes_breaks: {
-                visible: (t) => typeof behavior_uses_patrol !== 'function' || behavior_uses_patrol(t),
+                visible: (t) => typeof behavior_uses !== 'function' || behavior_uses(t, 'patrol'),
                 label: 'Pausen alle',
                 type: 'float',
                 count: 2,
@@ -725,7 +735,7 @@ var SPRITE_TRAITS = {
                 step: 1,
             },
             break_length: {
-                visible: (t) => typeof behavior_uses_patrol !== 'function' || behavior_uses_patrol(t),
+                visible: (t) => typeof behavior_uses !== 'function' || behavior_uses(t, 'patrol'),
                 label: 'Pausendauer',
                 type: 'float',
                 count: 2,
@@ -738,6 +748,7 @@ var SPRITE_TRAITS = {
                 step: 1,
             },
             ex_left: {
+                advanced: true,
                 label: 'Kollisionsbox links',
                 type: 'float',
                 min: 0,
@@ -758,6 +769,7 @@ var SPRITE_TRAITS = {
                 }
             },
             ex_right: {
+                advanced: true,
                 label: 'Kollisionsbox rechts',
                 type: 'float',
                 min: 0,
@@ -778,6 +790,7 @@ var SPRITE_TRAITS = {
                 }
             },
             ex_top: {
+                advanced: true,
                 label: 'Kollisionsbox oben',
                 type: 'float',
                 min: 0,
@@ -870,6 +883,22 @@ var STATE_TRAITS = {
         hit_back: { label: 'Gegner: Treffer (hinten)' },
         hit_left: { label: 'Gegner: Treffer (links)' },
         hit_right: { label: 'Gegner: Treffer (rechts)' },
+        hunt_front: { label: 'Gegner jagt nach vorn' },
+        hunt_back: { label: 'Gegner jagt nach hinten' },
+        hunt_left: { label: 'Gegner jagt nach links' },
+        hunt_right: { label: 'Gegner jagt nach rechts' },
+        flee_front: { label: 'Gegner flieht nach vorn' },
+        flee_back: { label: 'Gegner flieht nach hinten' },
+        flee_left: { label: 'Gegner flieht nach links' },
+        flee_right: { label: 'Gegner flieht nach rechts' },
+        stunned_front: { label: 'Gegner ist benommen (vorn)' },
+        stunned_back: { label: 'Gegner ist benommen (hinten)' },
+        stunned_left: { label: 'Gegner ist benommen (links)' },
+        stunned_right: { label: 'Gegner ist benommen (rechts)' },
+        landed_front: { label: 'Gegner ist aufgeschlagen (vorn)' },
+        landed_back: { label: 'Gegner ist aufgeschlagen (hinten)' },
+        landed_left: { label: 'Gegner ist aufgeschlagen (links)' },
+        landed_right: { label: 'Gegner ist aufgeschlagen (rechts)' },
         dead: { label: 'Gegner tot' }
     },
     checkpoint: {

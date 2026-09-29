@@ -4,19 +4,28 @@
 // the original patrol code in app.js exactly.
 //
 // Saved as: traits.baddie.behavior = { type: 'hunter', sight: 160, … }
-// Only the type and values changed in the editor are stored.
+// Only the type and values changed in the editor are stored. Loading a game
+// gives every enemy without a type the one that matches what it already does
+// (promote_baddie_behavior): Wächter, or Steht still if it does not patrol. The
+// classic fields (patrouilliert, Startrichtung, …) stay in the file and keep
+// driving the classic patrol code, so the movement stays exactly the same.
 
 const BADDIE_BEHAVIORS = {
     guard: {
         label: 'Wächter',
-        hint: 'Läuft hin und her und bewacht ein Gebiet – so wie Gegner schon immer.',
+        hint: 'Läuft hin und her und bewacht ein Gebiet – so wie Gegner schon immer. Ohne Schwerkraft fliegt er geradeaus hin und her.',
         settings: {
             range: { label: 'Bereich', hint: 'So viele Blöcke läuft der Wächter höchstens von seinem Startplatz weg. 0 bedeutet: bis zur nächsten Wand oder Kante.', min: 0, max: 100, step: 1, decimalPlaces: 0, suffix: 'Blöcke', default: 0 },
         },
     },
+    still: {
+        label: 'Steht still',
+        hint: 'Bleibt an seinem Platz – zum Beispiel ein Geschützturm, der nur schießt, oder eine Pflanze mit Stacheln.',
+        settings: {},
+    },
     hunter: {
         label: 'Jäger',
-        hint: 'Läuft hin und her. Sieht er die Spielfigur, erscheint ein „!“ und er rennt hinterher. Verliert er sie aus den Augen, gibt er nach einer Weile auf.',
+        hint: 'Läuft hin und her. Sieht er die Spielfigur, rennt er hinterher (Zustand „Gegner jagt“). Verliert er sie aus den Augen, gibt er nach einer Weile auf.',
         settings: {
             sight: { label: 'Sichtweite', hint: 'So weit sieht der Jäger nach vorn. Wände verdecken die Sicht.', min: 0, max: 1000, step: 8, decimalPlaces: 0, suffix: 'px', default: 144 },
             chase: { label: 'Tempo beim Verfolgen', hint: 'Das Vielfache seiner normalen Geschwindigkeit.', min: 0, max: 10, step: 0.1, decimalPlaces: 1, suffix: '×', default: 2.0 },
@@ -26,7 +35,7 @@ const BADDIE_BEHAVIORS = {
     },
     coward: {
         label: 'Angsthase',
-        hint: 'Läuft hin und her. Kommt die Spielfigur zu nah, rennt er davon.',
+        hint: 'Läuft hin und her. Kommt die Spielfigur zu nah, rennt er davon (Zustand „Gegner flieht“).',
         settings: {
             panic: { label: 'Angst ab', hint: 'Ist die Spielfigur näher als so viele Pixel, flieht er – egal, in welche Richtung er schaut.', min: 0, max: 1000, step: 8, decimalPlaces: 0, suffix: 'px', default: 72 },
             alert: { type: 'bool', label: 'zeigt „!“', hint: 'Über dem Gegner erscheint kurz ein Ausrufezeichen, sobald er die Spielfigur bemerkt. So weiß man, dass es gleich losgeht.', default: false },
@@ -35,7 +44,7 @@ const BADDIE_BEHAVIORS = {
     },
     lurker: {
         label: 'Lauerer',
-        hint: 'Wartet still. Kommt die Spielfigur in Sicht, holt er kurz Anlauf und stürmt los. Prallt er gegen eine Wand, ist er eine Weile benommen.',
+        hint: 'Wartet still. Kommt die Spielfigur in Sicht, holt er kurz Anlauf und stürmt los (Zustand „Gegner jagt“). Prallt er gegen eine Wand, ist er eine Weile benommen (Zustand „Gegner ist benommen“).',
         settings: {
             sight: { label: 'Sichtweite', hint: 'So weit sieht der Lauerer – nach links und nach rechts.', min: 0, max: 1000, step: 8, decimalPlaces: 0, suffix: 'px', default: 168 },
             charge: { label: 'Tempo beim Angriff', hint: 'Das Vielfache seiner normalen Geschwindigkeit.', min: 0, max: 20, step: 0.1, decimalPlaces: 1, suffix: '×', default: 5.0 },
@@ -61,22 +70,54 @@ const BADDIE_BEHAVIORS = {
     },
     stomper: {
         label: 'Stampfer',
-        hint: 'Hängt oben und wartet. Läuft die Spielfigur darunter durch, kracht er nach unten und hebt sich danach langsam wieder.',
+        hint: 'Hängt oben und wartet. Läuft die Spielfigur darunter durch, kracht er nach unten (Zustand „Gegner fällt“, unten „Gegner ist aufgeschlagen“) und hebt sich danach langsam wieder – oder bleibt liegen.',
         settings: {
             trigger: { label: 'fällt ab Abstand', hint: 'So nah (waagerecht) muss die Spielfigur kommen, damit er fällt.', min: 0, max: 200, step: 1, decimalPlaces: 0, suffix: 'px', default: 12 },
+            warn: { label: 'wackelt vorher', hint: 'So lange zittert er, bevor er fällt – die Warnung für die Spielfigur.', min: 0, max: 5, step: 0.05, decimalPlaces: 2, suffix: 's', default: 0.2 },
+            fall: { label: 'Tempo beim Fallen', hint: 'Die höchste Fallgeschwindigkeit in Pixeln pro Sekunde. Er wird schneller, bis er sie erreicht.', min: 30, max: 1200, step: 10, decimalPlaces: 0, suffix: 'px/s', default: 600 },
+            once: { type: 'bool', label: 'fällt nur einmal', hint: 'Ist das eingeschaltet, bleibt er nach dem Aufprall liegen – wie ein Felsbrocken, der den Weg versperrt.', default: false },
             wait: { label: 'wartet unten', hint: 'So lange bleibt er nach dem Aufprall unten.', min: 0, max: 20, step: 0.1, decimalPlaces: 1, suffix: 's', default: 1.0 },
             rise: { label: 'Tempo nach oben', hint: 'So viele Pixel pro Sekunde hebt er sich wieder.', min: 1, max: 1000, step: 1, decimalPlaces: 0, suffix: 'px/s', default: 40 },
+            rest: { label: 'Pause oben', hint: 'So lange wartet er oben, bevor er wieder fallen kann.', min: 0, max: 20, step: 0.1, decimalPlaces: 1, suffix: 's', default: 0.5 },
         },
     },
 };
-const BADDIE_BEHAVIOR_ORDER = ['guard', 'hunter', 'coward', 'lurker', 'hopper', 'flutter', 'stomper'];
+const BADDIE_BEHAVIOR_ORDER = ['guard', 'still', 'hunter', 'coward', 'lurker', 'hopper', 'flutter', 'stomper'];
 
-// Legacy patrol properties are shown only for behaviours that use them.
+// Which classic enemy settings each behaviour uses (the editor hides the rest).
 const BEHAVIORS_WITH_PATROL = new Set(['guard', 'hunter', 'coward', 'flutter']);
+const BEHAVIORS_WITH_SPEED = new Set(['guard', 'hunter', 'coward', 'lurker', 'hopper', 'flutter']);
+const BEHAVIORS_WITH_JUMP = new Set(['guard', 'hunter', 'hopper']);
+const BEHAVIORS_WITH_GRAVITY_SWITCH = new Set(['guard', 'still']);
 
 function baddie_behavior_type(traits) {
     const type = traits?.behavior?.type;
-    return type in BADDIE_BEHAVIORS ? type : 'guard';
+    if (type in BADDIE_BEHAVIORS) return type;
+    return traits?.patrols === false ? 'still' : 'guard';
+}
+
+// Loading a game: an enemy without a behaviour gets the one it already acts
+// like. Idempotent; returns true if something was added.
+function promote_baddie_behavior(traits) {
+    if (!traits || (traits.behavior && traits.behavior.type in BADDIE_BEHAVIORS)) return false;
+    traits.behavior = { type: traits.patrols === false ? 'still' : 'guard' };
+    return true;
+}
+
+// The editor switches the type: classic fields that the new type decides are set
+// so that the classic patrol code does the right thing.
+function set_baddie_behavior_type(traits, type) {
+    if (!(type in BADDIE_BEHAVIORS)) return;
+    if (type === traits.behavior?.type) return;
+    traits.behavior = { type };
+    if (type === 'still') traits.patrols = false;
+    if (type === 'guard' || type === 'hunter' || type === 'coward' || type === 'flutter') traits.patrols = true;
+}
+
+function behavior_uses(traits, what) {
+    const type = baddie_behavior_type(traits);
+    return ({ patrol: BEHAVIORS_WITH_PATROL, speed: BEHAVIORS_WITH_SPEED, jump: BEHAVIORS_WITH_JUMP,
+        gravity: BEHAVIORS_WITH_GRAVITY_SWITCH })[what]?.has(type) ?? true;
 }
 
 // Resolved settings with defaults, or null for games without a behaviour
@@ -110,7 +151,11 @@ const AI_VERTICAL_SIGHT = 36;      // px: roughly "on the same floor"
 //   landing(dir)   ground where a hop in this direction would land
 //   half_width     half the enemy's width
 // Returns { patrol } to fall back to the classic patrol, or
-//   { keys: { left, right, jump }, speed, alert, stun, dy, no_gravity }.
+//   { keys: { left, right, jump }, speed, alert, stun, dy, no_gravity, pose }.
+// `pose`: an optional animation state – 'hunt' (chasing / charging), 'flee'
+// (a coward running away or trembling in a corner), 'stunned'
+// (after hitting a wall), 'landed' (a stomper at the bottom). Sprites without
+// such a state keep their normal movement animation.
 // `alert` means "just noticed the player"; the "!" is only drawn if the
 // behaviour's optional `alert` setting is switched on.
 function baddie_decide(b, mem, w) {
@@ -120,7 +165,7 @@ function baddie_decide(b, mem, w) {
     const stand = (extra = {}) => ({ keys: { left: false, right: false, jump: false }, ...extra });
     const p = w.player;
 
-    if (b.type === 'guard') return { patrol: true };
+    if (b.type === 'guard' || b.type === 'still') return { patrol: true };
 
     if (b.type === 'hunter') {
         const in_front = p && (mem.mode === 'chase' || toward(p.dx) === w.facing || Math.abs(p.dx) < 4);
@@ -134,8 +179,8 @@ function baddie_decide(b, mem, w) {
             mem.mode = 'idle';
         }
         if (mem.mode !== 'chase' || !p) return { patrol: true };
-        if (!w.on_ground) return { keys: mem.air ?? stand().keys, speed: b.chase };
-        if (Math.abs(p.dx) < 4) return stand({ alert, speed: b.chase });
+        if (!w.on_ground) return { keys: mem.air ?? stand().keys, speed: b.chase, pose: 'hunt' };
+        if (Math.abs(p.dx) < 4) return stand({ alert, speed: b.chase, pose: 'hunt' });
         const dir = toward(p.dx);
         let out;
         // Hop over walls – but not from a ladder (ladders count as ground, he would climb it).
@@ -143,7 +188,7 @@ function baddie_decide(b, mem, w) {
         else if (!w.ground(dir) && p.dy > -8) out = stand({ face: dir });   // wait at the ledge
         else out = walk(dir);
         mem.air = out.keys;
-        return { ...out, alert, speed: b.chase };
+        return { ...out, alert, speed: b.chase, pose: 'hunt' };
     }
 
     if (b.type === 'coward') {
@@ -156,11 +201,11 @@ function baddie_decide(b, mem, w) {
         }
         if (!(mem.scared_until > w.now)) return { patrol: true };
         const dir = mem.flee_dir;
-        if (!w.on_ground) return { keys: mem.air ?? stand().keys, speed: b.flee };
+        if (!w.on_ground) return { keys: mem.air ?? stand().keys, speed: b.flee, pose: 'flee' };
         // Cornered: stay and tremble (face the danger).
         const out = (w.wall(dir) || !w.ground(dir)) ? stand({ face: p ? toward(p.dx) : dir }) : walk(dir);
         mem.air = out.keys;
-        return { ...out, alert, speed: b.flee };
+        return { ...out, alert, speed: b.flee, pose: 'flee' };
     }
 
     if (b.type === 'lurker') {
@@ -176,13 +221,16 @@ function baddie_decide(b, mem, w) {
             mem.mode = 'charge'; mem.until = w.now + 3.0;
         }
         if (mem.mode === 'charge') {
-            if (!w.on_ground) return walk(mem.dir, { speed: b.charge });
-            if (w.wall(mem.dir)) { mem.mode = 'rest'; mem.until = w.now + b.stun + 0.5; return stand({ stun: b.stun }); }
+            if (!w.on_ground) return walk(mem.dir, { speed: b.charge, pose: 'hunt' });
+            if (w.wall(mem.dir)) {
+                mem.mode = 'rest'; mem.until = w.now + b.stun + 0.5; mem.stunned_until = w.now + b.stun;
+                return stand({ stun: b.stun, pose: 'stunned' });
+            }
             if (!w.ground(mem.dir) || w.now > mem.until) { mem.mode = 'rest'; mem.until = w.now + 0.8; return stand(); }
-            return walk(mem.dir, { speed: b.charge });
+            return walk(mem.dir, { speed: b.charge, pose: 'hunt' });
         }
         if (w.now >= mem.until) mem.mode = 'wait';
-        return stand();
+        return stand(w.now < (mem.stunned_until ?? 0) ? { pose: 'stunned' } : {});
     }
 
     if (b.type === 'hopper') {
@@ -210,27 +258,31 @@ function baddie_decide(b, mem, w) {
         const out = stand({ no_gravity: true, dy: 0 });
         if (mem.mode === 'wait') {
             if (p && p.dy < 0 && Math.abs(p.dx) <= b.trigger + (w.half_width ?? 0)) {
-                mem.mode = 'shake'; mem.until = w.now + 0.2;
+                mem.mode = 'shake'; mem.until = w.now + b.warn;
             }
             return out;
         }
         if (mem.mode === 'shake') {
             if (w.now >= mem.until) { mem.mode = 'drop'; mem.vy = 0; mem.blocked = false; }
-            return { ...out, jitter: true };
+            else return { ...out, jitter: true };
         }
         if (mem.mode === 'drop') {
             // mem.blocked: the engine stopped last step's fall (it hit the ground)
-            if (mem.blocked) { mem.mode = 'bottom'; mem.until = w.now + b.wait; return out; }
-            mem.vy = Math.max((mem.vy ?? 0) - 0.6, -10);
+            if (mem.blocked) {
+                mem.mode = b.once ? 'done' : 'bottom'; mem.until = w.now + b.wait;
+                return { ...out, pose: 'landed' };
+            }
+            mem.vy = Math.max((mem.vy ?? 0) - 0.6, -b.fall / 60);
             return { ...out, dy: mem.vy };
         }
+        if (mem.mode === 'done') return { ...out, pose: 'landed' };      // fällt nur einmal
         if (mem.mode === 'bottom') {
             if (w.now >= mem.until) mem.mode = 'rise';
-            return out;
+            else return { ...out, pose: 'landed' };
         }
         if (mem.mode === 'rise') {
             const step = b.rise / 60;
-            if (w.y + step >= w.y0) { mem.mode = 'cool'; mem.until = w.now + 0.5; return { ...out, dy: w.y0 - w.y }; }
+            if (w.y + step >= w.y0) { mem.mode = 'cool'; mem.until = w.now + b.rest; return { ...out, dy: w.y0 - w.y }; }
             return { ...out, dy: step };
         }
         if (w.now >= mem.until) mem.mode = 'wait';
@@ -242,6 +294,7 @@ function baddie_decide(b, mem, w) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         BADDIE_BEHAVIORS, BADDIE_BEHAVIOR_ORDER, BEHAVIORS_WITH_PATROL,
-        baddie_behavior, baddie_behavior_type, behavior_uses_patrol, baddie_decide,
+        baddie_behavior, baddie_behavior_type, behavior_uses_patrol, behavior_uses, baddie_decide,
+        promote_baddie_behavior, set_baddie_behavior_type,
     };
 }
