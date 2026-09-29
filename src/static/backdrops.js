@@ -19,7 +19,7 @@ const BACKDROP_EFFECTS = {
     clouds: 'Wolken',
     fireflies: 'Glühwürmchen',
     bubbles: 'Blasen',
-    dust: 'Staubwirbel',
+    dust: 'Schwebestaub',
 };
 
 // Blend modes ("Mischmodus") for sprites, sprite layers and backdrop layers.
@@ -80,17 +80,6 @@ function backdrop_density(backdrop) {
     const d = Number(backdrop?.density);
     if (!Number.isFinite(d)) return BACKDROP_DENSITY.default;
     return Math.min(BACKDROP_DENSITY.max, Math.max(BACKDROP_DENSITY.min, d));
-}
-
-// Staubwirbel: "Neigung" (backdrop.tilt, degrees) – how much from the side the
-// whirl is seen. Absent = 60°.
-const BACKDROP_TILT_EFFECTS = ['dust'];
-const BACKDROP_TILT = { min: 0, max: 85, default: 60 };
-
-function backdrop_tilt(backdrop) {
-    const t = Number(backdrop?.tilt);
-    if (backdrop?.tilt === undefined || backdrop?.tilt === null || !Number.isFinite(t)) return BACKDROP_TILT.default;
-    return Math.min(BACKDROP_TILT.max, Math.max(BACKDROP_TILT.min, t));
 }
 
 const BACKDROP_DITHER = { none: 'aus', noise: 'Rauschen', bayer: 'Raster' };
@@ -159,7 +148,6 @@ function backdrop_material_plain(backdrop, rect0, { fill_default_points = false,
             color: { value: parse_html_color_to_vec4(backdrop.color) },
             // Menge (snow, rain): absent = 1 = the old amount
             density: { value: backdrop_density(backdrop) },
-            tilt: { value: backdrop_tilt(backdrop) },
             ...pixel,
         };
         const defaults = shaders.control_points_for_effect[backdrop.effect] ?? [];
@@ -225,7 +213,7 @@ function backdrop_material_plain(backdrop, rect0, { fill_default_points = false,
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         BACKDROP_EFFECTS, BACKDROP_DITHER, BLEND_MODES, BACKDROP_DENSITY_EFFECTS, BACKDROP_DENSITY, backdrop_density,
-        BACKDROP_TILT_EFFECTS, BACKDROP_TILT, backdrop_tilt, blend_mode_of, premultiplied_shader, BACKDROP_DITHER_LEVELS,
+        blend_mode_of, premultiplied_shader, BACKDROP_DITHER_LEVELS,
         backdrop_dither_mode, backdrop_dither_levels, backdrop_pixel_size, backdrop_fragment_shader,
     };
 }

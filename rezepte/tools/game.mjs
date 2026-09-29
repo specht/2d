@@ -268,9 +268,22 @@ export async function build_game(catalog, recipe, repo) {
         stars: [[0.5, 1.0], [0.5, 0.25]], aurora: [[0.5, 0.35], [0.5, 1.0]],
         rain: [[0.5, 0.0], [0.5, -0.1]], clouds: [[0.5, 0.0], [0.5, -0.1]],
         fireflies: [[0.5, 0.0], [0.5, -0.1]], bubbles: [[0.5, 0.0], [0.5, -0.1]],
-        dust: [[0.5, 0.5], [0.85, 0.5]],
+        dust: [[0.5, 0.0], [0.5, -0.1]],
     };
     const effect_layer = e => {
+        // effekt: farbe – a colour backdrop in front, e.g. with mischmodus: abdunkeln
+        // as a tint over the whole scene. farben: [top, bottom] or [[colour, x, y], …]
+        if (e.effekt === 'farbe') {
+            const f = e.farben ?? ['#8d9bb5', '#8d9bb5'];
+            const colors = typeof f[0] === 'string' ? [[f[0], 0.5, 1.0], [f[f.length - 1], 0.5, 0.0]] : f;
+            if (![1, 2, 4].includes(colors.length)) throw new Error(`${recipe.id}: effekt farbe braucht 1, 2 oder 4 Farben`);
+            return {
+                type: 'backdrop', backdrop_type: 'color', ...(e.id ? { id: e.id } : {}),
+                properties: { name: e.name ?? 'Tönung', ...(e.mischmodus ? { blend: blend_of(e.mischmodus, `${recipe.id}: `) } : {}) },
+                colors: clone(colors),
+                rects: [{ left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
+            };
+        }
         if (!EFFECT_POINTS[e.effekt]) throw new Error(`${recipe.id}: unbekannter Effekt "${e.effekt}"`);
         return {
             type: 'backdrop', backdrop_type: 'effect', effect: e.effekt, ...(e.id ? { id: e.id } : {}),
@@ -278,7 +291,6 @@ export async function build_game(catalog, recipe, repo) {
             color: e.farbe ?? '#ffffffff', control_points: e.punkte ?? EFFECT_POINTS[e.effekt],
             ...(e.pixel ? { pixelated: true } : {}),
             ...(e.menge !== undefined ? { density: Number(e.menge) } : {}),
-            ...(e.neigung !== undefined ? { tilt: Number(e.neigung) } : {}),
             ...(e.mischmodus ? { properties: { name: e.name ?? e.effekt, blend: blend_of(e.mischmodus, `${recipe.id}: `) } } : {}),
             // bereich: [column, row from top, width, height] in tiles – e.g. only the air above the ground
             rects: [e.bereich ?

@@ -139,16 +139,18 @@ szene:
   # effekte:                   # backdrop effect layers (in front of the world unless vorne: false)
   #   - { effekt: snow, farbe: '#ffffffff', skala: 1.0, tempo: 1.0, pixel: true }
   #     # snow | rain | smoke | fire | lightrays | stars | aurora | clouds | fireflies |
-  #     # bubbles | dust (Staubwirbel) – BACKDROP_EFFECTS in src/static/backdrops.js
+  #     # bubbles | dust (Schwebestaub) – BACKDROP_EFFECTS in src/static/backdrops.js
   #     # punkte: [[x, y], …]      control points (0…1 of the effect rectangle)
   #     # bereich: [c, r, w, h]    rectangle in tiles (default: the whole scene) – e.g.
   #     #                          only the air above the ground
   #     # vorne: false             behind all layers · hinter: Figuren | <layer name or id>:
   #     #                          right behind that layer (fireflies between the trees)
   #     # menge: 1.5               snow, rain, dust: amount (1 = normal)
-  #     # neigung: 65              dust: seen from the side at an angle (0 … 85°, default 60)
   #     # mischmodus: leuchten     the layer's Mischmodus
-  #     # id: wirbel               target of a Sichtbarkeitsbereich (bereiche: ziel: wirbel)
+  #     # id: staub                target of a Sichtbarkeitsbereich (bereiche: ziel: staub)
+  #   - { effekt: farbe, farben: ['#56668a', '#7d6784'], mischmodus: abdunkeln }
+  #     # a colour layer instead of an effect (top, bottom or [[colour, x, y], …]):
+  #     # with abdunkeln a tint over the whole scene (the gloomy world in Schwebestaub)
   # kamera: { bildhoehe: 144 } # level wider than the screen: the camera follows the
   #                            # player and the whole screen is recorded (height in
   #                            # game pixels, divisible by 9)
@@ -237,7 +239,7 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
 * **Deko** (transparent, no traits, own layer without collisions): `moos`,
   `ranke`, `riss`, `fackel` (3), `burgfenster`, `grasbuesche`, `innenwand`,
   `bild`, `lampe`, `tisch`, `pflanze`, `fassade`, `fassade_fenster`, `zimmer`
-  (dark wallpaper),
+  (dark wallpaper), `toter_baum`, `toter_baum_2` (48×72, bare trees),
   `hausfront` (192×72, transparent doorway), `eingang` (open door, no
   traits), `sterne`, and the supports `pfosten`, `pfeiler`, `kette`.
 * **Semi-transparent** (RGBA pixels): `wasser`, `wasser_oben` (8 frames,
@@ -297,7 +299,7 @@ spikes, `f` flag, `h` house door, `F`/`V` facade, `z` moss, `t` torch, `|`
 post, `c` chain, `[` `>` `]` belt (start, middle, end), `<` belt to the left,
 `s` escalator, `_` machine, `K` beetle, `a` boar, `q` frog, `j` bat, `U`
 stone block, `8` stone block that falls once, `@` mouse, `y` dark room,
-`*` glow, `%` shadow.
+`*` glow, `%` shadow, `1` `2` dead trees.
 
 Design rules the scenes follow (and the recipes teach): doors sit in walls
 that are higher than a jump, nothing floats without a support, ground has
