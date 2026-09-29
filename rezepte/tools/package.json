@@ -1,0 +1,16 @@
+{
+  "name": "2d-rezepte",
+  "private": true,
+  "description": "Builds the German how-to recipes and records their GIFs from the real game engine.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node build.mjs --check"
+  },
+  "dependencies": {
+    "marked": "^18.0.0",
+    "playwright": "^1.56.0",
+    "sharp": "^0.34.0",
+    "yaml": "^2.8.0"
+  }
+}

@@ -1,0 +1,240 @@
+# Animation catalogue for the recipe (Rezepte) GIFs.
+#
+# Every animation is a PNG strip in sprites/<folder>/<name>.png: frames are
+# 24x24 pixels, laid out left to right. Edit the PNGs with any pixel editor;
+# add or remove frames by making the strip wider or narrower.
+#
+# `sprites` below turns those strips into real game sprites, exactly as a
+# child would build them in the editor: a list of states, each with frames,
+# fps and the state traits the engine looks for (see STATE_TRAITS in
+# src/static/traits.js). The order of states matters: state 0 is the
+# fallback image the engine shows when a state is missing.
+#
+# `extends` copies another sprite and then adds/replaces states (matched by
+# `strip`) and deep-merges `traits`. `frames: [0]` picks single frames.
+# Attack definitions may reference other catalogue sprites with
+# `sprite: <id>`; the build replaces this with the sprite index.
+#
+# Adding a new situation later (e.g. swimming or gliding) means: draw a new
+# strip, add a state here with the new state trait, and write a recipe.
+
+tile: 24
+
+sprites:
+  # ---------------------------------------------------------------- Pip
+  pip_einfach:
+    label: Pip (ein Bild)
+    traits:
+      actor: { ex_left: 0.5, ex_right: 0.5, ex_top: 0.8, vjump: 7 }
+    states:
+      - { strip: pip/stehen, frames: [0], traits: { actor: [right] } }
+
+  pip:
+    label: Pip
+    traits:
+      actor: { ex_left: 0.5, ex_right: 0.5, ex_top: 0.8, vjump: 7 }
+    states:
+      - { strip: pip/stehen, fps: 3, traits: { actor: [right] } }
+      - { strip: pip/laufen, fps: 10, traits: { actor: [walk_right] } }
+      - { strip: pip/springen, traits: { actor: [jump_right] } }
+      - { strip: pip/fallen, traits: { actor: [fall_right] } }
+      # On a ladder the engine switches the direction to "back":
+      # climbing shows "Spielfigur schaut nach hinten".
+      - { strip: pip/klettern, fps: 6, traits: { actor: [back, walk_back] } }
+      - { strip: pip/treffer, traits: { actor: [hit_right] } }
+      - { strip: pip/tot, fps: 8, traits: { actor: [dead] } }
+
+  pip_schwert:
+    label: Pip mit Schwert
+    extends: pip
+    states:
+      - { strip: pip/angriff_schwert, fps: 14, traits: { actor: [attack_right] } }
+    traits:
+      melee_attack:
+        attack:
+          id: melee
+          slot: nah
+          label: Schwert
+          delivery: { kind: swing, range_px: 24 }
+          effect: { kind: damage, amount: 20 }
+          timing: { cooldown_s: 0.45 }
+          visual: { kind: swoosh, sweep: down, hit_sprite_index: { sprite: treffer_funke } }
+
+  pip_bogen:
+    label: Pip mit Bogen
+    extends: pip
+    states:
+      - { strip: pip/angriff_bogen, fps: 8, traits: { actor: [attack_right] } }
+    traits:
+      ranged_attack:
+        attack:
+          id: ranged
+          slot: fern
+          label: Pfeil
+          delivery: { kind: projectile, range_px: 220, speed_px_s: 260 }
+          effect: { kind: damage, amount: 15 }
+          timing: { cooldown_s: 0.6 }
+          visual: { projectile_sprite_index: { sprite: pfeil }, hit_sprite_index: { sprite: treffer_funke } }
+
+  pip_wurf:
+    label: Pip wirft Steine
+    extends: pip
+    states:
+      - { strip: pip/angriff_wurf, fps: 10, traits: { actor: [attack_right] } }
+    traits:
+      ranged_attack:
+        attack:
+          id: ranged
+          slot: fern
+          label: Stein
+          delivery: { kind: projectile, range_px: 400, speed_px_s: 240, gravity_px_s2: 220 }
+          effect: { kind: damage, amount: 40 }
+          timing: { cooldown_s: 0.8 }
+          visual: { projectile_sprite_index: { sprite: stein }, hit_sprite_index: { sprite: treffer_funke } }
+
+  pip_bombe:
+    label: Pip legt Bomben
+    extends: pip
+    states:
+      - { strip: pip/angriff_wurf, frames: [1], fps: 8, traits: { actor: [attack_right] } }
+    traits:
+      ranged_attack:
+        attack:
+          id: ranged
+          slot: fern
+          label: Bombe
+          delivery:
+            kind: projectile
+            range_px: 280
+            speed_px_s: 0
+            gravity_px_s2: 500
+            detonation: { fuse_s: 1.6, radius_px: 40, shake_strength: 3, self_damage: false }
+          effect: { kind: damage, amount: 100 }
+          timing: { cooldown_s: 1.0 }
+          visual: { projectile_sprite_index: { sprite: bombe } }
+
+  # ------------------------------------------------------------- Gegner
+  glibber:
+    label: Glibber
+    traits:
+      baddie:
+        energy: 40
+        damage: 0
+        vrun: 0.4
+        patrols: true
+        start_dir: left
+        wait_until_seen: false
+        ex_left: 0.7
+        ex_right: 0.7
+        ex_top: 0.45
+    states:
+      - { strip: glibber/laufen, fps: 6, traits: { baddie: [right, walk_right] } }
+      - { strip: glibber/treffer, traits: { baddie: [hit_right] } }
+      - { strip: glibber/tot, fps: 8, traits: { baddie: [dead] } }
+
+  spuckpilz:
+    label: Spuckpilz
+    traits:
+      baddie:
+        energy: 60
+        damage: 0
+        vrun: 0
+        patrols: false
+        start_dir: left
+        wait_until_seen: false
+        ex_left: 0.4
+        ex_right: 0.4
+        ex_top: 0.8
+      ranged_attack:
+        attack:
+          id: ranged
+          slot: fern
+          label: Spore
+          delivery: { kind: projectile, range_px: 190, speed_px_s: 110 }
+          effect: { kind: damage, amount: 10 }
+          timing: { cooldown_s: 1.4 }
+          visual: { projectile_sprite_index: { sprite: spore } }
+    states:
+      - { strip: spuckpilz/stehen, fps: 2, traits: { baddie: [right, walk_right] } }
+      - { strip: spuckpilz/angriff, fps: 10, traits: { baddie: [attack_right] } }
+      - { strip: spuckpilz/treffer, traits: { baddie: [hit_right] } }
+      - { strip: spuckpilz/tot, fps: 8, traits: { baddie: [dead] } }
+
+  # --------------------------------------------------------------- Welt
+  boden:
+    label: Boden
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/boden }]
+  erde:
+    label: Erde
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/erde }]
+  leiter:
+    label: Leiter
+    traits: { ladder: { center: true } }
+    states: [{ strip: welt/leiter }]
+  schraege:
+    label: Schräge
+    traits: { slope: { direction: positive } }
+    states: [{ strip: welt/schraege }]
+  treppe:
+    label: Treppe
+    traits: { slope: { direction: positive } }
+    states: [{ strip: welt/treppe }]
+  tuer:
+    label: Tür
+    traits: { door: { lockable: false, automatic: false, closable: false } }
+    states:
+      - { strip: welt/tuer_zu, traits: { door: [closed] } }
+      - { strip: welt/tuer_auf, traits: { door: [open] } }
+      - { strip: welt/tuer_uebergang, fps: 10, traits: { door: [transition] } }
+  schlosstuer:
+    label: Schlosstür
+    traits: { door: { lockable: true, automatic: true, closable: false } }
+    states:
+      - { strip: welt/schlosstuer_zu, traits: { door: [closed] } }
+      - { strip: welt/tuer_auf, traits: { door: [open] } }
+      - { strip: welt/tuer_uebergang, fps: 10, traits: { door: [transition] } }
+  schluessel:
+    label: Schlüssel
+    traits: { key: {} }
+    states: [{ strip: welt/schluessel, fps: 3 }]
+  muenze:
+    label: Münze
+    traits: { pickup: { points: 10 } }
+    states: [{ strip: welt/muenze, fps: 8 }]
+
+  # ------------------------------------------- Bilder für Angriffe
+  pfeil:
+    label: Pfeil
+    states: [{ strip: welt/pfeil }]
+  stein:
+    label: Stein
+    states: [{ strip: welt/stein }]
+  spore:
+    label: Spore
+    states: [{ strip: welt/spore, fps: 8 }]
+  bombe:
+    label: Bombe
+    traits: { bomb: {} }
+    states:
+      - { strip: welt/bombe_zuendschnur, fps: 8, traits: { bomb: [fuse] } }
+      - { strip: welt/bombe_explosion, fps: 12, traits: { bomb: [explosion] } }
+  treffer_funke:
+    label: Treffer-Funke
+    states: [{ strip: welt/treffer_funke, fps: 14 }]
+
+# Map characters used by the recipe scenes (recipes may add their own).
+legende:
+  '#': boden
+  '=': erde
+  'H': leiter
+  '/': schraege
+  'T': treppe
+  'D': tuer
+  'L': schlosstuer
+  'k': schluessel
+  'o': muenze
+  'P': pip
+  'g': glibber
+  'm': spuckpilz

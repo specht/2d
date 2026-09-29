@@ -32,6 +32,7 @@ All student-facing labels, explanations, hints, tutorials, and warnings must be 
 - `src/static/app.js`: gameplay runtime, door/key interactions, collisions, camera.
 - `src/static/visibility_regions.js`: opt-in layer targets and visual-only fading.
 - `src/static/combat.js`, `src/static/combat_swing.js`, `src/static/combat_projectile.js`, `src/static/combat_melee_trait.js`: shared attack, melee, projectile/bomb deliveries and legacy/new trait adapters.
+- `rezepte/`: German how-to recipes for the Hilfe tab. `rezepte/tools/build.mjs` records each recipe's GIF from the real engine in headless Chromium, checks the recipe's promised outcome and writes `src/static/rezepte/` (commit the generated files). Rebuild after gameplay changes; a failing recipe means children would be told something that no longer works. See `rezepte/README.md`.
 - `TODO.md`: historical ideas and bug reports, not an implementation contract; newer decisions in the two project documents supersede conflicting suggestions.
 
 Be clear whether an observation came from source review, an isolated check, or a real browser/gameplay test. Never claim existing games were tested unless they actually were.
