@@ -210,6 +210,16 @@ class Menu {
                 if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen();
             }
         });
+        if (this.pane === 'play') {
+            hints.push({
+                key: 'Control+Enter', label: 'Spiel im Vollbild', callback: function () {
+                    // fullscreen.js inside the game: only the game fills the screen
+                    const frame = document.getElementById('play_iframe');
+                    frame?.contentWindow?.toggle_game_fullscreen?.();
+                    frame?.focus();
+                }
+            });
+        }
         if (this.pane === 'sprites') {
             hints.push(
                 {

@@ -1,4 +1,5 @@
 ---
+entwurf: true          # hidden for now, so the gallery has full rows
 titel: Eine Steinfalle für Gegner
 kategorie: Kampf
 stufe: 3

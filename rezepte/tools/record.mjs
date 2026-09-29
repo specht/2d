@@ -104,6 +104,7 @@ export async function record(browser, repo, game, recipe) {
     const events = key_events(recipe.ablauf);
     const duration = Number(recipe.dauer ?? 4);
     const frames = [];
+    const foes = [];
     let ei = 0;
     const steps = recipe.schritte ?? 1;             // simulation steps per GIF frame
     for (let i = 0; i * steps / 60 < duration - 1e-9; i++) {
@@ -131,10 +132,13 @@ export async function record(browser, repo, game, recipe) {
             const pc = g.player_character;
             const player_x = pc ? Math.round((pc.mesh.position.x - view.x0) * sx) : null;
             const dbg = pc ? `${pc.mesh.position.x.toFixed(1)},${pc.mesh.position.y.toFixed(1)} ${pc.state}/${pc.direction} keys=${Object.keys(g.pressed_keys).filter(k => g.pressed_keys[k]).join('+')}` +
-                g.baddies.map(b => ` | gegner ${b.mesh.position.x.toFixed(0)},${b.mesh.position.y.toFixed(0)} e=${b.energy}${b.hit_paused?.() ? ' pause' : ''}`).join('') : '';
-            return { w, h, data: btoa(bin), dbg, player_x };
+                g.baddies.map(b => ` | gegner ${b.mesh.position.x.toFixed(0)},${b.mesh.position.y.toFixed(0)} e=${b.energy}${b.hit_paused?.() ? ' pause' : ''}${b.ai_memory?.mode ? ' ' + b.ai_memory.mode : ''}`).join('') : '';
+            // what each enemy did: position, behaviour mode, "!" shown
+            const foes = g.baddies.map(b => ({ x: b.mesh.position.x, y: b.mesh.position.y,
+                mode: b.ai_memory?.mode ?? null, alert: b.alert_mesh?.visible === true }));
+            return { w, h, data: btoa(bin), dbg, player_x, foes };
         }, { t, due, view: game.view });
-        if (process.env.REZEPT_DEBUG && i % 6 === 0) console.log(`  t=${t.toFixed(2)} ${shot.dbg}`);
+        if (process.env.REZEPT_DEBUG && i % (process.env.REZEPT_DEBUG === 'alle' ? 1 : 6) === 0) console.log(`  t=${t.toFixed(2)} ${shot.dbg}`);
         const raw = Buffer.from(shot.data, 'base64');
         // WebGL rows start at the bottom.
         const flipped = Buffer.alloc(raw.length);
@@ -142,6 +146,13 @@ export async function record(browser, repo, game, recipe) {
         for (let y = 0; y < shot.h; y++) raw.copy(flipped, (shot.h - 1 - y) * row, y * row, (y + 1) * row);
         for (let p = 3; p < flipped.length; p += 4) flipped[p] = 255;
         frames.push({ w: shot.w, h: shot.h, data: flipped, player_x: shot.player_x });
+        shot.foes.forEach((f, k) => {
+            const t = (foes[k] ??= { modes: new Set(), alert: false, x0: f.x, x1: f.x, y0: f.y, y1: f.y });
+            if (f.mode) t.modes.add(f.mode);
+            t.alert ||= f.alert;
+            t.x0 = Math.min(t.x0, f.x); t.x1 = Math.max(t.x1, f.x);
+            t.y0 = Math.min(t.y0, f.y); t.y1 = Math.max(t.y1, f.y);
+        });
     }
 
     const state = await page.evaluate(() => {
@@ -162,6 +173,10 @@ export async function record(browser, repo, game, recipe) {
         };
     });
     await context.close();
+    state.baddies.forEach((b, k) => {
+        const t = foes[k];
+        if (t) Object.assign(b, { modes: [...t.modes], alert: t.alert, weg: t.x1 - t.x0, hub: t.y1 - t.y0 });
+    });
     return { frames, state, errors };
 }
 
@@ -215,5 +230,19 @@ export function check(expect, state) {
     if (e.energie_unter !== undefined && !(state.energy < e.energie_unter))
         fail.push(`energie: ${state.energy}, erwartet weniger als ${e.energie_unter}`);
     if (e.lebt !== undefined && state.player && state.player.dead === e.lebt) fail.push(`Figur lebt: ${!state.player.dead}`);
+    // Enemy behaviours: some enemy must have gone through these modes, shown
+    // the "!", moved at least so far sideways (weg) or up and down (hub).
+    const foes = state.baddies;
+    const seen_modes = [...new Set(foes.flatMap(b => b.modes ?? []))];
+    for (const mode of e.gegner_modi ?? [])
+        if (!seen_modes.includes(mode)) fail.push(`Kein Gegner war im Modus "${mode}" (${seen_modes.join(', ') || 'keine'})`);
+    const alerted = foes.some(b => b.alert);
+    if (e.gegner_ausrufezeichen !== undefined && alerted !== e.gegner_ausrufezeichen)
+        fail.push(`Ausrufezeichen: ${alerted} statt ${e.gegner_ausrufezeichen}`);
+    const weg = Math.max(0, ...foes.map(b => b.weg ?? 0)), hub = Math.max(0, ...foes.map(b => b.hub ?? 0));
+    if (e.gegner_weg !== undefined && !(weg >= e.gegner_weg))
+        fail.push(`Gegner sind nur ${weg.toFixed(0)} px zur Seite gekommen, erwartet ${e.gegner_weg}`);
+    if (e.gegner_hub !== undefined && !(hub >= e.gegner_hub))
+        fail.push(`Gegner sind nur ${hub.toFixed(0)} px auf und ab gekommen, erwartet ${e.gegner_hub}`);
     return fail;
 }

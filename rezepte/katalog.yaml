@@ -348,6 +348,133 @@ sprites:
     label: Treffer-Funke
     states: [{ strip: welt/treffer_funke, fps: 14 }]
 
+  # ---------------------------------- Förderbänder und Rolltreppe (Runde 5)
+  # phase_r: 0 → every tile shows the same frame, so the treads line up.
+  band:
+    label: Förderband
+    traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: right, speed: 1.0 } }
+    states: [{ strip: welt/band, fps: 30, phase_r: 0 }]
+  band_anfang:
+    label: Förderband (Anfang)
+    traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: right, speed: 1.0 } }
+    states: [{ strip: welt/band_anfang, fps: 30, phase_r: 0 }]
+  band_ende:
+    label: Förderband (Ende)
+    traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: right, speed: 1.0 } }
+    states: [{ strip: welt/band_ende, fps: 30, phase_r: 0 }]
+  band_links:
+    label: Förderband nach links
+    traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: left, speed: 1.0 } }
+    states: [{ strip: welt/band_links, fps: 30, phase_r: 0 }]
+  band_links_anfang:
+    label: Förderband nach links (Anfang)
+    traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: left, speed: 1.0 } }
+    states: [{ strip: welt/band_links_anfang, fps: 30, phase_r: 0 }]
+  band_links_ende:
+    label: Förderband nach links (Ende)
+    traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: left, speed: 1.0 } }
+    states: [{ strip: welt/band_links_ende, fps: 30, phase_r: 0 }]
+  rolltreppe:
+    label: Rolltreppe
+    traits: { slope: { direction: positive }, conveyor: { direction: right, speed: 1.0 } }
+    states: [{ strip: welt/rolltreppe, fps: 30, phase_r: 0 }]
+  maschine:
+    label: Maschine
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/maschine }]
+
+  # ---------------------------------------- Gegner mit Verhalten (Runde 5)
+  kaefer:
+    label: Käfer (Jäger)
+    traits:
+      baddie:
+        energy: 40
+        damage: 0
+        vrun: 0.5
+        start_dir: right
+        wait_until_seen: false
+        ex_left: 0.8
+        ex_right: 0.8
+        ex_top: 0.55
+        behavior: { type: hunter }
+    states:
+      - { strip: kaefer/laufen, fps: 10, traits: { baddie: [right, walk_right] } }
+      - { strip: kaefer/treffer, traits: { baddie: [hit_right] } }
+      - { strip: kaefer/tot, fps: 8, traits: { baddie: [dead] } }
+  keiler:
+    label: Keiler (Lauerer)
+    traits:
+      baddie:
+        energy: 60
+        damage: 0
+        vrun: 0.6
+        start_dir: left
+        wait_until_seen: false
+        ex_left: 0.8
+        ex_right: 0.8
+        ex_top: 0.6
+        behavior: { type: lurker }
+    states:
+      - { strip: keiler/stehen, fps: 3, traits: { baddie: [right] } }
+      - { strip: keiler/laufen, fps: 16, traits: { baddie: [walk_right] } }
+      - { strip: keiler/treffer, traits: { baddie: [hit_right] } }
+      - { strip: keiler/tot, fps: 8, traits: { baddie: [dead] } }
+  frosch:
+    label: Frosch (Hüpfer)
+    traits:
+      baddie:
+        energy: 40
+        damage: 0
+        vrun: 0.6
+        vjump: 7.0
+        jump_vfactor: 2.0
+        start_dir: left
+        wait_until_seen: false
+        ex_left: 0.7
+        ex_right: 0.7
+        ex_top: 0.5
+        behavior: { type: hopper }
+    states:
+      - { strip: frosch/stehen, fps: 2, traits: { baddie: [right] } }
+      - { strip: frosch/springen, traits: { baddie: [jump_right, fall_right] } }
+      - { strip: frosch/treffer, traits: { baddie: [hit_right] } }
+      - { strip: frosch/tot, fps: 8, traits: { baddie: [dead] } }
+  fledermaus:
+    label: Fledermaus (Flatterer)
+    traits:
+      baddie:
+        energy: 20
+        damage: 0
+        vrun: 0.7
+        affected_by_gravity: false
+        start_dir: left
+        wait_until_seen: false
+        ex_left: 0.5
+        ex_right: 0.5
+        ex_top: 0.6
+        behavior: { type: flutter }
+    states:
+      - { strip: fledermaus/fliegen, fps: 10, traits: { baddie: [right, walk_right] } }
+      - { strip: fledermaus/treffer, traits: { baddie: [hit_right] } }
+      - { strip: fledermaus/tot, fps: 8, traits: { baddie: [dead] } }
+  klotz:
+    label: Steinklotz (Stampfer)
+    traits:
+      baddie:
+        energy: 1000
+        damage: 0
+        vrun: 0.0
+        affected_by_gravity: false
+        patrols: false
+        wait_until_seen: false
+        camera_shake_on_land: 4
+        behavior: { type: stomper }
+    states:
+      - { strip: klotz/stehen, traits: { baddie: [front] } }
+      - { strip: klotz/fallen, traits: { baddie: [fall_front] } }
+      - { strip: klotz/treffer, traits: { baddie: [hit_front] } }
+      - { strip: klotz/tot, fps: 8, traits: { baddie: [dead] } }
+
 # Map characters used by the recipe scenes (recipes may add their own).
 legende:
   '#': boden
@@ -406,3 +533,16 @@ legende:
   '+': sterne
   'G': geist
   'e': eingang
+  '>': band
+  '<': band_links
+  '[': band_anfang
+  ']': band_ende
+  '{': band_links_anfang
+  '}': band_links_ende
+  's': rolltreppe
+  '_': maschine
+  'K': kaefer
+  'a': keiler
+  'q': frosch
+  'j': fledermaus
+  'U': klotz

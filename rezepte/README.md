@@ -38,7 +38,8 @@ written to `tools/fehler-<id>.gif` when using `--check`. Page errors
 check of exactly what children are told to do, not an isolated unit test.
 
 `REZEPT_DEBUG=1 node build.mjs <id>` prints the player's position, state,
-direction and pressed keys every few frames — the quickest way to tune a
+direction and pressed keys every few frames (`REZEPT_DEBUG=alle`: every step),
+plus each enemy's position, energy and behaviour mode — the quickest way to tune a
 scene. `node contact.mjs <gif> <png> [step]` makes a contact sheet of a GIF;
 `node preview.mjs <prefix> [recipe title]` screenshots the Hilfe tab of the
 studio.
@@ -75,7 +76,8 @@ The recorder relies on these runtime entry points: `window.game`,
 ```yaml
 ---
 titel: Leitern hochklettern
-kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Türen & Schlüssel | Kampf
+kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Türen & Schlüssel | Kampf | Gegner
+# entwurf: true                # hide this recipe (not built, not shown)
 stufe: 1                       # 1–3 stars
 kurz: Pip klettert eine Leiter hoch und läuft oben weiter.
 szene:
@@ -131,6 +133,9 @@ erwartet:                      # outcome checks
   figur_rechts_von: 5          # player x > 5 tiles
   # gegner_besiegt: 1 · gegner_leben: 0 · schluessel: [7] · tuer_offen: true
   # punkte: 60 · energie_unter: 100 · energie_gleich: 100 · lebt: true · checkpoint_aktiv: true
+  # Enemy behaviours (some enemy in the scene): gegner_modi: [chase, idle] (modes of
+  # baddie_ai.js: chase/idle, wait/windup/charge/rest, shake/drop/bottom/rise/cool) ·
+  # gegner_ausrufezeichen: true · gegner_weg: 96 (px sideways) · gegner_hub: 24 (px up/down)
 # ohne:                        # optional: the same world without decoration. The GIF shows
 #   szene: { ebenen: [ … ] }   # the finished world left of Pip and this one right of him –
 #                              # he "paints" the level as he walks. Same size required.
@@ -196,6 +201,15 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `mauer_fenster`, `lichtkegel` + `laterne` (48×72), and the ghost enemy
   `geist`.
 * **Gentle slopes**: `hang_flach`, `hang_flach_ab` (48×24).
+* **Conveyors**: `band`, `band_anfang`, `band_ende` (4 frames, moving right),
+  `band_links…` (the mirror images, moving left), `rolltreppe` (3 frames,
+  escalator: slope + conveyor), `maschine` (housing block). Their states use
+  `fps: 30` and `phase_r: 0` (all tiles animate in step; `phase_x`, `phase_y`,
+  `phase_r` are passed to the state).
+* **Enemies with a behaviour** (`traits.baddie.behavior`): `kaefer` (Jäger),
+  `keiler` (Lauerer: `stehen`, `laufen`), `frosch` (Hüpfer: `stehen`,
+  `springen`), `fledermaus` (Flatterer: `fliegen`), `klotz` (Stampfer:
+  `stehen`, `fallen`); each with `treffer` and `tot`.
 
 Big sprites set `groesse: [w, h]` in `katalog.yaml`; their strips use frames
 of that size. The parallax backgrounds (`berge_fern`, `berge`, `wald`,
@@ -218,7 +232,9 @@ art).
 The map legend (`legende` in `katalog.yaml`) gives every sprite one
 character, e.g. `#` ground, `M` wall, `-` plank, `B` crumbling brick, `^`
 spikes, `f` flag, `h` house door, `F`/`V` facade, `z` moss, `t` torch, `|`
-post, `c` chain.
+post, `c` chain, `[` `>` `]` belt (start, middle, end), `<` belt to the left,
+`s` escalator, `_` machine, `K` beetle, `a` boar, `q` frog, `j` bat, `U`
+stone block.
 
 Design rules the scenes follow (and the recipes teach): doors sit in walls
 that are higher than a jump, nothing floats without a support, ground has

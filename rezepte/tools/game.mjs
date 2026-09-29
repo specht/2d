@@ -175,7 +175,9 @@ export async function build_game(catalog, recipe, repo) {
                 for (const n of names) state_traits[trait][n] = {};
             }
             states.push({
-                properties: { name: path.basename(st.strip), fps: st.fps ?? 8 },
+                properties: { name: path.basename(st.strip), fps: st.fps ?? 8,
+                    // phase_r: 0 = all copies animate in step (conveyor belts)
+                    ...Object.fromEntries(['phase_x', 'phase_y', 'phase_r'].filter(k => k in st).map(k => [k, st[k]])) },
                 traits: state_traits,
                 frames: frames.map(f => ({ tag: f.tag })),
             });

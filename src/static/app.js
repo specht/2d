@@ -15,6 +15,10 @@ let OVERLAY_ICONS = {
 	f_key: [36, 36, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAf0lEQVRYw+2YQQqAIBQFv9GBWygE0SqCoM7nr9PUVtyEpJIwbye4GHjDAzWDc7uEMcZKxZyqR3ju5GcB6C197IyqVgW4vLdU1rhDidmWNen+OE9UhkNZHaEyHHrbpa9OURk7RGUAAQRQ6R3KvTtU1r5D8f9M/NYunVuE/6G2gR7lsx2d8NUeyQAAAABJRU5ErkJggg=="],
 };
 
+// "!" above an enemy that has just noticed the player (baddie_ai.js). Created only
+// when needed, so games without it create exactly the same objects as before.
+const ALERT_ICON = [36, 36, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAhElEQVR42mNkQANSMjr/GegInj25wojMZ2IYZGDUQYQAI3qauXXjBEkG7PWKR+E7b1tIkn41DYvRKBvaDmIhVQN6mqF2mhqNslEHjTpotBwiBNDLFUrLndEoG3lpiFCaGo2y0TREaftotBwaef2y0b79aBqidhoiBAilMfQ0MRplw95BAG2TIUiAgKIgAAAAAElFTkSuQmCC"];
+
 Number.prototype.clamp = function (min, max) {
 	return Math.min(Math.max(this, min), max);
 };
@@ -92,6 +96,17 @@ class Character {
                 attacks: resolved_character_attacks(this.sprite.traits, this.character_trait),
             };
         }
+
+		// Optional "Verhalten" (baddie_ai.js). null = the classic patrol code.
+		this.behavior = this.character_trait === 'baddie' && typeof baddie_behavior === 'function' ?
+			baddie_behavior(this.traits) : null;
+		this.ai_memory = {};
+		this.ai_speed = 1.0;
+		this.ai_dy = 0;
+		this.ai_no_gravity = false;
+		this.ai_face = null;
+		this.alert_until = 0;
+		this.alert_mesh = null;
 
 		let state_prefixes = ['stand', 'walk', 'jump', 'fall'];
 
@@ -497,6 +512,13 @@ void main() {
 		this.mesh.scale.x = flipped ? -1.0 : 1.0;
 	}
 
+	// Ground contact right now, without the coyote-time memory of
+	// standing_on_ground(): calling that one more often changes the jump timing.
+	touching_ground() {
+		return (this.has_trait_at(['ladder', 'slope'], -0.5, 0.5, -0.5, -0.01) !== null) ||
+			this.standing_on_block_top();
+	}
+
 	standing_on_ground() {
 		// we're adding a coyote time effect here:
 		// keep this true for an additional 30 ms or something like this
@@ -560,6 +582,97 @@ void main() {
 	}
 
 	simulate_movement() {
+		this.ai_speed = 1.0;
+		this.ai_dy = 0;
+		this.ai_no_gravity = false;
+		this.ai_face = null;
+		if (!this.behavior) return this.simulate_patrol();
+		const now = this.game.clock.getElapsedTime();
+		const out = baddie_decide(this.behavior, this.ai_memory, this.ai_perception());
+		this.ai_no_gravity = Boolean(out.no_gravity) || this.behavior.type === 'flutter';
+		if (out.patrol) {
+			this.simulate_patrol();
+		} else {
+			this.pressed_keys[KEY_LEFT] = Boolean(out.keys?.left);
+			this.pressed_keys[KEY_RIGHT] = Boolean(out.keys?.right);
+			this.pressed_keys[KEY_JUMP] = Boolean(out.keys?.jump);
+			this.pressed_keys[KEY_UP] = false;
+			this.pressed_keys[KEY_DOWN] = false;
+		}
+		this.ai_speed = out.speed ?? 1.0;
+		this.ai_dy = out.dy ?? 0;
+		this.ai_face = out.face ?? null;
+		// The "!" is optional (off by default).
+		if (out.alert && this.behavior.alert) this.alert_until = now + 0.8;
+		if (out.stun > 0) this.paused_until = now + out.stun;
+	}
+
+	// What an enemy with a "Verhalten" perceives (see baddie_decide).
+	ai_perception() {
+		const w2 = this.sprite.width * 0.5, h = this.sprite.height;
+		const player = this.game.player_character;
+		const alive = player && player !== this && !player.dead() && this.game.running !== false;
+		const gravity = Number(this.game.data.properties.gravity) || 0.5;
+		const hop = this.traits.vrun * (this.traits.jump_vfactor ?? 1) * 2 * this.traits.vjump / gravity;
+		const side = dir => (dir === 'left' ? -1 : 1);
+		return {
+			now: this.game.clock.getElapsedTime(),
+			on_ground: this.touching_ground(),
+			on_ladder: Boolean(this.has_trait_at(['ladder'], -0.5, 0.5, -1.1, 1.1)),
+			facing: this.last_horizontal_facing ?? (this.traits.start_dir === 'left' ? 'left' : 'right'),
+			x: this.mesh.position.x, y: this.mesh.position.y,
+			x0: this.initial_position[0], y0: this.initial_position[1],
+			half_width: w2,
+			player: alive ? {
+				dx: player.mesh.position.x - this.mesh.position.x,
+				dy: player.mesh.position.y - this.mesh.position.y,
+			} : null,
+			clear: dx => !this.has_trait_at(['block_sides'], Math.min(0, dx), Math.max(0, dx), h * 0.5 - 1, h * 0.5 + 1),
+			wall: dir => Boolean(dir === 'left' ?
+				this.has_trait_at(['block_sides'], -w2 - 1, -w2, 0.1, h - 0.1) :
+				this.has_trait_at(['block_sides'], w2, w2 + 1, 0.1, h - 0.1)),
+			ground: dir => Boolean(dir === 'left' ?
+				this.has_trait_at(['block_above', 'slope'], -w2, -w2 + 1, -1.0, 0.0) :
+				this.has_trait_at(['block_above', 'slope'], w2 - 1, w2, -1.0, 0.0)),
+			landing: dir => Boolean(this.has_trait_at(['block_above', 'slope'], side(dir) * hop - 2, side(dir) * hop + 2, -1.0, 0.0)),
+		};
+	}
+
+	// Speed added by a conveyor belt or escalator under the character (0 = none).
+	conveyor_push() {
+		// Not while jumping off (vy > 0); touching_ground() has no side effects.
+		if (this.vy > 0.01 || !this.touching_ground()) return 0;
+		let entry = this.has_trait_at(['conveyor'], -0.5, 0.5, -1.0, -0.01);
+		if (!entry) {
+			// Escalator: a slope that is also a conveyor; the slope test checks the surface.
+			const slope = this.has_trait_at(['slope'], -0.5, 0.5, -0.01, 0.1);
+			if (slope && 'conveyor' in this.game.data.sprites[slope.sprite_index].traits) entry = slope;
+		}
+		if (!entry) return 0;
+		const belt = this.game.data.sprites[entry.sprite_index].traits.conveyor;
+		if (this.character_trait === 'baddie' && belt.moves_baddies === false) return 0;
+		const speed = Number(belt.speed) || 0;
+		return belt.direction === 'left' ? -speed : speed;
+	}
+
+	// "!" above an enemy that just noticed the player.
+	update_alert_icon() {
+		const show = this.active && this.game.clock.getElapsedTime() < this.alert_until;
+		if (!show && !this.alert_mesh) return;
+		if (!this.alert_mesh) {
+			const template = this.game.alert_icon_template();
+			if (!template || !this.mesh.parent) return;
+			this.alert_mesh = template.clone();
+			this.alert_mesh.geometry = template.geometry.clone();
+			this.mesh.parent.add(this.alert_mesh);
+		}
+		this.alert_mesh.visible = show;
+		if (show) this.alert_mesh.position.set(this.mesh.position.x,
+			this.mesh.position.y + this.sprite.height * this.traits.ex_top + 7, 1.0);
+	}
+
+	// The classic enemy: walk, turn at walls and ledges (or jump off them).
+	simulate_patrol() {
 
 		if (this.traits.patrols) {
 			this.intention ??= {
@@ -582,7 +695,14 @@ void main() {
 			}
 
 
-			if (this.traits.affected_by_gravity) {
+			const range = (this.behavior?.range ?? 0) * 24;
+			if (range > 0) {
+				const from_start = this.mesh.position.x - this.initial_position[0];
+				if (this.intention.direction === 'left' && from_start <= -range) this.intention.direction = 'right';
+				else if (this.intention.direction === 'right' && from_start >= range) this.intention.direction = 'left';
+			}
+
+			if (this.traits.affected_by_gravity && !this.ai_no_gravity) {
 				if (this.standing_on_ground()) {
 					this.pressed_keys[KEY_LEFT] = false;
 					this.pressed_keys[KEY_RIGHT] = false;
@@ -729,6 +849,7 @@ void main() {
 			if (this.energy < 0.0001) {
 				// remove baddie from game
 				this.active = false;
+				if (this.alert_mesh) this.alert_mesh.visible = false;
 				this.combat_visual = null;
 				this.hit_flash_until = 0;
 				this.update_state_and_direction('dead', 'front');
@@ -761,9 +882,12 @@ void main() {
 			if (this.hit_paused()) {
 				// Stunned after a hit: stand still (gravity still applies).
 				for (const k of Object.keys(this.pressed_keys)) this.pressed_keys[k] = false;
+				this.ai_dy = 0;
+				this.ai_speed = 1.0;
 			} else {
 				this.simulate_movement();
 			}
+			this.update_alert_icon();
 		}
 
 		if (this.character_trait === 'actor') {
@@ -807,6 +931,7 @@ void main() {
 		let dx = 0;
 		let factor = 1;
 		if (this.character_trait === 'baddie' && this.pressed_keys[KEY_JUMP]) factor = this.traits.jump_vfactor;
+		if (this.character_trait === 'baddie') factor *= this.ai_speed;
 		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun * factor * this.vrun_factor();
 		if (this.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun * factor * this.vrun_factor();
 
@@ -819,6 +944,11 @@ void main() {
 				}
 			}
 		}
+
+		// Förderband / Rolltreppe: standing on it carries the character along.
+		const input_dx = dx;
+		const belt = this.conveyor_push();
+		dx += belt;
 
 		// if (this.character_trait === 'baddie')
 		// 	dx *= (1.0) + ((Math.random() - 0.5) * 2.0) * 3;
@@ -849,8 +979,15 @@ void main() {
 			}
 		}
 		let state = 'stand';
-		if (this.standing_on_ground()) {
-			state = (Math.abs(dx) > 0.1) ? 'walk' : 'stand';
+		if (this.ai_no_gravity) {
+			// Flying / stomping behaviours: no gravity, so no jump or fall poses –
+			// except a stomper crashing down.
+			this.vy = 0;
+			state = (this.behavior?.type === 'stomper' && this.ai_dy < -0.1) ? 'fall' :
+				(Math.abs(dx) > 0.1 ? 'walk' : 'stand');
+		} else if (this.standing_on_ground()) {
+			// On a belt only the character's own steps count as walking.
+			state = (Math.abs(belt ? input_dx : dx) > 0.1) ? 'walk' : 'stand';
 		} else {
 			state = (this.vy > 0) ? 'jump' : 'fall';
 		}
@@ -866,8 +1003,10 @@ void main() {
                 this.combat_visual = null;
         }
 		let direction = this.direction;
-		if (dx > 0) direction = 'right';
-		if (dx < 0) direction = 'left';
+		const facing_dx = belt ? input_dx : dx;
+		if (facing_dx > 0) direction = 'right';
+		if (facing_dx < 0) direction = 'left';
+		if (this.ai_face && Math.abs(dx) < 0.01) direction = this.ai_face;
 
 		let dy = 0;
 		entry = this.has_trait_at(['ladder'], -0.5, 0.5, 0.1, 1.1);
@@ -900,6 +1039,11 @@ void main() {
 		dy = this.try_move_y(dy);
 		if (Math.abs(dy) > 0.1)
 			direction = 'back';
+		if (this.ai_dy) {
+			// Flying and stomping enemies move themselves; this is not climbing.
+			const moved = this.try_move_y(this.ai_dy);
+			this.ai_memory.blocked = this.ai_dy < 0 && moved > this.ai_dy + 0.01;
+		}
 
 		// if we're standing, we can jump
 		if (this.character_trait === 'baddie' || this.sprite.traits[this.character_trait].can_jump) {
@@ -910,7 +1054,7 @@ void main() {
 			}
 		}
 
-		if (this.sprite.traits[this.character_trait].affected_by_gravity) {
+		if (this.sprite.traits[this.character_trait].affected_by_gravity && !this.ai_no_gravity) {
 			let dy = this.try_move_y(this.vy);
 			if (Math.abs(dy) < 0.01) this.vy = 0;
 		}
@@ -2061,6 +2205,33 @@ class Game {
 			this.player_character.invincible_until = this.clock.getElapsedTime() + this.data.properties.respawn_invincible;
 			this.update_layer_visibility(true);
 		}
+	}
+
+	// Built like the overlay icons, but only on first use (see ALERT_ICON).
+	alert_icon_template() {
+		if (this.alert_icon_mesh !== undefined) return this.alert_icon_mesh;
+		const texture = new THREE.Texture();
+		const image = new Image();
+		image.onload = () => { texture.needsUpdate = true; };
+		image.src = ALERT_ICON[2];
+		texture.image = image;
+		const material = new THREE.ShaderMaterial({
+			uniforms: { texture1: { value: texture } },
+			transparent: true,
+			vertexShader: shaders.get('basic.vs'),
+			fragmentShader: shaders.get('texture.fs'),
+			side: THREE.DoubleSide,
+		});
+		const geometry = new THREE.PlaneGeometry(ALERT_ICON[0], ALERT_ICON[1]);
+		geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
+		geometry.scale(0.25, -0.25, 1.0);
+		const uv = geometry.attributes.uv;
+		uv.setXY(0, 0.0, 0.0);
+		uv.setXY(1, 1.0, 0.0);
+		uv.setXY(2, 0.0, 1.0);
+		uv.setXY(3, 1.0, 1.0);
+		this.alert_icon_mesh = new THREE.Mesh(geometry, material);
+		return this.alert_icon_mesh;
 	}
 
 	handle_resize() {
