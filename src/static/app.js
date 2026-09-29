@@ -646,6 +646,13 @@ void main() {
 			safe_drop: dir => this.safe_drop(dir),
 			ladder_up: Boolean(this.has_trait_at(['ladder'], -0.5, 0.5, 0.1, 1.1)),
 			ladder_down: Boolean(this.has_trait_at(['ladder'], -0.5, 0.5, -1.1, -0.1)),
+			ladder_near: (way, reach) => {
+				const [y0, y1] = way === 'up' ? [0.1, 1.1] : [-1.1, -0.1];
+				for (let d = 0; d <= reach; d += 6)
+					for (const dx of d ? [d, -d] : [0])
+						if (this.has_trait_at(['ladder'], dx - 0.5, dx + 0.5, y0, y1)) return dx;
+				return null;
+			},
 		};
 	}
 
@@ -653,7 +660,9 @@ void main() {
 	// Only enemies use it; the trait is looked up once.
 	movement_abilities() {
 		if (this._abilities === undefined) {
-			this._abilities = this.character_trait === 'baddie' && typeof baddie_moves === 'function' ?
+			// only walking behaviours (ticks hidden after switching to e.g. Flatterer count for nothing)
+			const walks = ['guard', 'hunter', 'coward'].includes(this.behavior?.type ?? 'guard');
+			this._abilities = this.character_trait === 'baddie' && walks && typeof baddie_moves === 'function' ?
 				baddie_moves(this.sprite?.traits?.smart) : {};
 		}
 		return this._abilities;

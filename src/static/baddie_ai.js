@@ -90,6 +90,8 @@ const BEHAVIORS_WITH_SPEED = new Set(['guard', 'hunter', 'coward', 'lurker', 'ho
 const BEHAVIORS_WITH_JUMP = new Set(['guard', 'hunter', 'hopper']);
 // walking enemies that may learn to take slopes, jump obstacles and gaps, drop down
 const BEHAVIORS_WITH_MOVE = new Set(['guard', 'hunter', 'coward']);
+// How far a chasing Jäger looks for a ladder to another floor (5 blocks).
+const LADDER_REACH = 120;
 const BEHAVIORS_WITH_GRAVITY_SWITCH = new Set(['guard', 'still']);
 
 function baddie_behavior_type(traits) {
@@ -135,13 +137,15 @@ function baddie_behavior(traits, smart = null) {
         result[key] = Number.isFinite(v) ? Math.min(setting.max, Math.max(setting.min, v)) : setting.default;
     }
     // "Intelligenz" (traits.js): optional abilities, all off in old games
-    result.moves = baddie_moves(smart);
+    result.moves = baddie_moves(BEHAVIORS_WITH_MOVE.has(saved.type) ? smart : null);
     return result;
 }
 
 // What the "Intelligenz" trait allows. No trait (or an old game): nothing extra.
 function baddie_moves(smart) {
     return {
+        // the trait itself: a chasing Jäger then never jumps into an abyss
+        smart: Boolean(smart) && typeof smart === 'object',
         slopes: smart?.walks_slopes === true, obstacles: smart?.jumps_obstacles === true,
         gaps: smart?.jumps_gaps === true, drop: smart?.drops_down === true, ladders: smart?.climbs_ladders === true,
     };
@@ -160,6 +164,8 @@ const AI_VERTICAL_SIGHT = 36;      // px: roughly "on the same floor"
 //   clearable(dir)  the wall ahead is low enough to jump over
 //   safe_drop(dir)  below the ledge ahead there is ground (at most 5 blocks down)
 //   ladder_up / ladder_down   a ladder to climb up from here / down from here
+//   ladder_near(way, reach)  offset (px, ±) of the nearest ladder at this height that
+//                   leads 'up' or 'down', at most `reach` away – or null
 //   player: null | { dx, dy }   (player minus enemy, dy > 0 = player higher)
 //   clear(dx)      no wall between the enemy and dx (line of sight)
 //   wall(dir)      a wall directly ahead
@@ -197,19 +203,28 @@ function baddie_decide(b, mem, w) {
         }
         if (mem.mode !== 'chase' || !p) return { patrol: true };
         if (!w.on_ground) return { keys: mem.air ?? stand().keys, speed: b.chase, pose: 'hunt' };
-        if (Math.abs(p.dx) < 4) return stand({ alert, speed: b.chase, pose: 'hunt' });
-        const dir = toward(p.dx);
+        const m = b.moves ?? {};
+        // Leitern klettern: the player is on another floor – climb the ladder here,
+        // or walk to one nearby (LADDER_REACH) that leads there.
+        let target = p.dx;
+        if (m.ladders && Math.abs(p.dy) > 20) {
+            const way = p.dy > 0 ? 'up' : 'down';
+            if (way === 'up' ? w.ladder_up : w.ladder_down) return climb(way, { alert, speed: b.chase, pose: 'hunt' });
+            const ladder = w.ladder_near?.(way, LADDER_REACH);
+            if (Number.isFinite(ladder)) target = ladder;
+        }
+        if (Math.abs(target) < 4) return stand({ alert, speed: b.chase, pose: 'hunt' });
+        const dir = toward(target);
         let out;
         // Hop over walls – but not from a ladder (ladders count as ground, he would climb it).
-        const m = b.moves ?? {};
-        // Leitern klettern: the player is on another floor and a ladder leads there
-        if (m.ladders && p.dy > 20 && w.ladder_up) return climb('up', { alert, speed: b.chase, pose: 'hunt' });
-        if (m.ladders && p.dy < -20 && w.ladder_down) return climb('down', { alert, speed: b.chase, pose: 'hunt' });
-        // Hop over walls – but not from a ladder (ladders count as ground, he would climb it).
         if (w.wall(dir)) out = { keys: { left: dir === 'left', right: dir === 'right', jump: !w.on_ladder } };
-        else if (!w.ground(dir) && m.gaps && w.landing(dir)) out = { keys: { left: dir === 'left', right: dir === 'right', jump: true } };
-        else if (!w.ground(dir) && p.dy > -8) out = stand({ face: dir });   // wait at the ledge
-        else out = walk(dir);
+        else if (!w.ground(dir)) {
+            // At a ledge: after the player if he is below (with Intelligenz only onto
+            // ground at most five blocks down), across a gap, or wait.
+            if (p.dy <= -8 && (!m.smart || w.safe_drop?.(dir))) out = walk(dir);
+            else if (m.gaps && w.landing(dir)) out = { keys: { left: dir === 'left', right: dir === 'right', jump: true } };
+            else out = stand({ face: dir });
+        } else out = walk(dir);
         mem.air = out.keys;
         return { ...out, alert, speed: b.chase, pose: 'hunt' };
     }
@@ -229,7 +244,9 @@ function baddie_decide(b, mem, w) {
         const m = b.moves ?? {};
         const hop = { keys: { left: dir === 'left', right: dir === 'right', jump: true } };
         let out;
-        if (m.ladders && w.ladder_up && (w.wall(dir) || !w.ground(dir))) out = climb('up');
+        // Leitern klettern: every ladder on the way is an escape – but not towards the player.
+        if (m.ladders && w.ladder_up && !(p && p.dy > 20)) out = climb('up');
+        else if (m.ladders && w.ladder_down && !(p && p.dy < -20)) out = climb('down');
         else if (w.wall(dir)) out = m.obstacles && w.clearable?.(dir) ? hop : stand({ face: p ? toward(p.dx) : dir });
         else if (!w.ground(dir)) {
             if (m.gaps && w.landing(dir)) out = hop;

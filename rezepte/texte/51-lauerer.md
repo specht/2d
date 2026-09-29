@@ -58,6 +58,7 @@ erwartet:
 - An einer Kante bremst der Lauerer, statt hinunterzufallen. Nur Wände machen ihn benommen.
 - Mit **zeigt „!“** warnt er, bevor er losrennt.
 - Nach dem Angriff ruht er sich kurz aus und lauert dann wieder.
+- **Intelligenz** braucht der Lauerer nicht: Er stürmt immer geradeaus. Bei ihm gibt es dort nichts einzustellen.
 
 ## Wenn's nicht klappt
 

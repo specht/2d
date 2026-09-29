@@ -191,10 +191,10 @@ test('hunter and lurker poses', () => {
 });
 
 test('"Intelligenz": all abilities are off in old games', () => {
-    const none = { slopes: false, obstacles: false, gaps: false, drop: false, ladders: false };
+    const none = { smart: false, slopes: false, obstacles: false, gaps: false, drop: false, ladders: false };
     assert.deepEqual(baddie_moves(undefined), none);
-    assert.deepEqual(baddie_moves({}), none);
     assert.deepEqual(baddie_behavior({ behavior: { type: 'hunter' }, jumps_gaps: true }).moves, none, 'only the Intelligenz trait counts');
+    assert.equal(baddie_moves({}).smart, true, 'the trait itself, even without a tick');
     const b = baddie_behavior({ behavior: { type: 'hunter' } }, { jumps_gaps: true, climbs_ladders: true });
     assert.equal(b.moves.gaps, true);
     assert.equal(b.moves.ladders, true);
@@ -225,4 +225,30 @@ test('a cornered coward escapes only with the right ability', () => {
     const dropper = baddie_behavior({ behavior: { type: 'coward' } }, { drops_down: true });
     assert.equal(baddie_decide(plain, {}, world(ledge)).keys.left, false, 'trembles at the ledge');
     assert.equal(baddie_decide(dropper, {}, world(ledge)).keys.left, true, 'drops down');
+});
+
+test('a chasing Jäger walks to a ladder nearby when the player is on another floor', () => {
+    const b = baddie_behavior({ behavior: { type: 'hunter' } }, { climbs_ladders: true });
+    const upstairs = { player: { dx: 2, dy: 72 }, ladder_near: (way) => way === 'up' ? -60 : null };
+    assert.equal(baddie_decide(b, { mode: 'chase', last_seen: 0 }, world(upstairs)).keys.left, true, 'goes to the ladder');
+    const none = { player: { dx: 2, dy: 72 }, ladder_near: () => null };
+    assert.equal(baddie_decide(b, { mode: 'chase', last_seen: 0 }, world(none)).keys.left, false, 'no ladder: waits below');
+    const plain = baddie_behavior({ behavior: { type: 'hunter' } });
+    assert.equal(baddie_decide(plain, { mode: 'chase', last_seen: 0 }, world(upstairs)).keys.left, false, 'without Intelligenz as before');
+});
+
+test('with Intelligenz a chasing Jäger never jumps into an abyss', () => {
+    const below = { player: { dx: 80, dy: -48 }, ground: () => false, landing: () => false };
+    const plain = baddie_behavior({ behavior: { type: 'hunter' } });
+    const smart = baddie_behavior({ behavior: { type: 'hunter' } }, {});
+    assert.equal(baddie_decide(plain, { mode: 'chase', last_seen: 0 }, world({ ...below, safe_drop: () => false })).keys.right, true, 'old games: after the player');
+    assert.equal(baddie_decide(smart, { mode: 'chase', last_seen: 0 }, world({ ...below, safe_drop: () => false })).keys.right, false, 'abyss: waits');
+    assert.equal(baddie_decide(smart, { mode: 'chase', last_seen: 0 }, world({ ...below, safe_drop: () => true })).keys.right, true, 'ground below: follows');
+});
+
+test('a fleeing Angsthase escapes up any ladder – never towards the player', () => {
+    const b = baddie_behavior({ behavior: { type: 'coward' } }, { climbs_ladders: true });
+    assert.equal(baddie_decide(b, {}, world({ player: { dx: 40, dy: 0 }, ladder_up: true })).keys.up, true);
+    assert.equal(baddie_decide(b, {}, world({ player: { dx: 40, dy: 60 }, ladder_up: true })).keys.up ?? false, false, 'the player is up there');
+    assert.equal(baddie_decide(b, {}, world({ player: { dx: 40, dy: 60 }, ladder_down: true })).keys.down, true, 'so down instead');
 });
