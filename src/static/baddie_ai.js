@@ -88,6 +88,8 @@ const BADDIE_BEHAVIOR_ORDER = ['guard', 'still', 'hunter', 'coward', 'lurker', '
 const BEHAVIORS_WITH_PATROL = new Set(['guard', 'hunter', 'coward', 'flutter']);
 const BEHAVIORS_WITH_SPEED = new Set(['guard', 'hunter', 'coward', 'lurker', 'hopper', 'flutter']);
 const BEHAVIORS_WITH_JUMP = new Set(['guard', 'hunter', 'hopper']);
+// walking enemies that may learn to take slopes, jump obstacles and gaps, drop down
+const BEHAVIORS_WITH_MOVE = new Set(['guard', 'hunter', 'coward']);
 const BEHAVIORS_WITH_GRAVITY_SWITCH = new Set(['guard', 'still']);
 
 function baddie_behavior_type(traits) {
@@ -116,13 +118,14 @@ function set_baddie_behavior_type(traits, type) {
 
 function behavior_uses(traits, what) {
     const type = baddie_behavior_type(traits);
-    return ({ patrol: BEHAVIORS_WITH_PATROL, speed: BEHAVIORS_WITH_SPEED, jump: BEHAVIORS_WITH_JUMP,
+    return ({ patrol: BEHAVIORS_WITH_PATROL, speed: BEHAVIORS_WITH_SPEED, jump: BEHAVIORS_WITH_JUMP, move: BEHAVIORS_WITH_MOVE,
         gravity: BEHAVIORS_WITH_GRAVITY_SWITCH })[what]?.has(type) ?? true;
 }
 
 // Resolved settings with defaults, or null for games without a behaviour
 // (those run the original code unchanged).
-function baddie_behavior(traits) {
+// smart: the sprite's "Intelligenz" trait (traits.js), if it has one.
+function baddie_behavior(traits, smart = null) {
     const saved = traits?.behavior;
     if (!saved || typeof saved !== 'object' || !(saved.type in BADDIE_BEHAVIORS)) return null;
     const result = { type: saved.type };
@@ -131,7 +134,17 @@ function baddie_behavior(traits) {
         const v = Number(saved[key]);
         result[key] = Number.isFinite(v) ? Math.min(setting.max, Math.max(setting.min, v)) : setting.default;
     }
+    // "Intelligenz" (traits.js): optional abilities, all off in old games
+    result.moves = baddie_moves(smart);
     return result;
+}
+
+// What the "Intelligenz" trait allows. No trait (or an old game): nothing extra.
+function baddie_moves(smart) {
+    return {
+        slopes: smart?.walks_slopes === true, obstacles: smart?.jumps_obstacles === true,
+        gaps: smart?.jumps_gaps === true, drop: smart?.drops_down === true, ladders: smart?.climbs_ladders === true,
+    };
 }
 
 function behavior_uses_patrol(traits) {
@@ -144,6 +157,9 @@ const AI_VERTICAL_SIGHT = 36;      // px: roughly "on the same floor"
 // Decide one simulation step. `mem` is the enemy's own memory (kept between
 // steps), `w` describes what the enemy perceives:
 //   now, on_ground, on_ladder, facing ('left'|'right'), x, y, x0, y0 (start position),
+//   clearable(dir)  the wall ahead is low enough to jump over
+//   safe_drop(dir)  below the ledge ahead there is ground (at most 5 blocks down)
+//   ladder_up / ladder_down   a ladder to climb up from here / down from here
 //   player: null | { dx, dy }   (player minus enemy, dy > 0 = player higher)
 //   clear(dx)      no wall between the enemy and dx (line of sight)
 //   wall(dir)      a wall directly ahead
@@ -163,6 +179,7 @@ function baddie_decide(b, mem, w) {
     const away = dx => (dx < 0 ? 'right' : 'left');
     const walk = (dir, extra = {}) => ({ keys: { left: dir === 'left', right: dir === 'right', jump: false }, ...extra });
     const stand = (extra = {}) => ({ keys: { left: false, right: false, jump: false }, ...extra });
+    const climb = (way, extra = {}) => ({ keys: { left: false, right: false, jump: false, up: way === 'up', down: way === 'down' }, ...extra });
     const p = w.player;
 
     if (b.type === 'guard' || b.type === 'still') return { patrol: true };
@@ -184,7 +201,13 @@ function baddie_decide(b, mem, w) {
         const dir = toward(p.dx);
         let out;
         // Hop over walls – but not from a ladder (ladders count as ground, he would climb it).
+        const m = b.moves ?? {};
+        // Leitern klettern: the player is on another floor and a ladder leads there
+        if (m.ladders && p.dy > 20 && w.ladder_up) return climb('up', { alert, speed: b.chase, pose: 'hunt' });
+        if (m.ladders && p.dy < -20 && w.ladder_down) return climb('down', { alert, speed: b.chase, pose: 'hunt' });
+        // Hop over walls – but not from a ladder (ladders count as ground, he would climb it).
         if (w.wall(dir)) out = { keys: { left: dir === 'left', right: dir === 'right', jump: !w.on_ladder } };
+        else if (!w.ground(dir) && m.gaps && w.landing(dir)) out = { keys: { left: dir === 'left', right: dir === 'right', jump: true } };
         else if (!w.ground(dir) && p.dy > -8) out = stand({ face: dir });   // wait at the ledge
         else out = walk(dir);
         mem.air = out.keys;
@@ -202,8 +225,17 @@ function baddie_decide(b, mem, w) {
         if (!(mem.scared_until > w.now)) return { patrol: true };
         const dir = mem.flee_dir;
         if (!w.on_ground) return { keys: mem.air ?? stand().keys, speed: b.flee, pose: 'flee' };
-        // Cornered: stay and tremble (face the danger).
-        const out = (w.wall(dir) || !w.ground(dir)) ? stand({ face: p ? toward(p.dx) : dir }) : walk(dir);
+        // Cornered: stay and tremble (face the danger) – unless it has learned a way out.
+        const m = b.moves ?? {};
+        const hop = { keys: { left: dir === 'left', right: dir === 'right', jump: true } };
+        let out;
+        if (m.ladders && w.ladder_up && (w.wall(dir) || !w.ground(dir))) out = climb('up');
+        else if (w.wall(dir)) out = m.obstacles && w.clearable?.(dir) ? hop : stand({ face: p ? toward(p.dx) : dir });
+        else if (!w.ground(dir)) {
+            if (m.gaps && w.landing(dir)) out = hop;
+            else if (m.drop && w.safe_drop?.(dir)) out = walk(dir);
+            else out = stand({ face: p ? toward(p.dx) : dir });
+        } else out = walk(dir);
         mem.air = out.keys;
         return { ...out, alert, speed: b.flee, pose: 'flee' };
     }
@@ -294,7 +326,7 @@ function baddie_decide(b, mem, w) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         BADDIE_BEHAVIORS, BADDIE_BEHAVIOR_ORDER, BEHAVIORS_WITH_PATROL,
-        baddie_behavior, baddie_behavior_type, behavior_uses_patrol, behavior_uses, baddie_decide,
+        baddie_behavior, baddie_behavior_type, behavior_uses_patrol, behavior_uses, baddie_decide, baddie_moves,
         promote_baddie_behavior, set_baddie_behavior_type,
     };
 }

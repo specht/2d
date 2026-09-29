@@ -86,6 +86,50 @@ export async function load_strip(root, name, fw = TILE, fh = TILE) {
     return frames;
 }
 
+// ------------------------------------------------------------ palettes
+// szene.palette: a palette of the studio (palettes.js, by name) – every sprite is
+// converted like "Palette → Sprite an Palette anpassen" does it (DitherJS), and
+// the sky gets the nearest palette colours. { name, dithering: ordered |
+// diffusion | atkinson } picks the method (default: ordered, the first entry).
+let palette_list = null, DitherJS = null;
+function studio_palette(repo, spec, where) {
+    const name = typeof spec === 'string' ? spec : spec?.name;
+    palette_list ??= vm.runInNewContext(fs.readFileSync(path.join(repo, 'src/static/palettes.js'), 'utf8') + ';palettes', {});
+    const found = palette_list.find(p => p.name === name);
+    if (!found) throw new Error(`${where}unbekannte Palette "${name}" (Namen wie in palettes.js)`);
+    const algorithm = { ordered: 'ordered', diffusion: 'diffusion', atkinson: 'atkinson' }[spec?.dithering ?? 'ordered'];
+    if (!algorithm) throw new Error(`${where}dithering: ordered, diffusion oder atkinson`);
+    const rgb = found.colors.map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)));
+    return { name, algorithm, rgb };
+}
+
+async function palettize_frames(repo, frames, palette) {
+    if (!DitherJS) {
+        const { createRequire } = await import('node:module');
+        DitherJS = createRequire(import.meta.url)(path.join(repo, 'src/static/ditherjs.dist.js'));
+    }
+    const out = [];
+    for (const f of frames) {
+        const img = { width: f.w, height: f.h, data: new Uint8ClampedArray(f.raw) };
+        new DitherJS().ditherImageData(img, { step: 1, algorithm: palette.algorithm, palette: palette.rgb });
+        const raw = Buffer.from(img.data.buffer, img.data.byteOffset, img.data.length);
+        const png = await sharp(raw, { raw: { width: f.w, height: f.h, channels: 4 } }).png().toBuffer();
+        const tag = BigInt('0x' + crypto.createHash('sha1').update(png).digest('hex')).toString(36).slice(0, 7);
+        out.push({ raw, png, tag, w: f.w, h: f.h });
+    }
+    return out;
+}
+
+function nearest_colour(hex, palette) {
+    const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+    let best = palette.rgb[0], bd = Infinity;
+    for (const p of palette.rgb) {
+        const d = (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2;
+        if (d < bd) { bd = d; best = p; }
+    }
+    return '#' + best.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
 // ---------------------------------------------------- normalisation
 // Run the studio's own fix_game_data() so the recorded game has exactly the
 // defaults a child's saved game would have.
@@ -169,6 +213,7 @@ export async function build_game(catalog, recipe, repo) {
         return i;
     };
 
+    const palette = scene.palette ? studio_palette(repo, scene.palette, `${recipe.id}: `) : null;
     const sprites = [];
     const frames_by_key = [];
     for (const id of used) {
@@ -179,6 +224,7 @@ export async function build_game(catalog, recipe, repo) {
         for (const st of def.states) {
             let frames = await load_strip(catalog.root, st.strip, sw, sh);
             if (st.frames) frames = st.frames.map(i => frames[i]);
+            if (palette) frames = await palettize_frames(repo, frames, palette);
             const state_traits = {};
             for (const [trait, names] of Object.entries(st.traits ?? {})) {
                 state_traits[trait] = {};
@@ -258,7 +304,8 @@ export async function build_game(catalog, recipe, repo) {
     // himmel: two colours (top, bottom) or { farben: [[colour, u, v], …] } with
     // 1, 2 or 4 points like the editor's Hintergrund layer. Never a sprite.
     const sky_def = scene.himmel ?? ['#73eff7', '#f4f4f4'];
-    const sky_colors = Array.isArray(sky_def) ? [[sky_def[0], 0.5, 1.0], [sky_def[1], 0.5, 0.0]] : sky_def.farben;
+    let sky_colors = Array.isArray(sky_def) ? [[sky_def[0], 0.5, 1.0], [sky_def[1], 0.5, 0.0]] : sky_def.farben;
+    if (palette) sky_colors = sky_colors?.map(([c, u, v]) => [nearest_colour(c, palette), u, v]);
     if (![1, 2, 4].includes(sky_colors?.length)) throw new Error(`${recipe.id}: himmel braucht 1, 2 oder 4 Farben`);
     const sky = [sky_colors[0][0], sky_colors[sky_colors.length - 1][0]];
     // effekte: shader backdrops (snow, smoke, fire, lightrays) over the scene.

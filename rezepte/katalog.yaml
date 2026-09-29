@@ -305,6 +305,8 @@ sprites:
 
   # ------------------------------------------- Haus: Fassade und Möbel
   hausfront: { label: Hausfront, groesse: [192, 72], states: [{ strip: welt/hausfront }] }
+  # only the window panes of the Hausfront, warm: lit windows (on a layer with "Leuchten")
+  hausfront_licht: { label: Fensterlicht, groesse: [192, 72], states: [{ strip: welt/hausfront_licht }] }
   tisch: { label: Tisch, states: [{ strip: welt/tisch }] }
   eingang: { label: Offene Tür (nur Bild), states: [{ strip: welt/tuer_auf }] }
   pflanze: { label: Pflanze, states: [{ strip: welt/pflanze }] }
@@ -317,6 +319,8 @@ sprites:
   lichtkegel: { label: Lichtkegel, groesse: [48, 72], mischmodus: leuchten, states: [{ strip: welt/lichtkegel }] }
   laterne: { label: Laterne, groesse: [48, 72], states: [{ strip: welt/laterne }] }
   glas: { label: Glasscheibe, mischmodus: abdunkeln, states: [{ strip: welt/glas }] }
+  # Mischmodi: one opaque disc – dark rim, orange body, white spot – blended by its layer
+  farbkreis: { label: Farbkreis, states: [{ strip: welt/farbkreis }] }
   mauer_fenster:
     label: Mauer mit Fenster
     traits: { block_above: {}, block_sides: {}, block_below: {} }
@@ -325,6 +329,8 @@ sprites:
   # Mischmodi: the glow gets "Leuchten" from its layer, the shadow has its own "Abdunkeln"
   leuchtschein: { label: Lichtschein, groesse: [120, 120], states: [{ strip: welt/leuchtschein }] }
   schatten: { label: Schatten, mischmodus: abdunkeln, states: [{ strip: welt/schatten }] }
+  # soft (dithered) shadow under eaves and overhangs; tiles side by side
+  dachschatten: { label: Schatten unterm Dach, mischmodus: abdunkeln, states: [{ strip: welt/dachschatten }] }
   geist:
     label: Geist
     mischmodus: aufhellen
@@ -342,6 +348,27 @@ sprites:
         ex_top: 0.8
     states:
       - { strip: welt/geist, fps: 6, traits: { baddie: [right, walk_right] } }
+
+  # --------------------- Küste (Rezept "Farben, die Stimmung machen")
+  # Drawn in the studio's default palette (Cling); the recipe converts them.
+  leuchtturm: { label: Leuchtturm, groesse: [48, 96], states: [{ strip: kueste/leuchtturm, fps: 2 }] }
+  klippe:
+    label: Klippe
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: kueste/klippe }]
+  fels:
+    label: Fels
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: kueste/fels }]
+  steg:
+    label: Steg
+    traits: { block_above: {} }
+    states: [{ strip: kueste/steg }]
+  stegpfosten: { label: Stegpfosten, states: [{ strip: kueste/pfosten }] }
+  meer: { label: Meer, states: [{ strip: kueste/meer, fps: 4, phase_r: 0 }] }
+  boot: { label: Boot, groesse: [48, 24], states: [{ strip: kueste/boot, fps: 2 }] }
+  sonne: { label: Sonne, states: [{ strip: kueste/sonne }] }
+  schaefchenwolke: { label: Schäfchenwolke, groesse: [48, 24], states: [{ strip: kueste/wolke }] }
 
   # ------------------------------------------- Bilder für Angriffe
   pfeil:

@@ -21,10 +21,21 @@ src/static/rezepte.js gallery in the Hilfe tab (reads rezepte.json)
 cd rezepte/tools
 npm install          # playwright, sharp, yaml, marked
 npx playwright install chromium   # only if no Chromium is installed yet
-npm run build        # all recipes
-node build.mjs leiter bombe       # only these (others are kept from rezepte.json)
+npm run build        # all recipes that changed (see "Only what changed")
+node build.mjs leiter bombe       # always these (others are kept from rezepte.json)
+node build.mjs --force            # everything, changed or not
 npm run check        # record + verify, write nothing
 ```
+
+**Only what changed** (like `make`): every recipe stores a fingerprint
+(`quelle` in `rezepte.json`) of everything its recording depends on – its
+Markdown front matter, the game built from it (sprites, pixels, map) and the
+engine (the standalone page, its scripts and shaders, the build tools). A
+recipe whose fingerprint is unchanged and whose files still exist is not
+recorded again (`= id (unverändert)`); only its text is refreshed. The
+fingerprint uses file contents, not timestamps, so a `git checkout` or a
+fresh clone rebuilds nothing. Recipes named on the command line and
+`--force` always record; `--check` always records and verifies.
 
 Commit the generated files in `src/static/rezepte/`; the production server
 needs no Node or Chromium. Rebuild after changing the engine, the art or a
@@ -87,7 +98,7 @@ studio.
   `--check`) deletes generated files that are no longer referenced.
 * **Still frames:** every recording also gets `standbild/<id>.webp`, one
   frame of it. The gallery cards show that frame and only play the recording
-  while the card is on screen – 37 animations at once would keep the browser
+  while the card is on screen – forty animations at once would keep the browser
   busy for nothing. The recipe itself opens in a popup above the gallery
   (numbered #01, #02 … in gallery order); closing it or the back button
   returns to the same place in the gallery.
@@ -157,6 +168,10 @@ szene:
   #   - { effekt: farbe, farben: ['#56668a', '#7d6784'], mischmodus: abdunkeln }
   #     # a colour layer instead of an effect (top, bottom or [[colour, x, y], …]):
   #     # with abdunkeln a tint over the whole scene (the gloomy world in Schwebestaub)
+  # palette: Nyx8             # every sprite converted to a studio palette (palettes.js, by
+  #                            # name) like "Sprite an Palette anpassen", the sky gets the
+  #                            # nearest palette colours · { name: Nyx8, dithering: ordered |
+  #                            # diffusion | atkinson } (default ordered)
   # kamera: { bildhoehe: 144 } # level wider than the screen: the camera follows the
   #                            # player and the whole screen is recorded (height in
   #                            # game pixels, divisible by 9)
@@ -178,6 +193,8 @@ dauer: 3.0                     # length of the recording
 # tasten_zeigen: true          # draws the pressed keys as keycaps (German labels) into the recording
 # standbild: 2.5               # optional: the moment (s) of the still frame on the gallery card
 #                              # (default: 60 % of the recording)
+# beschriftung:                # optional labels drawn into the recording, centred on a tile
+#   - { text: Leuchten, spalte: 4, zeile: 2 }   # (halves allowed; only for scenes that do not scroll)
 erwartet:                      # outcome checks
   figur_hoeher_als: 3          # player y ≥ 3 tiles
   figur_rechts_von: 5          # player x > 5 tiles
@@ -192,6 +209,7 @@ erwartet:                      # outcome checks
 # varianten:                   # optional: the same input again with changed scene parts,
 #   - szene: { himmel: [ … ] } # played one after another (sky at day, dusk, night …)
 #     erwartet: { … }          # optional checks for this variant
+#     beschriftung: [ … ]      # optional labels of this variant (default: the recipe's)
 ---
 ## Kurz gesagt
 …
@@ -270,10 +288,26 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   (Flatterer: `fliegen`), `klotz` (Stampfer: `stehen`, `fallen`, `landen`;
   `klotz_einmal` falls only once); each with `treffer` and `tot`. `maus`
   (Angsthase: `stehen`, `laufen`, `fliehen`, `tot`).
+* **Küste** (`kueste/`, recipe *Farben, die Stimmung machen*): `leuchtturm`
+  (48×96, lamp pulsing), `klippe` and `fels` (solid), `steg` (von oben),
+  `stegpfosten`, `meer` (4 frames, `phase_r: 0`), `boot` (48×24, bobbing),
+  `sonne`, `schaefchenwolke` (48×24). Drawn in the studio's default palette
+  *Cling*, so that converting them to other palettes shows the idea.
+* **Light and shadow:** `hausfront_licht` (only the window panes of
+  `hausfront`, warm – on a layer with *Leuchten*), `dachschatten` (soft,
+  dithered, *Abdunkeln*), `farbkreis` (opaque disc for *Mischmodi verstehen*).
 * **Beute:** a defeated enemy can leave a sprite behind that is collected
   like a placed one – `traits.baddie.drop = { sprite_index, door_code }`
   (in `katalog.yaml`/`anpassen`: `drop: { sprite_index: { sprite: schluessel },
   door_code: 1 }`). It must be a key or have "man kann es einsammeln".
+  `on_touch: true` (*gibt die Beute ab, wenn man ihn berührt*): the player
+  gets it by touching the enemy, without defeating it (once).
+* **Intelligenz** (`traits.smart`, a sprite trait of its own next to
+  `baddie`): `walks_slopes`, `jumps_obstacles`, `jumps_gaps`, `drops_down`,
+  `climbs_ladders`, all off by default. Wächter, Jäger and Angsthase use the
+  first four; `climbs_ladders` only Jäger and Angsthase (the editor shows only
+  what fits the enemy's behaviour). Without the trait – every older game –
+  enemies move exactly as before.
 * **Behaviour poses** are optional enemy states (traits.js
   `STATE_TRAITS.baddie`): `hunt_*` (*Gegner jagt*: Jäger chasing, Lauerer
   charging), `flee_*` (*Gegner flieht*: Angsthase), `stunned_*` (*Gegner ist

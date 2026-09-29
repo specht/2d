@@ -63,6 +63,7 @@ var SPRITE_TRAITS_ORDER = [
         [
             'trap',
             'baddie',
+            'smart',
         ],
     ],
     [
@@ -574,6 +575,49 @@ var SPRITE_TRAITS = {
                 step: 0.1,
                 min: 0.0,
                 max: 10.0,
+            },
+        },
+    },
+    // Intelligenz: what a walking enemy can do besides walking. A trait of its
+    // own, so the enemy panel stays short; without it (old games) nothing changes.
+    // Each behaviour uses what fits it (baddie_ai.js: baddie_moves).
+    smart: {
+        label: 'Intelligenz (für Gegner)',
+        properties: {
+            walks_slopes: {
+                visible: (t, all) => typeof behavior_uses !== 'function' || !all?.baddie || behavior_uses(all.baddie, 'move'),
+                label: 'Schrägen und Treppen laufen',
+                hint: 'Der Gegner läuft Schrägen und Treppen hinauf und hinunter. Ohne das dreht er dort um.',
+                type: 'bool',
+                default: false,
+            },
+            jumps_obstacles: {
+                visible: (t, all) => typeof behavior_uses !== 'function' || !all?.baddie || behavior_uses(all.baddie, 'move'),
+                label: 'über Hindernisse springen',
+                hint: 'Steht ihm ein Block im Weg, der nicht höher ist als sein Sprung, springt er darüber, statt umzudrehen.',
+                type: 'bool',
+                default: false,
+            },
+            jumps_gaps: {
+                visible: (t, all) => typeof behavior_uses !== 'function' || !all?.baddie || behavior_uses(all.baddie, 'move'),
+                label: 'über Lücken springen',
+                hint: 'An einer Kante springt er hinüber, wenn er auf der anderen Seite landen kann.',
+                type: 'bool',
+                default: false,
+            },
+            drops_down: {
+                visible: (t, all) => typeof behavior_uses !== 'function' || !all?.baddie || behavior_uses(all.baddie, 'move'),
+                label: 'von Kanten hinunterspringen',
+                hint: 'An einer Kante lässt er sich hinunterfallen – aber nur, wenn höchstens fünf Blöcke tiefer Boden ist.',
+                type: 'bool',
+                default: false,
+            },
+            climbs_ladders: {
+                visible: (t, all) => typeof baddie_behavior_type !== 'function' || !all?.baddie || ['hunter', 'coward'].includes(baddie_behavior_type(all.baddie)),
+                label: 'Leitern klettern',
+                hint: 'Nur beim Verfolgen (Jäger) oder Fliehen (Angsthase): Er klettert eine Leiter hoch oder runter, um der Spielfigur zu folgen oder ihr zu entkommen.',
+                type: 'bool',
+                default: false,
             },
         },
     },

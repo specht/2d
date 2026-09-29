@@ -27,7 +27,8 @@ szene:
         .P............
         ##############
         ==============
-# The same world as children often build it: floating blocks, no earth.
+# The same world as children often build it: floating blocks without supports.
+# (The earth stays in both: a row that flickers in and out is only distracting.)
 ohne:
   szene:
     ebenen:
@@ -40,7 +41,7 @@ ohne:
           ..........##..
           .P............
           ##############
-          ..............
+          ==============
 ablauf:
   - { t: 0.3, halten: rechts, dauer: 1.45 }
   - { t: 2.2, halten: links, dauer: 1.466667 }

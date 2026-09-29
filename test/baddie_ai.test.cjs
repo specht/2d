@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { baddie_behavior, baddie_behavior_type, behavior_uses_patrol, baddie_decide } = require('../src/static/baddie_ai.js');
+const { baddie_moves, baddie_behavior, baddie_behavior_type, behavior_uses_patrol, baddie_decide } = require('../src/static/baddie_ai.js');
 
 // A flat world without walls: the enemy stands at x = 0 on endless ground.
 function world(extra = {}) {
@@ -188,4 +188,41 @@ test('hunter and lurker poses', () => {
     assert.equal(baddie_decide(l, mem, world({ now: 0.4 })).pose, 'hunt');
     assert.equal(baddie_decide(l, mem, world({ now: 0.8, wall: () => true })).pose, 'stunned');
     assert.equal(baddie_decide(l, mem, world({ now: 1.0 })).pose, 'stunned', 'still dazed');
+});
+
+test('"Intelligenz": all abilities are off in old games', () => {
+    const none = { slopes: false, obstacles: false, gaps: false, drop: false, ladders: false };
+    assert.deepEqual(baddie_moves(undefined), none);
+    assert.deepEqual(baddie_moves({}), none);
+    assert.deepEqual(baddie_behavior({ behavior: { type: 'hunter' }, jumps_gaps: true }).moves, none, 'only the Intelligenz trait counts');
+    const b = baddie_behavior({ behavior: { type: 'hunter' } }, { jumps_gaps: true, climbs_ladders: true });
+    assert.equal(b.moves.gaps, true);
+    assert.equal(b.moves.ladders, true);
+    assert.equal(b.moves.drop, false);
+});
+
+test('a hunter jumps a gap, climbs ladders – only when it may', () => {
+    const plain = baddie_behavior({ behavior: { type: 'hunter' } });
+    const smart = baddie_behavior({ behavior: { type: 'hunter' } }, { jumps_gaps: true, climbs_ladders: true });
+    const at_ledge = { player: { dx: 80, dy: 0 }, ground: () => false, landing: () => true };
+    assert.equal(baddie_decide(plain, { mode: 'chase', last_seen: 0 }, world(at_ledge)).keys.right, false, 'waits at the ledge');
+    const hop = baddie_decide(smart, { mode: 'chase', last_seen: 0 }, world(at_ledge));
+    assert.equal(hop.keys.right && hop.keys.jump, true, 'jumps across');
+    const above = { player: { dx: 30, dy: 60 }, ladder_up: true };
+    assert.equal(baddie_decide(plain, { mode: 'chase', last_seen: 0 }, world(above)).keys.up, undefined);
+    assert.equal(baddie_decide(smart, { mode: 'chase', last_seen: 0 }, world(above)).keys.up, true, 'climbs up');
+    const below = { player: { dx: 30, dy: -60 }, ladder_down: true };
+    assert.equal(baddie_decide(smart, { mode: 'chase', last_seen: 0 }, world(below)).keys.down, true, 'climbs down');
+});
+
+test('a cornered coward escapes only with the right ability', () => {
+    const cornered = { player: { dx: 40, dy: 0 }, wall: d => d === 'left', clearable: () => true };
+    const plain = baddie_behavior({ behavior: { type: 'coward' } });
+    const jumper = baddie_behavior({ behavior: { type: 'coward' } }, { jumps_obstacles: true });
+    assert.equal(baddie_decide(plain, {}, world(cornered)).keys.jump, false);
+    assert.equal(baddie_decide(jumper, {}, world(cornered)).keys.jump, true);
+    const ledge = { player: { dx: 40, dy: 0 }, ground: d => d !== 'left', landing: () => false, safe_drop: () => true };
+    const dropper = baddie_behavior({ behavior: { type: 'coward' } }, { drops_down: true });
+    assert.equal(baddie_decide(plain, {}, world(ledge)).keys.left, false, 'trembles at the ledge');
+    assert.equal(baddie_decide(dropper, {}, world(ledge)).keys.left, true, 'drops down');
 });
