@@ -53,9 +53,15 @@ studio.
 * `record.mjs` serves `src/static` plus the generated `/gen/…` files through
   Playwright request interception (no server, no Docker), seeds
   `Math.random`, replaces `game.clock` with a manual clock, and calls
-  `game.render()` once per GIF frame (30 fps; the simulation stays at its
-  fixed 60 Hz). Key presses go through `game.handle_key_down/up`, the same
-  path as a real keyboard. Frames are read back with `gl.readPixels`.
+  `game.render()` once per GIF frame. Key presses go through
+  `game.handle_key_down/up`, the same path as a real keyboard, and are
+  snapped to whole simulation steps. Frames are read back with
+  `gl.readPixels`.
+* **Frame timing:** every GIF frame is exactly one 60 Hz simulation step and
+  is shown for 20 ms (GIF delays are whole hundredths of a second; 16.7 ms
+  is not possible). The recordings therefore play at 5/6 of real speed, but
+  perfectly evenly – no dropped or doubled steps. `schritte: 2` records two
+  steps per frame (40 ms, real speed) for long scenes.
 * Runs are deterministic: the same inputs give the same GIF.
 
 The recorder relies on these runtime entry points: `window.game`,
@@ -95,7 +101,15 @@ szene:
   # bereiche:                  # Sichtbarkeitsbereiche (visibility_region layers)
   #   - { ziel: fassade, rechtecke: [[4, 2, 6, 3]], im_bereich: versteckt, ueberblendung: 0.4 }
   #                            # rectangles in tiles: column, row from top, width, height
-  # eigenschaften: { show_energy: true }   # game properties (Einstellungen)
+  #     vorne: true            #   drawn in front of the characters (water Pip wades
+  #                            #   through, light falling on him). Default: behind them.
+  # eigenschaften: { show_energy: true }   # game properties (Einstellungen), e.g.
+  #                            # controls: { jump: ['ArrowUp'], melee: ['ControlLeft'] }
+  # himmel: ['#41a6f6', '#73eff7']         # sky: top and bottom colour, or
+  # himmel: { farben: [['#29366f', 0, 1], ['#5d275d', 1, 1], ['#ef7d57', 0, 0], ['#ffcd75', 1, 0]] }
+  #                            # 1, 2 or 4 colour points [colour, x, y] (0…1, y = 0 is the bottom)
+  # effekte:                   # backdrop effect layers (in front of the world unless vorne: false)
+  #   - { effekt: snow, farbe: '#ffffffff', skala: 1.0, tempo: 1.0 }   # snow | smoke | fire | lightrays
   # kamera: { bildhoehe: 144 } # level wider than the screen: the camera follows the
   #                            # player and the whole screen is recorded (height in
   #                            # game pixels, divisible by 9)
@@ -106,23 +120,31 @@ ablauf:                        # input script, times in seconds
 dauer: 3.0                     # length of the GIF
 # farben: 256                  # optional GIF palette size (default 128); more for colourful scenes
 # skala: 2                     # optional screen pixels per game pixel (default 3)
-# bildrate: 15                 # optional GIF frame rate (default 30); lower = smaller file
+# schritte: 2                  # optional simulation steps per GIF frame (default 1); 2 = half the size
+# toleranz: 16                # optional: ignore tiny colour changes between frames (shimmering
+#                              # backdrop effects); much smaller files
+# schleife: true               # the GIF must loop seamlessly: the last frame has to match the first
+#                              # (checked, ≤ 0.4 % different pixels) and is then dropped
+# tasten_zeigen: true          # draws the pressed keys as keycaps (German labels) into the GIF
 erwartet:                      # outcome checks
   figur_hoeher_als: 3          # player y ≥ 3 tiles
   figur_rechts_von: 5          # player x > 5 tiles
   # gegner_besiegt: 1 · gegner_leben: 0 · schluessel: [7] · tuer_offen: true
   # punkte: 60 · energie_unter: 100 · energie_gleich: 100 · lebt: true · checkpoint_aktiv: true
-# vorher:                      # optional before/after: another scene, recorded with the same
-#   szene: { ebenen: [ … ] }   # input and played first. Both halves get a "Vorher"/"Nachher"
-#                              # label and must have the same size.
-#   parallaxe_aus: true        # …or: the same scene with every Parallaxe set to 0
+# ohne:                        # optional: the same world without decoration. The GIF shows
+#   szene: { ebenen: [ … ] }   # the finished world left of Pip and this one right of him –
+#                              # he "paints" the level as he walks. Same size required.
+# varianten:                   # optional: the same input again with changed scene parts,
+#   - szene: { himmel: [ … ] } # played one after another (sky at day, dusk, night …)
+#     erwartet: { … }          # optional checks for this variant
 ---
 ## Kurz gesagt
 …
 ```
 
 Keys: `rechts`, `links`, `hoch`, `runter`, `springen`, `aktion` (F),
-`nahkampf` (J), `fernkampf` (K).
+`nahkampf` (J), `fernkampf` (K) – or any browser key code (`ArrowUp`,
+`ControlLeft`, `KeyZ` …), useful together with `eigenschaften.controls`.
 
 Body conventions (German, "du"): **Kurz gesagt** (3-step outline) →
 **Das brauchst du** (*Das musst du zeichnen* / *Das kannst du später
@@ -131,7 +153,9 @@ dazumalen*) → **Schritt für Schritt** with the exact editor labels →
 extensions:
 
 * `![Laufen](katalog:pip/laufen 10)` shows a catalogue animation (at 10 fps)
-  together with its single frames.
+  together with its single frames, on the recipe's sky. A thin dashed frame
+  marks the sprite's bounds, so children see whether a drawing sits at the
+  top or the bottom of its 24×24 tile.
 * `> **Tipp:** …`, `> **Profi-Tipp:** …`, `> **Achtung:** …` become coloured
   hint boxes.
 
@@ -165,14 +189,22 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   (4), `treffer_funke` (3).
 * **Deko** (transparent, no traits, own layer without collisions): `moos`,
   `ranke`, `riss`, `fackel` (3), `burgfenster`, `grasbuesche`, `innenwand`,
-  `bild`, `lampe`, `fassade`, `fassade_fenster`, and the supports `pfosten`,
-  `pfeiler`, `kette`.
+  `bild`, `lampe`, `tisch`, `pflanze`, `fassade`, `fassade_fenster`,
+  `hausfront` (192×72, transparent doorway), `eingang` (open door, no
+  traits), `sterne`, and the supports `pfosten`, `pfeiler`, `kette`.
+* **Semi-transparent** (RGBA pixels): `wasser`, `wasser_oben`, `glas` with
+  `mauer_fenster`, `lichtkegel` + `laterne` (48×72), and the ghost enemy
+  `geist`.
+* **Gentle slopes**: `hang_flach`, `hang_flach_ab` (48×24).
 
 Big sprites set `groesse: [w, h]` in `katalog.yaml`; their strips use frames
 of that size. The parallax backgrounds (`berge_fern`, `berge`, `wald`,
 `tannen`, `vordergrund` 192 px wide, `wolke` 64×24) tile horizontally and are
 shaded with ordered 4×4 Bayer dithering. A big sprite placed in a map starts
-at its cell and stands on the cell's bottom edge. The sky is never a sprite
+at its cell and stands on the cell's bottom edge. (In the level editor a
+sprite hangs centred on the cursor. Sprites that are an even number of tiles
+wide therefore need *Gitteroffset 12 : 0* to line up with 24×24 tiles; the
+recipes say so.) The sky is never a sprite
 but the level's colour backdrop (`himmel`).
 
 `katalog.yaml` turns strips into game sprites: a list of states with `strip`,

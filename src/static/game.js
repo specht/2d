@@ -534,6 +534,7 @@ class Game {
                 self.data.properties.crt_effect = x;
             },
         });
+        this.add_controls_settings($('#game-settings-here'));
         new SeparatorWidget({
             container: $('#game-settings-here'),
             label: 'Musik',
@@ -591,6 +592,78 @@ class Game {
         this.hit_sprite_picker?.refresh();
         this.ranged_projectile_picker?.refresh();
         this.ranged_hit_picker?.refresh();
+    }
+
+    // Einstellungen → Steuerung. Without custom keys the game JSON stays unchanged;
+    // only actions a child actually changes are stored in properties.controls.
+    add_controls_settings(container) {
+        new SeparatorWidget({ container, label: 'Steuerung' });
+        const box = $('<div>').addClass('controls-settings').appendTo(container);
+        const render = () => {
+            box.empty();
+            const current = resolve_controls(this.data.properties);
+            $('<p>').addClass('controls-hint').text('Klicke auf eine Taste und drück dann die neue Taste. ' +
+                'Jede Aktion kann zwei Tasten haben. Entf entfernt eine Taste, Esc bricht ab.').appendTo(box);
+            const used = new Map();
+            for (const control of GAME_CONTROLS)
+                for (const code of current[control.id]) used.set(code, [...(used.get(code) ?? []), control.label]);
+            for (const control of GAME_CONTROLS) {
+                const row = $('<div>').addClass('controls-row').appendTo(box);
+                $('<div>').addClass('controls-label').text(control.label).appendTo(row);
+                const keys = current[control.id];
+                for (let slot = 0; slot < MAX_KEYS_PER_CONTROL; slot++) {
+                    const code = keys[slot];
+                    $('<button>').addClass('controls-key').toggleClass('empty', !code)
+                        .text(code ? key_label(code) : '+').attr('title', code ?? 'weitere Taste')
+                        .on('click', (e) => this.capture_control_key(control.id, slot, $(e.currentTarget), render))
+                        .appendTo(row);
+                }
+                const notes = keys.map(key_warning).filter(Boolean);
+                for (const code of keys) {
+                    const others = (used.get(code) ?? []).filter(label => label !== control.label);
+                    if (others.length) notes.push(`${key_label(code)} ist auch für „${others.join('“, „')}“ belegt.`);
+                }
+                for (const note of [...new Set(notes)]) $('<div>').addClass('controls-warning').text(note).appendTo(box);
+            }
+            if (this.controls_notice) {
+                $('<div>').addClass('controls-warning').text(this.controls_notice).appendTo(box);
+                this.controls_notice = null;
+            }
+            $('<button>').addClass('controls-reset').text('Standard-Tasten')
+                .prop('disabled', !this.data.properties.controls)
+                .on('click', () => { delete this.data.properties.controls; render(); })
+                .appendTo(box);
+        };
+        render();
+    }
+
+    capture_control_key(action, slot, button, render) {
+        button.text('Taste drücken …').addClass('waiting');
+        // Capture phase: the studio's own shortcuts must not see this key.
+        const handler = (e) => {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            window.removeEventListener('keydown', handler, true);
+            if (e.code === 'Escape') return render();
+            let keys = [...resolve_controls(this.data.properties)[action]];
+            if (e.code === 'Delete' || e.code === 'Backspace') {
+                if (slot < keys.length && keys.length > 1) keys.splice(slot, 1);
+                else this.controls_notice = 'Jede Aktion braucht mindestens eine Taste.';
+            } else if (!valid_key_code(e.code)) {
+                this.controls_notice = key_warning(e.code) ?? 'Diese Taste kann nicht belegt werden.';
+                return render();
+            } else {
+                keys[slot] = e.code;
+                keys = [...new Set(keys.filter(Boolean))];
+            }
+            const control = GAME_CONTROLS.find(c => c.id === action);
+            this.data.properties.controls ??= {};
+            if (keys.join() === control.keys.join()) delete this.data.properties.controls[action];
+            else this.data.properties.controls[action] = keys;
+            if (!Object.keys(this.data.properties.controls).length) delete this.data.properties.controls;
+            render();
+        };
+        window.addEventListener('keydown', handler, true);
     }
 
     // Combat effect sprites use the same array indices as placed level sprites.

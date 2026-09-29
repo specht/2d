@@ -4,6 +4,7 @@ kategorie: Kampf
 stufe: 2
 kurz: Mit J schwingt Pip das Schwert – zwei Treffer, und der Glibber ist weg.
 szene:
+  anpassen: { glibber: { baddie: { hit_pause: 0.5 } } }
   legende: { P: pip_schwert }
   karte: |
     ..........
@@ -36,7 +37,7 @@ erwartet:
 
 1. Bei deiner Figur: **Eigenschaft hinzufügen → Kampf → Nahkampfangriff**.
 2. Pip hat **Schaden 20**, **Angriffsreichweite 24 px** und **Cooldown 0,45 s**.
-3. Beim Gegner (Eigenschaft *Gegner*): **Energie 40**. Nach zwei Treffern ist er besiegt.
+3. Beim Gegner (Eigenschaft *Gegner*): **Energie 40**. Nach zwei Treffern ist er besiegt. Mit **Pause nach Treffer 0,5 s** bleibt er nach dem ersten Schlag kurz stehen.
 4. Probier es mit **J** aus.
 5. Jetzt die Bilder: neuer Zustand „Angriff“ mit **Spielfigur greift nach rechts an**. Pips Schwert ist direkt in die Figur gemalt: ausholen, zuschlagen, nachschwingen.
 6. Beim Gegner: Zustand mit **Gegner: Treffer (rechts)** und einer mit **Gegner tot**.
@@ -48,6 +49,7 @@ erwartet:
 - **Treffereffekt:** Wähle einen kleinen Sprite (bei Pip ein Funke), der beim Treffer erscheint.
 - **Swoosh** *hoch* oder *runter* bestimmt, in welche Richtung der Schwung gezeichnet wird.
 - Die **Trefferreaktion** beim Gegner lässt ihn kurz rot aufleuchten.
+- **Pause nach Treffer** beim Gegner gibt dir nach jedem Schlag etwas Luft. Mehr dazu im Rezept *Gegner nach einem Treffer anhalten*.
 
 ## Wenn's nicht klappt
 

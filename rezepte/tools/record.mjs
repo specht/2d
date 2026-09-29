@@ -8,7 +8,10 @@ import sharp from 'sharp';
 import { chromium } from 'playwright';
 
 export const SCALE = 3;          // screen pixels per game pixel in the GIF
-export const FPS = 30;           // GIF frame rate (simulation stays at 60 Hz)
+// One GIF frame per simulation step (60 Hz), shown for 20 ms: GIFs cannot do
+// 60 fps and uneven 30/30/40 ms delays judder. The GIF therefore plays at 5/6 of
+// real time, but every step is visible and the motion is perfectly even.
+export const FRAME_MS = 20;
 
 const KEYS = {
     rechts: 'ArrowRight', links: 'ArrowLeft', hoch: 'ArrowUp', runter: 'ArrowDown',
@@ -26,7 +29,7 @@ export async function launch() {
 }
 
 // Expand the recipe's input script into sorted key events.
-function key_events(script) {
+export function key_events(script) {
     const events = [];
     for (const step of script ?? []) {
         const t = Number(step.t ?? 0);
@@ -35,9 +38,12 @@ function key_events(script) {
         const names = Array.isArray(hold) ? hold : [hold];
         const duration = step.halten ? Number(step.dauer ?? 0.5) : Number(step.dauer ?? 0.1);
         for (const name of names) {
-            const code = KEYS[name];
-            if (!code) throw new Error(`Ablauf: unbekannte Taste "${name}" (erlaubt: ${Object.keys(KEYS).join(', ')})`);
-            events.push({ t, down: true, code }, { t: t + duration, down: false, code });
+            // A name (rechts, springen …) or a key code such as ControlLeft.
+            const code = KEYS[name] ?? (/^(Key[A-Z]|Digit\d|Arrow\w+|Control\w+|Shift\w+|Alt\w+|Space|Enter|Tab)$/.test(name) ? name : null);
+            if (!code) throw new Error(`Ablauf: unbekannte Taste "${name}" (erlaubt: ${Object.keys(KEYS).join(', ')} oder ein Tastencode)`);
+            // Snap to whole simulation steps (60 per second): no float surprises.
+            const s0 = Math.round(t * 60), s1 = Math.round((t + duration) * 60);
+            events.push({ t: s0 / 60, step: s0, down: true, code }, { t: s1 / 60, step: s1, down: false, code });
         }
     }
     return events.sort((a, b) => a.t - b.t || (a.down ? 1 : -1));
@@ -99,11 +105,11 @@ export async function record(browser, repo, game, recipe) {
     const duration = Number(recipe.dauer ?? 4);
     const frames = [];
     let ei = 0;
-    const fps = recipe.bildrate ?? FPS;
-    for (let i = 0; i * (1 / fps) < duration; i++) {
-        const t = i / fps;
+    const steps = recipe.schritte ?? 1;             // simulation steps per GIF frame
+    for (let i = 0; i * steps / 60 < duration - 1e-9; i++) {
+        const t = i * steps / 60;
         const due = [];
-        while (ei < events.length && events[ei].t <= t + 1e-9) due.push(events[ei++]);
+        while (ei < events.length && events[ei].step <= i * steps) due.push(events[ei++]);
         const shot = await page.evaluate(({ t, due, view }) => {
             const g = window.game;
             for (const e of due) e.down ? g.handle_key_down(e.code) : g.handle_key_up(e.code);
@@ -123,17 +129,19 @@ export async function record(browser, repo, game, recipe) {
             let bin = '';
             for (let k = 0; k < buf.length; k += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(k, k + 0x8000));
             const pc = g.player_character;
-            const dbg = pc ? `${pc.mesh.position.x.toFixed(1)},${pc.mesh.position.y.toFixed(1)} ${pc.state}/${pc.direction} keys=${Object.keys(g.pressed_keys).filter(k => g.pressed_keys[k]).join('+')}` : '';
-            return { w, h, data: btoa(bin), dbg };
+            const player_x = pc ? Math.round((pc.mesh.position.x - view.x0) * sx) : null;
+            const dbg = pc ? `${pc.mesh.position.x.toFixed(1)},${pc.mesh.position.y.toFixed(1)} ${pc.state}/${pc.direction} keys=${Object.keys(g.pressed_keys).filter(k => g.pressed_keys[k]).join('+')}` +
+                g.baddies.map(b => ` | gegner ${b.mesh.position.x.toFixed(0)},${b.mesh.position.y.toFixed(0)} e=${b.energy}${b.hit_paused?.() ? ' pause' : ''}`).join('') : '';
+            return { w, h, data: btoa(bin), dbg, player_x };
         }, { t, due, view: game.view });
-        if (process.env.REZEPT_DEBUG && i % 3 === 0) console.log(`  t=${t.toFixed(2)} ${shot.dbg}`);
+        if (process.env.REZEPT_DEBUG && i % 6 === 0) console.log(`  t=${t.toFixed(2)} ${shot.dbg}`);
         const raw = Buffer.from(shot.data, 'base64');
         // WebGL rows start at the bottom.
         const flipped = Buffer.alloc(raw.length);
         const row = shot.w * 4;
         for (let y = 0; y < shot.h; y++) raw.copy(flipped, (shot.h - 1 - y) * row, y * row, (y + 1) * row);
         for (let p = 3; p < flipped.length; p += 4) flipped[p] = 255;
-        frames.push({ w: shot.w, h: shot.h, data: flipped });
+        frames.push({ w: shot.w, h: shot.h, data: flipped, player_x: shot.player_x });
     }
 
     const state = await page.evaluate(() => {
@@ -158,12 +166,12 @@ export async function record(browser, repo, game, recipe) {
 }
 
 // Frames -> looping GIF. Identical consecutive frames are merged.
-export async function write_gif(frames, file, colours = 128, fps = FPS) {
+// tolerance: pixels that changed less than this (colour distance) are kept from the previous
+// frame – much smaller files for scenes where effects shimmer across the whole picture.
+export async function write_gif(frames, file, colours = 128, delay_ms = FRAME_MS, tolerance = 0) {
     const merged = [];
     for (let i = 0; i < frames.length; i++) {
-        // GIF delays are whole centiseconds: 30 fps = 30, 30, 40 ms …
-        const delay = fps === 30 ? (i % 3 === 2 ? 40 : 30) :
-            Math.round((i + 1) * 100 / fps) * 10 - Math.round(i * 100 / fps) * 10;
+        const delay = delay_ms;
         const last = merged[merged.length - 1];
         if (last && last.frame.data.equals(frames[i].data)) last.delay += delay;
         else merged.push({ frame: frames[i], delay });
@@ -172,7 +180,8 @@ export async function write_gif(frames, file, colours = 128, fps = FPS) {
     const pngs = await Promise.all(merged.map(m =>
         sharp(m.frame.data, { raw: { width: w, height: h, channels: 4 } }).png().toBuffer()));
     await sharp(pngs, { join: { animated: true } })
-        .gif({ delay: merged.map(m => m.delay), loop: 0, dither: 0, effort: 7, colours })
+        .gif({ delay: merged.map(m => m.delay), loop: 0, dither: 0, effort: 7, colours,
+            ...(tolerance ? { interFrameMaxError: tolerance } : {}) })
         .toFile(file);
     return { width: w, height: h, frames: merged.length };
 }

@@ -2,7 +2,8 @@
 titel: Schrägen und Treppen
 kategorie: Welt bauen
 stufe: 1
-kurz: Pip läuft einen Hang hinauf und nimmt danach die Treppe.
+kurz: Pip läuft einen Hang hinauf, nimmt die Treppe – und wieder zurück.
+schleife: true
 szene:
   karte: |
     ............
@@ -11,9 +12,9 @@ szene:
     ############
 ablauf:
   - { t: 0.3, halten: rechts, dauer: 1.2 }
-dauer: 2.4
-erwartet:
-  figur_hoeher_als: 3
+  - { t: 2.0, halten: links, dauer: 1.216667 }
+  - { t: 3.6, halten: rechts, dauer: 0.016667 }
+dauer: 4.0
 ---
 ## Kurz gesagt
 

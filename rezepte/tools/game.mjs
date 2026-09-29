@@ -241,7 +241,28 @@ export async function build_game(catalog, recipe, repo) {
         for (const pl of placed) { pl[1] -= cam_x * p; pl[2] -= cam_y * p; }
     });
 
-    const sky = scene.himmel ?? ['#73eff7', '#f4f4f4'];
+    // himmel: two colours (top, bottom) or { farben: [[colour, u, v], …] } with
+    // 1, 2 or 4 points like the editor's Hintergrund layer. Never a sprite.
+    const sky_def = scene.himmel ?? ['#73eff7', '#f4f4f4'];
+    const sky_colors = Array.isArray(sky_def) ? [[sky_def[0], 0.5, 1.0], [sky_def[1], 0.5, 0.0]] : sky_def.farben;
+    if (![1, 2, 4].includes(sky_colors?.length)) throw new Error(`${recipe.id}: himmel braucht 1, 2 oder 4 Farben`);
+    const sky = [sky_colors[0][0], sky_colors[sky_colors.length - 1][0]];
+    // effekte: shader backdrops (snow, smoke, fire, lightrays) over the scene.
+    const EFFECT_POINTS = {
+        snow: [[0.5, 0.0], [0.5, -0.1]], smoke: [[0.5, 0.0], [0.5, -0.1]], fire: [[0.5, 0.0], [0.5, -0.1]],
+        lightrays: [[0.5, 0.0], [0.5, -0.1], [0.45, 1.1], [0.55, 1.2]],
+    };
+    const effect_layer = e => {
+        if (!EFFECT_POINTS[e.effekt]) throw new Error(`${recipe.id}: unbekannter Effekt "${e.effekt}"`);
+        return {
+            type: 'backdrop', backdrop_type: 'effect', effect: e.effekt,
+            properties: { name: e.name ?? e.effekt }, scale: e.skala ?? 1.0, speed: e.tempo ?? 1.0,
+            color: e.farbe ?? '#ffffffff', control_points: e.punkte ?? EFFECT_POINTS[e.effekt],
+            rects: [{ left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
+        };
+    };
+    const effects_front = (scene.effekte ?? []).filter(e => e.vorne !== false).map(effect_layer);
+    const effects_back = (scene.effekte ?? []).filter(e => e.vorne === false).map(effect_layer);
     const layer = (name, placed, def = {}) => ({
         type: 'sprites', ...(def.id ? { id: def.id } : {}),
         properties: { name, collision_detection: def.kollision !== false,
@@ -258,16 +279,25 @@ export async function build_game(catalog, recipe, repo) {
             rects: b.rechtecke.map(([c, r, w, h]) => ({ left: c * TILE, bottom: (rows - r - h) * TILE, width: w * TILE, height: h * TILE })),
         };
     });
+    const tile_layer_list = tile_layers.map((p, i) => ({
+        vorne: Boolean(layer_defs[i].vorne),
+        layer: layer(layer_defs[i].name ?? `Ebene ${i + 1}`, p, layer_defs[i]),
+    })).reverse();
     const level = {
         properties: { name: recipe.titel, background_color: sky[1] },
         layers: [
             ...regions,
+            ...effects_front,
+            // `vorne: true` puts a layer in front of the characters (e.g. water Pip wades through)
+            ...tile_layer_list.filter(l => l.vorne).map(l => l.layer),
             layer('Figuren', figures),
-            ...tile_layers.map((p, i) => layer(layer_defs[i].name ?? `Ebene ${i + 1}`, p, layer_defs[i])).reverse(),
+            ...tile_layer_list.filter(l => !l.vorne).map(l => l.layer),
+            ...effects_back,
             {
                 type: 'backdrop', backdrop_type: 'color', properties: { name: 'Himmel' },
-                colors: [[sky[0], 0.5, 1.0], [sky[1], 0.5, 0.0]],
-                rects: [{ left: -TILE * 4, bottom: -TILE * 4, width: (cols + 8) * TILE, height: (rows + 8) * TILE }],
+                colors: clone(sky_colors),
+                // exactly the scene's height: colour positions (0 = bottom, 1 = top) match the picture
+                rects: [{ left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
             },
         ],
     };

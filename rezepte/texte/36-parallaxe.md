@@ -5,7 +5,7 @@ stufe: 3
 kurz: Ferne Berge ziehen langsam vorbei, nahe Tannen schneller – so wirkt die Welt tief.
 farben: 256
 skala: 2
-bildrate: 15
+schritte: 2             # two simulation steps per frame: half the file size
 szene:
   himmel: ['#41a6f6', '#73eff7']
   kamera: { bildhoehe: 144 }
@@ -66,7 +66,7 @@ szene:
         ..........................MM
         ..........................MM
         ..........................MM
-        .P.....ooo.....#..........MM
+        .P........................MM
         ############################
     - name: Vordergrund
       parallaxe: -0.35
@@ -78,15 +78,12 @@ szene:
         ............................
         ............................
         Z.......Z.......Z.......Z...
-vorher:
-  parallaxe_aus: true
 ablauf:
-  - { t: 0.2, halten: rechts, dauer: 2.9 }
-  - { t: 1.75, drücken: springen }
-dauer: 3.2
-erwartet:
-  punkte: 30
-  figur_rechts_von: 20
+  - { t: 0.2, halten: rechts, dauer: 2.0 }
+  - { t: 2.5, halten: links, dauer: 2.016667 }
+  - { t: 4.8, halten: rechts, dauer: 0.016667 }
+dauer: 5.1
+schleife: true
 ---
 ## Kurz gesagt
 
@@ -114,7 +111,7 @@ erwartet:
 4. Für jede Tiefe eine eigene Ebene: Wolken, ferne Berge, Berge, Wald, Tannen. Setz die großen Sprites nebeneinander, bis sie das ganze Level füllen.
 5. Stell bei **Layer-Eigenschaften** die **Parallaxe** ein. Pip benutzt: Wolken **0,9**, ferne Berge **0,75**, Berge **0,55**, Wald **0,35**, Tannen **0,15**, die Welt **0**.
 6. Für den Vordergrund: eine Ebene ganz oben in der Layer-Liste mit **Parallaxe −0,35**. Sie zieht schneller vorbei als die Welt.
-7. Spiel es aus und lauf einmal durchs Level. Vergleich mit dem *Vorher*: Dort ist überall Parallaxe 0, und alles klebt flach aneinander.
+7. Spiel es aus und lauf einmal durchs Level. Stell zum Vergleich alle Parallaxen auf 0: Dann klebt alles flach aneinander.
 
 ## Tipps
 
