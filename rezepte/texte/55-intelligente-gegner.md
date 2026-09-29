@@ -2,23 +2,29 @@
 titel: Intelligente Gegner
 kategorie: Gegner
 stufe: 3
-kurz: Der Käfer bleibt nicht unten stehen – er ist schlau genug, die Leiter hochzuklettern, um Pip zu erwischen.
+kurz: Pip flüchtet die Leiter hoch – dort war sie vor dem Käfer bisher sicher. Aber dieser Käfer ist schlau und klettert hinterher.
 szene:
+  # the scene of "Ein Gegner, der dich verfolgt" – plus Intelligenz
   anpassen:
     kaefer:
-      baddie: { behavior: { type: hunter, alert: true, chase: 2.5 } }
+      baddie: { vjump: 5.0, behavior: { type: hunter, alert: true, chase: 3.0, forget: 4.0 } }
       smart: { climbs_ladders: true }
   karte: |
     ..............
-    ..........P...
-    .....H########
-    .....H........
-    .K...H........
+    ###H.........M
+    ===H.........M
+    ===H.........M
+    ===H.P....K..M
     ##############
-ablauf: []
-dauer: 6.0
+ablauf:
+  - { t: 1.4, halten: rechts, dauer: 0.25 }
+  - { t: 2.4, halten: links, dauer: 0.5 }
+  - { t: 2.95, halten: hoch, dauer: 0.7 }
+  - { t: 3.7, halten: links, dauer: 0.3 }
+dauer: 8.5
 erwartet:
   gegner_modi: [chase]
+  gegner_ausrufezeichen: true
   gegner_hub: 48
 ---
 ## Kurz gesagt
@@ -37,11 +43,11 @@ erwartet:
 
 ## Schritt für Schritt
 
-1. Mach den Käfer zum **Gegner** mit dem **Verhalten: Jäger** (siehe *Ein Gegner, der dich verfolgt*).
+1. Nimm den Käfer aus *Ein Gegner, der dich verfolgt*: einen **Gegner** mit dem **Verhalten: Jäger**. Dort ist Pip oben auf der Leiter sicher.
 2. Klick beim Käfer auf **Eigenschaft hinzufügen** und wähl unter **Fallen und Gegner** die **Intelligenz**.
 3. Setz dort das Häkchen bei **Leitern klettern**.
-4. Bau zwei Stockwerke mit einer Leiter dazwischen. Pip steht oben, der Käfer läuft unten.
-5. Spiel es aus: Der Käfer entdeckt Pip, läuft zur Leiter, klettert hinauf und jagt oben weiter. Die Leiter darf auch ein Stück neben seinem Weg stehen – bis zu fünf Blöcke weit sucht er danach.
+4. **gibt auf nach: 4 s.** Während Pip oben ist, sieht der Käfer sie nicht mehr. So lange sucht er trotzdem weiter – Zeit genug, um bis zur Leiter zu rennen.
+5. Spiel es aus: Der Käfer entdeckt Pip, Pip flüchtet die Leiter hoch – und der Käfer klettert hinterher und erwischt sie oben. Die Leiter darf auch ein Stück neben seinem Weg stehen: Bis zu fünf Blöcke weit sucht er danach.
 
 ## Was ein Gegner noch lernen kann
 
@@ -74,7 +80,9 @@ Jeder Gegner nutzt seine Intelligenz auf seine Art. Die Häkchen, die zu seinem 
 
 ## Wenn's nicht klappt
 
-- **Er klettert nicht:** Das Häkchen **Leitern klettern** fehlt, oder er sieht die Spielfigur gar nicht. Er klettert nur, wenn er sie verfolgt und sie über oder unter ihm ist – und nur, wenn die Leiter höchstens fünf Blöcke entfernt ist.
+- **Er klettert nicht:** Das Häkchen **Leitern klettern** fehlt, oder er hat die Spielfigur nie gesehen. Er klettert nur, wenn er sie verfolgt und sie über oder unter ihm ist – und nur, wenn die Leiter höchstens fünf Blöcke entfernt ist.
+- **Er bemerkt die Figur auf dem anderen Stockwerk nicht:** Das ist Absicht – durch den Boden sieht er nicht, nur etwa drei Blöcke nach oben und unten. Er muss sie zuerst auf seinem Stockwerk entdecken, dann folgt er ihr.
+- **Er gibt auf, bevor er die Leiter erreicht:** Stell **gibt auf nach** größer.
 - **Ich finde Leitern klettern nicht:** Das gibt es nur beim Jäger und beim Angsthasen. Stell beim Gegner zuerst das **Verhalten** ein.
 - **Bei der Intelligenz gibt es gar keine Häkchen:** Dein Gegner ist ein Lauerer, Hüpfer, Flatterer, Stampfer oder steht still. Die brauchen keine Intelligenz.
 - **Mein Jäger springt mir nicht mehr hinterher:** Mit Intelligenz springt er nur, wenn unten Boden ist (höchstens fünf Blöcke tiefer).
