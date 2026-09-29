@@ -45,7 +45,8 @@ function key_events(script) {
 
 export async function record(browser, repo, game, recipe) {
     const sph = game.screen_pixel_height;
-    const height = sph * SCALE, width = Math.round(height * 16 / 9);
+    const scale = recipe.skala ?? SCALE;
+    const height = sph * scale, width = Math.round(height * 16 / 9);
     const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
     const page = await context.newPage();
     const errors = [];
@@ -98,8 +99,9 @@ export async function record(browser, repo, game, recipe) {
     const duration = Number(recipe.dauer ?? 4);
     const frames = [];
     let ei = 0;
-    for (let i = 0; i * (1 / FPS) < duration; i++) {
-        const t = i / FPS;
+    const fps = recipe.bildrate ?? FPS;
+    for (let i = 0; i * (1 / fps) < duration; i++) {
+        const t = i / fps;
         const due = [];
         while (ei < events.length && events[ei].t <= t + 1e-9) due.push(events[ei++]);
         const shot = await page.evaluate(({ t, due, view }) => {
@@ -109,6 +111,7 @@ export async function record(browser, repo, game, recipe) {
             g.render();
             const gl = g.renderer.getContext();
             const cam = g.camera;
+            if (view === 'kamera') view = { x0: cam.left, x1: cam.right, y0: cam.bottom, y1: cam.top };
             const sx = gl.drawingBufferWidth / (cam.right - cam.left);
             const sy = gl.drawingBufferHeight / (cam.top - cam.bottom);
             const x = Math.round((view.x0 - cam.left) * sx);
@@ -155,11 +158,12 @@ export async function record(browser, repo, game, recipe) {
 }
 
 // Frames -> looping GIF. Identical consecutive frames are merged.
-export async function write_gif(frames, file, colours = 128) {
+export async function write_gif(frames, file, colours = 128, fps = FPS) {
     const merged = [];
     for (let i = 0; i < frames.length; i++) {
-        // 30 fps expressed in GIF centiseconds: 30, 30, 40 ms …
-        const delay = i % 3 === 2 ? 40 : 30;
+        // GIF delays are whole centiseconds: 30 fps = 30, 30, 40 ms …
+        const delay = fps === 30 ? (i % 3 === 2 ? 40 : 30) :
+            Math.round((i + 1) * 100 / fps) * 10 - Math.round(i * 100 / fps) * 10;
         const last = merged[merged.length - 1];
         if (last && last.frame.data.equals(frames[i].data)) last.delay += delay;
         else merged.push({ frame: frames[i], delay });

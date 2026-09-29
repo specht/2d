@@ -273,6 +273,15 @@ sprites:
   burgfenster: { label: Burgfenster, states: [{ strip: welt/burgfenster }] }
   pfeiler: { label: Pfeiler, states: [{ strip: welt/pfeiler }] }
 
+  # ----------------------- Parallaxe: große Hintergrund-Sprites (kachelbar)
+  # The sky is not a sprite: it is the level's colour backdrop.
+  wolke: { label: Wolke, groesse: [64, 24], states: [{ strip: welt/wolke }] }
+  berge_fern: { label: Ferne Berge, groesse: [192, 72], states: [{ strip: welt/berge_fern }] }
+  berge: { label: Berge, groesse: [192, 72], states: [{ strip: welt/berge }] }
+  wald: { label: Wald, groesse: [192, 48], states: [{ strip: welt/wald }] }
+  tannen: { label: Tannen, groesse: [192, 64], states: [{ strip: welt/tannen }] }
+  vordergrund: { label: Vordergrund, groesse: [192, 32], states: [{ strip: welt/vordergrund }] }
+
   # ------------------------------------------- Bilder für Angriffe
   pfeil:
     label: Pfeil
@@ -331,3 +340,9 @@ legende:
   'c': kette
   'n': burgfenster
   'i': pfeiler
+  'C': wolke
+  'A': berge_fern
+  'N': berge
+  'W': wald
+  'Q': tannen
+  'Z': vordergrund

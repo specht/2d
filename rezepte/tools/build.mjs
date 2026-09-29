@@ -40,13 +40,17 @@ function read_recipe(file) {
 
 // An animation from the catalogue as a big looping GIF plus its frame strip,
 // so recipes can show "these are the frames you draw".
+let catalog_for_strips = null;
 async function catalogue_gif(strip, fps) {
     const name = strip.replace('/', '_');
-    const frames = await load_strip(root, strip);
-    const S = 4;
+    // Big sprites (groesse: [w, h]) are cut with their own frame size.
+    const owner = Object.values(catalog_for_strips?.sprites ?? {}).find(sp => sp.groesse && sp.states.some(st => st.strip === strip));
+    const [fw, fh] = owner?.groesse ?? [TILE, TILE];
+    const frames = await load_strip(root, strip, fw, fh);
+    const S = fw > TILE || fh > TILE ? 2 : 4;   // big background sprites: 2×
     const scaled = await Promise.all(frames.map(f =>
-        sharp(f.raw, { raw: { width: TILE, height: TILE, channels: 4 } })
-            .resize(TILE * S, TILE * S, { kernel: 'nearest' }).png().toBuffer()));
+        sharp(f.raw, { raw: { width: fw, height: fh, channels: 4 } })
+            .resize(fw * S, fh * S, { kernel: 'nearest' }).png().toBuffer()));
     const gif = path.join(out_dir, 'katalog', `${name}.gif`);
     const delay = Math.round(1000 / (fps ?? 8));
     if (!check_only) {
@@ -103,6 +107,7 @@ async function label_frames(frames, text) {
 
 async function main() {
     const catalog = load_catalog(root);
+    catalog_for_strips = catalog;
     const dir = path.join(root, 'texte');
     const files = fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort();
     const recipes = files.map(f => read_recipe(path.join(dir, f)));
@@ -128,7 +133,8 @@ async function main() {
             const problems = [...errors.map(e => `JavaScript-Fehler: ${e}`), ...check(r.erwartet, state)];
             if (r.vorher) {
                 // Before/after: record the "vorher" scene with the same input and play it first.
-                const before_recipe = { ...r, ...r.vorher, szene: { ...r.szene, ...(r.vorher.szene ?? {}) } };
+                const before_recipe = { ...r, ...r.vorher, szene: { ...r.szene, ...(r.vorher.szene ?? {}),
+                    ...(r.vorher.parallaxe_aus ? { parallaxe_aus: true } : {}) } };
                 const before = await record(browser, repo, await build_game(catalog, before_recipe, repo), before_recipe);
                 problems.push(...before.errors.map(e => `JavaScript-Fehler (vorher): ${e}`),
                     ...check(r.vorher.erwartet, before.state).map(p => `vorher: ${p}`));
@@ -140,7 +146,7 @@ async function main() {
             let size = { width: frames[0].w, height: frames[0].h };
             const sky = frames[0].data;   // top-left pixel: sky colour for the card background
             const top_colour = '#' + [sky[0], sky[1], sky[2]].map(v => v.toString(16).padStart(2, '0')).join('');
-            if (!check_only) size = await write_gif(frames, gif_file, r.farben ?? 128);
+            if (!check_only) size = await write_gif(frames, gif_file, r.farben ?? 128, r.bildrate ?? 30);
             else if (problems.length) await write_gif(frames, path.join(here, `fehler-${r.id}.gif`));
             const ms = Date.now() - t0;
             if (problems.length) {
