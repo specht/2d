@@ -859,6 +859,8 @@ void main() {
 				this.combat_visual = null;
 				this.hit_flash_until = 0;
 				this.update_state_and_direction('dead', 'front');
+				// Beute: an item the enemy leaves behind (a key, a life, coins …)
+				this.game.spawn_drop?.(this);
 				// this.mesh.visible = false;
 			}
 		}
@@ -1487,6 +1489,41 @@ class Game {
 		return this.blend_materials[key];
 	}
 
+	// Beute (traits.baddie.drop = { sprite_index, door_code }): a defeated enemy
+	// leaves a sprite behind that can be collected like a placed one – a key
+	// (with its door code) or anything "man kann es einsammeln". Absent = nothing.
+	spawn_drop(owner) {
+		const drop = owner?.traits?.drop;
+		const si = drop?.sprite_index;
+		const sprite = Number.isInteger(si) ? this.data.sprites[si] : null;
+		if (!sprite || owner.dropped || !this.mesh_catalogue[si]) return null;
+		if (!('pickup' in sprite.traits) && !('key' in sprite.traits)) return null;
+		owner.dropped = true;
+		const mesh = this.mesh_catalogue[si].clone();
+		mesh.geometry = mesh.geometry.clone();
+		mesh.geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
+		if (owner.mesh.userData?.blend) {
+			mesh.material = this.blend_material(this.geometry_and_material_for_frame[si][0][0].sheet, owner.mesh.userData.blend);
+			mesh.userData.blend = owner.mesh.userData.blend;
+		}
+		const x = owner.mesh.position.x, y = owner.mesh.position.y;
+		mesh.position.set(x, y, 0);
+		(owner.mesh.parent ?? this.scene).add(mesh);
+		const entry = { layer_index: null, sprite_index: si, mesh: mesh };
+		for (const trait of Object.keys(sprite.traits))
+			for (const [key, data] of Object.entries(SPRITE_TRAITS[trait]?.placed_properties ?? {}))
+				entry[key] = data.type === 'bool' ? Boolean(data.default) : data.default;
+		if ('key' in sprite.traits) entry.door_code = Number.isInteger(drop.door_code) ? drop.door_code : 0;
+		const index = this.active_level_sprites.length;
+		this.active_level_sprites.push(entry);
+		this.interval_tree_x.insert([x - sprite.width / 2, x + sprite.width / 2], index);
+		this.interval_tree_y.insert([y, y + sprite.height], index);
+		// animated like placed sprites (coins spin, keys glint)
+		this.meshes_for_sprite[si].push(mesh);
+		this.state_for_mesh[mesh.uuid] = { state_index: 0, frame_offset: 0, frame_index: 0, loop: true };
+		return entry;
+	}
+
 	// Material for a frame, honouring a layer's Mischmodus (stored on the mesh).
 	material_for_frame(info, mesh) {
 		const mode = mesh?.userData?.blend;
@@ -1866,7 +1903,8 @@ class Game {
 					geometry.translate(rect.left, rect.bottom, 0);
 					// geometry.translate(0, 0, -1);
 					// backdrops.js: gradients and effects (incl. pixel grid and dithering)
-					let material = backdrop_material(backdrop, rect0);
+					// overlapping rectangles: drawn once (backdrops.js: union_of_rects)
+					let material = backdrop_material(backdrop, rect0, { stencil_ref: backdrop_stencil_ref(li) });
 					if (backdrop.backdrop_type === 'effect' || backdrop.backdrop_type === 'color')
 						set_backdrop_uv(geometry, rect);
 					let mesh = new THREE.Mesh(geometry, material);
@@ -1889,7 +1927,8 @@ class Game {
 			this.scene.add(this.layers[i]);
 
 		if (this.data.properties.crt_effect) {
-			this.render_target = new THREE.WebGLRenderTarget(this.width, this.height, { magFilter: THREE.NearestFilter });
+			// stencil: overlapping backdrop rectangles are drawn once (union_of_rects)
+			this.render_target = new THREE.WebGLRenderTarget(this.width, this.height, { magFilter: THREE.NearestFilter, stencilBuffer: true });
 			this.screen_scene = new THREE.Scene();
 			let geometry = new THREE.PlaneGeometry(this.width, this.height);
 			console.log('size', this.width, this.height, this.data.properties.screen_pixel_height);

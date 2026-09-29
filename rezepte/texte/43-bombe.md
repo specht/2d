@@ -6,11 +6,15 @@ kurz: Bombe ablegen, schnell weglaufen – Bumm!
 szene:
   legende: { P: pip_bombe }
   anpassen: { glibber: { baddie: { patrols: false } } }
+  # one extra tile all around the recorded area: the camera shake never shows empty edges
+  ausschnitt: [1, 1, 10, 4]
   karte: |
-    ..........
-    ..........
-    .P......g.
-    ##########
+    ............
+    ............
+    ............
+    ..P......g..
+    ############
+    ============
 ablauf:
   - { t: 0.3, halten: rechts, dauer: 0.9 }
   - { t: 1.3, drücken: fernkampf }
@@ -46,7 +50,7 @@ erwartet:
 > **Achtung:** Schaltest du **Eigene Spielfigur verletzen** ein, musst du wirklich rechtzeitig weglaufen.
 
 - Mit **Geschwindigkeit** größer als 0 wird die Bombe geworfen – eine Granate.
-- **Bodenerschütterung** lässt die Kamera wackeln. Pip benutzt 3.
+- **Bodenerschütterung** lässt die Kamera wackeln – je näher die Figur an der Explosion steht, desto stärker. Pip benutzt 12: ein richtiger Rums.
 - Die Zündschnur läuft einmal ab und bleibt beim letzten Bild stehen, bis es knallt.
 
 ## Wenn's nicht klappt

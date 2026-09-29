@@ -888,7 +888,7 @@ class SpriteSelectWidget {
                 this.button.trigger('focus');
             });
         };
-        add('none', null, 'Kein Treffereffekt');
+        add('none', null, this.data.none_label ?? 'Kein Treffereffekt');
         this.data.sprites().forEach((sprite, index) =>
             add(String(index), SpriteSelectWidget.preview(sprite), `Bild ${index + 1}`));
     }

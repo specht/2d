@@ -608,6 +608,7 @@ class Game {
                 }
             }
         }
+        this.drop_sprite_picker?.refresh();
         this.attack_sprite_picker?.refresh();
         this.hit_sprite_picker?.refresh();
         this.ranged_projectile_picker?.refresh();
@@ -710,6 +711,15 @@ class Game {
                 }
             }
         }
+        // Beute of enemies
+        for (const sprite of this.data.sprites) {
+            const drop = sprite.traits?.baddie?.drop;
+            if (!drop || !Number.isInteger(drop.sprite_index)) continue;
+            const next = drop.sprite_index === deletedIndex ? null : translation[drop.sprite_index];
+            if (Number.isInteger(next) && next >= 0) drop.sprite_index = next;
+            else delete sprite.traits.baddie.drop;
+        }
+        this.drop_sprite_picker?.refresh();
         this.attack_sprite_picker?.refresh();
         this.hit_sprite_picker?.refresh();
         this.ranged_projectile_picker?.refresh();
@@ -786,11 +796,14 @@ class Game {
         this.ranged_hit_picker = null;
         $('#menu_sprite_properties').empty();
         $('#menu_sprite_properties_variable_part_following').nextAll().remove();
-        let traits_menu = $('<div>').css('max-height', 'calc(50vh - 90px)').appendTo($('#menu_sprite_properties'));
+        // Mischmodus first: the menu below unfolds downwards and must not cover it
+        this.add_sprite_blend_control?.(si);
+        // an unfolded menu scrolls inside its box instead of spilling over what follows
+        let traits_menu = $('<div>').css({ 'max-height': 'calc(50vh - 90px)', 'overflow-y': 'auto' })
+            .appendTo($('#menu_sprite_properties'));
         let traits_menu_data = [];
         traits_menu_data.push({ label: 'Eigenschaft hinzufügen', children: this.build_sprite_traits_submenu(SPRITE_TRAITS_ORDER) });
         setupDropdownMenu(traits_menu, traits_menu_data);
-        this.add_sprite_blend_control?.(si);
         let keys = Object.keys(self.data.sprites[si].traits);
         for (let i = keys.length - 1; i >= 0; i--) {
             let trait = keys[i];
@@ -881,6 +894,7 @@ class Game {
         if (trait === 'melee_attack') this.add_melee_attack_trait_controls(div, si);
         if (trait === 'ranged_attack') this.add_ranged_attack_trait_controls(div, si);
         if (trait === 'actor' || trait === 'baddie') this.add_hit_feedback_controls(div, si, trait);
+        if (trait === 'baddie') this.add_drop_controls?.(div, si);
         if (trait === 'door') this.add_door_state_help(div, si);
         div.insertAfter(element);
     }
@@ -929,6 +943,46 @@ class Game {
 
     // Target-owned visual feedback, independent of weapon/attack settings.
     // Merely opening the editor does not add properties to saved game JSON.
+    // Beute: what a defeated enemy leaves behind (traits.baddie.drop).
+    add_drop_controls(div, si) {
+        const baddie = () => this.data.sprites[si].traits.baddie;
+        const box = $('<div>').appendTo(div);
+        const render = () => {
+            box.empty();
+            this.drop_sprite_picker = new SpriteSelectWidget({
+                container: box, label: 'Beute:',
+                none_label: 'Keine Beute',
+                hint: 'Das lässt der Gegner zurück, wenn er besiegt ist – zum Beispiel einen Schlüssel, ein Extraleben oder Münzen. Das Sprite braucht die Eigenschaft „man kann es einsammeln“ oder „ist ein Schlüssel“.',
+                sprites: () => this.data.sprites,
+                get: () => Number.isInteger(baddie().drop?.sprite_index) &&
+                    this.data.sprites[baddie().drop.sprite_index] ? String(baddie().drop.sprite_index) : 'none',
+                set: (choice) => {
+                    const index = Number(choice);
+                    if (choice === 'none') delete baddie().drop;
+                    else if (Number.isInteger(index) && this.data.sprites[index])
+                        baddie().drop = { ...(baddie().drop ?? {}), sprite_index: index };
+                    render();
+                },
+            });
+            const chosen = this.data.sprites[baddie().drop?.sprite_index];
+            if (!chosen) return;
+            if ('key' in chosen.traits) {
+                new NumberWidget({
+                    container: box, label: 'Schlüssel-Code',
+                    hint: 'Der Schlüssel öffnet Türen mit demselben Code.',
+                    min: 0, max: 1000, step: 1, decimalPlaces: 0,
+                    get: () => baddie().drop?.door_code ?? 0,
+                    set: (x) => { baddie().drop.door_code = Math.round(x); },
+                });
+            } else if (!('pickup' in chosen.traits)) {
+                $('<div>').css({ margin: '4px 5px 8px', color: '#d8b34d', 'font-size': '0.9em' })
+                    .text('Dieses Sprite kann man nicht einsammeln. Gib ihm „man kann es einsammeln“ oder „ist ein Schlüssel“.')
+                    .appendTo(box);
+            }
+        };
+        render();
+    }
+
     add_hit_feedback_controls(div, si, role) {
         const traits = this.data.sprites[si].traits[role];
         new SelectWidget({

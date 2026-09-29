@@ -108,7 +108,7 @@ sprites:
             range_px: 280
             speed_px_s: 0
             gravity_px_s2: 500
-            detonation: { fuse_s: 1.6, radius_px: 40, shake_strength: 3, self_damage: false }
+            detonation: { fuse_s: 1.6, radius_px: 40, shake_strength: 12, self_damage: false }
           effect: { kind: damage, amount: 100 }
           timing: { cooldown_s: 1.0 }
           visual: { projectile_sprite_index: { sprite: bombe } }
@@ -165,6 +165,10 @@ sprites:
     label: Boden
     traits: { block_above: {}, block_sides: {}, block_below: {} }
     states: [{ strip: welt/boden }]
+  boden_tot:
+    label: Toter Boden
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/boden_tot }]
   erde:
     label: Erde
     traits: { block_above: {}, block_sides: {}, block_below: {} }
@@ -283,6 +287,8 @@ sprites:
   tannen: { label: Tannen, groesse: [192, 64], states: [{ strip: welt/tannen }] }
   toter_baum: { label: Toter Baum, groesse: [48, 72], states: [{ strip: welt/toter_baum }] }
   toter_baum_2: { label: Toter Baum (krumm), groesse: [48, 72], states: [{ strip: welt/toter_baum_2 }] }
+  toter_baum_3: { label: Toter Baum (schmal), groesse: [48, 72], states: [{ strip: welt/toter_baum_3 }] }
+  tote_baeume_fern: { label: Toter Wald (fern), groesse: [192, 64], states: [{ strip: welt/tote_baeume_fern }] }
   vordergrund: { label: Vordergrund, groesse: [192, 32], states: [{ strip: welt/vordergrund }] }
 
   # ------------------------------------------------ große Schrägen (48x24)
@@ -424,11 +430,12 @@ sprites:
         ex_left: 0.7
         ex_right: 0.7
         ex_top: 0.55
-        behavior: { type: coward, alert: true }
+        behavior: { type: coward, alert: true, flee: 6 }
     states:
       - { strip: maus/stehen, traits: { baddie: [right] } }
       - { strip: maus/laufen, fps: 10, traits: { baddie: [walk_right] } }
       - { strip: maus/fliehen, fps: 16, traits: { baddie: [flee_right] } }
+      - { strip: maus/tot, fps: 8, traits: { baddie: [dead] } }
   keiler:
     label: Keiler (Lauerer)
     traits:
@@ -588,3 +595,6 @@ legende:
   '%': schatten
   '1': toter_baum
   '2': toter_baum_2
+  '3': toter_baum_3
+  '4': tote_baeume_fern
+  '5': boden_tot
