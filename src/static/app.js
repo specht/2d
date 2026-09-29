@@ -1545,6 +1545,10 @@ class Game {
 			this.overlay_icons_material[key] = material;
 		}
 
+		// only games with music need the YouTube player
+		if ((this.data.properties.yt_tag ?? '').length > 0 ||
+			(this.data.levels ?? []).some(level => (level.properties?.yt_tag ?? '').length > 0))
+			load_youtube_api();
 		$('#game_title').text(this.data.properties.title);
 		$('#game_author').text(this.data.properties.author);
 		this.render_start_screen();
@@ -1560,6 +1564,7 @@ class Game {
 
 	stop() {
 		$('#text_frame').removeClass('showing');
+		window.yt_pending = null;   // music that is still loading must not start later
 		if (window.yt_player !== null) {
 			window.yt_player.pauseVideo();
 		}
@@ -1951,18 +1956,20 @@ class Game {
 		// this.setup();
 		// this.prepare_run();
 		$('#stats').addClass('showing');
-		if (window.yt_player !== null) {
+		{
 			// Level music overrides the game-wide track; an empty level tag uses the game default.
 			let game_music = this.data.properties.yt_tag ?? '';
 			let level_music = this.data.levels[this.level_index].properties.yt_tag ?? '';
 			let yt_tag = level_music.length > 0 ? level_music : (game_music.length > 0 ? game_music : null);
 			if (yt_tag !== this.old_yt_tag) {
 				if (yt_tag === null) {
-					window.yt_player.pauseVideo();
+					window.yt_pending = null;
+					try { window.yt_player?.pauseVideo(); } catch { }
 				} else {
 					let parts = yt_tag.split('#');
 					let s = this.parse_yt_timestamp(parts[1]);
-					window.yt_player.loadVideoById(parts[0], s);
+					// (loaded in load() already, so the player is usually ready by now)
+					with_youtube((player) => player.loadVideoById(parts[0], s));
 				}
 				this.old_yt_tag = yt_tag;
 			}
@@ -1982,6 +1989,7 @@ class Game {
 		$('#overlay').fadeIn();
 		$('#screen').fadeOut();
 		$('#stats').removeClass('showing');
+		window.yt_pending = null;
 		if (window.yt_player !== null) {
 			try {
 				window.yt_player.pauseVideo();
@@ -2845,10 +2853,35 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 	});
 });
 
+// The YouTube player (about 1 MB) is only loaded for games with music:
+// load_youtube_api() when such a game is loaded, with_youtube() to play.
+// window.yt_player stays null until the player is ready.
+function load_youtube_api() {
+	if (window.yt_script_requested || typeof document === 'undefined') return;
+	window.yt_script_requested = true;
+	const script = document.createElement('script');
+	script.src = 'https://www.youtube.com/iframe_api';
+	document.head.appendChild(script);
+}
+
+function with_youtube(callback) {
+	if (window.yt_player) return callback(window.yt_player);
+	window.yt_pending = callback;   // only the latest request matters
+	load_youtube_api();
+}
+
 function onYouTubeIframeAPIReady() {
-	window.yt_player = new YT.Player('yt_placeholder', {
+	const player = new YT.Player('yt_placeholder', {
 		height: '390',
 		width: '640',
+		events: {
+			onReady: () => {
+				window.yt_player = player;
+				const pending = window.yt_pending;
+				window.yt_pending = null;
+				try { pending?.(player); } catch { }
+			},
+		},
 	});
 }
 

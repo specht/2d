@@ -25,10 +25,11 @@ class Shaders {
         shaders = this;
     }
 
-    async load(path) {
-        for (let path of this.files) {
-            this.shaders[path] = await this.load_shader(path);
-        }
+    // All shaders at once: one after another cost one round trip each
+    // (15 shaders × ~1 s on a busy school network).
+    async load() {
+        const sources = await Promise.all(this.files.map(path => this.load_shader(path)));
+        this.files.forEach((path, i) => { this.shaders[path] = sources[i]; });
     }
 
     async load_shader(path) {

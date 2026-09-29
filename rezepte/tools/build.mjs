@@ -101,7 +101,7 @@ async function render_body(md, id) {
         // shown 4× (big sprites 2×); the frames below at half that size
         const S = c.w > TILE || c.h > TILE ? 2 : 4;
         const img = (src, version, scale, cls, alt) =>
-            `<img class="pixel${cls}" src="/rezepte/${src}?${version}" width="${c.w * scale}" height="${c.h * scale}" ` +
+            `<img class="pixel${cls}" loading="lazy" decoding="async" src="/rezepte/${src}?${version}" width="${c.w * scale}" height="${c.h * scale}" ` +
             `style="--pixel: ${scale}px" alt="${alt}">`;
         const html = `<figure class="rezept-katalog${c.dunkel ? ' dunkel' : ''}">` + img(c.bild, c.version, S, '', label) +
             (c.frames.length ? `<span class="bilder">${c.frames.map((f, i) =>
