@@ -210,6 +210,8 @@ erwartet:                      # outcome checks
 #   - szene: { himmel: [ … ] } # played one after another (sky at day, dusk, night …)
 #     erwartet: { … }          # optional checks for this variant
 #     beschriftung: [ … ]      # optional labels of this variant (default: the recipe's)
+# raster: 2                   # optional: the recording and its variants side by side instead of one
+#                              # after another – 2 per row, all playing at once (compare moods)
 ---
 ## Kurz gesagt
 …

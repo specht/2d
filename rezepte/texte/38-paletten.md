@@ -3,7 +3,10 @@ titel: Farben, die Stimmung machen
 kategorie: Level gestalten
 stufe: 2
 kurz: Derselbe Leuchtturm, dieselbe Pip – nur eine andere Palette. Und plötzlich ist es Abend, Nacht, Sturm oder ein Traum.
-standbild: 3.4
+# all six moods side by side, at the same time: two per row
+raster: 2
+skala: 2
+schritte: 2
 szene:
   palette: Cling
   himmel: ['#55beed', '#c3def1']
@@ -23,13 +26,14 @@ szene:
         ............
         ............
         ............
-        ....P.......
+        ......P.....
         KKKKK====...
         FFFFF~~~~~~~
 beschriftung:
   - { text: 'Cling: ein sonniger Tag', spalte: 5.5, zeile: 0 }
 # The same scene again, each time converted to another palette – with a sky
 # picked from that palette (the conversion keeps light things light).
+# Pip just stands on the pier: the waves, the boat and the lamp move.
 varianten:
   - szene: { palette: SLSO8, himmel: ['#203c56', '#ffaa5e'] }
     beschriftung: [{ text: 'SLSO8: Abend', spalte: 5.5, zeile: 0 }]
@@ -41,17 +45,16 @@ varianten:
     beschriftung: [{ text: 'Midnight ablaze: Gefahr!', spalte: 5.5, zeile: 0 }]
   - szene: { palette: pastel qt, himmel: ['#a8c8a6', '#f6edcd'] }
     beschriftung: [{ text: 'pastel qt: ein Traum', spalte: 5.5, zeile: 0 }]
-ablauf:
-  - { t: 0.3, halten: rechts, dauer: 0.45 }
-dauer: 1.4
+ablauf: []
+dauer: 3.0
 erwartet:
-  figur_rechts_von: 5
+  lebt: true
 ---
 ## Kurz gesagt
 
 1. Eine **Palette** ist die Auswahl an Farben, mit der du malst. Im Studio gibt es fast hundert davon.
 2. Die Palette bestimmt die **Stimmung**: Warme Farben wirken gemütlich oder heiß, kalte Farben still oder unheimlich, blasse Farben verträumt.
-3. Hier ist es sechsmal dieselbe Küste mit denselben Sprites. Nur die Palette und der Himmel sind anders – und damit die Tageszeit, das Wetter und das Gefühl.
+3. Hier siehst du sechsmal dieselbe Küste mit denselben Sprites nebeneinander. Nur die Palette und der Himmel sind anders – und damit die Tageszeit, das Wetter und das Gefühl. Vergleich sie: Welches Bild ist gemütlich, welches unheimlich?
 
 ## Das brauchst du
 
