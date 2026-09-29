@@ -1,6 +1,6 @@
 ---
-id: leuchten-und-schatten
-titel: Leuchten und Schatten
+id: licht-und-schatten
+titel: Licht und Schatten
 kategorie: Level gestalten
 stufe: 3
 kurz: Mit dem Mischmodus leuchten Fackeln wirklich, und ein Schatten macht alles darunter dunkler – auch die Figur.

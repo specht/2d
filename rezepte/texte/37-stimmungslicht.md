@@ -153,7 +153,7 @@ erwartet:
 - Mach das Licht nicht zu groß. Ein kleiner heller Fleck in viel Dunkel wirkt stärker als ein großer.
 - Schatten gehören dorthin, wo kein Licht hinkommt: unters Dach, unter Brücken und Plattformen, hinter Kisten und in Ecken.
 - Die Figur muss man immer erkennen. Ist die Nacht zu dunkel, nimm für die Abdunkeln-Ebene ein helleres Blau.
-- Wie Leuchten und Abdunkeln genau funktionieren, zeigen *Mischmodi verstehen* und *Leuchten und Schatten*.
+- Wie Leuchten und Abdunkeln genau funktionieren, zeigen *Mischmodi verstehen* und *Licht und Schatten*.
 
 ## Wenn's nicht klappt
 
