@@ -2,14 +2,16 @@
 titel: Schlüssel und verschlossene Tür
 kategorie: Türen & Schlüssel
 stufe: 2
-kurz: Erst den Schlüssel holen – dann öffnet sich die Tür von selbst.
+kurz: Erst den Schlüssel holen – dann öffnet sich die Tür in der Mauer von selbst.
 szene:
   legende:
     L: { sprite: schlosstuer, platziert: { door: { door_code: 7 } } }
     k: { sprite: schluessel, platziert: { key: { door_code: 7 } } }
   karte: |
-    ..........
-    ..........
+    .......M..
+    .......M..
+    .......M..
+    .......M..
     .P.k...L..
     ##########
 ablauf:
@@ -37,7 +39,7 @@ erwartet:
 
 1. Tür wie im Rezept *Eine Tür mit F öffnen*, aber lass **ist verschließbar** an. Pips Tür ist außerdem eine **automatische Tür**: Sie geht auf, sobald man davor steht.
 2. Zeichne den Schlüssel: **Eigenschaft hinzufügen → Schlüssel → ist ein Schlüssel**.
-3. Setz Tür und Schlüssel ins **Level**.
+3. Setz die Tür ins **Level** in eine Mauer, die höher ist als ein Sprung, und leg den Schlüssel davor.
 4. Klicke im Level auf die Tür und trage bei **Code** eine Zahl ein, z. B. **7**.
 5. Klicke auf den Schlüssel und trage **denselben Code** ein.
 
@@ -50,6 +52,7 @@ erwartet:
 
 ## Wenn's nicht klappt
 
+- **Man kommt auch ohne Schlüssel vorbei:** Die Mauer um die Tür ist zu niedrig oder hat eine Lücke. Man darf weder drüber springen noch drumherum laufen.
 - **Die Tür bleibt trotz Schlüssel zu:** Die Codes sind verschieden. Prüfe Tür *und* Schlüssel im Level.
 - **Die Tür geht auch ohne Schlüssel auf:** **ist verschließbar** ist aus.
 - **Der Schlüssel lässt sich nicht einsammeln:** Er liegt in einem Layer ohne Kollisionen, oder ihm fehlt **ist ein Schlüssel**.

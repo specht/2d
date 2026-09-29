@@ -120,13 +120,14 @@ function sprite_refs(value, out = []) {
 
 /**
  * Build the game JSON, sprite sheet and scene geometry for one recipe.
- * recipe.szene: { karte | ebenen, legende?, anpassen?, ausschnitt?, himmel? }
+ * recipe.szene: { karte | ebenen, legende?, anpassen?, ausschnitt?, himmel?, bereiche? }
+ * An `ebenen` entry is a map string or { karte, name?, kollision?, id? }.
  */
 export async function build_game(catalog, recipe, repo) {
     const scene = recipe.szene ?? {};
-    const layers_text = scene.ebenen ?? [scene.karte];
-    if (!layers_text[0]) throw new Error(`${recipe.id}: szene.karte fehlt`);
-    const maps = layers_text.map(parse_map);
+    const layer_defs = (scene.ebenen ?? [scene.karte]).map(e => typeof e === 'string' ? { karte: e } : e ?? {});
+    if (!layer_defs[0]?.karte) throw new Error(`${recipe.id}: szene.karte fehlt`);
+    const maps = layer_defs.map(e => parse_map(e.karte));
     const rows = Math.max(...maps.map(m => m.length));
     const cols = Math.max(...maps.flat().map(l => l.length));
     const legend = { ...catalog.legend, ...(scene.legende ?? {}) };
@@ -201,7 +202,7 @@ export async function build_game(catalog, recipe, repo) {
     // The engine centres the camera on the bounding box of everything placed
     // in collision layers (when that box fits on screen). Choose the screen
     // height so that the box fits and the recorded area is fully visible.
-    const all = [...figures, ...tile_layers.flat()];
+    const all = [...figures, ...tile_layers.filter((_, i) => layer_defs[i].kollision !== false).flat()];
     const bx0 = Math.min(...all.map(p => p[1] - TILE / 2)), bx1 = Math.max(...all.map(p => p[1] + TILE / 2));
     const by0 = Math.min(...all.map(p => p[2])), by1 = Math.max(...all.map(p => p[2] + TILE));
     const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
@@ -211,12 +212,26 @@ export async function build_game(catalog, recipe, repo) {
     const screen_pixel_height = Math.ceil(need / 9) * 9;
 
     const sky = scene.himmel ?? ['#73eff7', '#f4f4f4'];
-    const layer = (name, placed) => ({ type: 'sprites', properties: { name, collision_detection: true }, sprites: placed });
+    const layer = (name, placed, def = {}) => ({
+        type: 'sprites', ...(def.id ? { id: def.id } : {}),
+        properties: { name, collision_detection: def.kollision !== false }, sprites: placed,
+    });
+    // Sichtbarkeitsbereiche: rectangles in tiles [column, row from top, width, height].
+    const regions = (scene.bereiche ?? []).map((b, i) => {
+        if (!layer_defs.some(d => d.id === b.ziel)) throw new Error(`${recipe.id}: Bereich zielt auf unbekannte Ebene "${b.ziel}"`);
+        return {
+            type: 'visibility_region', properties: { name: b.name ?? `Sichtbarkeitsbereich ${i + 1}` },
+            target_layer_id: b.ziel, inside_visible: b.im_bereich === 'sichtbar',
+            ...(b.ueberblendung ? { fade_seconds: b.ueberblendung } : {}),
+            rects: b.rechtecke.map(([c, r, w, h]) => ({ left: c * TILE, bottom: (rows - r - h) * TILE, width: w * TILE, height: h * TILE })),
+        };
+    });
     const level = {
         properties: { name: recipe.titel, background_color: sky[1] },
         layers: [
+            ...regions,
             layer('Figuren', figures),
-            ...tile_layers.map((p, i) => layer(`Ebene ${i + 1}`, p)).reverse(),
+            ...tile_layers.map((p, i) => layer(layer_defs[i].name ?? `Ebene ${i + 1}`, p, layer_defs[i])).reverse(),
             {
                 type: 'backdrop', backdrop_type: 'color', properties: { name: 'Himmel' },
                 colors: [[sky[0], 0.5, 1.0], [sky[1], 0.5, 0.0]],

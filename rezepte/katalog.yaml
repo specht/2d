@@ -204,6 +204,75 @@ sprites:
     traits: { pickup: { points: 10 } }
     states: [{ strip: welt/muenze, fps: 8 }]
 
+  haustuer:
+    label: Haustür
+    traits: { door: { lockable: false, automatic: true, closable: false } }
+    states:
+      - { strip: welt/tuer_zu, traits: { door: [closed] } }
+      - { strip: welt/tuer_auf, traits: { door: [open] } }
+      - { strip: welt/tuer_uebergang, fps: 10, traits: { door: [transition] } }
+  mauer:
+    label: Mauer
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/mauer }]
+  dach:
+    label: Dach
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/dach }]
+  brett:
+    label: Brett
+    # Only "von oben": you can jump through from below and stand on top.
+    traits: { block_above: {} }
+    states: [{ strip: welt/brett }]
+  eis:
+    label: Eis
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/eis }]
+  eishang:
+    label: Eishang
+    traits: { slope: { direction: negative, slippery: 150 } }
+    states: [{ strip: welt/eishang }]
+  broeckel:
+    label: Bröckelstein
+    traits:
+      block_above: {}
+      block_sides: {}
+      block_below: {}
+      falls_down: { timeout: 0.5 }
+    states:
+      - { strip: welt/broeckel }
+      - { strip: welt/broeckel_zerfall, traits: { falls_down: [crumbling] } }
+  stacheln:
+    label: Stacheln
+    traits: { trap: { damage: 25, damage_cool_down: 1.0 } }
+    states: [{ strip: welt/stacheln }]
+  fahne:
+    label: Fahne
+    traits: { checkpoint: {} }
+    states:
+      - { strip: welt/fahne_aus }
+      - { strip: welt/fahne_an, fps: 4, traits: { checkpoint: [active] } }
+  wurzeln:
+    label: Inselboden
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/wurzeln }]
+
+  # ------------------------------ Deko (keine Eigenschaften, eigene Ebene)
+  innenwand: { label: Tapete, states: [{ strip: welt/innenwand }] }
+  bild: { label: Bild, states: [{ strip: welt/bild }] }
+  lampe: { label: Lampe, states: [{ strip: welt/lampe }] }
+  fassade: { label: Fassade, states: [{ strip: welt/fassade }] }
+  fassade_fenster: { label: Fassade mit Fenster, states: [{ strip: welt/fassade_fenster }] }
+  moos: { label: Moos, states: [{ strip: welt/moos }] }
+  ranke: { label: Ranke, states: [{ strip: welt/ranke, fps: 2 }] }
+  fackel: { label: Fackel, states: [{ strip: welt/fackel, fps: 8 }] }
+  riss: { label: Riss, states: [{ strip: welt/riss }] }
+  grasbuesche: { label: Grasbüschel, states: [{ strip: welt/grasbuesche }] }
+  pfosten: { label: Pfosten, states: [{ strip: welt/pfosten }] }
+  kette: { label: Kette, states: [{ strip: welt/kette }] }
+  burgfenster: { label: Burgfenster, states: [{ strip: welt/burgfenster }] }
+  pfeiler: { label: Pfeiler, states: [{ strip: welt/pfeiler }] }
+
   # ------------------------------------------- Bilder für Angriffe
   pfeil:
     label: Pfeil
@@ -238,3 +307,27 @@ legende:
   'P': pip
   'g': glibber
   'm': spuckpilz
+  'M': mauer
+  'R': dach
+  'h': haustuer
+  '-': brett
+  'I': eis
+  '\': eishang
+  'B': broeckel
+  '^': stacheln
+  'f': fahne
+  'u': wurzeln
+  'w': innenwand
+  'b': bild
+  'l': lampe
+  'F': fassade
+  'V': fassade_fenster
+  'z': moos
+  'r': ranke
+  't': fackel
+  'x': riss
+  'v': grasbuesche
+  '|': pfosten
+  'c': kette
+  'n': burgfenster
+  'i': pfeiler

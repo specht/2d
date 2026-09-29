@@ -21,7 +21,7 @@ await p.route('**/*', async r => {
 });
 await p.goto('http://studio.local/');
 await p.waitForTimeout(800);
-await p.click('#mi_help');
+await p.click('#mi_help'); if (process.env.CHIP) { await p.waitForTimeout(500); await p.click(`.rezept-chip:has-text("${process.env.CHIP}")`); }
 await p.waitForTimeout(1200);
 await p.screenshot({ path: `${out}-galerie.png` });
 if (recipe) {

@@ -69,7 +69,7 @@ The recorder relies on these runtime entry points: `window.game`,
 ```yaml
 ---
 titel: Leitern hochklettern
-kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Türen & Schlüssel | Kampf
+kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Türen & Schlüssel | Kampf
 stufe: 1                       # 1–3 stars
 kurz: Pip klettert eine Leiter hoch und läuft oben weiter.
 szene:
@@ -84,17 +84,30 @@ szene:
     ....H.....
     .P..H.....
     ##########
-  # ebenen: [ … ]              # instead of karte: several maps, back to front
+  # ebenen:                    # instead of karte: several layers, back to front
+  #   - name: Fassade          #   layer name shown in the editor
+  #     id: fassade            #   stable id, needed as target of a Sichtbarkeitsbereich
+  #     kollision: false       #   "Kollisionen erkennen" off (decoration, facades, supports)
+  #     karte: |
+  #       …
+  # bereiche:                  # Sichtbarkeitsbereiche (visibility_region layers)
+  #   - { ziel: fassade, rechtecke: [[4, 2, 6, 3]], im_bereich: versteckt, ueberblendung: 0.4 }
+  #                            # rectangles in tiles: column, row from top, width, height
+  # eigenschaften: { show_energy: true }   # game properties (Einstellungen)
 ablauf:                        # input script, times in seconds
   - { t: 0.3, halten: rechts, dauer: 0.4 }
   - { t: 0.9, halten: hoch, dauer: 0.75 }
   - { t: 1.3, drücken: springen }      # a short tap (0.1 s)
 dauer: 3.0                     # length of the GIF
+# farben: 256                  # optional GIF palette size (default 128); more for colourful scenes
 erwartet:                      # outcome checks
   figur_hoeher_als: 3          # player y ≥ 3 tiles
   figur_rechts_von: 5          # player x > 5 tiles
   # gegner_besiegt: 1 · gegner_leben: 0 · schluessel: [7] · tuer_offen: true
-  # punkte: 60 · energie_unter: 100 · lebt: true
+  # punkte: 60 · energie_unter: 100 · energie_gleich: 100 · lebt: true · checkpoint_aktiv: true
+# vorher:                      # optional before/after: another scene, recorded with the same
+#   szene: { ebenen: [ … ] }   # input and played first. Both halves get a "Vorher"/"Nachher"
+#                              # label and must have the same size.
 ---
 ## Kurz gesagt
 …
@@ -135,10 +148,17 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
 * **Glibber** (slime enemy): `laufen` (4), `treffer`, `tot` (3).
 * **Spuckpilz** (stationary spitting mushroom): `stehen` (2), `angriff` (3),
   `treffer`, `tot` (3).
-* **Welt**: `boden`, `erde`, `leiter`, `schraege`, `treppe`, `tuer_zu`,
-  `tuer_auf`, `tuer_uebergang` (3), `schlosstuer_zu`, `schluessel` (2),
-  `muenze` (4), `pfeil`, `stein`, `spore` (2), `bombe_zuendschnur` (4),
-  `bombe_explosion` (4), `treffer_funke` (3).
+* **Welt**: `boden`, `erde`, `mauer`, `dach`, `leiter`, `schraege`, `treppe`,
+  `brett` (jump-through), `eis`, `eishang` (slope down, slippery),
+  `broeckel` + `broeckel_zerfall` (3, crumbling bricks), `stacheln`,
+  `fahne_aus` / `fahne_an` (2, checkpoint), `wurzeln`, `tuer_zu`, `tuer_auf`,
+  `tuer_uebergang` (3), `schlosstuer_zu`, `schluessel` (2), `muenze` (4),
+  `pfeil`, `stein`, `spore` (2), `bombe_zuendschnur` (4), `bombe_explosion`
+  (4), `treffer_funke` (3).
+* **Deko** (transparent, no traits, own layer without collisions): `moos`,
+  `ranke`, `riss`, `fackel` (3), `burgfenster`, `grasbuesche`, `innenwand`,
+  `bild`, `lampe`, `fassade`, `fassade_fenster`, and the supports `pfosten`,
+  `pfeiler`, `kette`.
 
 `katalog.yaml` turns strips into game sprites: a list of states with `strip`,
 optional `frames: [i, …]`, `fps` and the engine's **state traits** (the keys of
@@ -147,6 +167,15 @@ first state is the engine's fallback. `extends` derives variants (Pip with a
 sword, a bow or bombs) that add states and deep-merge traits. `{ sprite: id }`
 inside traits is replaced by that sprite's index (projectile and hit-effect
 art).
+
+The map legend (`legende` in `katalog.yaml`) gives every sprite one
+character, e.g. `#` ground, `M` wall, `-` plank, `B` crumbling brick, `^`
+spikes, `f` flag, `h` house door, `F`/`V` facade, `z` moss, `t` torch, `|`
+post, `c` chain.
+
+Design rules the scenes follow (and the recipes teach): doors sit in walls
+that are higher than a jump, nothing floats without a support, ground has
+earth underneath, and decoration lives in its own layer.
 
 Engine detail worth knowing (and taught in the ladder recipe): on a ladder
 the engine keeps the state `stand`/`walk` and switches the direction to

@@ -1360,11 +1360,14 @@ input.clr-color {
 }
 
 #main_div_help {
+    /* Full width, so the wheel also scrolls beside the text column; the
+       padding keeps the content itself 800 px wide and centred. */
+    box-sizing: border-box;
+    width: 100%;
     margin-top: 60px;
     padding-bottom: 300px;
-    max-width: 800px;
-    margin-left: auto;
-    margin-right: auto;
+    padding-left: max(20px, calc((100% - 800px) / 2));
+    padding-right: max(20px, calc((100% - 800px) / 2));
     font-size: 120%;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
@@ -1424,11 +1427,12 @@ a, a:visited {
 }
 
 #main_div_playtesting {
+    box-sizing: border-box;
+    width: 100%;
     margin-top: 60px;
     padding-bottom: 300px;
-    max-width: 800px;
-    margin-left: auto;
-    margin-right: auto;
+    padding-left: max(20px, calc((100% - 800px) / 2));
+    padding-right: max(20px, calc((100% - 800px) / 2));
     font-size: 120%;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
