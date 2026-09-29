@@ -3,13 +3,13 @@ titel: Farben, die Stimmung machen
 kategorie: Level gestalten
 stufe: 2
 kurz: Derselbe Leuchtturm, dieselbe Pip – nur eine andere Palette. Und plötzlich ist es Abend, Nacht, Sturm oder ein Traum.
-# all six moods side by side, at the same time: two per row
-raster: 2
-skala: 2
-schritte: 2
+# The recording (and the gallery card) shows the night; the other palettes
+# appear as still pictures in the text, one after another (variante:1 …).
+einzelbilder: true
+standbild: 1.5
 szene:
-  palette: Cling
-  himmel: ['#55beed', '#c3def1']
+  palette: Nyx8
+  himmel: ['#08141e', '#20394f']
   legende: { T: leuchtturm, K: klippe, F: fels, '=': steg, '|': stegpfosten, '~': meer, B: boot, o: sonne, C: schaefchenwolke }
   ebenen:
     - name: Hintergrund
@@ -29,22 +29,15 @@ szene:
         ......P.....
         KKKKK====...
         FFFFF~~~~~~~
-beschriftung:
-  - { text: 'Cling: ein sonniger Tag', spalte: 5.5, zeile: 0 }
-# The same scene again, each time converted to another palette – with a sky
-# picked from that palette (the conversion keeps light things light).
-# Pip just stands on the pier: the waves, the boat and the lamp move.
+# The same scene, each time converted to another palette – with a sky picked
+# from that palette (the conversion keeps light things light). Pip just stands
+# on the pier: the waves, the boat and the lamp move.
 varianten:
+  - szene: { palette: Cling, himmel: ['#55beed', '#c3def1'] }
   - szene: { palette: SLSO8, himmel: ['#203c56', '#ffaa5e'] }
-    beschriftung: [{ text: 'SLSO8: Abend', spalte: 5.5, zeile: 0 }]
-  - szene: { palette: Nyx8, himmel: ['#08141e', '#20394f'] }
-    beschriftung: [{ text: 'Nyx8: Nacht', spalte: 5.5, zeile: 0 }]
   - szene: { palette: Cryptic Ocean, himmel: ['#2a173b', '#4c5c87'] }
-    beschriftung: [{ text: 'Cryptic Ocean: kalt und stürmisch', spalte: 5.5, zeile: 0 }]
   - szene: { palette: Midnight ablaze, himmel: ['#130208', '#7c183c'] }
-    beschriftung: [{ text: 'Midnight ablaze: Gefahr!', spalte: 5.5, zeile: 0 }]
   - szene: { palette: pastel qt, himmel: ['#a8c8a6', '#f6edcd'] }
-    beschriftung: [{ text: 'pastel qt: ein Traum', spalte: 5.5, zeile: 0 }]
 ablauf: []
 dauer: 3.0
 erwartet:
@@ -54,7 +47,7 @@ erwartet:
 
 1. Eine **Palette** ist die Auswahl an Farben, mit der du malst. Im Studio gibt es fast hundert davon.
 2. Die Palette bestimmt die **Stimmung**: Warme Farben wirken gemütlich oder heiß, kalte Farben still oder unheimlich, blasse Farben verträumt.
-3. Hier siehst du sechsmal dieselbe Küste mit denselben Sprites nebeneinander. Nur die Palette und der Himmel sind anders – und damit die Tageszeit, das Wetter und das Gefühl. Vergleich sie: Welches Bild ist gemütlich, welches unheimlich?
+3. Oben siehst du die Küste bei Nacht. Weiter unten kommt dieselbe Küste in sechs Paletten – mit denselben Sprites. Nur die Palette und der Himmel sind anders, und damit die Tageszeit, das Wetter und das Gefühl.
 
 ## Das brauchst du
 
@@ -68,6 +61,34 @@ erwartet:
 ![Boot](katalog:kueste/boot 2)
 ![Sonne](katalog:kueste/sonne)
 ![Wolke](katalog:kueste/wolke)
+
+## Sechs Stimmungen
+
+Schau dir die Bilder nacheinander an und frag dich jedes Mal: Wie fühlt sich das an? Wärst du gern dort?
+
+![Cling: ein sonniger Tag](variante:1)
+
+Kräftiges Blau, sattes Grün, ein rot-weißer Leuchtturm: So sehen die Sprites aus, wie sie gemalt sind. Alles ist klar und fröhlich – ein guter Anfang für ein Spiel.
+
+![SLSO8: Abend](variante:2)
+
+Unten am Himmel Orange, oben schon dunkles Blau. Der Leuchtturm wird braun und warm. Es fühlt sich an wie das Ende eines langen Tages: gemütlich und ein bisschen müde.
+
+![Nyx8: Nacht](variante:0)
+
+Fast alles ist dunkelblau. Übrig bleiben nur wenige helle, warme Farben – genau die richtigen für Lichter. Geheimnisvoll: Was wartet da draußen auf dem Meer?
+
+![Cryptic Ocean: kalt und stürmisch](variante:3)
+
+Lila, Grau und kühles Blau, dazu ein fahles Grün. Keine einzige warme Farbe – es wirkt kalt, nass und ein bisschen unheimlich. Gleich zieht ein Sturm auf.
+
+![Midnight ablaze: Gefahr!](variante:4)
+
+Nur Rot und Schwarz. Alles glüht, als würde es brennen. So sieht ein Level aus, in dem es ernst wird – kurz vor dem Endgegner.
+
+![pastel qt: ein Traum](variante:5)
+
+Blasse, weiche Farben und kein echtes Schwarz. Nichts wirkt hart oder gefährlich. So sieht ein Traum aus – oder ein Märchen.
 
 ## Schritt für Schritt
 

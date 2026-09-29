@@ -212,6 +212,9 @@ erwartet:                      # outcome checks
 #     beschriftung: [ … ]      # optional labels of this variant (default: the recipe's)
 # raster: 2                   # optional: the recording and its variants side by side instead of one
 #                              # after another – 2 per row, all playing at once (compare moods)
+# einzelbilder: true           # optional: the variants are not part of the recording but still
+#                              # pictures for the text: ![Nyx8: Nacht](variante:2) (0 = the
+#                              # recording's own still frame, 1 … = the variants)
 ---
 ## Kurz gesagt
 …
