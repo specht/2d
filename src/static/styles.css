@@ -1614,3 +1614,251 @@ a, a:visited {
 #menu_layer_properties > .item > input[type="text"] {
     width: 0;
 }
+
+/* ---------------------------------------------------------- Rezepte */
+#main_div_help h2.rezepte-ueberschrift {
+    font-family: 'Bebas Neue', sans-serif;
+    font-weight: normal;
+    font-size: 220%;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.2em;
+}
+
+#rezepte {
+    user-select: text;
+    margin-bottom: 3em;
+}
+
+#rezepte button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+.rezept-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 16px 0;
+}
+
+.rezept-chip {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 100px;
+    padding: 0.3em 0.9em;
+    font-size: 85% !important;
+}
+
+.rezept-chip:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+.rezept-chip.active {
+    background-color: #ffcd75;
+    border-color: #ffcd75;
+    color: #1a1c2c !important;
+}
+
+.rezept-galerie {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+}
+
+.rezept-karte {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.35);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.rezept-karte:hover, .rezept-karte:focus-visible {
+    transform: translateY(-3px);
+    border-color: #ffcd75;
+    outline: none;
+}
+
+.rezept-bild {
+    position: relative;
+    aspect-ratio: 12 / 5;
+    width: 100%;
+    overflow: hidden;
+    background: linear-gradient(#73eff7, #f4f4f4);
+}
+
+.rezept-bild img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center bottom;
+    display: block;
+}
+
+.rezept-bild img.ganz {
+    object-fit: contain;
+}
+
+.rezept-text {
+    padding: 10px 12px 12px 12px;
+}
+
+.rezept-kopf {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.rezept-kategorie {
+    font-size: 75%;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94b0c2;
+}
+
+.rezept-stufe {
+    color: #ffcd75;
+    font-size: 85%;
+    letter-spacing: 0.1em;
+}
+
+.rezept-titel {
+    font-weight: bold;
+    margin: 3px 0 4px 0;
+}
+
+.rezept-kurz {
+    font-size: 88%;
+    color: #ccc;
+    line-height: 1.35;
+}
+
+.rezept-nav {
+    margin: 12px 0;
+}
+
+.rezept-zurueck {
+    background: none;
+    border: none;
+    padding: 0.3em 0;
+    color: #aaa !important;
+}
+
+.rezept-zurueck:hover {
+    color: #fff !important;
+}
+
+.rezept h2 {
+    margin: 0.2em 0 0.1em 0;
+    font-size: 180%;
+}
+
+.rezept-lead {
+    font-size: 110%;
+    color: #ddd;
+    margin-top: 0;
+}
+
+.rezept-hauptbild {
+    width: auto;
+    max-width: 100%;
+    image-rendering: pixelated;
+    border-radius: 10px;
+    display: block;
+    margin: 12px 0 8px 0;
+    box-shadow: 0 0 24px rgba(0, 0, 0, 0.5);
+}
+
+.rezept-inhalt {
+    line-height: 1.5;
+}
+
+.rezept-inhalt h2 {
+    font-size: 125%;
+    margin: 1.4em 0 0.4em 0;
+    color: #ffcd75;
+}
+
+.rezept-inhalt ol, .rezept-inhalt ul {
+    padding-left: 1.4em;
+}
+
+.rezept-inhalt li {
+    margin-bottom: 0.35em;
+}
+
+.rezept-inhalt strong {
+    color: #fff;
+}
+
+.rezept-inhalt code {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 0 0.3em;
+    border-radius: 3px;
+}
+
+.rezept-inhalt blockquote {
+    margin: 1em 0;
+    padding: 0.6em 1em;
+    border-left: 4px solid #41a6f6;
+    background-color: rgba(65, 166, 246, 0.12);
+    border-radius: 0 8px 8px 0;
+}
+
+.rezept-inhalt blockquote.rezept-achtung {
+    border-left-color: #ef7d57;
+    background-color: rgba(239, 125, 87, 0.14);
+}
+
+.rezept-inhalt blockquote p {
+    margin: 0;
+}
+
+.rezept-katalog {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 0.4em 1.2em 0.8em 0;
+    vertical-align: top;
+}
+
+.rezept-katalog img.pixel {
+    image-rendering: pixelated;
+    background-color: rgba(255, 255, 255, 0.07);
+    border-radius: 6px;
+}
+
+.rezept-katalog img.bilder {
+    height: 48px;
+    background-color: transparent;
+}
+
+.rezept-katalog figcaption {
+    font-size: 80%;
+    color: #94b0c2;
+}
+
+.rezept-weiter {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 2em;
+}
+
+.rezept-karte.klein .rezept-bild {
+    aspect-ratio: 3 / 1;
+}
+
+.rezepte-hinweis {
+    color: #aaa;
+}

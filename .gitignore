@@ -4,3 +4,5 @@ data/
 logs/
 docker/nginx/default.conf
 docker/ruby/Gemfile
+rezepte/tools/node_modules/
+rezepte/tools/fehler-*.gif
