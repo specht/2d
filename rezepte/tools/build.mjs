@@ -134,8 +134,8 @@ async function catalogue_images(strip, fps) {
 //   ![Laufen](katalog:pip/laufen 10)   animation from the catalogue (fps optional)
 //   > **Tipp:** … / > **Achtung:** …    styled hint boxes
 async function render_body(md, id, scenes = []) {
-    // ![Nyx8: Nacht](variante:2) – a still picture of the recording (0) or of a
-    // variant (1, 2 …), for recipes with `einzelbilder: true`
+    // ![Nyx8: Nacht](variante:2) – the recording (0) or a variant (1, 2 …) as a
+    // picture of its own in the text, for recipes with `einzelbilder: true`
     for (const [all, label, n] of [...md.matchAll(/!\[([^\]]*)\]\(variante:(\d+)\)/g)]) {
         const b = scenes[Number(n)];
         if (!b) throw new Error(`${id}: variante:${n} gibt es nicht (einzelbilder: true und genug varianten?)`);
@@ -167,6 +167,16 @@ function still_frame(frames, recipe) {
     const steps = recipe.schritte ?? 1;
     return frames[Math.max(0, Math.min(frames.length - 1, recipe.standbild !== undefined ?
         Math.round(Number(recipe.standbild) * 60 / steps) : Math.floor(frames.length * 0.6)))];
+}
+
+// A short recording of its own (einzelbilder): WebP, or GIF with `format: gif`.
+async function write_clip(rel, frames, recipe, ext) {
+    const tmp = path.join(here, `.${path.basename(rel)}`);
+    if (ext === 'gif') await write_gif(frames, tmp, recipe.farben ?? 128, recipe.schritte ?? 1, recipe.toleranz ?? 0);
+    else await write_webp(frames, tmp, recipe.schritte ?? 1);
+    const version = write_output(rel, fs.readFileSync(tmp));
+    fs.rmSync(tmp, { force: true });
+    return { bild: rel, version, breite: frames[0].w, hoehe: frames[0].h };
 }
 
 async function write_still(rel, f) {
@@ -367,9 +377,12 @@ async function main() {
             const problems = [...errors.map(e => `JavaScript-Fehler: ${e}`), ...check(r.erwartet, state)];
             // varianten: the same scene again with other settings, played one after
             // another – or, with `raster: <columns>`, side by side at the same time –
-            // or, with `einzelbilder: true`, only as still pictures for the text.
+            // or, with `einzelbilder: true`, as recordings of their own in the text.
+            // Lossless WebP (default) or, for scenes full of shader noise, `format: gif`.
+            // REZEPT_FORMAT=gif forces GIFs (to compare with older builds)
+            const ext = (process.env.REZEPT_FORMAT ?? r.format) === 'gif' ? 'gif' : 'webp';
             const parts = [];
-            const scenes = [null];   // 0: the recording's own still frame (below)
+            const scenes = [null];   // 0: the recording itself (below)
             for (const [vi, v] of (r.varianten ?? []).entries()) {
                 const vr = variant_recipes[vi];
                 const res = await record(browser, repo, variant_games[vi], vr);
@@ -378,7 +391,7 @@ async function main() {
                 if (res.frames[0].w !== frames[0].w || res.frames[0].h !== frames[0].h)
                     throw new Error(`${r.id}: Varianten brauchen denselben Ausschnitt`);
                 const labelled = await label_frames(res.frames, vr);
-                if (r.einzelbilder) scenes.push(await write_still(`standbild/${r.id}-${vi + 1}.webp`, still_frame(labelled, vr)));
+                if (r.einzelbilder) scenes.push(await write_clip(`varianten/${r.id}-${vi + 1}.${ext}`, labelled, vr, ext));
                 else parts.push(labelled);
             }
             if (r.raster) frames = grid_frames([await label_frames(frames, r), ...parts], r.raster, r.skala ?? 3);
@@ -401,9 +414,6 @@ async function main() {
             const size = { width: frames[0].w, height: frames[0].h };
             const sky = frames[0].data;   // top-left pixel: sky colour for the card background
             const top_colour = '#' + [sky[0], sky[1], sky[2]].map(v => v.toString(16).padStart(2, '0')).join('');
-            // Lossless WebP (default) or, for scenes full of shader noise, `format: gif`.
-            // REZEPT_FORMAT=gif forces GIFs (to compare with older builds)
-            const ext = (process.env.REZEPT_FORMAT ?? r.format) === 'gif' ? 'gif' : 'webp';
             const tmp = path.join(here, `.${r.id}.${ext}`);
             if (ext === 'gif') await write_gif(frames, tmp, r.farben ?? 128, r.schritte ?? 1, r.toleranz ?? 0);
             else await write_webp(frames, tmp, r.schritte ?? 1);
@@ -412,7 +422,7 @@ async function main() {
             // is on screen).
             const main_still = await write_still(`standbild/${r.id}.webp`, still_frame(frames, r));
             const standbild = main_still.bild, standbild_version = main_still.version;
-            scenes[0] = main_still;
+            scenes[0] = { bild: `${r.id}.${ext}`, version, breite: size.width, hoehe: size.height };
             if (check_only && problems.length) fs.renameSync(tmp, path.join(here, `fehler-${r.id}.${ext}`));
             else fs.rmSync(tmp, { force: true });
             const ms = Date.now() - t0;

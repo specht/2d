@@ -1960,7 +1960,7 @@ a, a:visited {
     margin: 0;
 }
 
-/* a still picture of a scene in the recipe text (einzelbilder: one per palette …) */
+/* a scene of its own in the recipe text (einzelbilder: one recording per palette …) */
 .rezept-szene {
     margin: 0.6em 0 1.2em 0;
 }
