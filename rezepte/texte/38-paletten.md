@@ -33,7 +33,8 @@ szene:
 # from that palette (the conversion keeps light things light). Pip just stands
 # on the pier: the waves, the boat and the lamp move.
 varianten:
-  - szene: { palette: Cling, himmel: ['#55beed', '#c3def1'] }
+  # Cling: the sprites exactly as they are drawn – not converted, not dithered
+  - szene: { palette: null, himmel: ['#55beed', '#c3def1'] }
   - szene: { palette: SLSO8, himmel: ['#203c56', '#ffaa5e'] }
   - szene: { palette: Cryptic Ocean, himmel: ['#2a173b', '#4c5c87'] }
   - szene: { palette: Midnight ablaze, himmel: ['#130208', '#7c183c'] }
@@ -68,7 +69,7 @@ Schau dir die Bilder nacheinander an und frag dich jedes Mal: Wie fühlt sich da
 
 ![Cling: ein sonniger Tag](variante:1)
 
-Kräftiges Blau, sattes Grün, ein rot-weißer Leuchtturm: So sehen die Sprites aus, wie sie gemalt sind. Alles ist klar und fröhlich – ein guter Anfang für ein Spiel.
+Kräftiges Blau, sattes Grün, ein rot-weißer Leuchtturm: So sehen die Sprites aus, wie sie mit der Palette **Cling** gemalt sind – nichts ist umgefärbt. Alles ist klar und fröhlich – ein guter Anfang für ein Spiel.
 
 ![SLSO8: Abend](variante:2)
 

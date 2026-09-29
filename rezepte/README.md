@@ -172,6 +172,7 @@ szene:
   #                            # name) like "Sprite an Palette anpassen", the sky gets the
   #                            # nearest palette colours · { name: Nyx8, dithering: ordered |
   #                            # diffusion | atkinson } (default ordered)
+  #                            # palette: null in a variant: the sprites as drawn, not converted
   # kamera: { bildhoehe: 144 } # level wider than the screen: the camera follows the
   #                            # player and the whole screen is recorded (height in
   #                            # game pixels, divisible by 9)
