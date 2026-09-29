@@ -253,6 +253,9 @@ export async function build_game(catalog, recipe, repo) {
     const EFFECT_POINTS = {
         snow: [[0.5, 0.0], [0.5, -0.1]], smoke: [[0.5, 0.0], [0.5, -0.1]], fire: [[0.5, 0.0], [0.5, -0.1]],
         lightrays: [[0.5, 0.0], [0.5, -0.1], [0.45, 1.1], [0.55, 1.2]],
+        stars: [[0.5, 1.0], [0.5, 0.25]], aurora: [[0.5, 0.35], [0.5, 1.0]],
+        rain: [[0.5, 0.0], [0.5, -0.1]], clouds: [[0.5, 0.0], [0.5, -0.1]],
+        fireflies: [[0.5, 0.0], [0.5, -0.1]], bubbles: [[0.5, 0.0], [0.5, -0.1]],
     };
     const effect_layer = e => {
         if (!EFFECT_POINTS[e.effekt]) throw new Error(`${recipe.id}: unbekannter Effekt "${e.effekt}"`);
@@ -260,6 +263,7 @@ export async function build_game(catalog, recipe, repo) {
             type: 'backdrop', backdrop_type: 'effect', effect: e.effekt,
             properties: { name: e.name ?? e.effekt }, scale: e.skala ?? 1.0, speed: e.tempo ?? 1.0,
             color: e.farbe ?? '#ffffffff', control_points: e.punkte ?? EFFECT_POINTS[e.effekt],
+            ...(e.pixel ? { pixelated: true } : {}),
             rects: [{ left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
         };
     };
@@ -298,6 +302,9 @@ export async function build_game(catalog, recipe, repo) {
             {
                 type: 'backdrop', backdrop_type: 'color', properties: { name: 'Himmel' },
                 colors: clone(sky_colors),
+                // optional pixel look: himmel: { farben: […], pixel: true, dither: noise | bayer, stufen: 8 }
+                ...(sky_def.pixel ? { pixelated: true } : {}),
+                ...(sky_def.dither ? { dither: sky_def.dither, dither_levels: sky_def.stufen ?? 8 } : {}),
                 // exactly the scene's height: colour positions (0 = bottom, 1 = top) match the picture
                 rects: [{ left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
             },

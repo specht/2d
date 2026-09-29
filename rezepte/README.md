@@ -110,8 +110,12 @@ szene:
   # himmel: ['#41a6f6', '#73eff7']         # sky: top and bottom colour, or
   # himmel: { farben: [['#29366f', 0, 1], ['#5d275d', 1, 1], ['#ef7d57', 0, 0], ['#ffcd75', 1, 0]] }
   #                            # 1, 2 or 4 colour points [colour, x, y] (0…1, y = 0 is the bottom)
+  #                            # optional in this form: pixel: true (game resolution),
+  #                            # dither: noise | bayer, stufen: 8 (colour steps of the ramp)
   # effekte:                   # backdrop effect layers (in front of the world unless vorne: false)
-  #   - { effekt: snow, farbe: '#ffffffff', skala: 1.0, tempo: 1.0 }   # snow | smoke | fire | lightrays
+  #   - { effekt: snow, farbe: '#ffffffff', skala: 1.0, tempo: 1.0, pixel: true }
+  #     # snow | rain | smoke | fire | lightrays | stars | aurora | clouds | fireflies | bubbles
+  #     # (BACKDROP_EFFECTS in src/static/backdrops.js); punkte: [[x, y], …] control points
   # kamera: { bildhoehe: 144 } # level wider than the screen: the camera follows the
   #                            # player and the whole screen is recorded (height in
   #                            # game pixels, divisible by 9)

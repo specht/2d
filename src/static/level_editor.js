@@ -790,6 +790,50 @@ class LevelEditor {
                     self.render();
                 },
             });
+            // backdrops.js: optional pixel look; nothing is stored until it is switched on
+            new CheckboxWidget({
+                container: $('#menu_layer_properties'),
+                label: 'pixelig (wie Sprites)',
+                hint: 'Der Hintergrund wird in der Auflösung des Spiels gezeichnet – ein Farbpunkt pro Spielpixel, genau wie bei den Sprites.',
+                get: () => Boolean(backdrop.pixelated) || (backdrop.backdrop_type === 'color' && backdrop_dither_mode(backdrop) > 0),
+                set: (x) => {
+                    if (x) backdrop.pixelated = true; else delete backdrop.pixelated;
+                    self.refresh();
+                    self.render();
+                },
+            });
+            if (backdrop.backdrop_type === 'color') {
+                new SelectWidget({
+                    container: $('#menu_layer_properties'),
+                    label: 'Dithering',
+                    hint: 'Der Farbverlauf wird auf wenige Farbstufen reduziert. Dazwischen mischen sich die Farben Pixel für Pixel – mit zufälligem Rauschen oder einem regelmäßigen Raster. Das sieht nach echter Pixel-Art aus.',
+                    options: BACKDROP_DITHER,
+                    get: () => backdrop.dither in BACKDROP_DITHER ? backdrop.dither : 'none',
+                    set: (x) => {
+                        if (x === 'noise' || x === 'bayer') backdrop.dither = x; else { delete backdrop.dither; delete backdrop.dither_levels; }
+                        self.setup_layer_properties();
+                        self.refresh();
+                        self.render();
+                    },
+                });
+                if (backdrop_dither_mode(backdrop) > 0) {
+                    new NumberWidget({
+                        container: $('#menu_layer_properties'),
+                        label: 'Farbstufen',
+                        hint: 'So viele Helligkeitsstufen hat jede Farbe. Wenige Stufen (2–4) sehen grob und körnig aus, viele (16–32) fein.',
+                        min: BACKDROP_DITHER_LEVELS.min,
+                        max: BACKDROP_DITHER_LEVELS.max,
+                        step: 1,
+                        decimalPlaces: 0,
+                        get: () => backdrop_dither_levels(backdrop),
+                        set: (x) => {
+                            backdrop.dither_levels = x;
+                            self.refresh();
+                            self.render();
+                        },
+                    });
+                }
+            }
             if (backdrop.backdrop_type === 'color') {
                 new SelectWidget({
                     container: $('#menu_layer_properties'),
@@ -840,12 +884,7 @@ class LevelEditor {
                 new SelectWidget({
                     container: $('#menu_layer_properties'),
                     label: `Effekt`,
-                    options: {
-                        'snow': 'Schnee',
-                        'smoke': 'Rauch',
-                        'fire': 'Feuer',
-                        'lightrays': 'Lichtstrahlen',
-                    },
+                    options: BACKDROP_EFFECTS,
                     get: () => {
                         return `${backdrop.effect}`;
                     },
@@ -1578,97 +1617,10 @@ class LevelEditor {
                         geometry.scale(rect.width, rect.height, 1.0);
                         geometry.translate(rect.left, rect.bottom, 0);
                         // geometry.translate(0, 0, -1);
-                        let uniforms = {};
-                        let material = new THREE.LineBasicMaterial({transparent: true});
-                        material.opacity = 0;
-                        if (backdrop.backdrop_type === 'effect') {
-                            let gradient_points = JSON.parse(JSON.stringify(backdrop.control_points));
-                            uniforms = {
-                                time: { value: 0 },
-                                resolution: { value: [rect0.width, rect0.height] },
-                                scale: { value: [backdrop.scale] },
-                                color: { value: parse_html_color_to_vec4(backdrop.color)}
-                            };
-                            for (let gi = 0; gi < shaders.control_points_for_effect[backdrop.effect].length; gi++) {
-                                gradient_points[gi] ??= JSON.parse(JSON.stringify(shaders.control_points_for_effect[backdrop.effect][gi]));
-                                gradient_points[gi][0] = rect0.width * gradient_points[gi][0] + rect0.left;
-                                gradient_points[gi][1] = rect0.height * gradient_points[gi][1] + rect0.bottom;
-                                uniforms[`cp${String.fromCharCode(97 + gi)}`] = { value: [gradient_points[gi][0], gradient_points[gi][1]] };
-                            }
-                            material = new THREE.ShaderMaterial({
-                                uniforms: uniforms,
-                                transparent: true,
-                                vertexShader: shaders.get('basic.vs'),
-                                fragmentShader: shaders.get(backdrop.effect + '.fs'),
-                                side: THREE.DoubleSide,
-                            });
-                            let x0 = rect.left;
-                            let y0 = rect.bottom;
-                            let x1 = rect.left + rect.width;
-                            let y1 = rect.bottom + rect.height;
-                            let uv = geometry.attributes.uv;
-                            uv.setXY(0, x0, y1);
-                            uv.setXY(1, x1, y1);
-                            uv.setXY(2, x0, y0);
-                            uv.setXY(3, x1, y0);
-                        }
-                        if (backdrop.backdrop_type === 'color') {
-                            let gradient_points = JSON.parse(JSON.stringify(backdrop.colors));
-                            for (let gi = 0; gi < gradient_points.length; gi++) {
-                                gradient_points[gi][1] = rect0.width * gradient_points[gi][1] + rect0.left;
-                                gradient_points[gi][2] = rect0.height * gradient_points[gi][2] + rect0.bottom;
-                            }
-                            if (gradient_points.length === 1) {
-                                uniforms = {
-                                    n:  { value: 1 },
-                                    ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                                };
-                            } else if (gradient_points.length === 2) {
-                                let d = [gradient_points[1][1] - gradient_points[0][1], gradient_points[1][2] - gradient_points[0][2]];
-                                let l = Math.sqrt(d[0] * d[0] + d[1] * d[1]);
-                                let l1 = 1.0 / l;
-                                d[0] *= l1; d[1] *= l1;
-                                uniforms = {
-                                    n:  { value: 2 },
-                                    ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                                    cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-                                    pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-                                    pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-                                    na: { value: [d[0], d[1]] },
-                                    nb: { value: [-d[0], -d[1]] },
-                                    la: { value: l },
-                                    lb: { value: l },
-                                };
-                            } else if (gradient_points.length === 4) {
-                                uniforms = {
-                                    n:  { value: 4 },
-                                    ca: { value: parse_html_color_to_vec4(gradient_points[0][0]) },
-                                    cb: { value: parse_html_color_to_vec4(gradient_points[1][0]) },
-                                    cc: { value: parse_html_color_to_vec4(gradient_points[2][0]) },
-                                    cd: { value: parse_html_color_to_vec4(gradient_points[3][0]) },
-                                    pa: { value: [gradient_points[0][1], gradient_points[0][2]] },
-                                    pb: { value: [gradient_points[1][1], gradient_points[1][2]] },
-                                    pc: { value: [gradient_points[2][1], gradient_points[2][2]] },
-                                    pd: { value: [gradient_points[3][1], gradient_points[3][2]] },
-                                };
-                            }
-                            material = new THREE.ShaderMaterial({
-                                uniforms: uniforms,
-                                transparent: true,
-                                vertexShader: shaders.get('basic.vs'),
-                                fragmentShader: shaders.get('gradient.fs'),
-                                side: THREE.DoubleSide,
-                            });
-                            let x0 = rect.left;
-                            let y0 = rect.bottom;
-                            let x1 = rect.left + rect.width;
-                            let y1 = rect.bottom + rect.height;
-                            let uv = geometry.attributes.uv;
-                            uv.setXY(0, x0, y1);
-                            uv.setXY(1, x1, y1);
-                            uv.setXY(2, x0, y0);
-                            uv.setXY(3, x1, y0);
-                        }
+                        // backdrops.js: the same materials as in the game, plus default control points
+                        let material = backdrop_material(backdrop, rect0, { fill_default_points: true, scale_as_array: true });
+                        if (backdrop.backdrop_type === 'effect' || backdrop.backdrop_type === 'color')
+                            set_backdrop_uv(geometry, rect);
                         let mesh = new THREE.Mesh(geometry, material);
                         this.scene.add(mesh);
                     }
