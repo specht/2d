@@ -156,9 +156,11 @@ async function keycap_frames(frames, recipe) {
             let x = pad, parts = '';
             for (const code of keys) {
                 const label = controls.key_label(code);
-                const w = Math.max(size * 1.6, label.length * size * 0.62 + 2 * pad);
-                const y = f.h - pad - size * 1.9;
-                parts += `<rect x="${x}" y="${y}" rx="${pad * 0.8}" width="${w}" height="${size * 1.9}" fill="#1a1c2c" fill-opacity="0.82" stroke="#ffcd75" stroke-width="${Math.max(1, size / 12)}"/>` +
+                // a key with one symbol (arrows, letters) is square, longer labels grow sideways
+                const h = size * 1.9;
+                const w = [...label].length === 1 ? h : Math.max(h, label.length * size * 0.62 + 2 * pad);
+                const y = f.h - pad - h;
+                parts += `<rect x="${x}" y="${y}" rx="${pad * 0.8}" width="${w}" height="${h}" fill="#1a1c2c" fill-opacity="0.82" stroke="#ffcd75" stroke-width="${Math.max(1, size / 12)}"/>` +
                     `<text x="${x + w / 2}" y="${y + size * 1.3}" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold" font-size="${size}" fill="#ffcd75">${label}</text>`;
                 x += w + pad;
             }
@@ -215,6 +217,7 @@ async function main() {
                 entries.push(old);
                 for (const m of (old.html ?? '').matchAll(/\/rezepte\/([^"?]+)\?/g)) written.add(m[1]);
                 if (old.bild) written.add(old.bild);
+                if (old.standbild) written.add(old.standbild);
                 continue;
             }
             const t0 = Date.now();
@@ -256,6 +259,15 @@ async function main() {
             if (ext === 'gif') await write_gif(frames, tmp, r.farben ?? 128, r.schritte ?? 1, r.toleranz ?? 0);
             else await write_webp(frames, tmp, r.schritte ?? 1);
             const version = write_output(`${r.id}.${ext}`, fs.readFileSync(tmp));
+            // Still frame for the gallery cards (the recording only plays while a card
+            // is on screen): `standbild: 2.5` picks the moment in seconds, else 60 %.
+            const steps = r.schritte ?? 1;
+            const still_index = Math.max(0, Math.min(frames.length - 1, r.standbild !== undefined ?
+                Math.round(Number(r.standbild) * 60 / steps) : Math.floor(frames.length * 0.6)));
+            const still = frames[still_index];
+            const standbild = `standbild/${r.id}.webp`;
+            const standbild_version = write_output(standbild, await sharp(still.data,
+                { raw: { width: still.w, height: still.h, channels: 4 } }).webp({ lossless: true, effort: 6 }).toBuffer());
             if (check_only && problems.length) fs.renameSync(tmp, path.join(here, `fehler-${r.id}.${ext}`));
             else fs.rmSync(tmp, { force: true });
             const ms = Date.now() - t0;
@@ -267,7 +279,8 @@ async function main() {
             }
             entries.push({
                 id: r.id, titel: r.titel, kategorie: r.kategorie, stufe: r.stufe ?? 1, kurz: r.kurz,
-                bild: `${r.id}.${ext}`, version, breite: size.width, hoehe: size.height, himmel: top_colour,
+                bild: `${r.id}.${ext}`, version, standbild, standbild_version,
+                breite: size.width, hoehe: size.height, himmel: top_colour,
                 ...(r.schleife ? { schleife: true } : {}),
                 html: await render_body(r.body, r.id),
             });

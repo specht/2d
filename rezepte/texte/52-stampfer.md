@@ -8,13 +8,17 @@ szene:
   anpassen:
     klotz: { baddie: { damage: 50 } }
     klotz_einmal: { baddie: { damage: 50 } }
+  # one extra tile all around the recorded area: the camera shake never shows empty edges
+  ausschnitt: [1, 1, 14, 6]
   karte: |
-    MMMMMMMMMMMMMM
-    M....U....8..M
-    M............M
-    M............M
-    MP...........M
-    ##############
+    MMMMMMMMMMMMMMMM
+    MMMMMMMMMMMMMMMM
+    MM....U....8..MM
+    MM............MM
+    MM............MM
+    MMP...........MM
+    ################
+    ================
 ablauf:
   - { t: 0.5, halten: rechts, dauer: 1.45 }
 dauer: 5.2

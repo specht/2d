@@ -1716,7 +1716,8 @@ class LevelEditor {
                         geometry.translate(rect.left, rect.bottom, 0);
                         // geometry.translate(0, 0, -1);
                         // backdrops.js: the same materials as in the game, plus default control points
-                        let material = backdrop_material(backdrop, rect0, { fill_default_points: true, scale_as_array: true });
+                        let material = backdrop_material(backdrop, rect0, { fill_default_points: true, scale_as_array: true,
+                            stencil_ref: backdrop_stencil_ref(li) });
                         if (backdrop.backdrop_type === 'effect' || backdrop.backdrop_type === 'color')
                             set_backdrop_uv(geometry, rect);
                         let mesh = new THREE.Mesh(geometry, material);

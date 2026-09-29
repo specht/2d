@@ -134,7 +134,30 @@ function set_backdrop_uv(geometry, rect) {
 function backdrop_material(backdrop, rect0, options = {}) {
     const material = backdrop_material_plain(backdrop, rect0, options);
     const mode = blend_mode_of(backdrop.properties?.blend);
-    return mode && material.isShaderMaterial ? apply_blend_mode(material, mode) : material;
+    if (mode && material.isShaderMaterial) apply_blend_mode(material, mode);
+    if (options.stencil_ref && (backdrop.rects?.length ?? 0) > 1) union_of_rects(material, options.stencil_ref);
+    return material;
+}
+
+// Several rectangles of one layer are one area: where they overlap, the effect
+// (half transparent snow, a tint …) must not be drawn twice. Every rectangle
+// marks its pixels in the stencil buffer with the layer's number and skips
+// pixels that are already marked. ref: 1 … 255, different for every layer.
+function union_of_rects(material, ref) {
+    material.stencilWrite = true;
+    material.stencilRef = ref;
+    material.stencilFunc = THREE.NotEqualStencilFunc;
+    material.stencilFuncMask = 0xff;
+    material.stencilWriteMask = 0xff;
+    material.stencilFail = THREE.KeepStencilOp;
+    material.stencilZFail = THREE.KeepStencilOp;
+    material.stencilZPass = THREE.ReplaceStencilOp;
+    return material;
+}
+
+// The stencil number of a layer (by its index in the level).
+function backdrop_stencil_ref(layer_index) {
+    return (layer_index % 255) + 1;
 }
 
 function backdrop_material_plain(backdrop, rect0, { fill_default_points = false, scale_as_array = false } = {}) {
@@ -213,7 +236,7 @@ function backdrop_material_plain(backdrop, rect0, { fill_default_points = false,
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         BACKDROP_EFFECTS, BACKDROP_DITHER, BLEND_MODES, BACKDROP_DENSITY_EFFECTS, BACKDROP_DENSITY, backdrop_density,
-        blend_mode_of, premultiplied_shader, BACKDROP_DITHER_LEVELS,
+        blend_mode_of, premultiplied_shader, backdrop_stencil_ref, BACKDROP_DITHER_LEVELS,
         backdrop_dither_mode, backdrop_dither_levels, backdrop_pixel_size, backdrop_fragment_shader,
     };
 }

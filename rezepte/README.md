@@ -85,6 +85,12 @@ studio.
   query string as immutable and everything else with `no-cache`; the app
   loads its own files with `window.CACHE_BUSTER`. A full build (no ids, no
   `--check`) deletes generated files that are no longer referenced.
+* **Still frames:** every recording also gets `standbild/<id>.webp`, one
+  frame of it. The gallery cards show that frame and only play the recording
+  while the card is on screen – 37 animations at once would keep the browser
+  busy for nothing. The recipe itself opens in a popup above the gallery
+  (numbered #01, #02 … in gallery order); closing it or the back button
+  returns to the same place in the gallery.
 
 The recorder relies on these runtime entry points: `window.game`,
 `Game.load(tag)`, `reset()`, `setup()`, `render()`, `clock.getElapsedTime()`,
@@ -170,6 +176,8 @@ dauer: 3.0                     # length of the recording
 # schleife: true               # the recording must loop seamlessly: the last frame has to match the first
 #                              # (checked, ≤ 0.4 % different pixels) and is then dropped
 # tasten_zeigen: true          # draws the pressed keys as keycaps (German labels) into the recording
+# standbild: 2.5               # optional: the moment (s) of the still frame on the gallery card
+#                              # (default: 60 % of the recording)
 erwartet:                      # outcome checks
   figur_hoeher_als: 3          # player y ≥ 3 tiles
   figur_rechts_von: 5          # player x > 5 tiles
@@ -239,7 +247,9 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
 * **Deko** (transparent, no traits, own layer without collisions): `moos`,
   `ranke`, `riss`, `fackel` (3), `burgfenster`, `grasbuesche`, `innenwand`,
   `bild`, `lampe`, `tisch`, `pflanze`, `fassade`, `fassade_fenster`, `zimmer`
-  (dark wallpaper), `toter_baum`, `toter_baum_2` (48×72, bare trees),
+  (dark wallpaper), `toter_baum`, `toter_baum_2`, `toter_baum_3` (48×72,
+  bare trees), `tote_baeume_fern` (192×64, a dead forest silhouette that
+  tiles), `boden_tot` (ground with dead grass),
   `hausfront` (192×72, transparent doorway), `eingang` (open door, no
   traits), `sterne`, and the supports `pfosten`, `pfeiler`, `kette`.
 * **Semi-transparent** (RGBA pixels): `wasser`, `wasser_oben` (8 frames,
@@ -259,7 +269,11 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `benommen`), `frosch` (Hüpfer: `stehen`, `springen`), `fledermaus`
   (Flatterer: `fliegen`), `klotz` (Stampfer: `stehen`, `fallen`, `landen`;
   `klotz_einmal` falls only once); each with `treffer` and `tot`. `maus`
-  (Angsthase: `stehen`, `laufen`, `fliehen`).
+  (Angsthase: `stehen`, `laufen`, `fliehen`, `tot`).
+* **Beute:** a defeated enemy can leave a sprite behind that is collected
+  like a placed one – `traits.baddie.drop = { sprite_index, door_code }`
+  (in `katalog.yaml`/`anpassen`: `drop: { sprite_index: { sprite: schluessel },
+  door_code: 1 }`). It must be a key or have "man kann es einsammeln".
 * **Behaviour poses** are optional enemy states (traits.js
   `STATE_TRAITS.baddie`): `hunt_*` (*Gegner jagt*: Jäger chasing, Lauerer
   charging), `flee_*` (*Gegner flieht*: Angsthase), `stunned_*` (*Gegner ist
@@ -299,7 +313,8 @@ spikes, `f` flag, `h` house door, `F`/`V` facade, `z` moss, `t` torch, `|`
 post, `c` chain, `[` `>` `]` belt (start, middle, end), `<` belt to the left,
 `s` escalator, `_` machine, `K` beetle, `a` boar, `q` frog, `j` bat, `U`
 stone block, `8` stone block that falls once, `@` mouse, `y` dark room,
-`*` glow, `%` shadow, `1` `2` dead trees.
+`*` glow, `%` shadow, `1` `2` `3` dead trees, `4` dead forest far away,
+`5` dead ground.
 
 Design rules the scenes follow (and the recipes teach): doors sit in walls
 that are higher than a jump, nothing floats without a support, ground has
