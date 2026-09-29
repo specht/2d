@@ -281,6 +281,8 @@ sprites:
   berge: { label: Berge, groesse: [192, 72], states: [{ strip: welt/berge }] }
   wald: { label: Wald, groesse: [192, 48], states: [{ strip: welt/wald }] }
   tannen: { label: Tannen, groesse: [192, 64], states: [{ strip: welt/tannen }] }
+  toter_baum: { label: Toter Baum, groesse: [48, 72], states: [{ strip: welt/toter_baum }] }
+  toter_baum_2: { label: Toter Baum (krumm), groesse: [48, 72], states: [{ strip: welt/toter_baum_2 }] }
   vordergrund: { label: Vordergrund, groesse: [192, 32], states: [{ strip: welt/vordergrund }] }
 
   # ------------------------------------------------ große Schrägen (48x24)
@@ -584,3 +586,5 @@ legende:
   '@': maus
   '*': leuchtschein
   '%': schatten
+  '1': toter_baum
+  '2': toter_baum_2

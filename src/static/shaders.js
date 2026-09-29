@@ -19,8 +19,8 @@ class Shaders {
             'clouds': [[0.5, 0.0], [0.5, -0.1]],
             'fireflies': [[0.5, 0.0], [0.5, -0.1]],
             'bubbles': [[0.5, 0.0], [0.5, -0.1]],
-            // Staubwirbel: the eye of the whirl, and a point on its edge
-            'dust': [[0.5, 0.5], [0.85, 0.5]],
+            // Schwebestaub: fades out like snow (no fade by default)
+            'dust': [[0.5, 0.0], [0.5, -0.1]],
         };
         shaders = this;
     }

@@ -244,7 +244,7 @@ class LevelEditor {
         this.backdrop_move_point_old_coordinates = null;
         this.backdrop_move_point_old_size = null;
         this.show_grid = true;
-        // live preview of effect backdrops (snow, rain, Staubwirbel, …)
+        // live preview of effect backdrops (snow, rain, dust, …)
         this.animate_backdrops = false;
         this.backdrop_time_meshes = [];
         this.backdrop_animation_frame = null;
@@ -267,7 +267,7 @@ class LevelEditor {
         new CheckboxWidget({
             container: $('#tool_menu_level_settings'),
             label: 'Effekte bewegen',
-            hint: 'Schnee, Regen, Staubwirbel und die anderen Effekte bewegen sich schon hier im Level-Editor – so wie später im Spiel.',
+            hint: 'Schnee, Regen, Schwebestaub und die anderen Effekte bewegen sich schon hier im Level-Editor – so wie später im Spiel.',
             get: () => self.animate_backdrops,
             set: (x) => {
                 self.animate_backdrops = x;
@@ -967,29 +967,11 @@ class LevelEditor {
                         self.render();
                     },
                 });
-                if (BACKDROP_TILT_EFFECTS.includes(backdrop.effect)) {
-                    new NumberWidget({
-                        container: $('#menu_layer_properties'),
-                        label: 'Neigung',
-                        hint: 'Von wo man auf den Wirbel schaut: 0° genau von vorn, 60° schräg von der Seite, 85° fast ganz von der Seite.',
-                        min: BACKDROP_TILT.min,
-                        max: BACKDROP_TILT.max,
-                        step: 5,
-                        decimalPlaces: 0,
-                        suffix: '°',
-                        get: () => backdrop_tilt(backdrop),
-                        set: (x) => {
-                            backdrop.tilt = x;
-                            self.refresh();
-                            self.render();
-                        },
-                    });
-                }
                 if (BACKDROP_DENSITY_EFFECTS.includes(backdrop.effect)) {
                     new NumberWidget({
                         container: $('#menu_layer_properties'),
                         label: 'Menge',
-                        hint: 'Wie dicht es schneit oder regnet: 1 ist normal, 0,5 die Hälfte, 2 doppelt so viel.',
+                        hint: 'Wie dicht es schneit, regnet oder staubt: 1 ist normal, 0,5 die Hälfte, 2 doppelt so viel.',
                         min: BACKDROP_DENSITY.min,
                         max: BACKDROP_DENSITY.max,
                         step: 0.1,
