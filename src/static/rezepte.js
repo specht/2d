@@ -140,8 +140,10 @@ class RecipeGallery {
         if (this.popup_el) return this.popup_el;
         const overlay = $('<div>').addClass('rezept-popup').attr({ role: 'dialog', 'aria-modal': 'true' }).hide();
         const dialog = $('<div>').addClass('rezept-dialog').appendTo(overlay);
+        // outside the scrolling part: it stays in the corner while the recipe scrolls
         $('<button>').addClass('rezept-schliessen').attr({ title: 'Schließen (Esc)', 'aria-label': 'Schließen' })
-            .html('<i class="fa fa-times"></i>').on('click', () => this.close_popup()).appendTo(dialog);
+            .html('<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>')
+            .on('click', () => this.close_popup()).appendTo(dialog);
         this.popup_body = $('<div>').addClass('rezept-dialog-inhalt').appendTo(dialog);
         // a click next to the dialog closes it, like the Esc key
         overlay.on('click', (e) => { if (e.target === overlay[0]) this.close_popup(); });
@@ -202,7 +204,7 @@ class RecipeGallery {
         }
         $('#main_div_help').addClass('rezept-offen');
         overlay.show();
-        overlay.find('.rezept-dialog').scrollTop(0);
+        this.popup_body.scrollTop(0);
     }
 }
 

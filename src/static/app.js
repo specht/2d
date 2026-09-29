@@ -2322,20 +2322,26 @@ class Game {
 			...(uses.ranged ? [['Fernkampf', ['➶']]] : []),
 		] : (() => {
 			const keys = resolve_controls(this.data.properties);
-			const k = (...ids) => ids.flatMap(id => keys[id].map(key_label));
+			// first keys first (← →), the second keys of the same actions as the alternative (A D)
+			const k = (...ids) => [ids.map(id => keys[id][0]).filter(Boolean).map(key_label),
+				ids.map(id => keys[id][1]).filter(Boolean).map(key_label)];
 			return [
-				['Laufen', k('left', 'right')],
-				...(uses.up ? [['Leiter', k('up', 'down')]] : []),
-				['Springen', k('jump')],
-				...(uses.action ? [['Tür, Text', k('action')]] : []),
-				...(uses.melee ? [['Nahkampf', k('melee')]] : []),
-				...(uses.ranged ? [['Fernkampf', k('ranged')]] : []),
+				['Laufen', ...k('left', 'right')],
+				...(uses.up ? [['Leiter', ...k('up', 'down')]] : []),
+				['Springen', ...k('jump')],
+				...(uses.action ? [['Tür, Text', ...k('action')]] : []),
+				...(uses.melee ? [['Nahkampf', ...k('melee')]] : []),
+				...(uses.ranged ? [['Fernkampf', ...k('ranged')]] : []),
 			];
 		})();
-		for (const [label, keys] of rows) {
+		for (const [label, keys, alternative] of rows) {
 			panel.append($('<div class="label">').text(label));
 			const cell = $('<div class="keys">');
 			for (const k of keys) cell.append($(touch ? '<span>' : '<span class="key">').text(k));
+			if (alternative?.length) {
+				cell.append($('<span class="oder">').text('oder'));
+				for (const k of alternative) cell.append($('<span class="key alt">').text(k));
+			}
 			panel.append(cell);
 		}
 		const fullscreen = typeof window.toggle_game_fullscreen === 'function';
