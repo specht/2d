@@ -13,36 +13,38 @@
     <link href="styles.css?#{@@cache_buster}" rel="stylesheet">
     <link href="fonts.css?#{@@cache_buster}" rel="stylesheet">
     <script>window.CACHE_BUSTER = '#{@@cache_buster}';</script>
-    <script src="jquery-3.6.0.min.js"></script>
-    <script src="coloris.min.js"></script>
-    <script src="misc.js?#{@@cache_buster}"></script>
-    <script src="api.js?#{@@cache_buster}"></script>
-    <script src="widgets.js?#{@@cache_buster}"></script>
-    <script src="canvas.js?#{@@cache_buster}"></script>
-    <script src="traits.js?#{@@cache_buster}"></script>
-    <script src="controls.js?#{@@cache_buster}"></script>
-    <script src="baddie_ai.js?#{@@cache_buster}"></script>
-    <script src="combat_melee_trait.js?#{@@cache_buster}"></script>
-    <script src="sprite_sheet.js?#{@@cache_buster}"></script>
-    <script src="visibility_regions.js?#{@@cache_buster}"></script>
-    <script src="level_editor.js?#{@@cache_buster}"></script>
-    <script src="game.js?#{@@cache_buster}"></script>
-    <script src="dropdownmenu.js?#{@@cache_buster}"></script>
-    <script src="modaldialogs.js?#{@@cache_buster}"></script>
-    <script src="menu.js?#{@@cache_buster}"></script>
-    <script src="cling-colors.js?#{@@cache_buster}"></script>
-    <script src="palettes.js?#{@@cache_buster}"></script>
-    <script src="tinycolor-min.js"></script>
-    <script src="moment-with-locales.min.js"></script>
-    <script src="shaders.js?#{@@cache_buster}"></script>
-    <script src="backdrops.js?#{@@cache_buster}"></script>
-    <script src="studio.js?#{@@cache_buster}"></script>
-    <script src="rezepte.js?#{@@cache_buster}"></script>
-    <script src="three.min.js?#{@@cache_buster}"></script>
-    <script src="masonry.pkgd.min.js?#{@@cache_buster}"></script>
-    <script src="ditherjs.dist.js?#{@@cache_buster}"></script>
-    <script src="interval_tree.js?#{@@cache_buster}"></script>
-    <script src="avl.js?#{@@cache_buster}"></script>
+    <!-- defer: the page (and its "wird geladen" curtain) shows at once; the
+         scripts still run in this order, before DOMContentLoaded -->
+    <script defer src="jquery-3.6.0.min.js"></script>
+    <script defer src="coloris.min.js"></script>
+    <script defer src="misc.js?#{@@cache_buster}"></script>
+    <script defer src="api.js?#{@@cache_buster}"></script>
+    <script defer src="widgets.js?#{@@cache_buster}"></script>
+    <script defer src="canvas.js?#{@@cache_buster}"></script>
+    <script defer src="traits.js?#{@@cache_buster}"></script>
+    <script defer src="controls.js?#{@@cache_buster}"></script>
+    <script defer src="baddie_ai.js?#{@@cache_buster}"></script>
+    <script defer src="combat_melee_trait.js?#{@@cache_buster}"></script>
+    <script defer src="sprite_sheet.js?#{@@cache_buster}"></script>
+    <script defer src="visibility_regions.js?#{@@cache_buster}"></script>
+    <script defer src="level_editor.js?#{@@cache_buster}"></script>
+    <script defer src="game.js?#{@@cache_buster}"></script>
+    <script defer src="dropdownmenu.js?#{@@cache_buster}"></script>
+    <script defer src="modaldialogs.js?#{@@cache_buster}"></script>
+    <script defer src="menu.js?#{@@cache_buster}"></script>
+    <script defer src="cling-colors.js?#{@@cache_buster}"></script>
+    <script defer src="palettes.js?#{@@cache_buster}"></script>
+    <script defer src="tinycolor-min.js"></script>
+    <script defer src="moment-with-locales.min.js"></script>
+    <script defer src="shaders.js?#{@@cache_buster}"></script>
+    <script defer src="backdrops.js?#{@@cache_buster}"></script>
+    <script defer src="studio.js?#{@@cache_buster}"></script>
+    <script defer src="rezepte.js?#{@@cache_buster}"></script>
+    <script defer src="three.min.js?#{@@cache_buster}"></script>
+    <script defer src="masonry.pkgd.min.js?#{@@cache_buster}"></script>
+    <script defer src="ditherjs.dist.js?#{@@cache_buster}"></script>
+    <script defer src="interval_tree.js?#{@@cache_buster}"></script>
+    <script defer src="avl.js?#{@@cache_buster}"></script>
 </head>
 
 <body>
@@ -244,12 +246,15 @@
             </div>
         </div>
     </div>
-    <div id='main_div_help' class="main_div scroll_helper scroll_helper_vertical">
+    <!-- hidden from the start (not only once studio.js has run): its many pictures
+         load lazily, i.e. only when the Hilfe tab is opened -->
+    <div id='main_div_help' class="main_div scroll_helper scroll_helper_vertical" style="display: none;">
         <h2 class='rezepte-ueberschrift'>Rezepte</h2>
         <p>
             Kleine Anleitungen zum Nachbauen. Jede Animation wurde mit dem echten Spiel aufgenommen – so sieht es auch bei dir aus.
         </p>
         <div id='rezepte'></div>
+        <!-- all pictures below load only when the Hilfe tab is opened and they scroll into view -->
         <h2 class='rezepte-ueberschrift'>Inspiration</h2>
         <p>
             Hier findest du Links zu verschiedenen Themen rund um die Themen Pixelgrafik und Platformer.
@@ -260,40 +265,40 @@
             <a class='link_button' href="https://saint11.art/blog/pixel-art-tutorials/" target="_blank">Miniboss Pixel
                 Art Tutorials</a>
         </p>
-        <img src="https://64.media.tumblr.com/6759dacdbc0f4dd6e69257629960713f/tumblr_inline_ovvd6rE4kC1qdiwz3_1280.gif"
+        <img loading="lazy" decoding="async" src="https://64.media.tumblr.com/6759dacdbc0f4dd6e69257629960713f/tumblr_inline_ovvd6rE4kC1qdiwz3_1280.gif"
             style="height: 190px;" />
-        <img src="https://64.media.tumblr.com/c5cc799376bd29e27e2428287e07f157/tumblr_inline_oug2m7pJuF1qdiwz3_1280.gif"
+        <img loading="lazy" decoding="async" src="https://64.media.tumblr.com/c5cc799376bd29e27e2428287e07f157/tumblr_inline_oug2m7pJuF1qdiwz3_1280.gif"
             style="height: 190px;" />
-        <img src="https://64.media.tumblr.com/0520c37e79b4cdeaefd44094ba9249ca/tumblr_inline_ou2cmw0eNy1qdiwz3_1280.gif"
+        <img loading="lazy" decoding="async" src="https://64.media.tumblr.com/0520c37e79b4cdeaefd44094ba9249ca/tumblr_inline_ou2cmw0eNy1qdiwz3_1280.gif"
             style="height: 190px;" />
-        <img src="https://64.media.tumblr.com/12bae334cfc713751d430b2be205d783/tumblr_inline_otpupsodce1qdiwz3_1280.gif"
+        <img loading="lazy" decoding="async" src="https://64.media.tumblr.com/12bae334cfc713751d430b2be205d783/tumblr_inline_otpupsodce1qdiwz3_1280.gif"
             style="height: 190px;" />
 
         <p>
             <a class="link_button" href="https://www.slynyrd.com/pixelblog-catalogue" target="_blank">SLYNYRD Pixelblog
                 Catalogue</a>
         </p>
-        <img src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1590841692873-JNAS75S6UTPEMZUSLQXA/Title_Image_2.png?format=750w"
+        <img loading="lazy" decoding="async" src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1590841692873-JNAS75S6UTPEMZUSLQXA/Title_Image_2.png?format=750w"
             style="height: 150px;" />
-        <img src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1580174972554-KEHLLUDLCY1HIB50YQMD/Title_Image_25_2.png?format=750w"
+        <img loading="lazy" decoding="async" src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1580174972554-KEHLLUDLCY1HIB50YQMD/Title_Image_25_2.png?format=750w"
             style="height: 150px;" />
-        <img src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1573861378175-CUPY0J566KA5A117IIEE/Intro_Parallax.gif?format=750w"
+        <img loading="lazy" decoding="async" src="https://images.squarespace-cdn.com/content/v1/551a19f8e4b0e8322a93850a/1573861378175-CUPY0J566KA5A117IIEE/Intro_Parallax.gif?format=750w"
             style="height: 150px;" />
 
         <p>
             <a class="link_button" href="https://itch.io/game-assets/tag-pixel-art" target="_blank">Pixel Art @
                 itch.io</a>
         </p>
-        <img src="https://img.itch.zone/aW1nLzQ2MDIzMjgucG5n/315x250%23c/dV4UhH.png" style="height: 150px;" />
-        <img src="https://img.itch.zone/aW1hZ2UvMTQxMjc4LzY0NzIxNi5naWY=/original/TFYh3p.gif" style="height: 150px;" />
-        <img src="https://img.itch.zone/aW1hZ2UvODA5Njg2Lzc3MzAwODYucG5n/347x500/3HmdHb.png" style="height: 150px;" />
-        <img src="https://img.itch.zone/aW1nLzQ1NDk0MjIuZ2lm/original/jrI08h.gif" style="height: 150px;" />
+        <img loading="lazy" decoding="async" src="https://img.itch.zone/aW1nLzQ2MDIzMjgucG5n/315x250%23c/dV4UhH.png" style="height: 150px;" />
+        <img loading="lazy" decoding="async" src="https://img.itch.zone/aW1hZ2UvMTQxMjc4LzY0NzIxNi5naWY=/original/TFYh3p.gif" style="height: 150px;" />
+        <img loading="lazy" decoding="async" src="https://img.itch.zone/aW1hZ2UvODA5Njg2Lzc3MzAwODYucG5n/347x500/3HmdHb.png" style="height: 150px;" />
+        <img loading="lazy" decoding="async" src="https://img.itch.zone/aW1nLzQ1NDk0MjIuZ2lm/original/jrI08h.gif" style="height: 150px;" />
 
         <p>
             <a class="link_button" href="https://octavinavarro.com/projects" target="_blank">Octavi Navarro Arts &
                 Games</a>
         </p>
-        <img src="https://cdn.myportfolio.com/d2affae58daf04ccc372f279c745bf12/40df7cc49bf7b939ab7b3bfc_rw_1200.png?h=027f8b7c9cb1e616c9daa746b8c3ad34"
+        <img loading="lazy" decoding="async" src="https://cdn.myportfolio.com/d2affae58daf04ccc372f279c745bf12/40df7cc49bf7b939ab7b3bfc_rw_1200.png?h=027f8b7c9cb1e616c9daa746b8c3ad34"
             style="height: 250px;
             object-fit: cover;
             width: 100%;
@@ -308,59 +313,59 @@
         <div class="help-tiles-3">
             <div>
                 1. Squash and Stretch
-                <img src='/12-principles/squash-and-stretch.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/squash-and-stretch.gif' />
             </div>
             <div>
                 2. Anticipation
-                <img src='/12-principles/anticipation.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/anticipation.gif' />
             </div>
             <div>
                 3. Staging
-                <img src='/12-principles/staging.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/staging.gif' />
             </div>
             <div>
                 4. Straight Ahead &amp; Pose-to-Pose
-                <img src='/12-principles/straight-ahead-pose-to-pose.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/straight-ahead-pose-to-pose.gif' />
             </div>
             <div>
                 5. Follow Through &amp; Overlapping Action
-                <img src='/12-principles/follow-through-overlapping.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/follow-through-overlapping.gif' />
             </div>
             <div>
                 6. Slow In &amp; Slow Out
-                <img src='/12-principles/slow-in-slow-out.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/slow-in-slow-out.gif' />
             </div>
             <div>
                 7. Arcs
-                <img src='/12-principles/arcs.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/arcs.gif' />
             </div>
             <div>
                 8. Secondary Action
-                <img src='/12-principles/secondary-action.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/secondary-action.gif' />
             </div>
             <div>
                 9. Timing
-                <img src='/12-principles/timing.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/timing.gif' />
             </div>
             <div>
                 10. Exaggeration
-                <img src='/12-principles/exaggeration.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/exaggeration.gif' />
             </div>
             <div>
                 11. Solid Drawing
-                <img src='/12-principles/solid-drawings.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/solid-drawings.gif' />
             </div>
             <div>
                 12. Appeal
-                <img src='/12-principles/appeal.gif' />
+                <img loading="lazy" decoding="async" src='/12-principles/appeal.gif' />
             </div>
         </div>
         <div style="display: inline-block; width: 48%;">
-            <a href="https://youtu.be/f0cZfw3XrG8" target="_blank"><img
+            <a href="https://youtu.be/f0cZfw3XrG8" target="_blank"><img loading="lazy" decoding="async"
                     src="https://img.youtube.com/vi/f0cZfw3XrG8/hqdefault.jpg" style="width: 100%;" /></a>
         </div>
         <div style="display: inline-block; width: 48%;">
-            <a href="https://youtu.be/uDqjIdI4bF4" target="_blank"><img
+            <a href="https://youtu.be/uDqjIdI4bF4" target="_blank"><img loading="lazy" decoding="async"
                     src="https://img.youtube.com/vi/uDqjIdI4bF4/hqdefault.jpg" style="width: 100%;" /></a>
         </div>
     </div>
@@ -401,8 +406,20 @@
                 </div>
             </div>
         </div> -->
+    <!-- black until the studio is ready (studio.js fades it out); shows that it is loading -->
     <div id="curtain" style="position: fixed; left: 0; top: 0; width: 100%;
-            height: 100%; background-color: #000;"></div>
+            height: 100%; background-color: #000;">
+        <style>
+            #curtain .laden { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+                width: min(320px, 70vw); color: #aaa; font-family: sans-serif; font-size: 15px; text-align: center; }
+            #curtain .balken { margin-top: 12px; height: 4px; border-radius: 2px; background: #333; overflow: hidden; }
+            #curtain .balken::after { content: ''; display: block; width: 35%; height: 100%; border-radius: 2px;
+                background: #73eff7; animation: curtain-laden 1.2s ease-in-out infinite; }
+            @keyframes curtain-laden { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+            @media (prefers-reduced-motion: reduce) { #curtain .balken::after { animation: none; width: 100%; opacity: 0.5; } }
+        </style>
+        <div class="laden">2D Game Studio wird geladen …<div class="balken"></div></div>
+    </div>
     <div id="error_curtain" style="display: none;">
         <div class="robot"></div>
         <p>Leider ist ein Fehler passiert. Um sicherzustellen, dass nichts schiefgeht, lade bitte die Seite neu.</p>
