@@ -24,7 +24,7 @@ const args = process.argv.slice(2);
 const check_only = args.includes('--check');
 const only = args.filter(a => !a.startsWith('--'));
 
-const KATEGORIEN = ['Loslegen', 'Figuren animieren', 'Welt bauen', 'Level gestalten', 'Türen & Schlüssel', 'Kampf'];
+const KATEGORIEN = ['Loslegen', 'Figuren animieren', 'Welt bauen', 'Level gestalten', 'Türen & Schlüssel', 'Kampf', 'Gegner'];
 
 function read_recipe(file) {
     const text = fs.readFileSync(file, 'utf8').replace(/\r/g, '');
@@ -193,7 +193,11 @@ async function main() {
     catalog_for_strips = catalog;
     const dir = path.join(root, 'texte');
     const files = fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort();
-    const recipes = files.map(f => read_recipe(path.join(dir, f)));
+    // `entwurf: true` hides a recipe (kept in texte/, not built or shown).
+    const recipes = files.map(f => read_recipe(path.join(dir, f))).filter(r => {
+        if (r.entwurf) console.log(`– ${r.id} (Entwurf, nicht veröffentlicht)`);
+        return !r.entwurf;
+    });
     const ids = new Set();
     for (const r of recipes) {
         if (ids.has(r.id)) throw new Error(`Rezept-ID doppelt: ${r.id}`);

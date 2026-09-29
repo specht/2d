@@ -1952,3 +1952,16 @@ a, a:visited {
     margin-top: 6px;
     font: inherit;
 }
+
+/* Gegner → Verhalten: short description under the select */
+.behavior-hint {
+    margin: 0.2em 0 0.6em 0;
+    font-size: 85%;
+    line-height: 1.35;
+    color: #94b0c2;
+}
+
+.behavior-separator {
+    border-bottom: 1px solid rgba(148, 176, 194, 0.25);
+    margin: 0.4em 0 0.6em 0;
+}

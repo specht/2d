@@ -774,8 +774,11 @@ class Game {
         });
         let title = $(`<h4>`).append($('<span>').text(SPRITE_TRAITS[trait].label)).append(bu_delete).appendTo(div);
         let info = SPRITE_TRAITS[trait] ?? {};
+        if (trait === 'baddie' && typeof BADDIE_BEHAVIORS !== 'undefined') this.add_behavior_controls(div, si);
         for (let key in info.properties ?? {}) {
             let property = info.properties[key];
+            // Some settings only matter for some behaviours (e.g. patrolling).
+            if (typeof property.visible === 'function' && !property.visible(self.data.sprites[si].traits[trait])) continue;
             if (property.type === 'float') {
                 new NumberWidget({
                     container: div,
@@ -827,6 +830,49 @@ class Game {
         if (trait === 'actor' || trait === 'baddie') this.add_hit_feedback_controls(div, si, trait);
         if (trait === 'door') this.add_door_state_help(div, si);
         div.insertAfter(element);
+    }
+
+    // "Verhalten": one select with named enemy types, each with only its own
+    // settings. Wächter without changes stores nothing, so old games stay as they are.
+    add_behavior_controls(div, si) {
+        const traits = this.data.sprites[si].traits.baddie;
+        const type = baddie_behavior_type(traits);
+        const info = BADDIE_BEHAVIORS[type];
+        const options = {};
+        for (const id of BADDIE_BEHAVIOR_ORDER) options[id] = BADDIE_BEHAVIORS[id].label;
+        new SelectWidget({
+            container: div, label: 'Verhalten', hint: info.hint, options,
+            get: () => type,
+            set: (x) => {
+                if (!(x in BADDIE_BEHAVIORS) || x === type) return;
+                if (x === 'guard') delete traits.behavior;
+                else traits.behavior = { type: x };
+                this.build_sprite_traits_menu();
+            },
+        });
+        $('<p>').addClass('behavior-hint').text(info.hint).appendTo(div);
+        for (const [key, setting] of Object.entries(info.settings)) {
+            if (setting.type === 'bool') {
+                new CheckboxWidget({
+                    container: div, label: setting.label, hint: setting.hint,
+                    get: () => traits.behavior?.[key] ?? setting.default,
+                    set: (value) => {
+                        traits.behavior = { ...(traits.behavior ?? { type }), [key]: Boolean(value) };
+                    },
+                });
+                continue;
+            }
+            new NumberWidget({
+                container: div, label: setting.label, hint: setting.hint,
+                min: setting.min, max: setting.max, step: setting.step,
+                decimalPlaces: setting.decimalPlaces, suffix: setting.suffix,
+                get: () => traits.behavior?.[key] ?? setting.default,
+                set: (value) => {
+                    traits.behavior = { ...(traits.behavior ?? { type }), [key]: value };
+                },
+            });
+        }
+        $('<div>').addClass('behavior-separator').appendTo(div);
     }
 
     // Target-owned visual feedback, independent of weapon/attack settings.

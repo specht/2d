@@ -29,6 +29,12 @@ var SPRITE_TRAITS_ORDER = [
         ],
     ],
     [
+        'Förderbänder',
+        [
+            'conveyor',
+        ],
+    ],
+    [
         'Türen',
         [
             'door',
@@ -398,6 +404,37 @@ var SPRITE_TRAITS = {
             },
         },
     },
+    conveyor: {
+        label: 'Förderband / Rolltreppe',
+        properties: {
+            direction: {
+                label: 'Richtung',
+                hint: 'In diese Richtung nimmt das Band Figuren mit. Zusammen mit „Schräge / Treppe“ wird daraus eine Rolltreppe.',
+                type: 'select',
+                options: {
+                    'right': 'nach rechts',
+                    'left': 'nach links',
+                },
+                default: 'right',
+            },
+            speed: {
+                label: 'Geschwindigkeit',
+                hint: 'So schnell wird eine Figur mitgenommen, die darauf steht. Zum Vergleich: Eine Spielfigur läuft meistens mit 3.',
+                type: 'float',
+                min: 0.0,
+                max: 20.0,
+                step: 0.1,
+                decimalPlaces: 1,
+                default: 1.5,
+            },
+            moves_baddies: {
+                label: 'nimmt auch Gegner mit',
+                hint: 'Sollen auch Gegner mitfahren? Dann kann ein Band sie zum Beispiel in eine Falle tragen.',
+                type: 'bool',
+                default: true,
+            },
+        },
+    },
     ladder: {
         label: 'man kann dran hoch- und runterklettern',
         properties: {
@@ -596,12 +633,14 @@ var SPRITE_TRAITS = {
                 step: 0.1,
             },
             affected_by_gravity: {
+                visible: (t) => typeof baddie_behavior_type !== 'function' || !['flutter', 'stomper'].includes(baddie_behavior_type(t)),
                 label: 'beeinflusst durch Schwerkraft',
                 hint: 'Wenn der Gegner durch die Schwerkraft beeinflusst wird, fällt er nach unten.',
                 type: 'bool',
                 default: true,
             },
             vjump: {
+                visible: (t) => typeof baddie_behavior_type !== 'function' || ['guard', 'hunter', 'hopper'].includes(baddie_behavior_type(t)),
                 label: 'Sprungkraft',
                 hint: 'Mit welcher Kraft soll der Gegner abspringen, wenner sprint?',
                 type: 'float',
@@ -612,6 +651,7 @@ var SPRITE_TRAITS = {
                 step: 0.1,
             },
             patrols: {
+                visible: (t) => typeof behavior_uses_patrol !== 'function' || behavior_uses_patrol(t),
                 label: 'patrouilliert',
                 hint: 'Ein patrouillierender Gegner läuft hin und her und bewacht ein begrenztes Gebiet.',
                 type: 'bool',
@@ -629,6 +669,7 @@ var SPRITE_TRAITS = {
                 default: 'random',
             },
             jump_from_edge_probability: {
+                visible: (t) => typeof behavior_uses_patrol !== 'function' || behavior_uses_patrol(t),
                 label: 'springt von Plattformen',
                 hint: 'Gegner können auch von Plattformen abspringen, anstatt umzukehren. Dadurch kannst du komplexe Patrouille-Muster entwerfen.',
                 type: 'float',
@@ -639,6 +680,7 @@ var SPRITE_TRAITS = {
                 suffix: '%',
             },
             jump_vfactor: {
+                visible: (t) => typeof baddie_behavior_type !== 'function' || ['guard', 'hunter', 'hopper'].includes(baddie_behavior_type(t)),
                 label: 'Sprungfaktor',
                 type: 'float',
                 min: 0.0,
@@ -670,6 +712,7 @@ var SPRITE_TRAITS = {
                 default: true,
             },
             takes_breaks: {
+                visible: (t) => typeof behavior_uses_patrol !== 'function' || behavior_uses_patrol(t),
                 label: 'Pausen alle',
                 type: 'float',
                 count: 2,
@@ -682,6 +725,7 @@ var SPRITE_TRAITS = {
                 step: 1,
             },
             break_length: {
+                visible: (t) => typeof behavior_uses_patrol !== 'function' || behavior_uses_patrol(t),
                 label: 'Pausendauer',
                 type: 'float',
                 count: 2,
