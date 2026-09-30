@@ -511,6 +511,104 @@ sprites:
     traits: { block_above: {}, block_sides: {}, block_below: {} }
     states: [{ strip: hoehle/uebergang_erde }]
 
+  # ------------------- Unter Wasser (Rezepte Schwimmen, Fisch und U-Boot)
+  # Pip in the water: "Spielfigur schwimmt" (without it she paddles with her walk)
+  pip_taucher:
+    label: Pip (schwimmt)
+    extends: pip
+    states:
+      - { strip: pip/schwimmen, fps: 8, traits: { actor: [swim_right] } }
+  # a fish as the player character: it only swims
+  fisch:
+    label: Fisch (Spielfigur)
+    traits:
+      actor: { ex_left: 0.6, ex_right: 0.6, ex_top: 0.75, vjump: 7 }
+    states:
+      - { strip: meer/fisch, fps: 5, traits: { actor: [right] } }
+      - { strip: meer/fisch, fps: 10, traits: { actor: [swim_right] } }
+  # the submarine as the player character (48 × 24): the propeller turns
+  u_boot:
+    label: U-Boot (Spielfigur)
+    groesse: [48, 24]
+    traits:
+      actor: { ex_left: 0.85, ex_right: 0.85, ex_top: 0.8, vjump: 7 }
+    states:
+      - { strip: meer/u_boot, fps: 6, traits: { actor: [right] } }
+      - { strip: meer/u_boot, fps: 16, traits: { actor: [swim_right] } }
+  # a jellyfish (Flatterer: it bobs up and down, gravity does not pull it)
+  qualle:
+    label: Qualle
+    traits:
+      baddie:
+        energy: 100
+        damage: 10
+        vrun: 0.15
+        start_dir: left
+        wait_until_seen: false
+        ex_left: 0.6
+        ex_right: 0.6
+        ex_top: 0.75
+        behavior: { type: flutter, height: 20, period: 3.2 }
+    states:
+      - { strip: meer/qualle, fps: 5, traits: { baddie: [right] } }
+  perle:
+    label: Perle
+    traits: { pickup: { points: 10 } }
+    states: [{ strip: meer/perle, fps: 4 }]
+  sand:
+    label: Meeresboden
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: meer/sand }]
+  riff:
+    label: Riff
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: meer/fels }]
+  seegras: { label: Seegras, groesse: [24, 48], states: [{ strip: meer/seegras, fps: 4 }] }
+  koralle: { label: Koralle, states: [{ strip: meer/koralle }] }
+  koralle_gruen: { label: Grüne Koralle, states: [{ strip: meer/koralle_gruen }] }
+  truhe: { label: Schatztruhe, states: [{ strip: meer/truhe }] }
+  schlot: { label: Schlot, groesse: [48, 24], states: [{ strip: meer/schlot }] }
+  # a soft glow for jellyfish in the deep sea (Leuchten)
+  quallenlicht: { label: Quallenlicht, mischmodus: leuchten, states: [{ strip: meer/qualle_licht, fps: 5 }] }
+
+  # --------------------------------------- Weltall (Rezept "Schweben im All")
+  astronaut:
+    label: Pip im Raumanzug
+    traits:
+      actor: { ex_left: 0.5, ex_right: 0.5, ex_top: 0.8, vjump: 7 }
+    states:
+      - { strip: weltall/astronaut_stehen, fps: 3, traits: { actor: [right] } }
+      - { strip: weltall/astronaut_laufen, fps: 10, traits: { actor: [walk_right] } }
+      - { strip: weltall/astronaut_springen, traits: { actor: [jump_right, fall_right] } }
+      # "Spielfigur schwebt": arms and legs apart, bobbing slowly
+      - { strip: weltall/astronaut_schweben, fps: 2, traits: { actor: [float_right] } }
+  station:
+    label: Stationswand
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: weltall/station }]
+  station_boden:
+    label: Stationsboden
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: weltall/station_boden }]
+  luke: { label: Luftschleuse, groesse: [24, 48], states: [{ strip: weltall/luke }] }
+  bullauge: { label: Bullauge, states: [{ strip: weltall/bullauge }] }
+  stern:
+    label: Stern
+    traits: { pickup: { points: 10 } }
+    states: [{ strip: weltall/stern, fps: 6 }]
+  satellit: { label: Satellit, groesse: [48, 24], states: [{ strip: weltall/satellit }] }
+  planet: { label: Ringplanet, groesse: [72, 72], states: [{ strip: weltall/planet }] }
+  erde_planet: { label: Erde, groesse: [48, 48], states: [{ strip: weltall/erde }] }
+  mondboden:
+    label: Mondboden
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: weltall/mondboden }]
+  mondgestein:
+    label: Mondgestein
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: weltall/mondgestein }]
+  mondstein: { label: Mondstein, states: [{ strip: weltall/mondstein }] }
+
   # ------------------------------------------- Bilder für Angriffe
   pfeil:
     label: Pfeil

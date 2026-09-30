@@ -159,7 +159,8 @@ class Character {
         // These are optional render poses, not movement states or attack hitboxes.
         // Missing poses never replace the normal movement art in an old game.
         // hunt / flee / stunned / landed: poses of enemy behaviours (baddie_ai.js).
-        for (let kind of ['attack', 'hit', 'hunt', 'flee', 'stunned', 'landed']) {
+        // swim / float: the figure in a Bewegungsbereich (movement_regions.js)
+        for (let kind of ['attack', 'hit', 'hunt', 'flee', 'stunned', 'landed', 'swim', 'float']) {
             let poses = {};
             for (let sti = 0; sti < this.sprite.states.length; sti++) {
                 let tags = this.sprite.states[sti].traits?.[this.character_trait] ?? {};
@@ -194,6 +195,9 @@ class Character {
 
 
 		this.vy = 0;
+		// Bewegungsbereiche: sideways speed in the water or in space (px per frame)
+		this.vx = 0;
+		this.stroke_held = false;
 	}
 
 	assign_sti(state, direction, sti, confidence, flipped) {
@@ -1070,6 +1074,40 @@ void main() {
 			}
 		}
 
+		// Bewegungsbereiche (movement_regions.js): swimming, floating, a different
+		// gravity or a current. Only the player character; old games have none.
+		const move = this.character_trait === 'actor' && typeof MovementRegions !== 'undefined' ?
+			MovementRegions.at(this.game.movement_regions, this.mesh.position.x,
+				this.mesh.position.y + this.sprite.height * 0.5) : null;
+		const fluid = move && (move.mode === 'swim' || move.mode === 'float') ? move : null;
+		let fluid_input_x = 0;
+		if (fluid) {
+			// In the water and in space the figure has momentum: the arrow keys
+			// steer in all four directions, the jump key is a swim stroke.
+			const controllable = !this.dead() && this.traits.force_non_controllable !== false;
+			const key = k => controllable && Boolean(this.pressed_keys[k]);
+			const ix = (key(KEY_RIGHT) ? 1 : 0) - (key(KEY_LEFT) ? 1 : 0);
+			const iy = (key(KEY_UP) ? 1 : 0) - (key(KEY_DOWN) ? 1 : 0);
+			const jump = key(KEY_JUMP);
+			const next = MovementRegions.fluid_step({ vx: this.vx, vy: this.vy },
+				{ x: ix, y: iy, stroke: jump && !this.stroke_held }, fluid, {
+					vrun: this.traits.vrun * this.vrun_factor(),
+					vjump: this.traits.vjump * this.vjump_factor(),
+					gravity: this.traits.affected_by_gravity === false ? 0 : this.game.data.properties.gravity,
+					near_surface: fluid.surface - (this.mesh.position.y + this.sprite.height * 0.5) < this.sprite.height * 0.6,
+				});
+			this.stroke_held = jump;
+			this.vx = next.vx;
+			this.vy = next.vy;
+			dx = this.vx + (this.dead() ? 0 : (this.traits.force_x || 0));
+			fluid_input_x = ix;
+		} else if (move) {
+			// a current on land pushes like wind
+			dx += move.current.x;
+		}
+		// a stroke needs a fresh press – also after jumping into the water
+		if (!fluid) this.stroke_held = Boolean(this.pressed_keys[KEY_JUMP]);
+
 		// Förderband / Rolltreppe: standing on it carries the character along.
 		const input_dx = dx;
 		const belt = this.conveyor_push();
@@ -1090,7 +1128,11 @@ void main() {
 		}
 
 
+		const wanted_dx = dx;
 		dx = this.try_move_x(dx);
+		// against a wall the drift stops; on land the steps become the momentum
+		if (fluid) { if (Math.abs(dx) < Math.abs(wanted_dx) - 0.01) this.vx = 0; }
+		else this.vx = dx;
 		if (dx !== 0) {
 			if (previous_slope) {
 				// we were standing on a slope, adjust y accordingly
@@ -1110,6 +1152,10 @@ void main() {
 			this.vy = 0;
 			state = (this.behavior?.type === 'stomper' && this.ai_dy < -0.1) ? 'fall' :
 				(Math.abs(dx) > 0.1 ? 'walk' : 'stand');
+		} else if (fluid) {
+			// in the water / in space: on the bottom walk and stand, else jump / fall poses
+			state = this.touching_ground() && this.vy <= 0.01 ?
+				(Math.abs(fluid_input_x) > 0 ? 'walk' : 'stand') : (this.vy > 0 ? 'jump' : 'fall');
 		} else if (this.standing_on_ground()) {
 			// On a belt only the character's own steps count as walking.
 			state = (Math.abs(belt ? input_dx : dx) > 0.1) ? 'walk' : 'stand';
@@ -1119,6 +1165,11 @@ void main() {
 		if (this.character_trait === 'actor') {
 			if (this.dead())
 				state = 'dead';
+		}
+		// "schwimmt" / "schwebt" (only if the sprite has such a state)
+		if (fluid && state !== 'dead') {
+			const pose = fluid.mode === 'swim' ? 'swim' : 'float';
+			if (this.sti_for_state[pose]) state = pose;
 		}
         // Behaviour poses (only if the sprite has such a state): jagt, benommen, aufgeschlagen.
         // In the air, an enemy with its own jump / fall art shows it even while hunting.
@@ -1133,13 +1184,14 @@ void main() {
                 this.combat_visual = null;
         }
 		let direction = this.direction;
-		const facing_dx = belt ? input_dx : dx;
+		const facing_dx = fluid ? fluid_input_x : (belt ? input_dx : dx);
 		if (facing_dx > 0) direction = 'right';
 		if (facing_dx < 0) direction = 'left';
 		if (this.ai_face && Math.abs(dx) < 0.01) direction = this.ai_face;
 
 		let dy = 0;
-		entry = this.has_trait_at(['ladder'], -0.5, 0.5, 0.1, 1.1);
+		// in the water / in space the arrow keys swim instead of climbing
+		entry = fluid ? null : this.has_trait_at(['ladder'], -0.5, 0.5, 0.1, 1.1);
 		if (entry) {
 			if (this.pressed_keys[KEY_UP]) {
 				dy += this.traits.vrun * this.vrun_factor();
@@ -1147,7 +1199,7 @@ void main() {
 					this.center_on_entry(entry);
 			}
 		}
-		entry = this.has_trait_at(['ladder'], -0.5, 0.5, -1.1, -0.1);
+		entry = fluid ? null : this.has_trait_at(['ladder'], -0.5, 0.5, -1.1, -0.1);
 		if (entry) {
 			if (this.pressed_keys[KEY_DOWN]) {
 				dy -= this.traits.vrun * this.vrun_factor();
@@ -1190,6 +1242,12 @@ void main() {
 			this.ai_memory.blocked = this.ai_dy < 0 && moved > this.ai_dy + 0.01;
 		}
 
+		if (fluid) {
+			// the velocity already has buoyancy, gravity and the current in it
+			const wanted_dy = this.vy;
+			const moved = this.try_move_y(this.vy);
+			if (Math.abs(moved) < Math.abs(wanted_dy) - 0.01) this.vy = 0;
+		} else {
 		// if we're standing, we can jump
 		if (this.character_trait === 'baddie' || this.sprite.traits[this.character_trait].can_jump) {
 			if (this.standing_on_ground()) {
@@ -1204,9 +1262,12 @@ void main() {
 			if (Math.abs(dy) < 0.01) this.vy = 0;
 		}
 
-		this.vy -= this.game.data.properties.gravity;
+		// a Bewegungsbereich may change gravity (the moon) – and push up or down
+		this.vy -= this.game.data.properties.gravity * (move ? move.gravity / 100 : 1);
 		if (this.vy < -10)
 			this.vy = -10;
+		if (move && move.current.y) this.try_move_y(move.current.y);
+		}
 
 		this.update_state_and_direction(state, direction);
 
@@ -2052,6 +2113,8 @@ class Game {
 		this.update_touch_buttons();
 		// Sichtbarkeit beeinflusst nur Three.js-Gruppen, nicht die Kollisionsindizes.
 		this.visibility_rules = VisibilityRegions.resolve(level.layers);
+		// Bewegungsbereiche: swimming, floating, other gravity, currents (player only)
+		this.movement_regions = typeof MovementRegions !== 'undefined' ? MovementRegions.resolve(level) : null;
 		VisibilityRegions.prepare(this.visibility_rules, this.layers);
 		this.update_layer_visibility(true);
 		// console.log(this.minx, this.maxx, this.miny, this.maxy);
