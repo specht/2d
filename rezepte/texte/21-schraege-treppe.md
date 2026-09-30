@@ -2,6 +2,7 @@
 titel: Schrägen und Treppen
 kategorie: Welt bauen
 stufe: 1
+skala: 2
 kurz: Pip läuft einen Hang hinauf, nimmt die Treppe – und wieder zurück.
 schleife: true
 szene:

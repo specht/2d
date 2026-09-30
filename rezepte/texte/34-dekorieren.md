@@ -2,6 +2,7 @@
 titel: Level dekorieren
 kategorie: Level gestalten
 stufe: 2
+skala: 2
 kurz: Moos, Ranken und Fackeln liegen als durchsichtige Sprites auf derselben Mauer.
 farben: 256
 schleife: true

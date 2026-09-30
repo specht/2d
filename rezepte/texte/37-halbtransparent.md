@@ -2,6 +2,7 @@
 titel: Halbdurchsichtige Sprites
 kategorie: Level gestalten
 stufe: 2
+skala: 2
 kurz: Wasser, Licht, Glas und Geister – Farben, durch die man hindurchsieht, und Mischmodi zum Leuchten.
 # a little less floor, a little more sky
 bild_hoch: 0.5

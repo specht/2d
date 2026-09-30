@@ -3,7 +3,7 @@ titel: Ein Hai, der dich jagt
 kategorie: Wasser & Weltall
 stufe: 3
 kurz: Auch Gegner können schwimmen. Der Hai patrouilliert am Grund, entdeckt Pip und schwimmt ihr in alle Richtungen nach – nur aus dem Wasser kommt er nicht.
-skala: 2
+skala: 4
 # the gallery card: the shark hunts Pip, she swims up and away
 standbild: 2.0
 szene:

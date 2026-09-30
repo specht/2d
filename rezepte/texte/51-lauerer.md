@@ -2,6 +2,7 @@
 titel: Der Lauerer stürmt los
 kategorie: Gegner
 stufe: 3
+skala: 4
 farben: 256
 kurz: Im hohen Gras lauert der Keiler – man sieht nur seinen Rücken. Dann rast er los. Wer im richtigen Moment springt, lässt ihn gegen die Wand donnern – und läuft in Ruhe weiter.
 szene:

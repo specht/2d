@@ -2,6 +2,7 @@
 titel: Bröckelnde Steine
 kategorie: Welt bauen
 stufe: 2
+skala: 2
 kurz: Die Brücke hält nur kurz – wer stehen bleibt, fällt mit den Steinen hinunter.
 szene:
   karte: |

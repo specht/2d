@@ -2,6 +2,7 @@
 titel: Farben, die Stimmung machen
 kategorie: Level gestalten
 stufe: 2
+skala: 2
 kurz: Derselbe Leuchtturm, dieselbe Pip – nur eine andere Palette. Und plötzlich ist es Abend, Nacht, Sturm oder ein Traum.
 # The recording (and the gallery card) shows the night; every palette also
 # appears as a recording of its own in the text, one after another (variante:0 …).

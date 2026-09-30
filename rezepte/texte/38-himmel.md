@@ -2,6 +2,7 @@
 titel: Himmel mit Farbverlauf
 kategorie: Level gestalten
 stufe: 1
+skala: 2
 kurz: Tag, Sonnenuntergang, Sternennacht – der Himmel ist ein Farbverlauf, auf Wunsch knusprig gepixelt.
 farben: 256
 szene:

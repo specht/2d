@@ -2,6 +2,7 @@
 titel: Bomben legen
 kategorie: Kampf
 stufe: 3
+skala: 2
 kurz: Bombe ablegen, schnell weglaufen – Bumm!
 szene:
   legende: { P: pip_bombe }

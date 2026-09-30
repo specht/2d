@@ -4,7 +4,7 @@ kategorie: Level gestalten
 stufe: 3
 kurz: Ferne Berge ziehen langsam vorbei, nahe Tannen schneller – so wirkt die Welt tief.
 farben: 256
-skala: 2
+skala: 4
 schritte: 2             # two simulation steps per frame: half the file size
 szene:
   himmel: ['#41a6f6', '#73eff7']

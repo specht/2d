@@ -2,6 +2,7 @@
 titel: Frosch und Fledermaus
 kategorie: Gegner
 stufe: 2
+skala: 4
 farben: 256
 kurz: Der Frosch kommt nur hüpfend voran, die Fledermaus flattert in Wellen – zwei Verhalten, kein Programmieren.
 szene:

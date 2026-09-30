@@ -2,6 +2,7 @@
 titel: Ein Gegner, der wegläuft
 kategorie: Gegner
 stufe: 2
+skala: 4
 kurz: Die Maus hat den Schlüssel stibitzt! Kommt Pip zu nah, rennt sie davon – wer sie einholt, bekommt den Schlüssel zurück.
 szene:
   anpassen:

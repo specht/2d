@@ -3,7 +3,7 @@ titel: Ein Fisch als Spielfigur
 kategorie: Wasser & Weltall
 stufe: 2
 kurz: Das ganze Level ist Wasser. Der Fisch schwimmt in alle Richtungen, eine Strömung schießt ihn durch einen Tunnel und eine Blubbersäule trägt ihn nach oben.
-skala: 2
+skala: 4
 schritte: 2
 # the gallery card: the fish shoots through the tunnel
 standbild: 2.1

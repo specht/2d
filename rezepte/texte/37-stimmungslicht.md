@@ -2,6 +2,7 @@
 titel: Licht, das lockt
 kategorie: Level gestalten
 stufe: 3
+skala: 2
 kurz: Eine dunkle Straße, ein Haus mit hellen Fenstern und eine offene Tür im warmen Licht – so wird aus einem Level ein Ort, an den man hinwill.
 szene:
   himmel: ['#1a1c2c', '#29366f']

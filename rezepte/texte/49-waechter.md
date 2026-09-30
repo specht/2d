@@ -2,6 +2,7 @@
 titel: Ein Gegner, der Wache läuft
 kategorie: Gegner
 stufe: 1
+skala: 4
 kurz: Der Glibber ist ein Wächter. Er läuft hin und her – auf dem Boden in seinem Bereich, oben auf der Plattform bis zur Kante.
 szene:
   anpassen:

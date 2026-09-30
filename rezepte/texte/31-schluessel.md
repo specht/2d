@@ -2,6 +2,7 @@
 titel: Schlüssel und verschlossene Tür
 kategorie: Türen & Schlüssel
 stufe: 2
+skala: 2
 kurz: Erst den Schlüssel holen – dann öffnet sich die Tür in der Mauer von selbst.
 szene:
   legende:

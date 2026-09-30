@@ -4,6 +4,8 @@ kategorie: Kampf
 stufe: 2
 kurz: Mit K fliegen Pfeile – im hohen Bogen über die Strohballen oder geradeaus, und immer mitten ins Ziel.
 standbild: 1.55
+skala: 2
+schritte: 2
 szene:
   # Pip shoots at 45° with gravity: the arrows arc over the hay bales and come
   # down at their start height – exactly into the white centre of the dummy's

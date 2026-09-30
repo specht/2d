@@ -2,6 +2,7 @@
 titel: Münzen einsammeln
 kategorie: Welt bauen
 stufe: 1
+skala: 2
 kurz: Münzen verschwinden beim Berühren und bringen Punkte.
 szene:
   karte: |

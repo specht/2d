@@ -1962,7 +1962,7 @@ a, a:visited {
 .rezept-szene img {
     display: block;
     width: 100%;
-    max-width: 640px;
+    /* max-width: 640px; */
     height: auto;
     image-rendering: pixelated;
     border-radius: 8px;

@@ -3,6 +3,7 @@ id: licht-und-schatten
 titel: Licht und Schatten
 kategorie: Level gestalten
 stufe: 3
+skala: 2
 kurz: Mit dem Mischmodus leuchten Fackeln wirklich, und ein Schatten macht alles darunter dunkler – auch die Figur.
 szene:
   himmel: ['#1a1c2c', '#333c57']

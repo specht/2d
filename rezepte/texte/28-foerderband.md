@@ -4,7 +4,7 @@ kategorie: Welt bauen
 stufe: 2
 kurz: Am Flughafen muss Pip nicht laufen. Das Laufband trägt sie durch die Halle, die Rolltreppe hinauf zu den Gates.
 tasten_zeigen: true
-skala: 2
+skala: 4
 # the camera shows the whole terminal, down to its floor
 bild_hoch: 1
 schritte: 2

@@ -2,6 +2,7 @@
 titel: Steine im Bogen werfen
 kategorie: Kampf
 stufe: 3
+skala: 2
 kurz: Mit Schwerkraft fliegt der Stein im Bogen nach unten.
 szene:
   legende: { P: pip_wurf }

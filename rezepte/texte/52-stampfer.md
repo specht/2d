@@ -2,7 +2,7 @@
 titel: Der Stampfer kracht herunter
 kategorie: Gegner
 stufe: 2
-skala: 2
+skala: 4
 kurz: Steinklötze hängen an der Decke. Läuft Pip darunter durch, krachen sie herunter – einer hebt sich wieder, der andere bleibt liegen.
 szene:
   anpassen:

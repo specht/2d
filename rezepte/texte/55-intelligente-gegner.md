@@ -3,7 +3,7 @@ titel: Intelligente Gegner
 kategorie: Gegner
 stufe: 3
 kurz: Der Waschbär lässt sich nicht abhängen. Pip springt über eine Lücke, über einen Stein und klettert eine Leiter hoch – und der Waschbär macht alles nach.
-skala: 2
+skala: 4
 schritte: 2
 # the gallery card: the raccoon has caught up with Pip
 standbild: 6.4
