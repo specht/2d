@@ -104,8 +104,12 @@ const MovementRegions = (() => {
     function fluid_step(v, input, p, env) {
         const response = Math.max(0.01, 1 - p.glide / 100);
         const vmax = env.vrun * p.speed;
-        const tx = (input.x || 0) * vmax + p.current.x;
-        const ty = (input.y || 0) * vmax + p.current.y;
+        // two arrow keys at once swim diagonally – at the same top speed as
+        // straight ahead, not √2 times faster
+        const ix = input.x || 0, iy = input.y || 0;
+        const len = Math.max(1, Math.hypot(ix, iy));
+        const tx = ix / len * vmax + p.current.x;
+        const ty = iy / len * vmax + p.current.y;
         let vx = v.vx + (tx - v.vx) * response;
         let vy = v.vy + (ty - v.vy) * response;
         vy -= env.gravity * p.gravity / 100;
