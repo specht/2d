@@ -5,12 +5,14 @@ stufe: 3
 kurz: Ein schweres U-Boot gleitet durch die Tiefsee. Über einem Schlot zieht ein Sog es schräg nach unten – nur mit voller Kraft kommt es wieder frei.
 skala: 2
 schritte: 2
+# the camera shows the sea down to its floor
+bild_hoch: 1
 # the gallery card: the submarine pulled down by the Sog
 standbild: 3.4
 szene:
   himmel: ['#29366f', '#1a1c2c']
   kamera: { bildhoehe: 144 }
-  legende: { U: u_boot, R: riff, _: sand, o: perle, w: seegras, k: koralle, K: koralle_gruen, V: schlot, l: quallenlicht, Q: qualle }
+  legende: { U: u_boot, R: riff, _: sand, o: perle, w: seegras, k: koralle, K: koralle_gruen, V: schlot, l: quallenlicht, Q: qualle, a: anemone }
   # the whole level is water. The submarine is heavy: it glides on for long
   bewegung: { art: schwimmen, schwerkraft: 0, schwimmzug: 0, tempo: 0.6, gleiten: 96 }
   bewegungsbereiche:
@@ -34,8 +36,8 @@ szene:
         ..............................
         ..............................
         ..............................
-        ...w........................w.
-        .....k....K..V..........k.K...
+        a...........................wa
+        ...w.k....K..V..........k.K...
         ..............................
     - name: Welt
       karte: |

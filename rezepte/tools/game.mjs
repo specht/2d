@@ -261,9 +261,11 @@ export async function build_game(catalog, recipe, repo) {
 
     // Recorded area in world pixels (y grows upwards, like the engine).
     const [ax, ay, aw, ah] = scene.ausschnitt ?? [0, 0, cols, rows];
+    // bild_hoch: the picture moves up by so many tiles (less floor, more sky)
+    const lift = Number(recipe.bild_hoch ?? 0) * TILE;
     const view = {
         x0: ax * TILE, x1: (ax + aw) * TILE,
-        y0: (rows - ay - ah) * TILE, y1: (rows - ay) * TILE,
+        y0: (rows - ay - ah) * TILE + lift, y1: (rows - ay) * TILE + lift,
     };
     // The engine centres the camera on the bounding box of everything placed
     // in collision layers (when that box fits on screen). Choose the screen
@@ -294,7 +296,9 @@ export async function build_game(catalog, recipe, repo) {
     let cam_x = actor ? actor[1] : cx;
     if (bx1 - bx0 > 2 * half_screen_w) cam_x = Math.min(Math.max(cam_x, bx0 + half_screen_w), bx1 - half_screen_w);
     else cam_x = cx;
-    const cam_y = cy;   // levels here are never taller than the screen
+    // levels here are never taller than the screen; with kamera the recorder
+    // lifts the camera by `lift` (record.mjs)
+    const cam_y = cy + (follow ? lift : 0);
     tile_layers.forEach((placed, i) => {
         const p = parallax(i);
         if (!p) return;
@@ -422,7 +426,8 @@ export async function build_game(catalog, recipe, repo) {
                 ...(sky_def.pixel ? { pixelated: true } : {}),
                 ...(sky_def.dither ? { dither: sky_def.dither, dither_levels: sky_def.stufen ?? 8 } : {}),
                 // exactly the scene's height: colour positions (0 = bottom, 1 = top) match the picture
-                rects: [{ left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
+                // (and above it, when the picture is lifted: bild_hoch)
+                rects: [{ left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE + (follow ? 0 : Math.max(0, view.y1 - rows * TILE)) }],
             },
         ],
     };
@@ -442,7 +447,7 @@ export async function build_game(catalog, recipe, repo) {
     data = fix_game_data(data, repo);
     const sheet = await build_spritesheet(frames_by_key, sprites);
     const tag = 'rz' + crypto.createHash('sha1').update(JSON.stringify(data)).digest('hex').slice(0, 5);
-    return { tag, data, sheet, view: view_out, screen_pixel_height, rows, cols };
+    return { tag, data, sheet, view: view_out, screen_pixel_height, rows, cols, camera_lift: follow ? lift : 0 };
 }
 
 // Packs frames like the Ruby renderer: 1 px replicated border, then 4x.

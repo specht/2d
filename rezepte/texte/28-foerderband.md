@@ -5,6 +5,8 @@ stufe: 2
 kurz: Am Flughafen muss Pip nicht laufen. Das Laufband trägt sie durch die Halle, die Rolltreppe hinauf zu den Gates.
 tasten_zeigen: true
 skala: 2
+# the camera shows the whole terminal, down to its floor
+bild_hoch: 1
 schritte: 2
 # the gallery card: Pip on the escalator
 standbild: 4.2
@@ -13,7 +15,7 @@ szene:
   # the terminal is wider than the screen: the camera follows Pip
   kamera: { bildhoehe: 144 }
   legende: { t: vorfeld, w: terminalfenster, s: sitzbank, B: abflugtafel, G: gate_schild, '|': saeule, p: pflanze,
-             '[': gelaender_anfang, '-': gelaender, ']': gelaender_ende, x: rolltreppe_gelaender,
+             '[': gelaender_anfang, '-': gelaender, ']': gelaender_ende, x: rolltreppe_gelaender, y: rolltreppe_gelaender_oben,
              '#': flughafen_boden, a: laufband_anfang, l: laufband, e: laufband_ende,
              r: rolltreppe_flughafen, u: rolltreppe_unter, n: rolltreppe_panel, g: galerie }
   ebenen:
@@ -48,7 +50,7 @@ szene:
       kollision: false
       karte: |
         ..........................
-        ................x--]......
+        ................y--]......
         ...............x..........
         ..............x...........
         ....[----]................

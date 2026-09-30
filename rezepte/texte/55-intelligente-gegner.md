@@ -73,7 +73,7 @@ erwartet:
 ## Schritt für Schritt
 
 1. Mach den Waschbären zum **Gegner** mit dem **Verhalten: Jäger** (siehe *Ein Gegner, der dich verfolgt*). **Sichtweite: 168 px**, **Tempo beim Verfolgen: 2 ×** – er ist deutlich langsamer als Pip, gibt aber nicht auf. **Schaden: 10**: Wenn er sie erwischt, tut es ein bisschen weh.
-2. **Sprungkraft: 7** – so hoch und weit wie Pip.
+2. **Sprungkraft: 5,5** – weniger als Pip. Für die Lücke und den Stein reicht das, aber er springt nicht höher als nötig.
 3. Klick beim Waschbären auf **Eigenschaft hinzufügen** und wähl unter **Fallen und Gegner** die **Intelligenz**.
 4. Setz dort die Häkchen bei **über Lücken springen**, **über Hindernisse springen** und **Leitern klettern**.
 5. **gibt auf nach: 5 s.** Während Pip oben ist, sieht er sie nicht. So lange sucht er trotzdem weiter.

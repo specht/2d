@@ -87,7 +87,7 @@ export async function record(browser, repo, game, recipe) {
     });
     await page.goto('http://rezepte.local/standalone');
     await page.waitForFunction(() => window.game && typeof shaders !== 'undefined' && shaders?.shaders?.['texture.fs']);
-    await page.evaluate(async (tag) => {
+    await page.evaluate(async ({ tag, lift }) => {
         window.requestAnimationFrame = () => 0;      // we call render() ourselves
         const g = window.game;
         await g.load(tag);
@@ -100,7 +100,10 @@ export async function record(browser, repo, game, recipe) {
         g.frame = 0;
         g.running = true;
         $('#overlay').hide(); $('#screen').show(); $('#stats').hide();
-    }, game.tag);
+        // bild_hoch with kamera: the engine centres the camera on the level's
+        // bounds (when they fit on the screen) – lift them, and the camera with them
+        if (lift) { g.miny += lift; g.maxy += lift; }
+    }, { tag: game.tag, lift: game.camera_lift ?? 0 });
 
     const events = key_events(recipe.ablauf);
     const duration = Number(recipe.dauer ?? 4);

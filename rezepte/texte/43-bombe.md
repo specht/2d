@@ -34,7 +34,7 @@ erwartet:
 - **Das musst du zeichnen:** eine Bombe.
 - **Das kannst du später dazumalen:** eine Zündschnur-Animation und eine Explosion.
 
-![Zündschnur](katalog:welt/bombe_zuendschnur 8)
+![Zündschnur](katalog:welt/bombe_zuendschnur 5)
 ![Explosion](katalog:welt/bombe_explosion 12)
 
 ## Schritt für Schritt
@@ -51,7 +51,7 @@ erwartet:
 
 - Mit **Geschwindigkeit** größer als 0 wird die Bombe geworfen – eine Granate.
 - **Bodenerschütterung** lässt die Kamera wackeln – je näher die Figur an der Explosion steht, desto stärker. Pip benutzt 12: ein richtiger Rums.
-- Die Zündschnur läuft einmal ab und bleibt beim letzten Bild stehen, bis es knallt.
+- Die Zündschnur läuft einmal ab und bleibt beim letzten Bild stehen, bis es knallt. Damit man sie abbrennen sieht, verteil ihre Bilder über die ganze **Zündzeit**: hier 8 Bilder mit **5 Bildern pro Sekunde** – das sind 1,6 Sekunden, genau die Zündzeit.
 
 ## Wenn's nicht klappt
 

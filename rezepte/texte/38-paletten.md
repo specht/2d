@@ -7,11 +7,14 @@ kurz: Derselbe Leuchtturm, dieselbe Pip – nur eine andere Palette. Und plötzl
 # appears as a recording of its own in the text, one after another (variante:0 …).
 einzelbilder: true
 standbild: 1.5
+# a little less sea, a little more sky
+bild_hoch: 0.5
 szene:
   palette: Nyx8
   himmel: ['#08141e', '#20394f']
-  legende: { T: leuchtturm, K: klippe, F: fels, '=': steg, '|': stegpfosten, '~': meer, B: boot, o: sonne, C: schaefchenwolke }
+  legende: { T: leuchtturm, K: klippe, F: fels, '=': steg, '|': stegpfosten, '~': meer, B: boot_im_wasser, o: sonne, C: schaefchenwolke }
   ebenen:
+    # the pier's posts and the boat stand in the water: behind the waves
     - name: Hintergrund
       kollision: false
       karte: |
@@ -19,8 +22,8 @@ szene:
         ...C........
         ............
         .T..........
+        .....|..|...
         .....|..|.B.
-        ............
     - name: Welt
       karte: |
         ............

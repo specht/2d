@@ -5,7 +5,7 @@ stufe: 3
 kurz: Eine dunkle Straße, ein Haus mit hellen Fenstern und eine offene Tür im warmen Licht – so wird aus einem Level ein Ort, an den man hinwill.
 szene:
   himmel: ['#1a1c2c', '#29366f']
-  legende: { L: hausfront_licht, '%': dachschatten, '6': wandlampe, '7': wandlampe_aus }
+  legende: { L: hausfront_licht, '%': dachschatten, '6': wandlampe, '7': wandlampe_aus, Y: laternenlicht }
   ebenen:
     - name: Hintergrund
       kollision: false
@@ -146,7 +146,7 @@ erwartet:
 - **Das kannst du später dazumalen:** einen weichen Schatten für unters Dach und einen runden Lichtschein.
 
 ![Fensterlicht](katalog:welt/hausfront_licht)
-![Lichtkegel](katalog:welt/lichtkegel)
+![Laternenlicht](katalog:welt/laternenlicht)
 ![Lichtschein](katalog:welt/leuchtschein)
 ![Wandlampe](katalog:welt/wandlampe)
 ![Wandlampe aus](katalog:welt/wandlampe_aus)
