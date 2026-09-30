@@ -67,9 +67,12 @@ erwartet:
 ## Das brauchst du
 
 - **Das musst du zeichnen:** halbdurchsichtiges Wasser, eine Wasseroberfläche, einen Meeresboden und einen Steg.
-- **Das kannst du später dazumalen:** ein Bild, auf dem die Figur schwimmt (**Spielfigur schwimmt**), Perlen zum Einsammeln, Seegras und Korallen.
+- **Das kannst du später dazumalen:** Bilder, auf denen die Figur schwimmt, abtaucht, auftaucht und im Wasser treibt, Perlen zum Einsammeln, Seegras und Korallen.
 
 ![Pip schwimmt](katalog:pip/schwimmen 8)
+![Pip taucht ab](katalog:pip/abtauchen 8)
+![Pip taucht auf](katalog:pip/auftauchen 8)
+![Pip treibt](katalog:pip/treiben 4)
 ![Perle](katalog:meer/perle 4)
 ![Seegras](katalog:meer/seegras 4)
 ![Koralle](katalog:meer/koralle)
@@ -81,7 +84,7 @@ erwartet:
 2. **Das Wasser:** eine eigene Ebene ohne **Kollisionen erkennen**, in der Layer-Liste **vor** der Figur. Die Wasser-Sprites sind halbdurchsichtig – so sieht man Pip darin. Ganz oben liegt die Wasseroberfläche mit den Wellen.
 3. **Der Bewegungsbereich:** Neue Ebene über **+ → Bewegungsbereich** mit **Bewegung: Schwimmen**. Zieh das Rechteck über das ganze Wasser. Oben endet es **knapp unter der Wasseroberfläche**. Es zählt die **Mitte** der Figur: Liegt sie im Rechteck, schwimmt die Figur.
 4. Die Einstellungen sind am Anfang schon gut: **Schwerkraft 20 %** (Pip sinkt langsam), **Gleiten 90 %** (sie treibt noch ein Stück weiter, wenn du loslässt), **Tempo 0,8 ×** (im Wasser ist sie etwas langsamer) und **Schwimmzug 0,6 ×** (so kräftig ist ein Zug mit der Sprungtaste).
-5. **Pip schwimmt:** Gib Pip einen Zustand **Spielfigur schwimmt nach rechts** – sie liegt im Wasser und strampelt. Ohne dieses Bild nimmt das Spiel die Bilder fürs Laufen, Springen und Fallen.
+5. **Pip schwimmt:** Gib Pip einen Zustand **Spielfigur schwimmt nach rechts** – sie liegt im Wasser und strampelt. Wer mag, zeichnet noch mehr: **Spielfigur taucht ab** (Kopf voran nach unten, mit ↓), **Spielfigur taucht auf** (mit ↑ und nach einem Schwimmzug) und **Spielfigur treibt** (aufrecht, wenn du nichts drückst). Was fehlt, ersetzt das Spiel durch **schwimmt** – und ganz ohne Schwimm-Bilder nimmt es die Bilder fürs Laufen, Springen und Fallen. Auf dem Meeresgrund läuft und steht Pip wie an Land.
 6. **Tiefe:** Neue Ebene über **+ → Hintergrund**, **Art: Farbe**, von Hellblau oben nach Dunkelblau unten, **Mischmodus: Abdunkeln**, nur über dem Wasser. Je tiefer, desto dunkler – auch Pip. Ein paar **Blasen** (Art: Effekt) machen das Wasser lebendig.
 7. Probier es aus: Pip springt vom Steg, sinkt ins Wasser und schwimmt zu den Perlen. Mit **↑** schwimmt sie nach oben, und an der Oberfläche springt sie mit der **Sprungtaste** hinaus auf den Felsen.
 
@@ -92,7 +95,7 @@ erwartet:
 - Springt Pip von hoch oben ins Wasser, bremst das Wasser sie kräftig ab. Sie landet nicht gleich auf dem Boden, sondern taucht ein.
 - Mehr **Schwerkraft** lässt die Figur schneller sinken (ein Taucher mit Bleigürtel), bei **0 %** schwebt sie im Wasser und sinkt gar nicht.
 - **Luftblase:** Ein zweiter Bewegungsbereich mit **Laufen – andere Schwerkraft** (100 %) mitten im Wasser wird zu einer Höhle voller Luft. Liegen Bereiche übereinander, gilt der vorderste.
-- Gegner merken von Bewegungsbereichen nichts. Fische und Quallen bekommen das Verhalten **Flatterer** – die schwimmen sowieso.
+- Auch Gegner schwimmen im Bewegungsbereich – ein **Jäger** sogar hinter dir her (Rezept *Ein Hai, der dich jagt*). Quallen, die nur auf und ab treiben, bekommen das Verhalten **Flatterer**.
 
 ## Wenn's nicht klappt
 

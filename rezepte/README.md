@@ -320,9 +320,12 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `treffer`, `tot` – its bullseye sits exactly at arrow height, 10 px
   above the ground). `strohballen` (solid hay bale for the training ground).
 * **Meer** (`meer/`, recipes *Pip taucht*, *Ein Fisch als Spielfigur*, *Das
-  U-Boot und der Sog*): `pip_taucher` (Pip with `pip/schwimmen`, state
-  *Spielfigur schwimmt*), `fisch` and `u_boot` (48×24) as player characters,
-  `qualle` (Flatterer, damage 10), `perle` (pickup), `sand` and `riff`
+  U-Boot und der Sog*, *Ein Hai, der dich jagt*): `pip_taucher` (Pip with
+  `pip/schwimmen`, `treiben`, `abtauchen`, `auftauchen` – states *Spielfigur
+  schwimmt / treibt / taucht ab / taucht auf*), `fisch` (also `fisch_ab`,
+  `fisch_auf`) and `u_boot` (48×24) as player characters,
+  `qualle` (Flatterer, damage 10), `hai` (48×24, a hunter that swims after
+  the player; no gravity, so it patrols at its depth), `perle` (pickup), `sand` and `riff`
   (solid), `seegras` (24×48, swaying), `koralle`, `koralle_gruen`, `truhe`,
   `schlot` (48×24), `quallenlicht` (Leuchten).
 * **Weltall** (`weltall/`, recipe *Schweben im Weltall*): `astronaut` (Pip in a

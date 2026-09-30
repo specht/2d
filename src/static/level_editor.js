@@ -1075,7 +1075,7 @@ class LevelEditor {
                 'Schweben: keine Schwerkraft, die Figur gleitet lange weiter – wie im Weltall. ' +
                 'Laufen – andere Schwerkraft: laufen und springen wie immer, aber leichter oder schwerer (der Mond). ' +
                 (whole_level ? '' : 'Wie darunter: ändert nichts, fügt nur eine Strömung hinzu – ein Sog im Wasser darunter. ') +
-                'Liegen Bereiche übereinander, gilt der vorderste. Die Strömungen aller Bereiche zählen zusammen. Gegner merken von Bewegungsbereichen nichts.',
+                'Liegen Bereiche übereinander, gilt der vorderste. Die Strömungen aller Bereiche zählen zusammen. Gegner, die laufen, schwimmen und schweben hier auch – ein Jäger schwimmt dir in alle Richtungen nach. Aus ihrem Bereich kommen Gegner nicht heraus. Flatterer und Stampfer merken nichts davon.',
             options: modes,
             get: () => current_mode(),
             set: (mode) => {

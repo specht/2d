@@ -518,6 +518,10 @@ sprites:
     extends: pip
     states:
       - { strip: pip/schwimmen, fps: 8, traits: { actor: [swim_right] } }
+      # no key pressed: upright, paddling slowly – and nose down / head up
+      - { strip: pip/treiben, fps: 4, traits: { actor: [drift_right] } }
+      - { strip: pip/abtauchen, fps: 8, traits: { actor: [dive_right] } }
+      - { strip: pip/auftauchen, fps: 8, traits: { actor: [rise_right] } }
   # a fish as the player character: it only swims
   fisch:
     label: Fisch (Spielfigur)
@@ -526,6 +530,8 @@ sprites:
     states:
       - { strip: meer/fisch, fps: 5, traits: { actor: [right] } }
       - { strip: meer/fisch, fps: 10, traits: { actor: [swim_right] } }
+      - { strip: meer/fisch_ab, fps: 10, traits: { actor: [dive_right] } }
+      - { strip: meer/fisch_auf, fps: 10, traits: { actor: [rise_right] } }
   # the submarine as the player character (48 × 24): the propeller turns
   u_boot:
     label: U-Boot (Spielfigur)
@@ -551,6 +557,26 @@ sprites:
         behavior: { type: flutter, height: 20, period: 3.2 }
     states:
       - { strip: meer/qualle, fps: 5, traits: { baddie: [right] } }
+  # a shark (48 × 24): a hunter that swims after the player – and stays in the water
+  hai:
+    label: Hai (Jäger im Wasser)
+    groesse: [48, 24]
+    traits:
+      baddie:
+        energy: 100
+        damage: 20
+        vrun: 1.0
+        # swimming enemies: no gravity, so they patrol at their depth
+        affected_by_gravity: false
+        start_dir: left
+        wait_until_seen: false
+        ex_left: 0.8
+        ex_right: 0.8
+        ex_top: 0.7
+        behavior: { type: hunter, sight: 168, alert: true, chase: 1.8, forget: 3 }
+    states:
+      - { strip: meer/hai, fps: 5, traits: { baddie: [right, walk_right, swim_right] } }
+      - { strip: meer/hai_jagt, fps: 10, traits: { baddie: [hunt_right] } }
   perle:
     label: Perle
     traits: { pickup: { points: 10 } }
