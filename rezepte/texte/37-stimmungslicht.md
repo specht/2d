@@ -137,7 +137,7 @@ erwartet:
 3. Setz das **Fensterlicht** genau auf die Hausfront. Die Scheiben leuchten, der Rest des Hauses bleibt dunkel.
 4. Setz den **Lichtkegel** auf die Laterne und einen **Lichtschein** vor die offene Tür. Die Tür wird zum hellsten Ort im Bild – sie sagt: Komm herein!
 5. **Schatten:** Unter dem Dach ist es dunkler als an der Wand. Leg den **Schatten unterm Dach** in eine Ebene zwischen Nacht und Licht. Er bekommt beim Sprite den **Mischmodus: Abdunkeln**.
-6. Spiel es aus: Rechts von Pip ist die Nacht nur dunkel. Links von ihm gehen die Lichter an – und plötzlich ist es ein Ort, an dem man bleiben möchte.
+6. Probier es aus: Rechts von Pip ist die Nacht nur dunkel. Links von ihm gehen die Lichter an – und plötzlich ist es ein Ort, an dem man bleiben möchte.
 
 ## Was Licht kann
 

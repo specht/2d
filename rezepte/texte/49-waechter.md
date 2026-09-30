@@ -25,7 +25,7 @@ erwartet:
 ---
 ## Kurz gesagt
 
-1. Beim Gegner gibt es **Verhalten**. Der **Wächter** läuft hin und her – so wie Gegner schon immer.
+1. Beim Gegner gibt es **Verhalten**. Der **Wächter** läuft einfach hin und her.
 2. An einer Wand oder einer Kante dreht er um. Mit **Bereich** entfernt er sich höchstens so viele Blöcke von seinem Startplatz.
 3. Er jagt nicht und flieht nicht: Wer sein Muster kennt, kommt vorbei.
 
@@ -43,7 +43,7 @@ erwartet:
 3. **Bereich: 2 Blöcke.** Der Glibber unten läuft nur zwei Blöcke nach links und zwei nach rechts – er bewacht eine Stelle.
 4. Kommt vorher eine Wand oder Kante, dreht er schon dort um. Der Glibber auf der kurzen Plattform läuft deshalb nur von Kante zu Kante und fällt nie herunter. **Bereich: 0** heißt: immer bis zur nächsten Wand oder Kante.
 5. **Schaden: 30.** Berührt die Figur den Wächter, verliert sie Energie.
-6. Spiel es aus: Pip springt im richtigen Moment über den Glibber – oben auf der Plattform läuft der andere von Kante zu Kante.
+6. Probier es aus: Pip springt im richtigen Moment über den Glibber – oben auf der Plattform läuft der andere von Kante zu Kante.
 
 ## Mit Intelligenz
 

@@ -13,7 +13,7 @@
 const BADDIE_BEHAVIORS = {
     guard: {
         label: 'Wächter',
-        hint: 'Läuft hin und her und bewacht ein Gebiet – so wie Gegner schon immer. Ohne Schwerkraft fliegt er geradeaus hin und her.',
+        hint: 'Läuft hin und her und bewacht ein Gebiet. Ohne Schwerkraft fliegt er geradeaus hin und her.',
         settings: {
             range: { label: 'Bereich', hint: 'So viele Blöcke läuft der Wächter höchstens von seinem Startplatz weg. 0 bedeutet: bis zur nächsten Wand oder Kante.', min: 0, max: 100, step: 1, decimalPlaces: 0, suffix: 'Blöcke', default: 0 },
         },

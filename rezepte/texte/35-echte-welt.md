@@ -71,7 +71,7 @@ dauer: 4.5
 3. Unter Plattformen, die auf dem Boden stehen könnten: Pfosten oder Pfeiler bis ganz nach unten.
 4. Über Plattformen, die hoch oben hängen: Ketten bis zum oberen Bildrand oder bis zu einer Decke.
 5. Unter die oberste Bodenreihe: Erde, bis das Bild zu Ende ist. Dann steht die Welt auf festem Grund.
-6. Spiel es aus: Das Level spielt sich genauso, sieht aber viel echter aus.
+6. Probier es aus: Das Level spielt sich genauso, sieht aber viel echter aus.
 
 ## Tipps
 

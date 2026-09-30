@@ -25,7 +25,7 @@ dauer: 5.0
 
 1. Zeichne eine Leiter und gib ihr die Eigenschaft *man kann dran hoch- und runterklettern*.
 2. Stapel die Leiter im Level bis zur Plattform.
-3. Zeichne ein Kletterbild, das deine Figur **von hinten** zeigt.
+3. Zeichne ein Kletterbild, das deine Figur **von hinten** zeigt, und gib ihm die Eigenschaft *Spielfigur klettert*.
 
 ## Das brauchst du
 
@@ -39,21 +39,22 @@ dauer: 5.0
 1. Zeichne die Leiter so, dass sie nach oben und unten nahtlos weitergeht.
 2. **Eigenschaft hinzufügen → Leitern → man kann dran hoch- und runterklettern**. Lass **Figur zentrieren** an.
 3. Bau im **Level** die Leiter von unten bis auf die Höhe der Plattform. Das oberste Leiterstück liegt direkt neben der Plattform.
-4. Bei deiner Figur: neuer Zustand „Klettern“, dann **Eigenschaft hinzufügen → Spielfigur → Stehen → Spielfigur schaut nach hinten**.
-5. Spiel es aus: Pfeil nach oben (oder W) zum Hochklettern, Pfeil nach unten (oder S) zum Runterklettern.
+4. Bei deiner Figur: neuer Zustand „Klettern“, dann **Eigenschaft hinzufügen → Spielfigur → Spielfigur klettert**.
+5. Probier es aus: Pfeil nach oben (oder W) zum Hochklettern, Pfeil nach unten (oder S) zum Runterklettern.
 
-> **Achtung:** Beim Klettern schaut die Figur für das Spiel *nach hinten*. Deshalb gehört die Kletteranimation zu **Spielfigur schaut nach hinten** – nicht zu *läuft*.
+> **Achtung:** Die Kletteranimation gehört zu **Spielfigur klettert** – nicht zu *läuft* und nicht zu *schaut nach hinten*. So kann deine Figur ein eigenes Bild haben, auf dem sie nur von hinten dasteht, zum Beispiel vor einer Tür.
 
 ## Tipps
 
 - Oben auf der Leiter kann deine Figur stehen wie auf einem Block. Mit Pfeil nach unten klettert sie wieder runter.
-- Die Kletteranimation läuft auch weiter, wenn die Figur auf der Leiter stillhält. Zwei ruhige Frames sehen darum besser aus als sechs wilde.
+- Hält die Figur mitten auf der Leiter still, bleibt die Kletteranimation stehen. Sobald sie weiterklettert, geht die Animation weiter.
+- Gegner können auch klettern (siehe *Intelligente Gegner*). Ihr Zustand heißt **Gegner klettert**.
 
 ## Wenn's nicht klappt
 
 - **Die Figur klettert nicht:** Sie muss die Leiter berühren. Stell sie direkt davor, nicht daneben.
 - **Oben geht es nicht weiter:** Die Leiter muss genau so hoch sein wie die Plattform – nicht niedriger.
-- **Beim Klettern sieht man das Stehbild:** Dem Kletter-Zustand fehlt *Spielfigur schaut nach hinten*.
+- **Beim Klettern sieht man das Stehbild:** Dem Kletter-Zustand fehlt *Spielfigur klettert*. Ohne ihn zeigt das Spiel das Bild für *schaut nach hinten* – oder, wenn es das auch nicht gibt, das Stehbild.
 - **Die Figur springt seitlich weg:** Schalte **Figur zentrieren** ein.
 
 ## Mach mehr draus

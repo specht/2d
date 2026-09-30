@@ -99,7 +99,7 @@ erwartet:
 5. **Fenster:** In die Mauer kommt ein Stein mit einem Loch. Dahinter liegt eine Ebene mit einer dunklen Tapete – das Zimmer. Die Glasscheibe liegt in einer Ebene **vor** der Mauer und bekommt den **Mischmodus: Abdunkeln**. So färbt sie alles dahinter leicht türkis.
 6. **Geist:** Ein ganz normaler Gegner mit dem Verhalten **Wächter** und einem kleinen **Bereich**. Er liegt in einer eigenen Ebene zwischen Zimmer und Mauer – man sieht ihn nur durch die Fenster. Mit dem **Mischmodus: Aufhellen** schimmert er wie Nebel.
 7. Leg Wasser, Licht und Glas in eine Ebene ohne **Kollisionen erkennen**. In der Layer-Liste steht sie **über** der Ebene mit der Figur.
-8. Spiel es aus: Pip läuft durchs Licht, watet durchs Wasser und wird dabei blau – und im Haus schwebt jemand am Fenster vorbei.
+8. Probier es aus: Pip läuft durchs Licht, watet durchs Wasser und wird dabei blau – und im Haus schwebt jemand am Fenster vorbei.
 
 ## Die Mischmodi
 

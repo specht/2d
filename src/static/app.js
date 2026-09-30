@@ -179,6 +179,17 @@ class Character {
                 poses[d] ??= { ...fallback };
             this.sti_for_state[kind] = poses;
         }
+		// Klettern: an optional state for climbing a ladder, the same for every
+		// direction (a climber is seen from behind). Without it, climbing shows
+		// the back-facing state – old games look exactly as before.
+		for (let sti = 0; sti < this.sprite.states.length; sti++) {
+			if ('climb' in (this.sprite.states[sti].traits?.[this.character_trait] ?? {})) {
+				this.sti_for_state.climb = {};
+				for (let d of ['front', 'back', 'left', 'right'])
+					this.sti_for_state.climb[d] = { sti, confidence: 300, flipped: false };
+				break;
+			}
+		}
 		console.log(this.sti_for_state);
 
 
@@ -502,6 +513,14 @@ void main() {
 		// animate character if there's more than one frame
 		if (this.game.data.sprites[this.sprite_index].states[sti].frames.length > 0) {
 			let fi = Math.floor((this.game.clock.getElapsedTime() - this.t0) * this.sprite.states[sti].properties.fps) % this.sprite.states[sti].frames.length;
+			if (state === 'climb') {
+				// holding still on the ladder: keep the frame, go on from it later
+				if (this.climb_hold) {
+					fi = this.climb_frame ?? 0;
+					this.t0 = this.game.clock.getElapsedTime() - (fi + 0.5) / (this.sprite.states[sti].properties.fps || 1);
+				}
+				this.climb_frame = fi;
+			}
             if (state === 'dead' || state === 'attack' || state === 'hit' || state === 'landed') {
                 // Death and optional combat poses play once; never loop.
                 fi = Math.floor((this.game.clock.getElapsedTime() - this.t0) * this.sprite.states[sti].properties.fps);
@@ -1141,6 +1160,18 @@ void main() {
 		dy = this.try_move_y(dy);
 		if (climbing && Math.abs(dy) > 0.1)
 			direction = 'back';
+		// "klettert" (if the sprite has it): while climbing – and while holding
+		// still in the middle of a ladder, with the animation paused.
+		this.climb_hold = false;
+		if (this.sti_for_state.climb && state !== 'dead' && state !== 'attack' && state !== 'hit') {
+			if (climbing && Math.abs(dy) > 0.1) {
+				state = 'climb';
+			} else if (this.state === 'climb' && Math.abs(dx) < 0.1 && !this.standing_on_block_top() &&
+				this.has_trait_at(['ladder'], -0.5, 0.5, 0.1, 1.1)) {
+				state = 'climb';
+				this.climb_hold = true;
+			}
+		}
 		if (this.ai_dy) {
 			// Flying and stomping enemies move themselves; this is not climbing.
 			const moved = this.try_move_y(this.ai_dy);

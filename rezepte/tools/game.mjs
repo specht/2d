@@ -316,6 +316,7 @@ export async function build_game(catalog, recipe, repo) {
         rain: [[0.5, 0.0], [0.5, -0.1]], clouds: [[0.5, 0.0], [0.5, -0.1]],
         fireflies: [[0.5, 0.0], [0.5, -0.1]], bubbles: [[0.5, 0.0], [0.5, -0.1]],
         dust: [[0.5, 0.0], [0.5, -0.1]],
+        lightning: [[0.5, 1.0], [0.5, 0.15]],
     };
     const effect_layer = e => {
         // effekt: farbe – a colour backdrop in front, e.g. with mischmodus: abdunkeln
@@ -338,6 +339,10 @@ export async function build_game(catalog, recipe, repo) {
             color: e.farbe ?? '#ffffffff', control_points: e.punkte ?? EFFECT_POINTS[e.effekt],
             ...(e.pixel ? { pixelated: true } : {}),
             ...(e.menge !== undefined ? { density: Number(e.menge) } : {}),
+            // Gewitter: blitz_alle (s), himmel_leuchtet (0…1), blitze (false = Wetterleuchten)
+            ...(e.blitz_alle !== undefined ? { lightning_interval: Number(e.blitz_alle) } : {}),
+            ...(e.himmel_leuchtet !== undefined ? { lightning_glow: Number(e.himmel_leuchtet) } : {}),
+            ...(e.blitze !== undefined ? { lightning_bolts: Boolean(e.blitze) } : {}),
             ...(e.mischmodus ? { properties: { name: e.name ?? e.effekt, blend: blend_of(e.mischmodus, `${recipe.id}: `) } } : {}),
             // bereich: [column, row from top, width, height] in tiles – e.g. only the air above the ground
             rects: [e.bereich ?

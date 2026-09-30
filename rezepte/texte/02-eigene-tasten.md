@@ -42,7 +42,7 @@ erwartet:
 3. Bei **Nahkampf** klickst du auf **J** und drückst **Strg links**.
 4. Jede Aktion kann **zwei** Tasten haben. Klick auf **+**, um eine zweite dazuzunehmen.
 5. Eine Taste wieder loswerden: draufklicken und **Entf** drücken. **Esc** bricht ab, ohne etwas zu ändern.
-6. Spiel es aus. Klappt etwas nicht, bringt **Standard-Tasten** alles zurück.
+6. Probier es aus. Klappt etwas nicht, bringt **Standard-Tasten** alles zurück.
 
 ## Tipps
 

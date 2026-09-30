@@ -98,7 +98,7 @@ erwartet:
 2. Leg vier Ebenen ohne **Kollisionen erkennen** an und schieb sie in der Layer-Liste **über** die Ebene mit der Figur.
 3. Stell bei den Ebenen den **Mischmodus** ein: **Normal**, **Leuchten**, **Aufhellen** und **Abdunkeln**.
 4. Setz in jede Ebene zwei Kreise übereinander: einen vor den Himmel, einen vor die Mauer.
-5. Spiel es aus: Pip läuft durch alle vier Kreise. Im Normal-Kreis verschwindet er, im Leuchten-Kreis wird er grell, im Aufhellen-Kreis schimmert er, im Abdunkeln-Kreis wird er dunkel und rötlich.
+5. Probier es aus: Pip läuft durch alle vier Kreise. Im Normal-Kreis verschwindet er, im Leuchten-Kreis wird er grell, im Aufhellen-Kreis schimmert er, im Abdunkeln-Kreis wird er dunkel und rötlich.
 
 ## So rechnet der Computer
 

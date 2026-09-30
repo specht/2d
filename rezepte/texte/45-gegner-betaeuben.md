@@ -40,11 +40,11 @@ erwartet:
 2. Wähl den Gegner aus und schau bei **Gegner** in die Eigenschaften.
 3. Stell **Energie** höher, zum Beispiel **60**. Dann reicht ein Schlag nicht.
 4. Stell **Pause nach Treffer** auf **1,0 s**.
-5. Spiel es aus: Schlag zu, warte kurz, schlag noch einmal. Der Glibber bleibt nach jedem Treffer stehen.
+5. Probier es aus: Schlag zu, warte kurz, schlag noch einmal. Der Glibber bleibt nach jedem Treffer stehen.
 
 ## Tipps
 
-> **Tipp:** Die Pause ist bei **0** ausgeschaltet – so verhalten sich alle Gegner in älteren Spielen weiter wie gewohnt.
+> **Tipp:** Bei **0** ist die Pause ausgeschaltet: Der Gegner macht nach einem Treffer einfach weiter.
 
 - Eine kurze Pause (0,3 bis 0,5 s) fühlt sich wie ein Rückstoß an. Eine lange (über 1 s) macht den Gegner benommen – dann wird es leicht.
 - Große Bossgegner werden fairer, wenn man nach einem Treffer kurz durchatmen kann.

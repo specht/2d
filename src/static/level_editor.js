@@ -985,6 +985,22 @@ class LevelEditor {
                         },
                     });
                 }
+                // settings of this effect only (Gewitter: how often, how bright …)
+                for (const [key, option] of Object.entries(BACKDROP_EFFECT_OPTIONS[backdrop.effect] ?? {})) {
+                    const set = (x) => {
+                        backdrop[key] = x;
+                        self.refresh();
+                        self.render();
+                    };
+                    if (option.type === 'bool') {
+                        new CheckboxWidget({ container: $('#menu_layer_properties'), label: option.label, hint: option.hint,
+                            get: () => backdrop_effect_option(backdrop, key), set: (x) => set(Boolean(x)) });
+                    } else {
+                        new NumberWidget({ container: $('#menu_layer_properties'), label: option.label, hint: option.hint,
+                            min: option.min, max: option.max, step: option.step, decimalPlaces: option.decimalPlaces, suffix: option.suffix,
+                            get: () => backdrop_effect_option(backdrop, key), set });
+                    }
+                }
             }
             }
         }

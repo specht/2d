@@ -41,7 +41,7 @@ erwartet:
 2. Leg über die Grube eine Reihe **Bröckelsteine**. Links und rechts davon liegt fester Boden.
 3. Beim Bröckelstein: **fällt runter, wenn man drauf steht** mit **fällt nach 0,35 s** – schnell genug, dass die Figur nicht mitfällt, wenn sie weiterläuft.
 4. Stell **Schaden** auf **100**, damit ein Stein den Gegner besiegt.
-5. Spiel es aus: Lauf ohne anzuhalten über die Steine. Hinter dir stürzen sie auf den Glibber.
+5. Probier es aus: Lauf ohne anzuhalten über die Steine. Hinter dir stürzen sie auf den Glibber.
 
 ## Tipps
 

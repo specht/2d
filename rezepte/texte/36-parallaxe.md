@@ -111,7 +111,7 @@ schleife: true
 4. Für jede Tiefe eine eigene Ebene: Wolken, ferne Berge, Berge, Wald, Tannen. Setz die großen Sprites nebeneinander, bis sie das ganze Level füllen.
 5. Stell bei **Layer-Eigenschaften** die **Parallaxe** ein. Pip benutzt: Wolken **0,9**, ferne Berge **0,75**, Berge **0,55**, Wald **0,35**, Tannen **0,15**, die Welt **0**.
 6. Für den Vordergrund: eine Ebene ganz oben in der Layer-Liste mit **Parallaxe −0,35**. Sie zieht schneller vorbei als die Welt.
-7. Spiel es aus und lauf einmal durchs Level. Stell zum Vergleich alle Parallaxen auf 0: Dann klebt alles flach aneinander.
+7. Probier es aus und lauf einmal durchs Level. Stell zum Vergleich alle Parallaxen auf 0: Dann klebt alles flach aneinander.
 
 ## Tipps
 
