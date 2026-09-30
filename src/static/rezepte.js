@@ -54,12 +54,6 @@ class RecipeGallery {
         if (typeof studio_history_push === 'function') studio_history_push({ pane: 'help', ...state });
     }
 
-    stars(level) {
-        const n = Math.max(1, Math.min(3, level ?? 1));
-        return $('<span>').addClass('rezept-stufe').attr('title', ['leicht', 'mittel', 'knifflig'][n - 1])
-            .text('★'.repeat(n) + '☆'.repeat(3 - n));
-    }
-
     // #01, #02, … in gallery order – for orientation ("mach mit Rezept #12 weiter")
     number(recipe) {
         return '#' + String(this.recipes.indexOf(recipe) + 1).padStart(2, '0');
@@ -98,7 +92,7 @@ class RecipeGallery {
             .append($('<span>').addClass('rezept-kategorie')
                 .append($('<span>').addClass('rezept-nummer').text(this.number(recipe)))
                 .append(document.createTextNode(label ?? recipe.kategorie)))
-            .append(label ? '' : this.stars(recipe.stufe)).appendTo(text);
+            .appendTo(text);
         $('<div>').addClass('rezept-titel').text(recipe.titel).appendTo(text);
         if (!label) $('<div>').addClass('rezept-kurz').text(recipe.kurz).appendTo(text);
         return card;
@@ -189,7 +183,7 @@ class RecipeGallery {
             .append($('<span>').addClass('rezept-kategorie')
                 .append($('<span>').addClass('rezept-nummer').text(this.number(recipe)))
                 .append(document.createTextNode(recipe.kategorie)))
-            .append(this.stars(recipe.stufe)).appendTo(article);
+            .appendTo(article);
         $('<h2>').text(recipe.titel).appendTo(article);
         $('<p>').addClass('rezept-lead').text(recipe.kurz).appendTo(article);
         $('<img>').addClass('rezept-hauptbild').attr({ src: this.media_url(recipe), alt: recipe.titel,

@@ -20,6 +20,7 @@ const BACKDROP_EFFECTS = {
     fireflies: 'Glühwürmchen',
     bubbles: 'Blasen',
     dust: 'Schwebestaub',
+    lightning: 'Gewitter',
 };
 
 // Blend modes ("Mischmodus") for sprites, sprite layers and backdrop layers.
@@ -70,6 +71,34 @@ function blended_copy(base, mode) {
     const material = base.clone();
     if (base.uniforms?.texture1) material.uniforms.texture1.value = base.uniforms.texture1.value;
     return apply_blend_mode(material, mode);
+}
+
+// Settings of single effects, saved on the layer (absent = the default).
+// `uniform`: the name in the effect's shader.
+const BACKDROP_EFFECT_OPTIONS = {
+    lightning: {
+        lightning_interval: {
+            label: 'Blitz alle', suffix: 's', min: 0.5, max: 60, step: 0.5, decimalPlaces: 1, default: 5, uniform: 'interval',
+            hint: 'So viele Sekunden liegen ungefähr zwischen zwei Blitzen. Mit Geschwindigkeit 2 blitzt es doppelt so oft.',
+        },
+        lightning_glow: {
+            label: 'Himmel leuchtet', min: 0, max: 1, step: 0.05, decimalPlaces: 2, default: 0.6, uniform: 'glow',
+            hint: 'Wie hell der ganze Himmel beim Blitz aufleuchtet: 0 = nur der Blitz selbst, 1 = sehr hell. Liegt die Ebene hinter Bäumen und Häusern, leuchten ihre Umrisse kurz auf.',
+        },
+        lightning_bolts: {
+            type: 'bool', label: 'Blitze zeigen', default: true, uniform: 'bolts',
+            hint: 'Ohne Häkchen sieht man keine Blitze, nur der Himmel flackert – wie Wetterleuchten in der Ferne.',
+        },
+    },
+};
+
+function backdrop_effect_option(backdrop, key) {
+    const option = BACKDROP_EFFECT_OPTIONS[backdrop?.effect]?.[key];
+    if (!option) return undefined;
+    const v = backdrop[key];
+    if (option.type === 'bool') return typeof v === 'boolean' ? v : option.default;
+    const n = Number(v);
+    return Number.isFinite(n) && v !== null && v !== undefined ? Math.min(option.max, Math.max(option.min, n)) : option.default;
 }
 
 // Effects with a "Menge" setting (backdrop.density, 1 = normal).
@@ -173,6 +202,10 @@ function backdrop_material_plain(backdrop, rect0, { fill_default_points = false,
             density: { value: backdrop_density(backdrop) },
             ...pixel,
         };
+        for (const [key, option] of Object.entries(BACKDROP_EFFECT_OPTIONS[backdrop.effect] ?? {})) {
+            const v = backdrop_effect_option(backdrop, key);
+            uniforms[option.uniform] = { value: option.type === 'bool' ? (v ? 1.0 : 0.0) : v };
+        }
         const defaults = shaders.control_points_for_effect[backdrop.effect] ?? [];
         const count = fill_default_points ? defaults.length : gradient_points.length;
         for (let gi = 0; gi < count; gi++) {
@@ -235,7 +268,7 @@ function backdrop_material_plain(backdrop, rect0, { fill_default_points = false,
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        BACKDROP_EFFECTS, BACKDROP_DITHER, BLEND_MODES, BACKDROP_DENSITY_EFFECTS, BACKDROP_DENSITY, backdrop_density,
+        BACKDROP_EFFECTS, BACKDROP_EFFECT_OPTIONS, backdrop_effect_option, BACKDROP_DITHER, BLEND_MODES, BACKDROP_DENSITY_EFFECTS, BACKDROP_DENSITY, backdrop_density,
         blend_mode_of, premultiplied_shader, backdrop_stencil_ref, BACKDROP_DITHER_LEVELS,
         backdrop_dither_mode, backdrop_dither_levels, backdrop_pixel_size, backdrop_fragment_shader,
     };

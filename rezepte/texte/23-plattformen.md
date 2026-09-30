@@ -51,7 +51,7 @@ erwartet:
 2. **Eigenschaft hinzufügen → Blöcke → man kann nicht von oben reinfallen**. Die beiden anderen Block-Eigenschaften lässt du weg!
 3. Leg im **Level** zwei Bretter wie eine Treppe übereinander.
 4. Für die Pfosten: neue Ebene mit **Kollisionen erkennen** aus, und dort die Pfosten unter die Bretter setzen.
-5. Spiel es aus: Springen – durch das Brett hindurch – und oben landen.
+5. Probier es aus: Springen – durch das Brett hindurch – und oben landen.
 
 ## Tipps
 

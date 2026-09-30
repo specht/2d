@@ -38,6 +38,33 @@ varianten:
       effekte:
         # rain and snow fall in front of the trees and the figure
         - { effekt: rain, farbe: '#94b0c2dd', menge: 1.5, bereich: [-4, 0, 20, 4] }
+      # where the rain hits the ground it splashes (every tile at its own moment)
+      legende: { ',': regenspritzer }
+      ebenen:
+        - name: Tannen
+          kollision: false
+          karte: |
+            ............
+            ............
+            ............
+            Q.......Q...
+            ............
+        - name: Welt
+          karte: |
+            ............
+            ............
+            ............
+            .P..........
+            ############
+        - name: Spritzer
+          kollision: false
+          vorne: true
+          karte: |
+            ............
+            ............
+            ............
+            ,,,,,,,,,,,,
+            ............
   - szene:
       himmel: ['#1a1c2c', '#257179']
       effekte:
@@ -53,13 +80,15 @@ varianten:
 ## Kurz gesagt
 
 1. Eine Ebene **Hintergrund** kann statt Farben einen **Effekt** zeigen.
-2. Es gibt **Schnee**, **Regen**, **Rauch**, **Feuer**, **Lichtstrahlen**, **Sternenhimmel**, **Nordlicht**, **Wolken**, **Glühwürmchen** und **Blasen**.
+2. Es gibt **Schnee**, **Regen**, **Rauch**, **Feuer**, **Lichtstrahlen**, **Sternenhimmel**, **Nordlicht**, **Wolken**, **Glühwürmchen**, **Blasen**, **Schwebestaub** und **Gewitter**.
 3. Farbe, **Skalierung** und **Geschwindigkeit** stellst du selbst ein – gezeichnet wird nichts.
 
 ## Das brauchst du
 
 - **Das musst du zeichnen:** nichts für das Wetter selbst.
-- **Das kannst du später dazumalen:** Schnee auf den Dächern und Tannen, Pfützen für den Regen – damit das Wetter zur Welt passt.
+- **Das kannst du später dazumalen:** Regenspritzer am Boden, Schnee auf den Dächern und Tannen, Pfützen – damit das Wetter zur Welt passt.
+
+![Regenspritzer](katalog:welt/regenspritzer 14)
 
 ## Schritt für Schritt
 
@@ -73,15 +102,20 @@ varianten:
    - **Schnee und Regen** fallen überall, auch direkt vor deiner Nase: ganz oben in die Liste, **vor** Figur und Bäume.
    - **Glühwürmchen** schwirren zwischen den Bäumen: **unter** die Ebene mit der Figur, aber **über** die Bäume.
    - **Nordlicht und Sterne** sind weit weg am Himmel: ganz nach unten, **hinter** die Bäume.
+8. **Regenspritzer:** Wo Regen auf den Boden trifft, spritzt er. Mal ein kleines Sprite mit ein paar Tropfen, die aufschlagen und zur Seite springen – acht Bilder, jedes Spritzen an einer anderen Stelle. Setz eine ganze Reihe davon auf den Boden, in eine Ebene **vor** der Figur. Weil jede Kopie an einer anderen Stelle ihrer Animation anfängt, spritzt es überall durcheinander – wie bei echtem Regen.
 
 ## Tipps
 
 > **Tipp:** Die Farbe darf halb durchsichtig sein. Halb durchsichtiges Grau ergibt feinen **Regen**, warmes Gelb sanfte **Lichtstrahlen** im Wald.
 
+> **Tipp:** Wetter wirkt erst echt, wenn es die Welt berührt: Regen spritzt auf dem Boden, Schnee bleibt auf Dächern und Tannen liegen, Pfützen spiegeln den Himmel. Such dir eine Stelle, an der dein Wetter etwas tut.
+
 - **Nordlicht:** Die beiden weißen Punkte bestimmen, wo es beginnt (erster Punkt) und wo es ausblendet (zweiter Punkt). Leg eine Ebene **Sternenhimmel** dazu.
+- **Gewitter:** Blitze, die über den Himmel zucken, und ein Himmel, der dabei kurz aufleuchtet. Leg die Ebene hinter Bäume und Häuser, dann blitzen ihre Umrisse auf (siehe *Staub in der Luft*).
 - **Glühwürmchen** leuchten am schönsten in einem dunkelgrünen Wald – noch mehr mit dem **Mischmodus: Leuchten** bei der Ebene. **Blasen** passen in ein Unterwasser-Level, **Wolken** ziehen über einen Tageshimmel.
 - Ein Effekt über dem ganzen Level kann viel sein. Oft reicht ein Rechteck an einer besonderen Stelle: Rauch über einem Kamin, Glühwürmchen auf einer Lichtung.
 - Effekte haben keine Kollisionen – die Figur läuft einfach hindurch.
+- Die Regenspritzer sollen nicht im Gleichtakt spritzen. Lass bei ihrem Zustand die **Phase** so, wie sie ist (der dritte Wert **R** steht auf 1) – dann beginnt jede Kopie zufällig.
 
 ## Wenn's nicht klappt
 
@@ -91,7 +125,9 @@ varianten:
 - **Es schneit zu viel oder zu wenig:** Stell die **Menge** größer oder kleiner.
 - **Es schneit in den Boden:** Das Rechteck reicht zu weit nach unten. Zieh es nur bis zur Oberkante des Bodens.
 - **Das Nordlicht ist nicht zu sehen:** Die beiden Punkte liegen außerhalb des Rechtecks. Setz den ersten Punkt etwa in die Mitte, den zweiten nach oben.
+- **Alle Regenspritzer spritzen gleichzeitig:** Beim Zustand steht bei der **Phase** der Wert **R** auf 0. Stell ihn auf 1, dann spritzt jede Kopie zu ihrer eigenen Zeit.
+- **Die Spritzer schweben über dem Boden:** Mal die Tropfen in die untersten Pixelreihen des Sprites und setz es direkt auf den Boden.
 
 ## Mach mehr draus
 
-Lass es erst im letzten Level schneien – oder bau eine Unterwasserwelt mit **Blasen** und eine Nacht mit **Nordlicht**.
+Lass es erst im letzten Level schneien – oder bau eine Unterwasserwelt mit **Blasen**, eine Nacht mit **Nordlicht** oder ein Gewitter, bei dem Regen auf das Dach eines Hauses prasselt und in Pfützen spritzt.

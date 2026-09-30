@@ -48,7 +48,7 @@ erwartet:
 4. Im Zustand: **Framerate 60** und **Phase** überall auf **0**. Dann laufen alle Band-Stücke im Gleichtakt, und die Streifen passen über die ganze Länge.
 5. Für die Rolltreppe: eine Treppe mit Stufen, die schräg nach oben wandern – auch hier 1 Pixel pro Bild (bei 6 Pixel breiten Stufen also 6 Bilder). Sie bekommt **Schräge / Treppe** mit **Richtung: nach rechts oben** und **Förderband / Rolltreppe** mit **Richtung: nach rechts**.
 6. Setz unter jede Rolltreppe einen festen Block, damit sie nicht in der Luft hängt.
-7. Spiel es aus: Stell dich aufs Band und lass alle Tasten los.
+7. Probier es aus: Stell dich aufs Band und lass alle Tasten los.
 
 ## Tipps
 

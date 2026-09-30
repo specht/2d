@@ -27,7 +27,7 @@ erwartet:
 ## Das brauchst du
 
 - **Das musst du zeichnen:** eine Figur mit einem Stehbild.
-- **Das kannst du später dazumalen:** Laufen (2–6 Bilder), Springen (1 Bild), Fallen (1 Bild).
+- **Das kannst du später dazumalen:** Laufen (2–6 Bilder), Springen (1 Bild), Fallen (1 Bild) und Klettern (2 Bilder von hinten).
 
 So sieht Pips Animationskatalog aus:
 
@@ -35,6 +35,7 @@ So sieht Pips Animationskatalog aus:
 ![Laufen](katalog:pip/laufen 10)
 ![Springen](katalog:pip/springen)
 ![Fallen](katalog:pip/fallen)
+![Klettern](katalog:pip/klettern 6)
 
 ## Schritt für Schritt
 
@@ -44,6 +45,7 @@ So sieht Pips Animationskatalog aus:
 4. Klicke beim Zustand auf **Eigenschaft hinzufügen → Spielfigur → Laufen → Spielfigur läuft nach rechts**.
 5. Stell die **Framerate** ein. Pip läuft mit 10 fps, steht mit 3 fps.
 6. Mach dasselbe für **Springen** (*Spielfigur springt nach rechts*) und **Fallen** (*Spielfigur fällt nach rechts*).
+7. Für Leitern: ein Zustand „Klettern“ mit **Spielfigur klettert**. Er zeigt die Figur von hinten und hat keine Richtung – beim Klettern schaut man immer auf den Rücken (siehe *Leitern hochklettern*).
 
 ## Tipps
 
@@ -51,7 +53,8 @@ So sieht Pips Animationskatalog aus:
 
 - Beim **Springen** wird Pip länger und schmaler, beim **Fallen** breiter – das nennt man *Squash & Stretch* (siehe unten bei den 12 Prinzipien der Animation).
 - Pips Blatt hängt beim Laufen hinterher. Solche Nachzieh-Bewegungen machen Figuren lebendig.
-- Fehlt ein Zustand, nimmt das Spiel automatisch einen ähnlichen – ohne Fallbild wird z. B. das Sprungbild benutzt.
+- Fehlt ein Zustand, nimmt das Spiel automatisch einen ähnlichen – ohne Fallbild wird z. B. das Sprungbild benutzt, ohne Kletterbild das Bild für *schaut nach hinten*.
+- **Schaut nach hinten** und **klettert** sind zwei verschiedene Zustände: Das eine zeigt die Figur, wie sie von hinten dasteht, das andere, wie sie an der Leiter hängt.
 
 ## Wenn's nicht klappt
 

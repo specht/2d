@@ -36,7 +36,7 @@ erwartet:
 ## Das brauchst du
 
 - **Das musst du zeichnen:** einen Gegner mit einer Lauf-Animation und eine Leiter.
-- **Das kannst du später dazumalen:** ein Bild, auf dem der Gegner klettert (**Gegner schaut nach hinten**).
+- **Das kannst du später dazumalen:** ein Bild, auf dem der Gegner klettert (**Gegner klettert**).
 
 ![Käfer läuft](katalog:kaefer/laufen 10)
 ![Käfer jagt](katalog:kaefer/jagen 16)
@@ -47,7 +47,7 @@ erwartet:
 2. Klick beim Käfer auf **Eigenschaft hinzufügen** und wähl unter **Fallen und Gegner** die **Intelligenz**.
 3. Setz dort das Häkchen bei **Leitern klettern**.
 4. **gibt auf nach: 4 s.** Während Pip oben ist, sieht der Käfer sie nicht mehr. So lange sucht er trotzdem weiter – Zeit genug, um bis zur Leiter zu rennen.
-5. Spiel es aus: Der Käfer entdeckt Pip, Pip flüchtet die Leiter hoch – und der Käfer klettert hinterher und erwischt sie oben. Die Leiter darf auch ein Stück neben seinem Weg stehen: Bis zu fünf Blöcke weit sucht er danach.
+5. Probier es aus: Der Käfer entdeckt Pip, Pip flüchtet die Leiter hoch – und der Käfer klettert hinterher und erwischt sie oben. Die Leiter darf auch ein Stück neben seinem Weg stehen: Bis zu fünf Blöcke weit sucht er danach.
 
 ## Was ein Gegner noch lernen kann
 
@@ -76,7 +76,7 @@ Jeder Gegner nutzt seine Intelligenz auf seine Art. Die Häkchen, die zu seinem 
 
 - Ein Angsthase, der über Lücken springt, ist viel schwerer zu fangen.
 - Ein Wächter, der Treppen läuft, bewacht ein ganzes Treppenhaus.
-- Ohne die Eigenschaft **Intelligenz** verhalten sich Gegner genau wie bisher. Ältere Spiele ändern sich also nicht.
+- Ohne die Eigenschaft **Intelligenz** laufen Gegner nur hin und her, verfolgen oder fliehen – Leitern, Lücken und Treppen sind für sie das Ende des Wegs.
 
 ## Wenn's nicht klappt
 

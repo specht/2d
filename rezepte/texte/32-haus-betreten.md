@@ -79,7 +79,7 @@ dauer: 4.4
 5. Ebene **Hausfront** (**Kollisionen erkennen** aus) ganz oben in der Layer-Liste. Wähl die Hausfront aus und stell dann **Gittergröße** auf **24 × 24** und **Gitteroffset** auf **12 : 0**. Jetzt passt sie genau auf die Mauern. Große Sprites hängen **mittig** am Mauszeiger und stehen auf der Unterkante des Feldes.
 6. Neue Ebene über **+ → Sichtbarkeitsbereich**. Wähle **Zielebene: Hausfront** und **Im Bereich: versteckt**.
 7. Zieh das Rechteck genau über den Innenraum. Stell **Überblendung** auf **0,4 s**.
-8. Spiel es aus: durch den Eingang rein – die Hausfront verschwindet – und wieder raus.
+8. Probier es aus: durch den Eingang rein – die Hausfront verschwindet – und wieder raus.
 
 ## Tipps
 
@@ -89,7 +89,7 @@ dauer: 4.4
 - Weil der Eingang durchsichtig ist, sieht man ihn auch von außen: Man weiß sofort, wo es reingeht.
 - Möbel ohne eigene Tapete kannst du beliebig verschieben und in anderen Häusern wiederverwenden.
 - Für zwei Häuser brauchst du zwei Hausfront-Ebenen und zwei Sichtbarkeitsbereiche. Jede Hausfront gehört zu genau einem Bereich.
-- Der Sichtbarkeitsbereich verändert nur, was man **sieht**. Wände und Böden funktionieren weiter wie gewohnt.
+- Der Sichtbarkeitsbereich verändert nur, was man **sieht**. Wände und Böden bleiben, wie sie sind.
 
 ## Wenn's nicht klappt
 

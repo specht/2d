@@ -8,6 +8,8 @@ format: gif             # full of shader noise: a GIF is much smaller than lossl
 farben: 256
 toleranz: 12
 skala: 2
+# the still for the gallery card: right in the second flash
+standbild: 2.6
 szene:
   # night-dark, with a sick red glow low above the dead forest
   himmel: ['#10131f', '#3b2238']
@@ -19,6 +21,9 @@ szene:
     # fog between the dead trees and the forest far away
     # (punkte: thick at the bottom, fading out towards the top – no hard edge)
     - { effekt: clouds, name: Nebel, farbe: '#56668aa0', tempo: 0.4, hinter: Tote Bäume, bereich: [-4, 1, 22, 4], punkte: [[0.5, 0.1], [0.5, 1.0]] }
+    # a thunderstorm far away: in front of the sky, behind everything else –
+    # when it flashes, the dead trees stand out black against the light
+    - { effekt: lightning, name: Gewitter, farbe: '#c9d4f0e6', vorne: false, blitz_alle: 2.2, himmel_leuchtet: 0.7 }
     # the red glow behind everything
     - { effekt: clouds, name: Rotes Leuchten, farbe: '#b13e5399', vorne: false, tempo: 0.5 }
   ebenen:
@@ -59,7 +64,7 @@ erwartet:
 
 1. Der Effekt **Schwebestaub** lässt feinen Staub oder Asche in der Luft hängen. Er fällt nicht wie Schnee, sondern treibt ganz langsam mit der Luft und dreht dabei kleine Kreise.
 2. Eine Ebene mit einer **Farbe** und dem **Mischmodus: Abdunkeln** färbt die ganze Welt düster – ohne dass du etwas neu malen musst.
-3. Zusammen mit kahlen Bäumen und rotem Licht am Himmel wird daraus eine unheimliche Schattenwelt.
+3. Zusammen mit kahlen Bäumen, rotem Licht und einem fernen **Gewitter** am Himmel wird daraus eine unheimliche Schattenwelt.
 
 ## Das brauchst du
 
@@ -83,7 +88,8 @@ erwartet:
 6. **Düster färben:** Neue Ebene über **+ → Hintergrund**, **Art: Farbe**, mit einem kühlen Farbverlauf (oben graublau, unten altrosa). Stell bei der Ebene den **Mischmodus: Abdunkeln** ein und schieb sie direkt unter die Staub-Ebene. Alles darunter – Bäume, Boden, Figur – wird dunkler und kälter.
 7. **Nebel:** Eine Ebene mit dem Effekt **Wolken** in halb durchsichtigem Graublau, nur als Streifen über dem Boden, zwischen den toten Bäumen und dem fernen Wald. Schieb den ersten weißen Punkt nach unten und den zweiten nach oben: Dann ist der Nebel unten dicht und läuft nach oben ohne Kante aus.
 8. **Rotes Leuchten:** Ganz unten, hinter allem: noch einmal **Wolken**, diesmal in dunklem Rot.
-9. Spiel es aus: Pip läuft durch die stille, tote Welt, und um ihn herum treibt der Staub.
+9. **Gewitter:** Noch eine Ebene mit dem Effekt **Gewitter**, in hellem, kühlem Weißblau. Schieb sie ganz nach unten, direkt über den Himmel – **hinter** alle Bäume. Wenn es blitzt, leuchtet der Himmel auf, und die toten Bäume stehen für einen Augenblick schwarz vor dem Licht. **Blitz alle** bestimmt, wie oft es blitzt (hier alle **2,2 s**), **Himmel leuchtet**, wie hell der Himmel dabei wird (hier **0,7**).
+10. Probier es aus: Pip läuft durch die stille, tote Welt, um ihn herum treibt der Staub – und in der Ferne blitzt es.
 
 ## Tipps
 
@@ -93,6 +99,8 @@ erwartet:
 - Der Staub liegt über der Tönung, damit er hell bleibt. Liegt er darunter, wird er mit abgedunkelt und ist kaum noch zu sehen.
 - Mit warmem Orange und dem **Mischmodus: Leuchten** bei der Staub-Ebene werden aus dem Staub Funken über einem Feuer.
 - Staub hat keine Kollisionen – die Figur läuft einfach hindurch.
+- Nimm beim Gewitter das Häkchen bei **Blitze zeigen** weg, dann flackert nur der Himmel – wie Wetterleuchten weit weg. Das ist noch unheimlicher, weil man den Blitz nie sieht.
+- Das Gewitter wirkt am stärksten, wenn es selten blitzt. Alle zwei Sekunden ist für ein Rezept gut, in einem Spiel sind zehn oder zwanzig Sekunden oft schöner.
 
 ## Wenn's nicht klappt
 
@@ -100,6 +108,8 @@ erwartet:
 - **Alles ist fast schwarz:** Die Farbe der Abdunkeln-Ebene ist zu dunkel. Nimm ein helleres Graublau.
 - **Es wirkt nicht unheimlich:** Irgendwo ist noch etwas Frisches, Grünes oder Buntes. In einer toten Welt ist alles grau, blau und violett – nur das rote Leuchten fällt heraus.
 - **Der Staub rast durchs Bild:** Stell die **Geschwindigkeit** kleiner.
+- **Die Blitze sind vor den Bäumen:** Die Gewitter-Ebene liegt in der Layer-Liste zu weit oben. Schieb sie ganz nach unten, direkt über den Himmel.
+- **Es blitzt, aber man sieht es kaum:** Die Abdunkeln-Ebene schluckt das Licht. Nimm für das Gewitter eine hellere Farbe oder stell **Himmel leuchtet** höher.
 - **Im Level-Editor bewegt sich nichts:** Setz bei den Level-Einstellungen das Häkchen bei **Effekte bewegen**.
 
 ## Mach mehr draus

@@ -4,7 +4,7 @@ class Shaders {
     constructor() {
         this.files = ['basic.vs', 'texture.fs', 'screen.fs', 'gradient.fs',
             'snow.fs', 'smoke.fs', 'fire.fs', 'lightrays.fs',
-            'stars.fs', 'aurora.fs', 'rain.fs', 'clouds.fs', 'fireflies.fs', 'bubbles.fs', 'dust.fs'];
+            'stars.fs', 'aurora.fs', 'rain.fs', 'clouds.fs', 'fireflies.fs', 'bubbles.fs', 'dust.fs', 'lightning.fs'];
         this.shaders = {};
         this.control_points_for_effect = {
             'snow': [[0.5, 0.0], [0.5, -0.1]],
@@ -21,6 +21,8 @@ class Shaders {
             'bubbles': [[0.5, 0.0], [0.5, -0.1]],
             // Schwebestaub: fades out like snow (no fade by default)
             'dust': [[0.5, 0.0], [0.5, -0.1]],
+            // Gewitter: bolts from the first point's height down to the second's
+            'lightning': [[0.5, 1.0], [0.5, 0.15]],
         };
         shaders = this;
     }

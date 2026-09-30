@@ -23,7 +23,7 @@ erwartet:
 ---
 ## Kurz gesagt
 
-1. Beim Gegner gibt es **Verhalten**. Der **Angsthase** läuft erst hin und her wie immer.
+1. Beim Gegner gibt es **Verhalten**. Der **Angsthase** läuft erst hin und her wie ein Wächter.
 2. Kommt die Spielfigur zu nah, rennt er davon – schneller als sonst.
 3. Sitzt er in einer Ecke fest, bleibt er stehen und zittert. Wer ihn einholt und berührt, bekommt seine **Beute** – hier den Schlüssel, den die Maus stibitzt hat. Kämpfen muss man dafür nicht.
 
@@ -45,7 +45,7 @@ erwartet:
 5. Leg einen Zustand mit **Gegner flieht nach rechts** an und nimm dafür das Bild mit den großen Augen. Nach links wird er automatisch gespiegelt.
 6. **Schaden: 0.** Die Maus tut niemandem etwas – sie will nur weg.
 7. **Beute:** Wähl beim Gegner unter **Beute** den Schlüssel aus, gib ihm einen **Schlüssel-Code** und setz das Häkchen bei **gibt die Beute ab, wenn man ihn berührt**.
-8. Spiel es aus: Pip geht auf die Maus zu, sie erschrickt und flitzt davon, bis die Mauer sie aufhält. Pip holt sie ein – und hat den Schlüssel wieder.
+8. Probier es aus: Pip geht auf die Maus zu, sie erschrickt und flitzt davon, bis die Mauer sie aufhält. Pip holt sie ein – und hat den Schlüssel wieder.
 
 ## Mit Intelligenz
 

@@ -26,7 +26,7 @@ erwartet:
 ---
 ## Kurz gesagt
 
-1. Beim Gegner gibt es **Verhalten**. Der **Jäger** läuft erst hin und her wie immer.
+1. Beim Gegner gibt es **Verhalten**. Der **Jäger** läuft erst hin und her wie ein Wächter.
 2. Sieht er die Spielfigur, rennt er hinterher – schneller als sonst.
 3. Verliert er sie aus den Augen, gibt er nach einer Weile auf.
 
@@ -66,7 +66,7 @@ Damit ist die Leiter kein sicherer Ort mehr. Bau dann ein anderes Versteck – o
 
 - Der Jäger springt über kleine Hindernisse. Wie hoch, bestimmt seine **Sprungkraft**. Pips Käfer hat nur **5** und kommt über hohe Mauern nicht drüber.
 - An einer Kante bleibt er stehen und wartet – außer die Spielfigur ist unter ihm. Dann lässt er sich hinunterfallen. Mit **Intelligenz** macht er das nur, wenn unten Boden ist.
-- Alte Gegner und neue Gegner ohne Einstellung sind **Wächter**: Sie laufen hin und her wie schon immer. Beim Wächter kannst du jetzt auch einen **Bereich** in Blöcken einstellen.
+- Ein Gegner, bei dem du kein anderes **Verhalten** einstellst, ist ein **Wächter**: Er läuft hin und her. Mit **Bereich** bewacht er nur ein paar Blöcke um seinen Startplatz.
 - Das Gegenteil vom Jäger ist der **Angsthase**: Er rennt davon, sobald die Spielfigur zu nah kommt. Toll für einen Dieb, den man fangen muss.
 
 ## Wenn's nicht klappt

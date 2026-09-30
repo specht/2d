@@ -1781,12 +1781,6 @@ a, a:visited {
     color: #94b0c2;
 }
 
-.rezept-stufe {
-    color: #ffcd75;
-    font-size: 85%;
-    letter-spacing: 0.1em;
-}
-
 .rezept-titel {
     font-weight: bold;
     margin: 3px 0 4px 0;

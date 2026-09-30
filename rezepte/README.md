@@ -116,7 +116,7 @@ The recorder relies on these runtime entry points: `window.game`,
 titel: Leitern hochklettern
 kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Türen & Schlüssel | Kampf | Gegner
 # entwurf: true                # hide this recipe (not built, not shown)
-stufe: 1                       # 1–3 stars
+stufe: 1                       # difficulty 1–3 (kept in rezepte.json, not shown)
 kurz: Pip klettert eine Leiter hoch und läuft oben weiter.
 szene:
   ausschnitt: [0, 1, 10, 4]    # optional crop in tiles: column, row (from top), width, height
@@ -156,7 +156,10 @@ szene:
   # effekte:                   # backdrop effect layers (in front of the world unless vorne: false)
   #   - { effekt: snow, farbe: '#ffffffff', skala: 1.0, tempo: 1.0, pixel: true }
   #     # snow | rain | smoke | fire | lightrays | stars | aurora | clouds | fireflies |
-  #     # bubbles | dust (Schwebestaub) – BACKDROP_EFFECTS in src/static/backdrops.js
+  #     # bubbles | dust (Schwebestaub) | lightning (Gewitter) – BACKDROP_EFFECTS in
+  #     # src/static/backdrops.js
+  #     # blitz_alle: 5 · himmel_leuchtet: 0.6 · blitze: false   lightning only: seconds
+  #     #                          between strikes, sky glow 0…1, no bolts = Wetterleuchten
   #     # punkte: [[x, y], …]      control points (0…1 of the effect rectangle)
   #     # bereich: [c, r, w, h]    rectangle in tiles (default: the whole scene) – e.g.
   #     #                          only the air above the ground
@@ -254,7 +257,7 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
 `palettes/`), drawn facing **right** (the engine mirrors left).
 
 * **Pip** (mascot, ~13×19 px): `stehen` (2), `laufen` (4), `springen`,
-  `fallen`, `klettern` (2, back view), `angriff_schwert` (3),
+  `fallen`, `klettern` (2, back view; state *Spielfigur klettert*), `angriff_schwert` (3),
   `angriff_bogen` (2), `angriff_wurf` (2), `treffer`, `tot` (3),
   `jubeln` (not used yet).
 * **Glibber** (slime enemy): `laufen` (4), `treffer`, `tot` (3).
@@ -299,6 +302,10 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `stegpfosten`, `meer` (4 frames, `phase_r: 0`), `boot` (48×24, bobbing),
   `sonne`, `schaefchenwolke` (48×24). Drawn in the studio's default palette
   *Cling*, so that converting them to other palettes shows the idea.
+* **Winter and rain:** `boden_schnee` (solid, a snow cap on frozen earth),
+  `tannen_schnee` (192×64, the firs with snow and cold colours), `schneemann`
+  (decoration), `regenspritzer` (8 frames at 14 fps, three splashes per tile;
+  the default phase makes every copy start at another moment).
 * **Light and shadow:** `hausfront_licht` (only the window panes of
   `hausfront`, warm – on a layer with *Leuchten*), `dachschatten` (soft,
   dithered, *Abdunkeln*), `farbkreis` (opaque disc for *Mischmodi verstehen*).
@@ -324,6 +331,10 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
     but with the trait only onto ground at most 5 blocks below;
   - *Angsthase fleeing*: climbs every ladder it passes, never towards the
     player; when cornered: obstacle, gap, drop, else it trembles.
+* **Klettern** (`climb`, *Spielfigur klettert* / *Gegner klettert*): an optional
+  state without direction, shown while climbing a ladder and – paused – while
+  holding still in the middle of one. Without it the game shows the back-facing
+  state (*schaut nach hinten*), as in older games.
 * **Behaviour poses** are optional enemy states (traits.js
   `STATE_TRAITS.baddie`): `hunt_*` (*Gegner jagt*: Jäger chasing, Lauerer
   charging), `flee_*` (*Gegner flieht*: Angsthase), `stunned_*` (*Gegner ist

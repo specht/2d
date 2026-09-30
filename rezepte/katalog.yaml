@@ -38,9 +38,9 @@ sprites:
       - { strip: pip/laufen, fps: 10, traits: { actor: [walk_right] } }
       - { strip: pip/springen, traits: { actor: [jump_right] } }
       - { strip: pip/fallen, traits: { actor: [fall_right] } }
-      # On a ladder the engine switches the direction to "back":
-      # climbing shows "Spielfigur schaut nach hinten".
-      - { strip: pip/klettern, fps: 6, traits: { actor: [back, walk_back] } }
+      # on a ladder: "Spielfigur klettert" (without it the game would show
+      # "Spielfigur schaut nach hinten")
+      - { strip: pip/klettern, fps: 6, traits: { actor: [climb] } }
       - { strip: pip/treffer, traits: { actor: [hit_right] } }
       - { strip: pip/tot, fps: 8, traits: { actor: [dead] } }
 
@@ -173,6 +173,10 @@ sprites:
     label: Erde
     traits: { block_above: {}, block_sides: {}, block_below: {} }
     states: [{ strip: welt/erde }]
+  boden_schnee:
+    label: Boden mit Schnee
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/boden_schnee }]
   leiter:
     label: Leiter
     traits: { ladder: { center: true } }
@@ -285,6 +289,8 @@ sprites:
   berge: { label: Berge, groesse: [192, 72], states: [{ strip: welt/berge }] }
   wald: { label: Wald, groesse: [192, 48], states: [{ strip: welt/wald }] }
   tannen: { label: Tannen, groesse: [192, 64], states: [{ strip: welt/tannen }] }
+  tannen_schnee: { label: Verschneite Tannen, groesse: [192, 64], states: [{ strip: welt/tannen_schnee }] }
+  schneemann: { label: Schneemann, states: [{ strip: welt/schneemann }] }
   toter_baum: { label: Toter Baum, groesse: [48, 72], states: [{ strip: welt/toter_baum }] }
   toter_baum_2: { label: Toter Baum (krumm), groesse: [48, 72], states: [{ strip: welt/toter_baum_2 }] }
   toter_baum_3: { label: Toter Baum (schmal), groesse: [48, 72], states: [{ strip: welt/toter_baum_3 }] }
@@ -315,6 +321,8 @@ sprites:
   wasser: { label: Wasser, states: [{ strip: welt/wasser }] }
   # all water tiles move in step (phase_r: 0): the waves run on across tiles
   wasser_oben: { label: Wasseroberfläche, states: [{ strip: welt/wasser_oben, fps: 8, phase_r: 0 }] }
+  # rain splashes on the ground: every copy starts at a random moment (the default phase)
+  regenspritzer: { label: Regenspritzer, states: [{ strip: welt/regenspritzer, fps: 14 }] }
   # mischmodus: leuchten | aufhellen | abdunkeln (the sprite's Mischmodus)
   lichtkegel: { label: Lichtkegel, groesse: [48, 72], mischmodus: leuchten, states: [{ strip: welt/lichtkegel }] }
   laterne: { label: Laterne, groesse: [48, 72], states: [{ strip: welt/laterne }] }

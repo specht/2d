@@ -83,7 +83,7 @@ erwartet:
 3. Setz einen Lichtschein über jede Fackel. Alles darin – die Tapete, die Fackel und die Figur – wird heller.
 4. **Schatten:** Füll ein Sprite mit dunklem Blau aus der untersten Reihe der Palette, oben etwas kräftiger als unten. Stell diesmal beim **Sprite** den **Mischmodus: Abdunkeln** ein.
 5. Leg die Schatten in eine Ebene über der Figur, direkt unter einen Vorsprung.
-6. Spiel es aus: Pip leuchtet warm auf, wenn er an einer Fackel vorbeikommt, und wird im Schatten dunkel.
+6. Probier es aus: Pip leuchtet warm auf, wenn er an einer Fackel vorbeikommt, und wird im Schatten dunkel.
 
 ## Die Mischmodi
 
