@@ -4,9 +4,9 @@ titel: Staub in der Luft
 kategorie: Level gestalten
 stufe: 2
 kurz: Feiner Staub schwebt durch eine tote, düstere Welt – er fällt nicht, er treibt mit der Luft.
-format: gif             # full of shader noise: a GIF is much smaller than lossless WebP
-farben: 256
-toleranz: 12
+# format: gif             # full of shader noise: a GIF is much smaller than lossless WebP
+# farben: 256
+# toleranz: 12
 skala: 2
 # the still for the gallery card: right in the second flash
 standbild: 2.6
