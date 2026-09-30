@@ -71,6 +71,33 @@ class RecipeGallery {
         return `/rezepte/${recipe.standbild}${recipe.standbild_version ? '?' + recipe.standbild_version : ''}`;
     }
 
+    async load_recipe_game(recipe, link) {
+        if (!window.DEVELOPMENT || link.attr('aria-disabled') === 'true') return;
+        const label = link.text();
+        link.attr('aria-disabled', 'true').text('Rezeptspiel wird geladen …');
+        try {
+            // No immutable cache here: these files are local development output
+            // and may have been rebuilt without restarting the studio.
+            const response = await fetch(`/rezepte/spiele/${encodeURIComponent(recipe.id)}.json?${Date.now()}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            data.parent = null;
+            game.data = data;
+            game._load();
+            $('#game_code_div').hide();
+
+            // Start on the level so the generated scene is visible immediately.
+            // Browser Back returns to the recipe popup.
+            const changed = window.studio_show_pane?.('level');
+            if (changed && typeof studio_history_push === 'function')
+                studio_history_push({ pane: 'level' });
+        } catch (e) {
+            console.error('Rezeptspiel konnte nicht geladen werden:', e);
+            link.removeAttr('aria-disabled').text(label);
+            window.alert('Das Rezeptspiel fehlt. Bitte unter rezepte/tools „npm run studio“ ausführen.');
+        }
+    }
+
     visibility_changed(entries) {
         for (const entry of entries) {
             const img = entry.target;
@@ -196,6 +223,14 @@ class RecipeGallery {
             .appendTo(article);
         $('<h2>').text(recipe.titel).appendTo(article);
         $('<p>').addClass('rezept-lead').text(recipe.kurz).appendTo(article);
+        if (window.DEVELOPMENT) {
+            const dev = $('<p>').appendTo(article);
+            $('<a>').attr('href', '#').addClass('link_button').text('Rezept als Spiel laden')
+                .on('click', (e) => {
+                    e.preventDefault();
+                    this.load_recipe_game(recipe, $(e.currentTarget));
+                }).appendTo(dev);
+        }
         $('<img>').addClass('rezept-hauptbild').attr({ src: this.media_url(recipe), alt: recipe.titel,
             width: recipe.breite, height: recipe.hoehe }).appendTo(article);
         // Generated at build time from the Markdown sources in rezepte/texte.
