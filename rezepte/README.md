@@ -195,6 +195,8 @@ dauer: 3.0                     # length of the recording
 # schleife: true               # the recording must loop seamlessly: the last frame has to match the first
 #                              # (checked, ≤ 0.4 % different pixels) and is then dropped
 # tasten_zeigen: true          # draws the pressed keys as keycaps (German labels) into the recording
+# karte_unten: 1               # optional: the gallery card leaves out this many map rows at the
+#                              # bottom and shows more at the top (tall scenes)
 # standbild: 2.5               # optional: the moment (s) of the still frame on the gallery card
 #                              # (default: 60 % of the recording)
 # beschriftung:                # optional labels drawn into the recording, centred on a tile
@@ -296,7 +298,10 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `benommen`), `frosch` (Hüpfer: `stehen`, `springen`), `fledermaus`
   (Flatterer: `fliegen`), `klotz` (Stampfer: `stehen`, `fallen`, `landen`;
   `klotz_einmal` falls only once); each with `treffer` and `tot`. `maus`
-  (Angsthase: `stehen`, `laufen`, `fliehen`, `tot`).
+  (Angsthase: `stehen`, `laufen`, `fliehen`, `tot`). `waschbaer` (Jäger with Intelligenz: `stehen`,
+  `laufen`, `jagen`, `springen`, `klettern` – back view, state *Gegner
+  klettert*). `strohpuppe` (24×48 training dummy, *Steht still*: `stehen`,
+  `treffer`, `tot` – tall enough for arrows and stones).
 * **Küste** (`kueste/`, recipe *Farben, die Stimmung machen*): `leuchtturm`
   (48×96, lamp pulsing), `klippe` and `fels` (solid), `steg` (von oben),
   `stegpfosten`, `meer` (4 frames, `phase_r: 0`), `boot` (48×24, bobbing),
@@ -306,6 +311,19 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `tannen_schnee` (192×64, the firs with snow and cold colours), `schneemann`
   (decoration), `regenspritzer` (8 frames at 14 fps, three splashes per tile;
   the default phase makes every copy start at another moment).
+* **Höhle** (`hoehle/`, recipe *Eine Höhle erkunden*): `hoehle_fels`,
+  `hoehle_boden` (solid), `hoehle_wand` (dark back wall), `hoehle_spalt`
+  (48×24, solid ceiling with a crack of light), `tropfstein_oben`,
+  `tropfstein_unten`, `leuchtpilz`, `pilzlicht` (72×72, for a *Leuchten*
+  layer), `lichtschacht` (48×72, pale daylight), `bergfront` (192×96, the
+  mountain from outside with a see-through cave mouth).
+* **Transitions:** `hang_flach` / `hang_flach_ab` carry exactly the grass band
+  of `boden`; `hang_fuss` / `hang_fuss_ab` go under their low end (the band
+  continues into the ground row), everything else under a hill is `erde`.
+  `rolltreppe_gehaeuse` goes under the upper step of an escalator (the same
+  stripes as the escalator), so no machine edge cuts in.
+* **Details:** `wandlampe` / `wandlampe_aus` (a lantern above a door, lit and
+  dark), `hohes_gras` (48×24, 4 frames swaying – something can hide in it).
 * **Light and shadow:** `hausfront_licht` (only the window panes of
   `hausfront`, warm – on a layer with *Leuchten*), `dachschatten` (soft,
   dithered, *Abdunkeln*), `farbkreis` (opaque disc for *Mischmodi verstehen*).

@@ -2,20 +2,20 @@
 titel: Pfeil und Bogen
 kategorie: Kampf
 stufe: 2
-kurz: Mit K fliegen Pfeile – Pip trifft den Glibber aus sicherer Entfernung.
+kurz: Mit K fliegen Pfeile – Pip übt an einer Strohpuppe und trifft jedes Mal mitten ins Ziel.
 szene:
-  anpassen: { glibber: { baddie: { hit_pause: 0.5 } } }
-  legende: { P: pip_bogen }
+  # a training dummy, 48 px tall: the arrows fly at Pip's height and hit it
+  legende: { P: pip_bogen, t: strohpuppe }
   karte: |
     ..........
     ..........
-    .P......g.
+    .P......t.
     ##########
 ablauf:
   - { t: 0.4, drücken: fernkampf }
   - { t: 1.1, drücken: fernkampf }
   - { t: 1.8, drücken: fernkampf }
-dauer: 3.2
+dauer: 3.4
 erwartet:
   gegner_besiegt: 1
 ---
@@ -28,9 +28,12 @@ erwartet:
 ## Das brauchst du
 
 - **Das musst du zeichnen:** einen Pfeil (ein Bild genügt). Einen extra Bogen-Sprite brauchst du nicht.
-- **Das kannst du später dazumalen:** einen **Angriff**-Zustand, in dem die Figur den Bogen spannt.
+- **Das kannst du später dazumalen:** einen **Angriff**-Zustand, in dem die Figur den Bogen spannt – und ein Ziel zum Üben.
 
 ![Bogen spannen](katalog:pip/angriff_bogen 8)
+![Strohpuppe](katalog:strohpuppe/stehen)
+![Strohpuppe getroffen](katalog:strohpuppe/treffer 12)
+![Strohpuppe fällt zusammen](katalog:strohpuppe/tot 8)
 
 ## Schritt für Schritt
 
@@ -39,7 +42,9 @@ erwartet:
 3. **Art: Projektil**, **Zielen: waagerecht**.
 4. Pip schießt mit **Schaden 15**, **Reichweite 220 px**, **Geschwindigkeit 260 px/s**, **Cooldown 0,6 s**.
 5. Bei **Projektilsprite** wählst du den Pfeil.
-6. Probier es mit **K** aus. Der Gegner (Energie 40) ist nach drei Treffern besiegt. Hier hat er **Pause nach Treffer 0,5 s** – nach jedem Pfeil bleibt er kurz stehen.
+6. **Das Ziel:** Eine Strohpuppe, 24 × 48 Pixel groß, als **Gegner** mit **Verhalten: Steht still** und **Energie 45**. Sie ist so groß wie Pip und noch mehr – der Pfeil fliegt auf Pips Höhe und trifft sie sicher.
+7. Gib ihr einen Zustand **Gegner: Treffer (rechts)**, in dem sie wackelt, und einen Zustand **Gegner tot**, in dem das Stroh am Pfahl hinunterrutscht.
+8. Probier es mit **K** aus: Drei Pfeile, drei Treffer – und die Puppe sackt zusammen.
 
 ## Tipps
 
@@ -47,12 +52,14 @@ erwartet:
 
 - Ein Feuerball ist dasselbe Rezept – nur mit einem animierten Feuerball-Sprite.
 - Mit **Zielen: Maus** schießt man mit Linksklick in Richtung Mauszeiger.
+- Der Pfeil fliegt waagerecht auf der Höhe der Figur. Ein Gegner, der viel kleiner ist, wird darum leicht verfehlt. Mach dein Ziel mindestens so groß wie die Figur – oder stell **Zielen: Maus** ein.
 
 ## Wenn's nicht klappt
 
 - **K macht nichts:** Der Fernkampfangriff muss bei der **Spielfigur** sein.
 - **Man sieht keinen Pfeil:** Bei **Projektilsprite** ist nichts ausgewählt.
 - **Der Pfeil verschwindet zu früh:** Erhöhe die **Reichweite**.
+- **Der Pfeil fliegt über den Gegner hinweg:** Der Gegner ist zu klein, oder seine **Kollisionsbox oben** (unter **Erweitert**) ist zu niedrig eingestellt.
 - **Pfeile fliegen durch Wände:** Die Wand braucht *man kann nicht von den Seiten reinlaufen*.
 
 ## Mach mehr draus

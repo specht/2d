@@ -7,12 +7,14 @@ kurz: Pip steht still – und fährt trotzdem. Erst übers Band, dann die Rolltr
 tasten_zeigen: true
 szene:
   ausschnitt: [0, 1, 14, 6]
+  # g: the escalator's housing under its upper step – the machine only starts after it
+  legende: { g: rolltreppe_gehaeuse }
   karte: |
     ..............
     ..............
     ..............
     .........s____
-    .P......s_____
+    .P......sg____
     ###[>>]#######
     ==============
 ablauf:
@@ -39,6 +41,7 @@ erwartet:
 ![Förderband (Ende)](katalog:welt/band_ende 60)
 ![Rolltreppe](katalog:welt/rolltreppe 60)
 ![Maschine](katalog:welt/maschine)
+![Rolltreppe (Gehäuse)](katalog:welt/rolltreppe_gehaeuse)
 
 ## Schritt für Schritt
 
@@ -47,7 +50,7 @@ erwartet:
 3. **Eigenschaft hinzufügen → Förderbänder → Förderband / Rolltreppe**. Pip benutzt **Richtung: nach rechts** und **Geschwindigkeit 1**.
 4. Im Zustand: **Framerate 60** und **Phase** überall auf **0**. Dann laufen alle Band-Stücke im Gleichtakt, und die Streifen passen über die ganze Länge.
 5. Für die Rolltreppe: eine Treppe mit Stufen, die schräg nach oben wandern – auch hier 1 Pixel pro Bild (bei 6 Pixel breiten Stufen also 6 Bilder). Sie bekommt **Schräge / Treppe** mit **Richtung: nach rechts oben** und **Förderband / Rolltreppe** mit **Richtung: nach rechts**.
-6. Setz unter jede Rolltreppe einen festen Block, damit sie nicht in der Luft hängt.
+6. Setz unter jede Rolltreppe einen festen Block, damit sie nicht in der Luft hängt. Direkt unter der oberen Stufe kommt ein **Gehäuse-Block**: dieselbe Farbe und dieselben schrägen Streifen wie unten in der Rolltreppe. Dann sieht die Rolltreppe aus wie aus einem Stück – ohne Kante, die in der Mitte hineinragt.
 7. Probier es aus: Stell dich aufs Band und lass alle Tasten los.
 
 ## Tipps

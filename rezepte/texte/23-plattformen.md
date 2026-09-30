@@ -7,11 +7,12 @@ szene:
   ebenen:
     - name: Stützen
       kollision: false
+      # the posts start in the same cell as their plank (behind it) and reach the ground
       karte: |
         ..........
         ..........
-        ..........
         .....|.|..
+        ..|.||.|..
         ..|.||.|..
         ..........
     - name: Welt
@@ -50,7 +51,7 @@ erwartet:
 1. Zeichne das Brett in die obersten Pixelreihen des Sprites.
 2. **Eigenschaft hinzufügen → Blöcke → man kann nicht von oben reinfallen**. Die beiden anderen Block-Eigenschaften lässt du weg!
 3. Leg im **Level** zwei Bretter wie eine Treppe übereinander.
-4. Für die Pfosten: neue Ebene mit **Kollisionen erkennen** aus, und dort die Pfosten unter die Bretter setzen.
+4. **Pfosten:** Nichts schwebt einfach so in der Luft. Leg eine neue Ebene mit **Kollisionen erkennen** aus an und schieb sie in der Layer-Liste **unter** die Bretter. Setz den obersten Pfosten in **dasselbe Feld** wie das Brett – er verschwindet dahinter – und stapel weitere Pfosten bis zum Boden.
 5. Probier es aus: Springen – durch das Brett hindurch – und oben landen.
 
 ## Tipps
@@ -58,10 +59,12 @@ erwartet:
 > **Tipp:** Welche Seiten fest sind, bestimmst du mit den drei Block-Eigenschaften. Nur *von oben* ergibt eine Plattform zum Durchspringen, alle drei eine feste Mauer.
 
 - Mit *man kann nicht von unten reinspringen* allein entsteht eine Decke, durch die man nach unten fallen kann.
+- Statt Pfosten gehen auch Ketten von oben, ein Seil oder ein Felsvorsprung – Hauptsache, man sieht, was das Brett hält (siehe *Level, die echt wirken*).
 - Mit Pfeil nach unten fällt man **nicht** durch das Brett. Hinunter geht es nur über die Kante.
 
 ## Wenn's nicht klappt
 
+- **Zwischen Pfosten und Brett ist eine Lücke:** Der oberste Pfosten sitzt ein Feld zu tief. Setz ihn in dasselbe Feld wie das Brett.
 - **Die Figur stößt sich von unten den Kopf:** Das Brett hat noch *man kann nicht von unten reinspringen*. Nimm die Eigenschaft weg.
 - **Die Figur schwebt über dem Brett:** Das Brett ist nicht oben im Sprite gemalt. Das Spiel nimmt immer die Oberkante des Sprites.
 - **Die Figur bleibt an den Pfosten hängen:** Die Pfosten liegen in einer Ebene mit Kollisionen und haben Block-Eigenschaften. Deko braucht keine Eigenschaften.

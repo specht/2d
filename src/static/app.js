@@ -639,7 +639,8 @@ void main() {
 		const player = this.game.player_character;
 		const alive = player && player !== this && !player.dead() && this.game.running !== false;
 		const gravity = Number(this.game.data.properties.gravity) || 0.5;
-		const hop = this.traits.vrun * (this.traits.jump_vfactor ?? 1) * 2 * this.traits.vjump / gravity;
+		// how far a jump carries at the current speed (a chasing enemy runs faster)
+		const hop = this.traits.vrun * (this.ai_speed || 1) * (this.traits.jump_vfactor ?? 1) * 2 * this.traits.vjump / gravity;
 		const side = dir => (dir === 'left' ? -1 : 1);
 		return {
 			now: this.game.clock.getElapsedTime(),
@@ -1112,7 +1113,10 @@ void main() {
 				state = 'dead';
 		}
         // Behaviour poses (only if the sprite has such a state): jagt, benommen, aufgeschlagen.
-        if (state !== 'dead' && this.ai_pose && this.sti_for_state[this.ai_pose]) state = this.ai_pose;
+        // In the air, an enemy with its own jump / fall art shows it even while hunting.
+        const own_air_art = (state === 'jump' || state === 'fall') &&
+            Object.values(this.sti_for_state[state] ?? {}).some(e => e.confidence >= 100);
+        if (state !== 'dead' && this.ai_pose && this.sti_for_state[this.ai_pose] && !own_air_art) state = this.ai_pose;
         // Optional art overlays movement for a short time; physics runs as usual.
         if (state !== 'dead' && this.combat_visual) {
             if (this.game.clock.getElapsedTime() < this.combat_visual.until)
@@ -2225,11 +2229,18 @@ class Game {
 			let entry = this.active_level_sprites[pi];
 			let sprite = this.data.sprites[entry.sprite_index];
 			let dt0 = (t1 - this.transitioning_sprites.pickup[pi].t0);
-			let dt = dt0 / ((sprite.traits.pickup ?? {}).duration ?? 0.5);
-			entry.mesh.position.y = this.transitioning_sprites.pickup[pi].y0 + dt0 * ((sprite.traits.pickup ?? {}).move_up ?? 100);
-			let t = 1.0 - dt;
-			if (t > 1.0) t = 1.0;
-			if (t < 0.0) t = 0.0;
+			const duration = Math.max((sprite.traits.pickup ?? {}).duration ?? 0.5, 0.01);
+			let dt = dt0 / duration;
+			// A collected item jumps up quickly and slows down (ease-out), grows for
+			// a moment ("pop") and then fades while it shrinks a little. It rises
+			// just as far as before: Bewegung × Ausblenden.
+			const k = Math.min(Math.max(dt, 0.0), 1.0);
+			const rise = ((sprite.traits.pickup ?? {}).move_up ?? 100) * duration;
+			entry.mesh.position.y = this.transitioning_sprites.pickup[pi].y0 + rise * (1.0 - Math.pow(1.0 - k, 3));
+			const pop = k < 0.18 ? 1.0 + 0.3 * Math.sin(k / 0.18 * Math.PI * 0.5) : 1.3 - 0.45 * (k - 0.18) / 0.82;
+			entry.mesh.scale.set(Math.sign(entry.mesh.scale.x || 1) * pop, pop, 1);
+			let t = k < 0.4 ? 1.0 : 1.0 - (k - 0.4) / 0.6;
+			t = t * t * (3.0 - 2.0 * t);
 			entry.mesh.geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([t, t, t, t]), 1));
 			if (dt > 1.0) {
 				delete_keys.push(pi);
