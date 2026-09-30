@@ -159,8 +159,9 @@ class Character {
         // These are optional render poses, not movement states or attack hitboxes.
         // Missing poses never replace the normal movement art in an old game.
         // hunt / flee / stunned / landed: poses of enemy behaviours (baddie_ai.js).
-        // swim / float: the figure in a Bewegungsbereich (movement_regions.js)
-        for (let kind of ['attack', 'hit', 'hunt', 'flee', 'stunned', 'landed', 'swim', 'float']) {
+        // swim / float / drift / dive / rise: the figure in a Bewegungsbereich
+        // (movement_regions.js)
+        for (let kind of ['attack', 'hit', 'hunt', 'flee', 'stunned', 'landed', 'swim', 'float', 'drift', 'dive', 'rise']) {
             let poses = {};
             for (let sti = 0; sti < this.sprite.states.length; sti++) {
                 let tags = this.sprite.states[sti].traits?.[this.character_trait] ?? {};
@@ -649,6 +650,8 @@ void main() {
 		return {
 			now: this.game.clock.getElapsedTime(),
 			on_ground: this.touching_ground(),
+			// swimming or floating (a Bewegungsbereich): 'swim' | 'float' | null
+			fluid: this.fluid_mode ?? null,
 			on_ladder: Boolean(this.has_trait_at(['ladder'], -0.5, 0.5, -1.1, 1.1)),
 			facing: this.last_horizontal_facing ?? (this.traits.start_dir === 'left' ? 'left' : 'right'),
 			x: this.mesh.position.x, y: this.mesh.position.y,
@@ -1075,32 +1078,42 @@ void main() {
 		}
 
 		// Bewegungsbereiche (movement_regions.js): swimming, floating, a different
-		// gravity or a current. Only the player character; old games have none.
-		const move = this.character_trait === 'actor' && typeof MovementRegions !== 'undefined' ?
+		// gravity or a current. The player character and every enemy that walks
+		// (flying and stomping behaviours move themselves); old games have none.
+		const move = (this.character_trait === 'actor' || (this.character_trait === 'baddie' && !this.ai_no_gravity)) &&
+			typeof MovementRegions !== 'undefined' ?
 			MovementRegions.at(this.game.movement_regions, this.mesh.position.x,
 				this.mesh.position.y + this.sprite.height * 0.5) : null;
 		const fluid = move && (move.mode === 'swim' || move.mode === 'float') ? move : null;
-		let fluid_input_x = 0;
+		// the enemy AI looks at this in the next step (swims after the player)
+		this.fluid_mode = fluid ? fluid.mode : null;
+		const fluid_from = [this.mesh.position.x, this.mesh.position.y];
+		let fluid_input_x = 0, fluid_input_y = 0;
 		if (fluid) {
 			// In the water and in space the figure has momentum: the arrow keys
 			// steer in all four directions, the jump key is a swim stroke.
-			const controllable = !this.dead() && this.traits.force_non_controllable !== false;
+			const actor = this.character_trait === 'actor';
+			const controllable = actor ? !this.dead() && this.traits.force_non_controllable !== false : true;
 			const key = k => controllable && Boolean(this.pressed_keys[k]);
 			const ix = (key(KEY_RIGHT) ? 1 : 0) - (key(KEY_LEFT) ? 1 : 0);
 			const iy = (key(KEY_UP) ? 1 : 0) - (key(KEY_DOWN) ? 1 : 0);
 			const jump = key(KEY_JUMP);
+			const stroke = jump && !this.stroke_held;
 			const next = MovementRegions.fluid_step({ vx: this.vx, vy: this.vy },
-				{ x: ix, y: iy, stroke: jump && !this.stroke_held }, fluid, {
-					vrun: this.traits.vrun * this.vrun_factor(),
-					vjump: this.traits.vjump * this.vjump_factor(),
+				{ x: ix, y: iy, stroke }, fluid, {
+					vrun: this.traits.vrun * (actor ? this.vrun_factor() : (this.ai_speed || 1)),
+					vjump: this.traits.vjump * (actor ? this.vjump_factor() : 1),
 					gravity: this.traits.affected_by_gravity === false ? 0 : this.game.data.properties.gravity,
-					near_surface: fluid.surface - (this.mesh.position.y + this.sprite.height * 0.5) < this.sprite.height * 0.6,
+					// only the player leaps out of the water; enemies stay in it
+					near_surface: actor && fluid.surface - (this.mesh.position.y + this.sprite.height * 0.5) < this.sprite.height * 0.6,
 				});
 			this.stroke_held = jump;
+			if (stroke && fluid.mode === 'swim' && fluid.stroke > 0) this.stroke_at = this.game.clock.getElapsedTime();
 			this.vx = next.vx;
 			this.vy = next.vy;
-			dx = this.vx + (this.dead() ? 0 : (this.traits.force_x || 0));
+			dx = this.vx + (actor && !this.dead() ? (this.traits.force_x || 0) : 0);
 			fluid_input_x = ix;
+			fluid_input_y = iy;
 		} else if (move) {
 			// a current on land pushes like wind
 			dx += move.current.x;
@@ -1166,10 +1179,19 @@ void main() {
 			if (this.dead())
 				state = 'dead';
 		}
-		// "schwimmt" / "schwebt" (only if the sprite has such a state)
-		if (fluid && state !== 'dead') {
-			const pose = fluid.mode === 'swim' ? 'swim' : 'float';
-			if (this.sti_for_state[pose]) state = pose;
+		// In the water / in space (only states the sprite has; on the bottom it
+		// walks and stands): "taucht ab" (down), "taucht auf" (up, and right after
+		// a stroke), "treibt" (no key pressed), else "schwimmt" / "schwebt".
+		if (fluid && state !== 'dead' && !(this.touching_ground() && this.vy <= 0.01)) {
+			const has = k => Boolean(this.sti_for_state[k]);
+			const swim = fluid.mode === 'swim';
+			const stroked = this.game.clock.getElapsedTime() - (this.stroke_at ?? -1) < 0.35;
+			let pose = null;
+			if (fluid_input_y < 0 && has('dive')) pose = 'dive';
+			else if ((fluid_input_y > 0 || (swim && stroked)) && has('rise')) pose = 'rise';
+			else if (fluid_input_x === 0 && fluid_input_y === 0 && !stroked && has('drift')) pose = 'drift';
+			else if (has(swim ? 'swim' : 'float')) pose = swim ? 'swim' : 'float';
+			if (pose) state = pose;
 		}
         // Behaviour poses (only if the sprite has such a state): jagt, benommen, aufgeschlagen.
         // In the air, an enemy with its own jump / fall art shows it even while hunting.
@@ -1247,6 +1269,21 @@ void main() {
 			const wanted_dy = this.vy;
 			const moved = this.try_move_y(this.vy);
 			if (Math.abs(moved) < Math.abs(wanted_dy) - 0.01) this.vy = 0;
+			// Enemies stay in their water (their space): a shark does not swim out
+			// of the sea onto the beach, it turns back at the edge.
+			if (this.character_trait === 'baddie') {
+				const h2 = this.sprite.height * 0.5;
+				const inside = (x, y) => MovementRegions.at(this.game.movement_regions, x, y + h2)?.mode === fluid.mode;
+				if (!inside(this.mesh.position.x, this.mesh.position.y)) {
+					// keep what stays inside: along the surface, it may still swim sideways
+					this.mesh.position.y = fluid_from[1];
+					this.vy = 0;
+					if (!inside(this.mesh.position.x, this.mesh.position.y)) {
+						this.mesh.position.x = fluid_from[0];
+						this.vx = 0;
+					}
+				}
+			}
 		} else {
 		// if we're standing, we can jump
 		if (this.character_trait === 'baddie' || this.sprite.traits[this.character_trait].can_jump) {
@@ -2113,7 +2150,7 @@ class Game {
 		this.update_touch_buttons();
 		// Sichtbarkeit beeinflusst nur Three.js-Gruppen, nicht die Kollisionsindizes.
 		this.visibility_rules = VisibilityRegions.resolve(level.layers);
-		// Bewegungsbereiche: swimming, floating, other gravity, currents (player only)
+		// Bewegungsbereiche: swimming, floating, other gravity, currents (player and walking enemies)
 		this.movement_regions = typeof MovementRegions !== 'undefined' ? MovementRegions.resolve(level) : null;
 		VisibilityRegions.prepare(this.visibility_rules, this.layers);
 		this.update_layer_visibility(true);

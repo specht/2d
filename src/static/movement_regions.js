@@ -1,4 +1,4 @@
-// Bewegungsbereiche: where the player character moves differently – in a layer
+// Bewegungsbereiche: where the player character (and every walking enemy) moves differently – in a layer
 // of type 'movement_region' (rectangles, like Sichtbarkeitsbereiche) or in the
 // whole level (level.properties.movement). Absent everywhere in old games: then
 // nothing changes.

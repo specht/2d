@@ -63,6 +63,8 @@ erwartet:
 - **Das kannst du später dazumalen:** Quallen, Perlen, Seegras, Korallen und eine Schatztruhe.
 
 ![Fisch](katalog:meer/fisch 10)
+![Fisch taucht ab](katalog:meer/fisch_ab 10)
+![Fisch taucht auf](katalog:meer/fisch_auf 10)
 ![Qualle](katalog:meer/qualle 5)
 ![Riff](katalog:meer/fels)
 ![Grüne Koralle](katalog:meer/koralle_gruen)
@@ -70,7 +72,7 @@ erwartet:
 
 ## Schritt für Schritt
 
-1. **Der Fisch ist die Spielfigur:** Eigenschaft **Spielfigur**. Er braucht nur einen Zustand **Spielfigur schwimmt nach rechts** (mit schlagender Schwanzflosse) und einen zum Stehen – nach links dreht das Spiel ihn von selbst um.
+1. **Der Fisch ist die Spielfigur:** Eigenschaft **Spielfigur**. Er braucht nur einen Zustand **Spielfigur schwimmt nach rechts** (mit schlagender Schwanzflosse) und einen zum Stehen – nach links dreht das Spiel ihn von selbst um. Schräg gezeichnet für **Spielfigur taucht ab** und **Spielfigur taucht auf** neigt er sich, wenn er nach unten oder oben schwimmt.
 2. **Das ganze Level ist Wasser:** In den **Level-Eigenschaften** stellst du **Bewegung im ganzen Level: Schwimmen** ein. Dazu **Schwerkraft 0 %** (er sinkt nicht), **Schwimmzug 0** (die Sprungtaste macht nichts), **Tempo 1,2 ×** und **Gleiten 85 %**.
 3. **Die Strömung im Tunnel:** Neue Ebene über **+ → Bewegungsbereich** mit **Bewegung: wie darunter (nur Strömung)**. Das heißt: Hier wird weiter geschwommen, nur zieht das Wasser dazu. **Strömung: 240 px/s**, **Richtung: 0°** (nach rechts). Zieh das Rechteck durch den Tunnel.
 4. **Damit man die Strömung sieht:** Neue Ebene über **+ → Hintergrund**, **Art: Effekt**, **Effekt: Strömung**, **Richtung: 0°**, über dasselbe Rechteck. Hellblaue Striche treiben in die Richtung, in die es zieht.

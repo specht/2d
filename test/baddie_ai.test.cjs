@@ -282,3 +282,30 @@ test('a hunter that has caught up stays in front of the player, still touching',
     const old = baddie_decide(b, mem, world({ now: 0.4, player: { dx: 9, dy: 0 } }));
     assert.equal(old.keys.right, true);
 });
+
+test('in the water a hunter swims straight after the player, in all directions', () => {
+    const b = baddie_behavior({ behavior: { type: 'hunter' } });
+    const mem = {};
+    baddie_decide(b, mem, world({ fluid: 'swim', player: { dx: 80, dy: 0, touch: 20 } }));
+    const up = baddie_decide(b, mem, world({ now: 0.1, fluid: 'swim', on_ground: false, player: { dx: -60, dy: 40, touch: 20 } }));
+    assert.equal(up.keys.left, true);
+    assert.equal(up.keys.up, true);
+    assert.equal(up.keys.down, false);
+    assert.equal(up.keys.jump, false, 'no jumping at walls under water');
+    assert.equal(up.pose, 'hunt');
+    const down = baddie_decide(b, mem, world({ now: 0.2, fluid: 'float', on_ground: false, player: { dx: 30, dy: -40, touch: 20 } }));
+    assert.equal(down.keys.right, true);
+    assert.equal(down.keys.down, true);
+    const caught = baddie_decide(b, mem, world({ now: 0.3, fluid: 'swim', on_ground: false, player: { dx: 10, dy: 2, touch: 20 } }));
+    assert.equal(caught.keys.right, false);
+    assert.equal(caught.face, 'right');
+});
+
+test('in the water a coward flees up or down as well', () => {
+    const b = baddie_behavior({ behavior: { type: 'coward' } });
+    const mem = {};
+    const out = baddie_decide(b, mem, world({ fluid: 'swim', on_ground: false, player: { dx: 30, dy: 20 } }));
+    assert.equal(out.keys.left, true);
+    assert.equal(out.keys.down, true);
+    assert.equal(out.pose, 'flee');
+});

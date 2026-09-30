@@ -202,6 +202,14 @@ function baddie_decide(b, mem, w) {
             mem.mode = 'idle';
         }
         if (mem.mode !== 'chase' || !p) return { patrol: true };
+        // Swimming or floating (a Bewegungsbereich): straight after the player,
+        // in all four directions – no ledges, gaps or ladders in the way.
+        if (w.fluid) {
+            if (Number.isFinite(p.touch) && Math.abs(p.dx) < Math.max(4, p.touch - 4) && Math.abs(p.dy) < 12)
+                return stand({ alert, face: toward(p.dx) });
+            return { keys: { left: p.dx < -4, right: p.dx > 4, up: p.dy > 6, down: p.dy < -6, jump: false },
+                alert, speed: b.chase, pose: 'hunt' };
+        }
         if (!w.on_ground) return { keys: mem.air ?? stand().keys, speed: b.chase, pose: 'hunt' };
         const m = b.moves ?? {};
         // Leitern klettern: the player is on another floor – climb the ladder here,
@@ -253,6 +261,10 @@ function baddie_decide(b, mem, w) {
         }
         if (!(mem.scared_until > w.now)) return { patrol: true };
         const dir = mem.flee_dir;
+        // swimming or floating: away from the player, up or down as well
+        if (w.fluid && p)
+            return { keys: { left: dir === 'left', right: dir === 'right', up: p.dy < -6, down: p.dy > 6, jump: false },
+                alert, speed: b.flee, pose: 'flee' };
         if (!w.on_ground) return { keys: mem.air ?? stand().keys, speed: b.flee, pose: 'flee' };
         // Cornered: stay and tremble (face the danger) – unless it has learned a way out.
         const m = b.moves ?? {};

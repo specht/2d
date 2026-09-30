@@ -1424,7 +1424,7 @@ class Game {
                     // The selection menu already supplies the group (Stehen,
                     // Angriff, ...). Applied tags below need the full label.
                     label: (sprite_trait === 'actor' || sprite_trait === 'baddie') &&
-                        /^(?:(?:walk|jump|fall|attack|hit|swim|float)_)?(?:front|back|left|right)$/.test(x) ?
+                        /^(?:(?:walk|jump|fall|attack|hit|swim|float|drift|dive|rise)_)?(?:front|back|left|right)$/.test(x) ?
                         { front: 'vorn', back: 'hinten', left: 'links', right: 'rechts' }[
                             x.split('_').at(-1)] : STATE_TRAITS[sprite_trait][x].label,
                     callback: () => {

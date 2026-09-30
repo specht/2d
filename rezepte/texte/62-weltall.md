@@ -152,7 +152,7 @@ Auf dem Mond gibt es Schwerkraft, nur weniger als auf der Erde. Dafür stellst d
 
 - **Gleiten** macht den Unterschied zwischen Wasser und Weltall: Unter Wasser bremst das Wasser (90 %), im All bremst fast nichts (99 %).
 - Ein Bewegungsbereich mit **Strömung** im All wird zum Sog eines Schwarzen Lochs oder zum Schub eines Triebwerks.
-- Gegner merken von Bewegungsbereichen nichts. Ein Meteorit, der durchs All fliegt, ist ein Gegner mit dem Verhalten **Flatterer**.
+- Auch Gegner schweben im All – ein **Jäger** treibt dir in alle Richtungen hinterher. Ein Meteorit, der geradeaus durchs All fliegt, ist ein Gegner mit dem Verhalten **Flatterer**.
 
 ## Wenn's nicht klappt
 
