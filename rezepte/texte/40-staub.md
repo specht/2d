@@ -4,10 +4,9 @@ titel: Staub in der Luft
 kategorie: Level gestalten
 stufe: 2
 kurz: Feiner Staub schwebt durch eine tote, düstere Welt – er fällt nicht, er treibt mit der Luft.
-# format: gif             # full of shader noise: a GIF is much smaller than lossless WebP
-# farben: 256
-# toleranz: 12
 skala: 2
+# every second frame (30 per second): the dust drifts slowly, and the file stays half as big
+schritte: 2
 # the still for the gallery card: right in the second flash
 standbild: 2.6
 szene:
@@ -17,10 +16,10 @@ szene:
     # the dust floats in front of everything and stays bright
     - { effekt: dust, farbe: '#d8d6e0ee', menge: 1.8, tempo: 0.8, pixel: true }
     # a cold tint over everything: gloomy, but Pip and the ground stay readable
-    - { effekt: farbe, name: Düster, farben: ['#7a86ac', '#9a7f98'], mischmodus: abdunkeln }
+    - { effekt: farbe, name: Düster, farben: ['#8591b6', '#a68ba2'], mischmodus: abdunkeln }
     # fog between the dead trees and the forest far away
     # (punkte: thick at the bottom, fading out towards the top – no hard edge)
-    - { effekt: clouds, name: Nebel, farbe: '#56668aa0', tempo: 0.4, hinter: Tote Bäume, bereich: [-4, 1, 22, 4], punkte: [[0.5, 0.1], [0.5, 1.0]] }
+    - { effekt: clouds, name: Nebel, farbe: '#6b7ba0a8', tempo: 0.4, hinter: Tote Bäume, bereich: [-4, 1, 22, 4], punkte: [[0.5, 0.1], [0.5, 1.0]] }
     # a thunderstorm far away: in front of the sky, behind everything else –
     # when it flashes, the dead trees stand out black against the light
     - { effekt: lightning, name: Gewitter, farbe: '#c9d4f0e6', vorne: false, blitz_alle: 2.2, himmel_leuchtet: 0.7 }
@@ -80,7 +79,7 @@ erwartet:
 
 ## Schritt für Schritt
 
-1. **Tote Welt:** Mal Bäume ohne Blätter in dunklem Graublau, dazu einen fernen toten Wald als flache, noch dunklere Silhouette. Beim Boden wird das Gras grau und violett statt grün. Je weiter weg etwas ist, desto dunkler und blauer.
+1. **Tote Welt:** Mal Bäume ohne Blätter fast ganz in Schwarzblau – als Silhouette, nur mit einem ganz schmalen, etwas helleren Rand. Dazu einen fernen toten Wald als flache Silhouette in hellerem, blassem Graublau. Beim Boden wird das Gras grau und violett statt grün. Je weiter weg etwas ist, desto heller und blasser – wie im Nebel.
 2. Neue Ebene über **+ → Hintergrund**, dann **Art: Effekt** und **Effekt: Schwebestaub**. Zieh das Rechteck über das ganze Level.
 3. **Farbe:** helles Grau für Staub, fast Weiß für Asche. Setz das Häkchen bei **pixelig (wie Sprites)**, dann besteht jedes Staubkorn aus echten Spielpixeln.
 4. **Menge** macht den Staub dichter, **Geschwindigkeit** lässt ihn schneller treiben, **Skalierung** macht die Körner größer. Für eine ruhige, unheimliche Stimmung: wenig Tempo und nicht zu viel Menge.
@@ -92,6 +91,8 @@ erwartet:
 10. Probier es aus: Pip läuft durch die stille, tote Welt, um ihn herum treibt der Staub – und in der Ferne blitzt es.
 
 ## Tipps
+
+> **Tipp:** Eine Silhouette wirkt nur, wenn dahinter etwas Helleres ist. Die nahen Bäume sind fast schwarz, der Nebel und der ferne Wald dahinter heller – so stehen die Bäume klar vor dem Hintergrund, obwohl alles düster ist.
 
 > **Tipp:** Düster heißt nicht, dass man nichts mehr erkennt. Die Figur und der Boden, auf dem sie läuft, müssen gut zu sehen sein – dunkel werden darf vor allem, was weit weg ist. Nimm für die Abdunkeln-Ebene helle Farben: Weiß ändert gar nichts, Schwarz macht alles schwarz.
 
@@ -106,6 +107,7 @@ erwartet:
 
 - **Man sieht keinen Staub:** Die Staub-Ebene liegt unter der Abdunkeln-Ebene oder hinter dem Himmel. Schieb sie ganz nach oben.
 - **Alles ist fast schwarz:** Die Farbe der Abdunkeln-Ebene ist zu dunkel. Nimm ein helleres Graublau.
+- **Die Bäume verschwimmen mit dem Hintergrund:** Nahe und ferne Bäume sind gleich hell. Mal die nahen dunkler und die fernen heller.
 - **Es wirkt nicht unheimlich:** Irgendwo ist noch etwas Frisches, Grünes oder Buntes. In einer toten Welt ist alles grau, blau und violett – nur das rote Leuchten fällt heraus.
 - **Der Staub rast durchs Bild:** Stell die **Geschwindigkeit** kleiner.
 - **Die Blitze sind vor den Bäumen:** Die Gewitter-Ebene liegt in der Layer-Liste zu weit oben. Schieb sie ganz nach unten, direkt über den Himmel.
