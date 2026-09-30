@@ -3,9 +3,9 @@ titel: Schnee, Regen und Nordlicht
 kategorie: Level gestalten
 stufe: 2
 kurz: Wetter und Lichter kommen aus einer Hintergrund-Ebene mit Effekt – ganz ohne Zeichnen.
-format: gif             # full of shader noise: a GIF is much smaller than lossless WebP
-farben: 256
-toleranz: 16            # tiny shimmer changes are not stored again
+#format: gif             # full of shader noise: a GIF is much smaller than lossless WebP
+#farben: 256
+#toleranz: 16            # tiny shimmer changes are not stored again
 skala: 2
 schritte: 3             # the effects change every pixel: fewer frames keep the file small
 szene:
