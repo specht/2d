@@ -2,6 +2,7 @@
 titel: Eine Tür mit F öffnen
 kategorie: Türen & Schlüssel
 stufe: 1
+skala: 2
 kurz: Die Mauer ist zu hoch zum Drüberspringen – also F drücken und durch die Tür.
 szene:
   karte: |

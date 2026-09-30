@@ -2,6 +2,7 @@
 titel: Ein Gegner, der dich verfolgt
 kategorie: Gegner
 stufe: 2
+skala: 4
 kurz: Der Käfer ist ein Jäger. Sieht er Pip, rennt er hinterher – bis er aufgibt.
 szene:
   anpassen:

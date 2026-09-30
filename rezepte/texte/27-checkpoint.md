@@ -2,6 +2,7 @@
 titel: Checkpoints
 kategorie: Welt bauen
 stufe: 1
+skala: 2
 kurz: Berührt Pip die Fahne, wird sie grün – hier geht es nach einem Missgeschick weiter.
 szene:
   karte: |

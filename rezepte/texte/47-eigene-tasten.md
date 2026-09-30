@@ -2,6 +2,7 @@
 titel: Eigene Tasten festlegen
 kategorie: Kampf
 stufe: 3
+skala: 4
 kurz: Springen mit Pfeil hoch, Schwert mit Strg? In den Einstellungen legst du fest, welche Taste was macht.
 tasten_zeigen: true
 szene:

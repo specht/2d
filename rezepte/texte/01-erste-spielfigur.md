@@ -2,6 +2,7 @@
 titel: Deine erste Spielfigur
 kategorie: Loslegen
 stufe: 1
+skala: 2
 kurz: Ein einziges Bild genügt – schon läuft und springt deine Figur.
 szene:
   legende: { P: pip_einfach }

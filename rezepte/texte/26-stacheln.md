@@ -2,6 +2,7 @@
 titel: Stacheln und Fallen
 kategorie: Welt bauen
 stufe: 1
+skala: 2
 kurz: Stacheln kosten Energie – also lieber drüberspringen!
 szene:
   eigenschaften: { show_energy: true }

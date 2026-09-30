@@ -3,7 +3,7 @@ titel: Das U-Boot und der Sog
 kategorie: Wasser & Weltall
 stufe: 3
 kurz: Ein schweres U-Boot gleitet durch die Tiefsee. Über einem Schlot zieht ein Sog es schräg nach unten – nur mit voller Kraft kommt es wieder frei.
-skala: 2
+skala: 4
 schritte: 2
 # the camera shows the sea down to its floor
 bild_hoch: 1

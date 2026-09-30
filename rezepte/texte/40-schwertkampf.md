@@ -2,6 +2,7 @@
 titel: Schwertkampf
 kategorie: Kampf
 stufe: 2
+skala: 2
 kurz: Mit J schwingt Pip das Schwert – zwei Treffer, und der Glibber ist weg.
 szene:
   anpassen: { glibber: { baddie: { hit_pause: 0.5 } } }

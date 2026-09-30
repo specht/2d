@@ -2,6 +2,7 @@
 titel: Ein Gegner, der zurückschießt
 kategorie: Kampf
 stufe: 3
+skala: 2
 kurz: Der Spuckpilz bewegt sich nicht, aber er spuckt Sporen.
 szene:
   karte: |

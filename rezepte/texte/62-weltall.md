@@ -3,7 +3,7 @@ titel: Schweben im Weltall
 kategorie: Wasser & Weltall
 stufe: 3
 kurz: Draußen vor der Raumstation gibt es keine Schwerkraft – Pip treibt durchs All und muss selbst bremsen. Auf dem Mond hüpft sie dafür riesige Sprünge.
-skala: 2
+skala: 4
 schritte: 2
 # the gallery card: Pip has turned round and still drifts on
 standbild: 2.9

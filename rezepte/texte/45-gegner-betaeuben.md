@@ -2,6 +2,7 @@
 titel: Gegner nach einem Treffer anhalten
 kategorie: Kampf
 stufe: 2
+skala: 4
 kurz: Mit „Pause nach Treffer“ bleibt der Glibber kurz stehen – Zeit zum Durchatmen.
 szene:
   legende: { P: pip_schwert }

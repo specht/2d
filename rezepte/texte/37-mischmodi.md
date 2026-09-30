@@ -2,6 +2,7 @@
 titel: Mischmodi verstehen
 kategorie: Level gestalten
 stufe: 3
+skala: 4
 kurz: Derselbe Kreis viermal – normal, leuchtend, aufhellend und abdunkelnd. So siehst du, was jeder Mischmodus mit den Farben dahinter macht.
 szene:
   himmel: ['#29366f', '#b13e53']

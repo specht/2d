@@ -3,7 +3,7 @@ titel: Eine Höhle erkunden
 kategorie: Level gestalten
 stufe: 3
 kurz: Ein Berg mit einem dunklen Loch. Dahinter eine riesige Höhle – mit leuchtenden Pilzen, Tropfsteinen und einem Teich, in den man hineinwaten kann.
-skala: 2
+skala: 4
 # a little less floor, a little more sky
 bild_hoch: 0.5
 schritte: 2

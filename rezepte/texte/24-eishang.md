@@ -2,6 +2,7 @@
 titel: Rutschiger Eishang
 kategorie: Welt bauen
 stufe: 2
+skala: 2
 kurz: Ein verschneiter Wintertag. Ein Schritt nach vorn – und Pip rutscht den Eishang ganz von allein hinunter, direkt zum Schneemann.
 format: gif             # falling snow: a GIF is much smaller than lossless WebP
 farben: 256

@@ -2,6 +2,7 @@
 titel: Laufen, Springen und Fallen animieren
 kategorie: Figuren animieren
 stufe: 2
+skala: 2
 kurz: Mit ein paar Zusatzbildern wackelt, hüpft und plumpst deine Figur.
 szene:
   karte: |
