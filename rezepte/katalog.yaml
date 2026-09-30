@@ -44,6 +44,13 @@ sprites:
       - { strip: pip/treffer, traits: { actor: [hit_right] } }
       - { strip: pip/tot, fps: 8, traits: { actor: [dead] } }
 
+  # Pip who gets a fright: the Treffer picture stays a little longer
+  pip_erschrickt:
+    label: Pip (erschrickt)
+    extends: pip
+    states:
+      - { strip: pip/treffer, fps: 2.5, traits: { actor: [hit_right] } }
+
   pip_schwert:
     label: Pip mit Schwert
     extends: pip
@@ -615,7 +622,8 @@ sprites:
     traits:
       baddie:
         energy: 100
-        damage: 0
+        # a little damage: when he catches Pip, she flinches (Treffer) and blinks
+        damage: 10
         vrun: 0.9
         vjump: 7
         start_dir: right
@@ -623,7 +631,7 @@ sprites:
         ex_left: 0.7
         ex_right: 0.7
         ex_top: 0.6
-        behavior: { type: hunter, sight: 168, alert: true, chase: 2.5, forget: 5 }
+        behavior: { type: hunter, sight: 168, alert: true, chase: 2.0, forget: 5 }
       smart: { climbs_ladders: true, jumps_gaps: true, jumps_obstacles: true, walks_slopes: true }
     states:
       - { strip: waschbaer/stehen, fps: 2, traits: { baddie: [right] } }

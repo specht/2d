@@ -22,7 +22,7 @@ szene:
     - { effekt: clouds, name: Nebel, farbe: '#6b7ba0a8', tempo: 0.4, hinter: Tote Bäume, bereich: [-4, 1, 22, 4], punkte: [[0.5, 0.1], [0.5, 1.0]] }
     # a thunderstorm far away: in front of the sky, behind everything else –
     # when it flashes, the dead trees stand out black against the light
-    - { effekt: lightning, name: Gewitter, farbe: '#eef3ffff', vorne: false, blitz_alle: 2.2, himmel_leuchtet: 1.0, blitz_aufbau: 0.18 }
+    - { effekt: lightning, name: Gewitter, farbe: '#eef3ffff', vorne: false, blitz_alle: 2.2, himmel_leuchtet: 1.0, blitz_aufbau: 0.18, pixel: true }
     # the red glow behind everything
     - { effekt: clouds, name: Rotes Leuchten, farbe: '#b13e5399', vorne: false, tempo: 0.5 }
   ebenen:
@@ -87,7 +87,7 @@ erwartet:
 6. **Düster färben:** Neue Ebene über **+ → Hintergrund**, **Art: Farbe**, mit einem kühlen Farbverlauf (oben graublau, unten altrosa). Stell bei der Ebene den **Mischmodus: Abdunkeln** ein und schieb sie direkt unter die Staub-Ebene. Alles darunter – Bäume, Boden, Figur – wird dunkler und kälter.
 7. **Nebel:** Eine Ebene mit dem Effekt **Wolken** in halb durchsichtigem Graublau, nur als Streifen über dem Boden, zwischen den toten Bäumen und dem fernen Wald. Schieb den ersten weißen Punkt nach unten und den zweiten nach oben: Dann ist der Nebel unten dicht und läuft nach oben ohne Kante aus.
 8. **Rotes Leuchten:** Ganz unten, hinter allem: noch einmal **Wolken**, diesmal in dunklem Rot.
-9. **Gewitter:** Noch eine Ebene mit dem Effekt **Gewitter**, in hellem, kühlem Weißblau. Schieb sie ganz nach unten, direkt über den Himmel – **hinter** alle Bäume. Wenn es blitzt, leuchtet der Himmel auf, und die toten Bäume stehen für einen Augenblick schwarz vor dem Licht. **Blitz alle** bestimmt, wie oft es blitzt (hier alle **2,2 s**), **Himmel leuchtet**, wie hell der Himmel dabei wird (hier **1** – ganz hell, damit man es auch durch die düstere Tönung sieht), und **Aufblitzen**, wie schnell ein Blitz hell wird (hier **0,18 s**: schnell, aber so, dass man es sieht). In dieser Zeit zuckt der Blitz von oben nach unten, und der Himmel hellt sich hinter ihm auf. Der Blitz selbst bleibt immer ein bisschen heller als der Himmel – so sieht man ihn auch bei **Himmel leuchtet 1**.
+9. **Gewitter:** Noch eine Ebene mit dem Effekt **Gewitter**, in hellem, kühlem Weißblau. Schieb sie ganz nach unten, direkt über den Himmel – **hinter** alle Bäume. Wenn es blitzt, leuchtet der Himmel auf, und die toten Bäume stehen für einen Augenblick schwarz vor dem Licht. **Blitz alle** bestimmt, wie oft es blitzt (hier alle **2,2 s**), **Himmel leuchtet**, wie hell der Himmel dabei wird (hier **1** – ganz hell, damit man es auch durch die düstere Tönung sieht), und **Aufblitzen**, wie schnell ein Blitz hell wird (hier **0,18 s**: schnell, aber so, dass man es sieht). In dieser Zeit zuckt der Blitz von oben nach unten, und der Himmel hellt sich hinter ihm auf. Mit **pixelig (wie Sprites)** wird der Blitz in Spielpixeln gezeichnet – so passt er zu den Bäumen und zu Pip. Der Blitz selbst bleibt immer ein bisschen heller als der Himmel – so sieht man ihn auch bei **Himmel leuchtet 1**.
 10. Probier es aus: Pip läuft durch die stille, tote Welt, um ihn herum treibt der Staub – und in der Ferne blitzt es.
 
 ## Tipps
