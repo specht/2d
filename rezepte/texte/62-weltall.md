@@ -23,7 +23,7 @@ szene:
   ebenen:
     - name: Planet
       kollision: false
-      parallaxe: 0.7
+      #parallaxe: 0.7
       karte: |
         ..............................
         ..............................
