@@ -158,8 +158,9 @@ szene:
   #     # snow | rain | smoke | fire | lightrays | stars | aurora | clouds | fireflies |
   #     # bubbles | dust (Schwebestaub) | lightning (Gewitter) – BACKDROP_EFFECTS in
   #     # src/static/backdrops.js
-  #     # blitz_alle: 5 · himmel_leuchtet: 0.6 · blitze: false   lightning only: seconds
-  #     #                          between strikes, sky glow 0…1, no bolts = Wetterleuchten
+  #     # blitz_alle: 5 · himmel_leuchtet: 0.6 · blitze: false · blitz_aufbau: 0.06
+  #     #                          lightning only: seconds between strikes, sky glow 0…1,
+  #     #                          no bolts = Wetterleuchten, seconds a flash takes to build up
   #     # punkte: [[x, y], …]      control points (0…1 of the effect rectangle)
   #     # bereich: [c, r, w, h]    rectangle in tiles (default: the whole scene) – e.g.
   #     #                          only the air above the ground
@@ -300,8 +301,9 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `klotz_einmal` falls only once); each with `treffer` and `tot`. `maus`
   (Angsthase: `stehen`, `laufen`, `fliehen`, `tot`). `waschbaer` (Jäger with Intelligenz: `stehen`,
   `laufen`, `jagen`, `springen`, `klettern` – back view, state *Gegner
-  klettert*). `strohpuppe` (24×48 training dummy, *Steht still*: `stehen`,
-  `treffer`, `tot` – tall enough for arrows and stones).
+  klettert*). `strohpuppe` (24×32 training dummy, *Steht still*: `stehen`,
+  `treffer`, `tot` – its bullseye sits exactly at arrow height, 10 px
+  above the ground). `strohballen` (solid hay bale for the training ground).
 * **Küste** (`kueste/`, recipe *Farben, die Stimmung machen*): `leuchtturm`
   (48×96, lamp pulsing), `klippe` and `fels` (solid), `steg` (von oben),
   `stegpfosten`, `meer` (4 frames, `phase_r: 0`), `boot` (48×24, bobbing),

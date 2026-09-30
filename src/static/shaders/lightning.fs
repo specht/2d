@@ -8,6 +8,7 @@
 //   interval  seconds between two strikes on average
 //   glow      how strongly the whole sky lights up (0 = only the bolt)
 //   bolts     1 = visible bolts, 0 = only the sky flickers ("Wetterleuchten")
+//   rise      seconds a flash takes to build up to full brightness
 precision highp float;
 
 uniform float time;
@@ -18,6 +19,7 @@ uniform vec4 color;
 uniform float interval;
 uniform float glow;
 uniform float bolts;
+uniform float rise;
 varying vec2 vuv;
 
 float hash11(float p) {
@@ -55,7 +57,10 @@ void main() {
     // the current strike: one per interval, at a random moment inside it
     float k = floor(time / every);
     float start = (k + 0.1 + 0.5 * hash11(k * 7.13)) * every;
-    float light = envelope(time - start);
+    // the flash builds up over `rise` seconds, then the strokes flicker out
+    float dt = time - start;
+    float r = max(rise, 0.0);
+    float light = dt < r ? smoothstep(0.0, 1.0, dt / max(r, 1e-3)) * envelope(0.0) : envelope(dt - r);
     if (light <= 0.001) { gl_FragColor = vec4(0.0); return; }
 
     // where it strikes
