@@ -2,28 +2,75 @@
 titel: Förderbänder und Rolltreppen
 kategorie: Welt bauen
 stufe: 2
-farben: 256
-kurz: Pip steht still – und fährt trotzdem. Erst übers Band, dann die Rolltreppe hinauf.
+kurz: Am Flughafen muss Pip nicht laufen. Das Laufband trägt sie durch die Halle, die Rolltreppe hinauf zu den Gates.
 tasten_zeigen: true
+skala: 2
+schritte: 2
+# the gallery card: Pip on the escalator
+standbild: 4.2
 szene:
-  ausschnitt: [0, 1, 14, 6]
-  # g: the escalator's housing under its upper step – the machine only starts after it
-  legende: { g: rolltreppe_gehaeuse }
-  karte: |
-    ..............
-    ..............
-    ..............
-    .........s____
-    .P......sg____
-    ###[>>]#######
-    ==============
+  himmel: ['#41a6f6', '#c3e6f6']
+  # the terminal is wider than the screen: the camera follows Pip
+  kamera: { bildhoehe: 144 }
+  legende: { t: vorfeld, w: terminalfenster, s: sitzbank, B: abflugtafel, G: gate_schild, '|': saeule, p: pflanze,
+             '[': gelaender_anfang, '-': gelaender, ']': gelaender_ende, x: rolltreppe_gelaender,
+             '#': flughafen_boden, a: laufband_anfang, l: laufband, e: laufband_ende,
+             r: rolltreppe_flughafen, u: rolltreppe_unter, n: rolltreppe_panel, g: galerie }
+  ebenen:
+    - name: Vorfeld
+      kollision: false
+      karte: |
+        ..........................
+        ..........................
+        ..........................
+        ..........................
+        tttttttttttttttttttttttttt
+        ..........................
+    - name: Fenster
+      kollision: false
+      karte: |
+        wwwwwwwwwwwwwwwwwwwwwwwwww
+        wwwwwwwwwwwwwwwwwwwwwwwwww
+        wwwwwwwwwwwwwwwwwwwwwwwwww
+        wwwwwwwwwwwwwwwwwwwwwwwwww
+        wwwwwwwwwwwwwwwwwwwwwwwwww
+        ..........................
+    - name: Halle
+      kollision: false
+      karte: |
+        ....................B...G.
+        .....B..............ps....
+        ............G.............
+        ...................|...|..
+        s..................|...|..
+        ..........................
+    - name: Geländer
+      kollision: false
+      karte: |
+        ..........................
+        ................x--]......
+        ...............x..........
+        ..............x...........
+        ....[----]................
+        ..........................
+    - name: Welt
+      karte: |
+        ..........................
+        ..........................
+        ................rggggggggg
+        ...............ru.........
+        .P............run.........
+        ####alllle################
+# Pip steps onto the walkway and lets go: it carries her through the hall. Then
+# a few steps to the escalator, which takes her up, and on to the gate.
 ablauf:
-  - { t: 0.3, halten: rechts, dauer: 0.4 }
-  - { t: 1.9, halten: rechts, dauer: 0.2 }
-dauer: 3.6
+  - { t: 0.3, halten: rechts, dauer: 0.35 }
+  - { t: 3.2, halten: rechts, dauer: 0.55 }
+  - { t: 5.1, halten: rechts, dauer: 1.0 }
+dauer: 6.6
 erwartet:
   figur_hoeher_als: 3
-  figur_rechts_von: 9
+  figur_rechts_von: 20
 ---
 ## Kurz gesagt
 
@@ -33,25 +80,28 @@ erwartet:
 
 ## Das brauchst du
 
-- **Das musst du zeichnen:** ein Band-Stück, das man aneinanderreihen kann, mit ein paar Bildern, in denen die Streifen weiterwandern. Für die Rolltreppe eine Treppe mit wandernden Stufen.
-- **Das kannst du später dazumalen:** runde Enden mit Rollen und einen Maschinenblock darunter.
+- **Das musst du zeichnen:** ein Band-Stück, das man aneinanderreihen kann, mit ein paar Bildern, in denen die Rillen weiterwandern. Für die Rolltreppe eine Treppe mit wandernden Stufen.
+- **Das kannst du später dazumalen:** Enden mit gelben Kanten, ein Glasgeländer, die Seitenwand unter der Rolltreppe – und einen Ort, an dem das alles steht: hier einen Flughafen mit großen Fenstern, Anzeigetafeln und Wartebänken.
 
-![Förderband (Anfang)](katalog:welt/band_anfang 60)
-![Förderband](katalog:welt/band 60)
-![Förderband (Ende)](katalog:welt/band_ende 60)
-![Rolltreppe](katalog:welt/rolltreppe 60)
-![Maschine](katalog:welt/maschine)
-![Rolltreppe (Gehäuse)](katalog:welt/rolltreppe_gehaeuse)
+![Laufband (Anfang)](katalog:flughafen/laufband_anfang 60)
+![Laufband](katalog:flughafen/laufband 60)
+![Laufband (Ende)](katalog:flughafen/laufband_ende 60)
+![Rolltreppe](katalog:flughafen/rolltreppe 60)
+![Rolltreppe (unten drunter)](katalog:flughafen/rolltreppe_unter)
+![Rolltreppe (Seitenwand)](katalog:flughafen/rolltreppe_panel)
+![Glasgeländer](katalog:flughafen/gelaender)
+![Abflugtafel](katalog:flughafen/abflugtafel 1)
 
 ## Schritt für Schritt
 
-1. Zeichne das Band: oben die Lauffläche mit schrägen Streifen, darunter Rollen. Im nächsten Bild wandern die Streifen **1 Pixel** weiter. Wiederholt sich das Muster alle 8 Pixel, brauchst du 8 Bilder – dann passt das letzte wieder zum ersten.
+1. Zeichne das Laufband: oben die Lauffläche mit Rillen, darunter eine silberne Seite. Im nächsten Bild wandern die Rillen **1 Pixel** weiter. Wiederholt sich das Muster alle 6 Pixel, brauchst du 6 Bilder – dann passt das letzte wieder zum ersten. Anfang und Ende bekommen gelbe Kanten, damit man sieht, wo das Band beginnt.
 2. Gib dem Sprite die Block-Eigenschaften (*man kann nicht von oben reinfallen* usw.) – man soll ja darauf stehen können.
 3. **Eigenschaft hinzufügen → Förderbänder → Förderband / Rolltreppe**. Pip benutzt **Richtung: nach rechts** und **Geschwindigkeit 1**.
 4. Im Zustand: **Framerate 60** und **Phase** überall auf **0**. Dann laufen alle Band-Stücke im Gleichtakt, und die Streifen passen über die ganze Länge.
-5. Für die Rolltreppe: eine Treppe mit Stufen, die schräg nach oben wandern – auch hier 1 Pixel pro Bild (bei 6 Pixel breiten Stufen also 6 Bilder). Sie bekommt **Schräge / Treppe** mit **Richtung: nach rechts oben** und **Förderband / Rolltreppe** mit **Richtung: nach rechts**.
-6. Setz unter jede Rolltreppe einen festen Block, damit sie nicht in der Luft hängt. Direkt unter der oberen Stufe kommt ein **Gehäuse-Block**: dieselbe Farbe und dieselben schrägen Streifen wie unten in der Rolltreppe. Dann sieht die Rolltreppe aus wie aus einem Stück – ohne Kante, die in der Mitte hineinragt.
-7. Probier es aus: Stell dich aufs Band und lass alle Tasten los.
+5. Für die Rolltreppe: eine Treppe mit Stufen, die schräg nach oben wandern – auch hier 1 Pixel pro Bild (bei 6 Pixel breiten Stufen also 6 Bilder). Sie bekommt **Schräge / Treppe** mit **Richtung: nach rechts oben** und **Förderband / Rolltreppe** mit **Richtung: nach rechts**. Mal alles an der Rolltreppe **parallel zur Schräge**: die Stufenkanten, den schwarzen Streifen darunter, die Streifen der Seitenwand. Dann passen die Stücke schräg aneinander, und in der Mitte entsteht keine Delle.
+6. Unter die Rolltreppe kommt ihre **Seitenwand**: direkt darunter ein Stück, in dem der schwarze Streifen weiterläuft, weiter unten nur noch Seitenwand. Über jede Stufe gehört ein Stück **Glasgeländer** mit Handlauf – in eine Ebene hinter der Figur.
+7. **Der Ort:** Große Fenster, ein Vorfeld draußen, Anzeigetafeln, Wartebänke und ein Schild zu den Gates erzählen: Das ist ein Flughafen. Oben liegt eine Galerie auf Säulen – dorthin fährt die Rolltreppe.
+8. Probier es aus: Pip stellt sich aufs Laufband und lässt alle Tasten los – das Band trägt sie durch die Halle. Ein paar Schritte, dann fährt die Rolltreppe sie hinauf zu den Gates.
 
 ## Tipps
 
@@ -72,4 +122,4 @@ erwartet:
 
 ## Mach mehr draus
 
-Bau eine Fabrik: Bänder in beide Richtungen, dazwischen Lücken und Stacheln – und einen Glibber, der auf dem Band herumfährt.
+Bau ein Einkaufszentrum mit Rolltreppen über mehrere Stockwerke – oder eine Fabrik mit Förderbändern in beide Richtungen, dazwischen Lücken und Stacheln, und einem Glibber, der auf dem Band herumfährt.

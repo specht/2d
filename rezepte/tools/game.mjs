@@ -346,6 +346,7 @@ export async function build_game(catalog, recipe, repo) {
             ...(e.blitz_alle !== undefined ? { lightning_interval: Number(e.blitz_alle) } : {}),
             ...(e.himmel_leuchtet !== undefined ? { lightning_glow: Number(e.himmel_leuchtet) } : {}),
             ...(e.blitze !== undefined ? { lightning_bolts: Boolean(e.blitze) } : {}),
+            ...(e.blitz_aufbau !== undefined ? { lightning_rise: Number(e.blitz_aufbau) } : {}),
             ...(e.mischmodus ? { properties: { name: e.name ?? e.effekt, blend: blend_of(e.mischmodus, `${recipe.id}: `) } } : {}),
             // bereich: [column, row from top, width, height] in tiles – e.g. only the air above the ground
             rects: [e.bereich ?

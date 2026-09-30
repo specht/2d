@@ -1300,16 +1300,31 @@ class Game {
                 attack.timing.cooldown_s = value;
             },
         });
+        let angle_controls = null;
         new SelectWidget({
             container: div, label: 'Zielen:',
-            hint: 'Waagerecht nutzt die Blickrichtung. Maus richtet den Schuss nach der Maus aus. Gegner zielen damit direkt auf die Spielfigur.',
-            options: { horizontal: 'waagerecht', mouse: 'Maus' },
+            hint: 'Blickrichtung schießt mit K dorthin, wohin die Figur schaut – waagerecht oder im eingestellten Winkel. Maus richtet den Schuss nach der Maus aus. Gegner zielen damit direkt auf die Spielfigur.',
+            options: { horizontal: 'Blickrichtung', mouse: 'Maus' },
             get: () => attack.delivery?.aim_mode ?? 'horizontal',
             set: choice => {
                 if (!['horizontal', 'mouse'].includes(choice)) return;
                 attack.delivery.aim_mode = choice;
+                angle_controls?.toggle(choice !== 'mouse');
             },
         });
+        angle_controls = $('<div>').appendTo(div);
+        new NumberWidget({
+            container: angle_controls, label: 'Winkel:',
+            hint: '0 bedeutet waagerecht. Größere Werte schießen schräg nach oben (45 = diagonal), negative schräg nach unten. Mit Schwerkraft fliegt das Projektil dann einen Bogen.',
+            min: -80, max: 80, step: 5, decimalPlaces: 0, suffix: '°',
+            get: () => attack.delivery?.aim_angle_deg ?? 0,
+            set: value => {
+                if (!Number.isFinite(value) || value < -80 || value > 80) return;
+                if (value === 0) delete attack.delivery.aim_angle_deg;
+                else attack.delivery.aim_angle_deg = value;
+            },
+        });
+        angle_controls.toggle((attack.delivery?.aim_mode ?? 'horizontal') !== 'mouse');
         section('So sieht der Angriff aus');
         const picker = (field, key, hint) => new SpriteSelectWidget({
             container: div, label: field,

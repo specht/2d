@@ -85,6 +85,10 @@ const BACKDROP_EFFECT_OPTIONS = {
             label: 'Himmel leuchtet', min: 0, max: 1, step: 0.05, decimalPlaces: 2, default: 0.6, uniform: 'glow',
             hint: 'Wie hell der ganze Himmel beim Blitz aufleuchtet: 0 = nur der Blitz selbst, 1 = sehr hell. Liegt die Ebene hinter Bäumen und Häusern, leuchten ihre Umrisse kurz auf.',
         },
+        lightning_rise: {
+            label: 'Aufblitzen', suffix: 's', min: 0, max: 1, step: 0.02, decimalPlaces: 2, default: 0.06, uniform: 'rise',
+            hint: 'So lange braucht ein Blitz, bis er ganz hell ist. 0 = sofort da, größere Werte = der Himmel wird erst allmählich hell.',
+        },
         lightning_bolts: {
             type: 'bool', label: 'Blitze zeigen', default: true, uniform: 'bolts',
             hint: 'Ohne Häkchen sieht man keine Blitze, nur der Himmel flackert – wie Wetterleuchten in der Ferne.',

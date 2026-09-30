@@ -76,6 +76,15 @@ sprites:
           timing: { cooldown_s: 0.6 }
           visual: { projectile_sprite_index: { sprite: pfeil }, hit_sprite_index: { sprite: treffer_funke } }
 
+  # the same bow, but shot at 45° with gravity: the arrow flies an arc
+  pip_bogen_schraeg:
+    label: Pip mit Bogen (im Bogen schießen)
+    extends: pip_bogen
+    traits:
+      ranged_attack:
+        attack:
+          delivery: { range_px: 260, speed_px_s: 240, gravity_px_s2: 380, aim_angle_deg: 45 }
+
   pip_wurf:
     label: Pip wirft Steine
     extends: pip
@@ -319,6 +328,23 @@ sprites:
     label: Hangfuß abwärts
     traits: { block_above: {}, block_sides: {}, block_below: {} }
     states: [{ strip: welt/hang_fuss_ab }]
+  # a steep hill slope (24 × 24) with the same grass band – and its foot pieces
+  huegel_steil:
+    label: Steiler Hang
+    traits: { slope: { direction: positive } }
+    states: [{ strip: welt/huegel_steil }]
+  huegel_steil_ab:
+    label: Steiler Hang abwärts
+    traits: { slope: { direction: negative } }
+    states: [{ strip: welt/huegel_steil_ab }]
+  huegel_steil_fuss:
+    label: Fuß (steiler Hang)
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/huegel_steil_fuss }]
+  huegel_steil_fuss_ab:
+    label: Fuß (steiler Hang abwärts)
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/huegel_steil_fuss_ab }]
 
   # ------------------------------------------- Haus: Fassade und Möbel
   hausfront: { label: Hausfront, groesse: [192, 72], states: [{ strip: welt/hausfront }] }
@@ -392,6 +418,53 @@ sprites:
   sonne: { label: Sonne, states: [{ strip: kueste/sonne }] }
   schaefchenwolke: { label: Schäfchenwolke, groesse: [48, 24], states: [{ strip: kueste/wolke }] }
 
+  # ------------------------------ Flughafen (Rezept "Förderbänder und Rolltreppen")
+  flughafen_boden:
+    label: Terminalboden
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: flughafen/boden }]
+  galerie:
+    label: Galerie
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: flughafen/galerie }]
+  # a moving walkway: the grooves move 1 px per frame (6 frames), all tiles in step
+  laufband:
+    label: Laufband
+    traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: right, speed: 1.0 } }
+    states: [{ strip: flughafen/laufband, fps: 60, phase_r: 0 }]
+  laufband_anfang:
+    label: Laufband (Anfang)
+    traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: right, speed: 1.0 } }
+    states: [{ strip: flughafen/laufband_anfang, fps: 60, phase_r: 0 }]
+  laufband_ende:
+    label: Laufband (Ende)
+    traits: { block_above: {}, block_sides: {}, block_below: {}, conveyor: { direction: right, speed: 1.0 } }
+    states: [{ strip: flughafen/laufband_ende, fps: 60, phase_r: 0 }]
+  # the escalator: steps, belt and side panel all follow the escalator line, so the
+  # tiles continue diagonally without a dent – and so do the pieces below and above
+  rolltreppe_flughafen:
+    label: Rolltreppe (Flughafen)
+    traits: { slope: { direction: positive }, conveyor: { direction: right, speed: 1.0 } }
+    states: [{ strip: flughafen/rolltreppe, fps: 60, phase_r: 0 }]
+  rolltreppe_unter:
+    label: Rolltreppe (unten drunter)
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: flughafen/rolltreppe_unter }]
+  rolltreppe_panel:
+    label: Rolltreppe (Seitenwand)
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: flughafen/rolltreppe_panel }]
+  rolltreppe_gelaender: { label: Rolltreppe (Geländer), states: [{ strip: flughafen/rolltreppe_gelaender, frames: [0] }] }
+  gelaender: { label: Glasgeländer, states: [{ strip: flughafen/gelaender }] }
+  gelaender_anfang: { label: Glasgeländer (Anfang), states: [{ strip: flughafen/gelaender_anfang }] }
+  gelaender_ende: { label: Glasgeländer (Ende), states: [{ strip: flughafen/gelaender_ende }] }
+  terminalfenster: { label: Terminalfenster, states: [{ strip: flughafen/fenster }] }
+  vorfeld: { label: Vorfeld, states: [{ strip: flughafen/vorfeld }] }
+  abflugtafel: { label: Abflugtafel, groesse: [48, 24], states: [{ strip: flughafen/abflugtafel, fps: 1 }] }
+  gate_schild: { label: Schild zum Gate, states: [{ strip: flughafen/gate_schild }] }
+  sitzbank: { label: Sitzreihe, groesse: [48, 24], states: [{ strip: flughafen/sitzbank }] }
+  saeule: { label: Säule, states: [{ strip: flughafen/saeule }] }
+
   # --------------------------------------- Höhle (Rezept "Eine Höhle erkunden")
   hoehle_fels:
     label: Höhlenfels
@@ -415,8 +488,21 @@ sprites:
   lichtschacht: { label: Lichtschacht, groesse: [48, 72], states: [{ strip: hoehle/lichtschacht }] }
   # the mushrooms' light: on a layer with "Leuchten"
   pilzlicht: { label: Pilzlicht, groesse: [72, 72], states: [{ strip: hoehle/pilzlicht }] }
-  # the mountain seen from outside, with a see-through cave mouth at the bottom left
-  bergfront: { label: Berg von außen, groesse: [192, 96], states: [{ strip: hoehle/bergfront }] }
+  # the mountain: one picture in two parts, split along a jagged line.
+  # The flank with the cave mouth always stays, the front over the cave fades out.
+  bergflanke: { label: Berg mit Eingang, groesse: [168, 96], states: [{ strip: hoehle/bergflanke }] }
+  bergfront: { label: Berg von außen, groesse: [168, 96], states: [{ strip: hoehle/bergfront }] }
+  # at the entrance the ground turns from grass into cave floor (48 × 24, solid)
+  hoehle_uebergang_boden:
+    label: Übergang Wiese – Höhle
+    groesse: [48, 24]
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: hoehle/uebergang_boden }]
+  hoehle_uebergang_erde:
+    label: Übergang Erde – Fels
+    groesse: [48, 24]
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: hoehle/uebergang_erde }]
 
   # ------------------------------------------- Bilder für Angriffe
   pfeil:
@@ -501,7 +587,7 @@ sprites:
   # a straw training dummy – tall enough for arrows and stones, stands still
   strohpuppe:
     label: Strohpuppe (Übungsziel)
-    groesse: [24, 48]
+    groesse: [24, 32]
     traits:
       baddie:
         energy: 45
@@ -510,14 +596,19 @@ sprites:
         patrols: false
         start_dir: left
         wait_until_seen: false
-        ex_left: 0.7
-        ex_right: 0.7
+        ex_left: 0.5
+        ex_right: 0.5
         ex_top: 0.95
         behavior: { type: still }
     states:
       - { strip: strohpuppe/stehen, traits: { baddie: [right] } }
       - { strip: strohpuppe/treffer, fps: 12, traits: { baddie: [hit_right] } }
       - { strip: strohpuppe/tot, fps: 8, traits: { baddie: [dead] } }
+  # a hay bale for the training ground (solid)
+  strohballen:
+    label: Strohballen
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: strohpuppe/strohballen }]
   # a raccoon that chases – and climbs, jumps gaps and hops over blocks (Intelligenz)
   waschbaer:
     label: Waschbär (Jäger mit Intelligenz)

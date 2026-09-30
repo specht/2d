@@ -187,12 +187,13 @@ function register_projectile(combat) {
     combat.register_delivery('projectile', {
         validate(definition) {
             const { range_px: range, speed_px_s: speed, gravity_px_s2: gravity,
-                aim_mode: aimMode, detonation } = definition.delivery;
+                aim_mode: aimMode, aim_angle_deg: angle, detonation } = definition.delivery;
             const bomb = detonation !== undefined;
             return Number.isFinite(range) && range >= 1 && range <= 1000 &&
                 Number.isFinite(speed) && speed >= (bomb ? 0 : 40) && speed <= 1200 &&
                 (gravity === undefined || (Number.isFinite(gravity) && gravity >= 0 && gravity <= 4000)) &&
                 (aimMode === undefined || ['horizontal', 'mouse'].includes(aimMode)) &&
+                (angle === undefined || (Number.isFinite(angle) && angle >= -80 && angle <= 80)) &&
                 (!bomb || (!!detonation && Number.isFinite(detonation.fuse_s) &&
                     detonation.fuse_s >= 0.1 && detonation.fuse_s <= 20 &&
                     Number.isFinite(detonation.radius_px) && detonation.radius_px >= 1 &&
@@ -213,6 +214,16 @@ function register_projectile(combat) {
             // A horizontal bomb throw needs lift to clear the ground. Explicit
             // mouse aiming keeps the direction selected by the player.
             let aimY = Number.isFinite(instance.aim?.y) ? instance.aim.y : 0;
+            // Shots in the facing direction (key K, or an enemy looking at the
+            // player) leave at the configured angle: 0 = level, 45 = diagonally
+            // up, negative = down. Together with gravity this makes an arc.
+            const angle = instance.definition.delivery.aim_angle_deg;
+            if (!Number.isFinite(instance.aim?.y) && Number.isFinite(angle) && angle !== 0 &&
+                (instance.definition.delivery.aim_mode ?? 'horizontal') === 'horizontal') {
+                const rad = angle * Math.PI / 180;
+                aimX = (aimX < 0 ? -1 : 1) * Math.cos(rad);
+                aimY = Math.sin(rad);
+            }
             if (bomb && !drop && aimY >= 0 && aimY < 0.35) aimY = 0.35;
             const norm = Math.hypot(aimX, aimY);
             if (!(norm > 1e-9)) {

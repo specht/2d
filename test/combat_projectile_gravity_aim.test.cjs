@@ -94,3 +94,53 @@ test('projectile collision follows the arc and can hit the floor before reaching
         assert.equal(f.game.scene.objects.length, 0);
     } finally { f.restore(); }
 });
+
+test('a launch angle tilts key shots in the facing direction; level shots stay the default', () => {
+    const f = fixture();
+    try {
+        f.attack.timing = { ...f.attack.timing, cooldown_s: 0 };
+        const level = f.combat.request_attack(f.actor, 'ranged', 0);
+        assert.equal(level.projectile_vy, 0);
+        f.combat.active.length = 0;
+        f.attack.delivery.aim_angle_deg = 45;
+        const up = f.combat.request_attack(f.actor, 'ranged', 1);
+        const speed = f.attack.delivery.speed_px_s;
+        assert.ok(Math.abs(up.projectile_vx - speed * Math.SQRT1_2) < 1e-6);
+        assert.ok(Math.abs(up.projectile_vy - speed * Math.SQRT1_2) < 1e-6);
+        f.combat.active.length = 0;
+        f.actor.last_horizontal_facing = 'left';
+        const left = f.combat.request_attack(f.actor, 'ranged', 2);
+        assert.ok(left.projectile_vx < 0 && left.projectile_vy > 0);
+        // an explicit (mouse) aim ignores the angle
+        f.combat.active.length = 0;
+        const aimed = f.combat.request_attack(f.actor, 'ranged', 3, { x: 1, y: 0 });
+        assert.equal(aimed.projectile_vy, 0);
+    } finally { f.restore(); }
+});
+
+test('with gravity an angled arrow flies an arc and lands at the same height', () => {
+    const f = fixture();
+    try {
+        Object.assign(f.attack.delivery, { speed_px_s: 240, gravity_px_s2: 380,
+            aim_angle_deg: 45, range_px: 260 });
+        const victim = f.enemy(162, 0);   // 152 px ahead of the arrow's start
+        victim.sprite = { width: 12, height: 4 };
+        victim.mesh.position.y = 8;
+        const shot = f.combat.request_attack(f.actor, 'ranged', 0);
+        let peak = shot.projectile_y;
+        for (let t = 1 / 60; t < 1.2; t += 1 / 60) {
+            f.combat.step(t);
+            if (f.combat.active.length) peak = Math.max(peak, shot.projectile_y);
+        }
+        assert.ok(peak > 40, `peak ${peak}`);
+        assert.equal(victim.energy, 85);
+    } finally { f.restore(); }
+});
+
+test('an out-of-range launch angle is rejected', () => {
+    const f = fixture();
+    try {
+        f.attack.delivery.aim_angle_deg = 95;
+        assert.equal(f.combat.request_attack(f.actor, 'ranged', 0), null);
+    } finally { f.restore(); }
+});
