@@ -989,7 +989,14 @@ void main() {
 	}
 
 	simulation_step(t) {
-		if (!this.active) return;
+		if (!this.active) {
+			// A dead baddie is already inactive for AI, combat and collisions, but its
+			// death pose still has to finish. update_state_and_direction() contains
+			// the one-shot animation logic and clamps to the final frame.
+			if (this.character_trait === 'baddie' && this.state === 'dead')
+				this.update_state_and_direction('dead', this.direction);
+			return;
+		}
 		if (!this.simulate_this) {
 			let x0 = this.mesh.position.x - this.sprite.width * 0.5 * this.traits.ex_left;
 			let x1 = this.mesh.position.x + this.sprite.width * 0.5 * this.traits.ex_right;

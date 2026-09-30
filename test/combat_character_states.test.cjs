@@ -146,6 +146,26 @@ test('Treffer takes priority, death clears poses, and two placed enemies have is
     assert.equal(game.baddies.length, 2);
 });
 
+test('dead baddie animation plays once while inactive and holds its final frame', () => {
+    const { addCharacter, advance } = fixture('baddie', [pose(['dead'], 3, 10)]);
+    const enemy = addCharacter();
+    enemy.take_damage(30);
+    assert.equal(enemy.active, false);
+    assert.equal(enemy.mesh.geometry, '1:0');
+
+    advance(0.12);
+    enemy.simulation_step(0.12);
+    assert.equal(enemy.mesh.geometry, '1:1');
+
+    advance(0.2);
+    enemy.simulation_step(0.32);
+    assert.equal(enemy.mesh.geometry, '1:2');
+
+    advance(1);
+    enemy.simulation_step(1.32);
+    assert.equal(enemy.mesh.geometry, '1:2');
+});
+
 test('a dying player cannot show Treffer or Angriff over the dead state', () => {
     const { addCharacter } = fixture('actor', [pose(['attack_right']), pose(['hit_left'])]);
     const actor = addCharacter();
