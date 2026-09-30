@@ -4,6 +4,8 @@ kategorie: Welt bauen
 stufe: 2
 kurz: Breite und steile Hänge im Wechsel – so wird aus einer flachen Wiese eine Hügellandschaft. Mit passenden Übergängen sieht man keine Ecken.
 skala: 2
+# the camera shows the whole landscape, down to the ground
+bild_hoch: 1
 schritte: 2
 # the gallery card: Pip on the first hilltop
 standbild: 1.4

@@ -4,6 +4,8 @@ kategorie: Level gestalten
 stufe: 3
 kurz: Ein Berg mit einem dunklen Loch. Dahinter eine riesige Höhle – mit leuchtenden Pilzen, Tropfsteinen und einem Teich, in den man hineinwaten kann.
 skala: 2
+# a little less floor, a little more sky
+bild_hoch: 0.5
 schritte: 2
 # the gallery card: Pip waiting in the cave mouth, the mountain's front fading
 standbild: 1.7
@@ -91,17 +93,17 @@ szene:
         ..................................
         ..................................
   bereiche:
-    - { ziel: bergfront, rechtecke: [[8, 0, 26, 6]], im_bereich: versteckt, ueberblendung: 0.6 }
+    - { ziel: bergfront, rechtecke: [[6.5, 0, 27.5, 6]], im_bereich: versteckt, ueberblendung: 0.6 }
     # inside, the eyes get used to the dark: the darkness fades in
-    - { ziel: daemmerung, rechtecke: [[8, 0, 26, 6]], im_bereich: sichtbar, ueberblendung: 0.8 }
-    - { ziel: hoehlendunkel, rechtecke: [[8, 0, 26, 6]], im_bereich: sichtbar, ueberblendung: 0.8 }
-# Pip walks up to the mountain and just into the mouth (x 207, the regions begin
-# at 192) and waits there while the front fades out and the darkness fades in.
+    - { ziel: daemmerung, rechtecke: [[6.5, 0, 27.5, 6]], im_bereich: sichtbar, ueberblendung: 0.8 }
+    - { ziel: hoehlendunkel, rechtecke: [[6.5, 0, 27.5, 6]], im_bereich: sichtbar, ueberblendung: 0.8 }
+# Pip walks up to the mountain and stops right in the mouth (x 165, the regions
+# begin at 156) and waits there while the front fades out and the darkness fades in.
 # Then on into the pool (he stops there for a moment in the light), jumps out
 # and walks on to the end of the cave.
 ablauf:
-  - { t: 0.4, halten: rechts, dauer: 0.95 }
-  - { t: 2.65, halten: rechts, dauer: 1.55 }
+  - { t: 0.4, halten: rechts, dauer: 0.72 }
+  - { t: 2.42, halten: rechts, dauer: 1.78 }
   - { t: 4.9, halten: rechts, dauer: 1.45 }
   - { t: 5.02, drücken: springen }
 dauer: 7.0
@@ -145,8 +147,8 @@ erwartet:
    - **Berg von außen** (der Rest über der Höhle) in eine Ebene ganz oben in der Layer-Liste.
    Von außen passen beide Teile genau zusammen – man sieht einen einzigen Berg.
 8. **Übergänge am Boden:** Am Eingang geht die Wiese mit einem gemischten Stück in Höhlenboden über, die Erde darunter in Fels. So gibt es auch unten keine gerade Kante.
-9. Neue Ebene über **+ → Sichtbarkeitsbereich**, **Zielebene: Berg von außen**, **Im Bereich: versteckt**. Zieh das Rechteck über die ganze Höhle – es beginnt direkt hinter dem Eingang – und stell **Überblendung** auf **0,6 s**.
-10. Probier es aus: Pip geht auf den dunklen Eingang zu und bleibt gleich hinter dem Eingang stehen. Der Berg über der Höhle verschwindet, es wird langsam dunkel – und die Höhle öffnet sich. Dann watet Pip in den Teich, bleibt kurz im Lichtstrahl stehen, springt heraus und läuft weiter bis zum Ende der Höhle.
+9. Neue Ebene über **+ → Sichtbarkeitsbereich**, **Zielebene: Berg von außen**, **Im Bereich: versteckt**. Zieh das Rechteck über die ganze Höhle – es beginnt mitten im Eingang – und stell **Überblendung** auf **0,6 s**.
+10. Probier es aus: Pip geht auf den dunklen Eingang zu und bleibt mitten im Eingang stehen. Der Berg über der Höhle verschwindet, es wird langsam dunkel – und die Höhle öffnet sich. Dann watet Pip in den Teich, bleibt kurz im Lichtstrahl stehen, springt heraus und läuft weiter bis zum Ende der Höhle.
 
 ## So wird die Höhle geheimnisvoll
 

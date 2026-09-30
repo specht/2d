@@ -5,14 +5,14 @@ stufe: 3
 kurz: Draußen vor der Raumstation gibt es keine Schwerkraft – Pip treibt durchs All und muss selbst bremsen. Auf dem Mond hüpft sie dafür riesige Sprünge.
 skala: 2
 schritte: 2
-# the gallery card: Pip drifting in space
-standbild: 2.6
+# the gallery card: Pip has turned round and still drifts on
+standbild: 2.9
 szene:
   himmel: ['#1a1c2c', '#29366f']
   kamera: { bildhoehe: 144 }
   legende: { P: astronaut, W: station, B: station_boden, L: luke, b: bullauge, o: stern, S: satellit, G: planet, i: station }
   # in space: no gravity, and Pip glides on for a long time
-  bewegung: { art: schweben, gleiten: 99, tempo: 0.7 }
+  bewegung: { art: schweben, gleiten: 98, tempo: 0.7 }
   bewegungsbereiche:
     # inside the station there is gravity: Pip walks
     - { name: Station, art: laufen, rechtecke: [[0, 0, 6.5, 6]] }
@@ -27,7 +27,7 @@ szene:
       karte: |
         ..............................
         ..............................
-        .................G............
+        .........G....................
         ..............................
         ..............................
         ..............................
@@ -44,27 +44,29 @@ szene:
       kollision: false
       karte: |
         ..............................
-        ...b..........................
+        ...b.............S............
         ..............................
         ..............................
-        .........................S....
+        ..............................
         ..............................
     - name: Welt
       karte: |
         WWWWWWW.......................
         W.....W.......................
-        W.....W.......................
-        W.................o...........
-        W.P...................o.......
+        W.....W.....o.................
+        W..............o..............
+        W.P...........................
         BBBBBBB.......................
 ablauf:
   - { t: 0.3, halten: rechts, dauer: 1.5 }
   - { t: 1.9, halten: hoch, dauer: 0.5 }
-  - { t: 3.2, halten: runter, dauer: 0.6 }
+  # she turns round: at first she keeps drifting on, then she slowly comes back
+  - { t: 2.6, halten: links, dauer: 1.4 }
 dauer: 6.0
 erwartet:
   punkte: 20
-  figur_rechts_von: 20
+  figur_rechts_von: 8
+  figur_hoeher_als: 2
 # a picture of its own in the text: the same astronaut on the moon
 einzelbilder: true
 varianten:
@@ -116,7 +118,7 @@ varianten:
 ## Kurz gesagt
 
 1. Im All gibt es keine Schwerkraft: **Bewegung im ganzen Level: Schweben**.
-2. Wer schwebt, treibt immer weiter – mit **Gleiten 99 %** muss Pip selbst bremsen, indem sie in die andere Richtung drückt.
+2. Wer schwebt, treibt immer weiter – mit **Gleiten 98 %** muss Pip selbst bremsen, indem sie in die andere Richtung drückt.
 3. In der Raumstation gibt es Schwerkraft: Dort liegt ein Bewegungsbereich mit **Laufen**. Und auf dem Mond hüpft Pip mit weniger Schwerkraft riesige Sprünge.
 
 ## Das brauchst du
@@ -133,12 +135,12 @@ varianten:
 
 ## Schritt für Schritt
 
-1. **Das All:** In den **Level-Eigenschaften** stellst du **Bewegung im ganzen Level: Schweben** ein, mit **Gleiten 99 %** und **Tempo 0,7 ×**. Einen Sternenhimmel gibt es als **Hintergrund → Effekt → Sternenhimmel**.
+1. **Das All:** In den **Level-Eigenschaften** stellst du **Bewegung im ganzen Level: Schweben** ein, mit **Gleiten 98 %** und **Tempo 0,7 ×**. Einen Sternenhimmel gibt es als **Hintergrund → Effekt → Sternenhimmel**.
 2. **Die Raumstation:** Wände und Boden sind feste Blöcke. Rechts ist die Luftschleuse offen. Leg über die Station einen **Bewegungsbereich** mit **Bewegung: Laufen – andere Schwerkraft** und **Schwerkraft 100 %**: Drinnen läuft und springt Pip wie immer.
 3. **Pip schwebt:** Gib Pip einen Zustand **Spielfigur schwebt nach rechts** – Arme und Beine gespreizt. Ohne dieses Bild nimmt das Spiel die Bilder fürs Laufen, Springen und Fallen.
 4. Draußen steuern die Pfeiltasten in alle vier Richtungen. Pip kommt aber nur langsam in Fahrt – und lässt du los, treibt sie einfach weiter. Zum Anhalten drückst du in die Gegenrichtung.
 5. Verteil ein paar **Sterne** zum Einsammeln im All. Ein **Satellit** und ein **Planet** (in einer Ebene mit **Parallaxe 0,7**, damit er weit weg wirkt) machen den Weltraum groß.
-6. Probier es aus: Pip läuft aus der Luftschleuse und treibt ins All. Mit **↑** steigt sie zu einem Stern, mit **↓** sinkt sie zum nächsten – und treibt langsam weiter.
+6. Probier es aus: Pip läuft aus der Luftschleuse und treibt ins All. Mit **↑** steigt sie zu einem Stern. Dann drückt sie **←**: Sie dreht sich sofort um – treibt aber erst noch ein Stück weiter, bis sie langsam wieder zurückkommt, zum zweiten Stern. So fühlt sich Schweben an: Man lenkt nicht, man gibt Schwung.
 
 ![Auf dem Mond](variante:1)
 
@@ -150,7 +152,7 @@ Auf dem Mond gibt es Schwerkraft, nur weniger als auf der Erde. Dafür stellst d
 
 ## Tipps
 
-- **Gleiten** macht den Unterschied zwischen Wasser und Weltall: Unter Wasser bremst das Wasser (90 %), im All bremst fast nichts (99 %).
+- **Gleiten** macht den Unterschied zwischen Wasser und Weltall: Unter Wasser bremst das Wasser (90 %), im All bremst fast nichts (98 %).
 - Ein Bewegungsbereich mit **Strömung** im All wird zum Sog eines Schwarzen Lochs oder zum Schub eines Triebwerks.
 - Auch Gegner schweben im All – ein **Jäger** treibt dir in alle Richtungen hinterher. Ein Meteorit, der geradeaus durchs All fliegt, ist ein Gegner mit dem Verhalten **Flatterer**.
 

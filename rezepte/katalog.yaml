@@ -370,6 +370,8 @@ sprites:
   # mischmodus: leuchten | aufhellen | abdunkeln (the sprite's Mischmodus)
   lichtkegel: { label: Lichtkegel, groesse: [48, 72], mischmodus: leuchten, states: [{ strip: welt/lichtkegel }] }
   laterne: { label: Laterne, groesse: [48, 72], states: [{ strip: welt/laterne }] }
+  # the lantern's light at night: much brighter than the Lichtkegel, it pops out of the dark
+  laternenlicht: { label: Laternenlicht, groesse: [48, 72], mischmodus: leuchten, states: [{ strip: welt/laternenlicht }] }
   glas: { label: Glasscheibe, mischmodus: abdunkeln, states: [{ strip: welt/glas }] }
   # Mischmodi: one opaque disc – dark rim, orange body, white spot – blended by its layer
   farbkreis: { label: Farbkreis, states: [{ strip: welt/farbkreis }] }
@@ -388,7 +390,8 @@ sprites:
   dachschatten: { label: Schatten unterm Dach, mischmodus: abdunkeln, states: [{ strip: welt/dachschatten }] }
   geist:
     label: Geist
-    mischmodus: aufhellen
+    # Leuchten: it glows brightly in the dark room behind the tinted glass
+    mischmodus: leuchten
     traits:
       baddie:
         energy: 40
@@ -422,6 +425,8 @@ sprites:
   stegpfosten: { label: Stegpfosten, states: [{ strip: kueste/pfosten }] }
   meer: { label: Meer, states: [{ strip: kueste/meer, fps: 4, phase_r: 0 }] }
   boot: { label: Boot, groesse: [48, 24], states: [{ strip: kueste/boot, fps: 2 }] }
+  # the same boat, 14 px lower: placed in the water row it floats in the water (behind the waves)
+  boot_im_wasser: { label: Boot im Wasser, groesse: [48, 38], states: [{ strip: kueste/boot_im_wasser, fps: 2 }] }
   sonne: { label: Sonne, states: [{ strip: kueste/sonne }] }
   schaefchenwolke: { label: Schäfchenwolke, groesse: [48, 24], states: [{ strip: kueste/wolke }] }
 
@@ -462,6 +467,8 @@ sprites:
     traits: { block_above: {}, block_sides: {}, block_below: {} }
     states: [{ strip: flughafen/rolltreppe_panel }]
   rolltreppe_gelaender: { label: Rolltreppe (Geländer), states: [{ strip: flughafen/rolltreppe_gelaender, frames: [0] }] }
+  # the top end of the escalator's handrail: it levels out at the gallery rail's height
+  rolltreppe_gelaender_oben: { label: Rolltreppe (Geländer oben), states: [{ strip: flughafen/rolltreppe_gelaender_oben }] }
   gelaender: { label: Glasgeländer, states: [{ strip: flughafen/gelaender }] }
   gelaender_anfang: { label: Glasgeländer (Anfang), states: [{ strip: flughafen/gelaender_anfang }] }
   gelaender_ende: { label: Glasgeländer (Ende), states: [{ strip: flughafen/gelaender_ende }] }
@@ -590,6 +597,18 @@ sprites:
     traits: { block_above: {}, block_sides: {}, block_below: {} }
     states: [{ strip: meer/fels }]
   seegras: { label: Seegras, groesse: [24, 48], states: [{ strip: meer/seegras, fps: 4 }] }
+  # kelp hanging from a rock ceiling, anemones on the reef
+  seegras_decke: { label: Seegras an der Decke, states: [{ strip: meer/seegras_decke, fps: 3 }] }
+  anemone: { label: Seeanemone, states: [{ strip: meer/anemone, fps: 2 }] }
+  # the shore: rocks with grass on top (solid)
+  uferfels_oben:
+    label: Uferfels (oben)
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: meer/klippe_oben }]
+  uferfels:
+    label: Uferfels
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: meer/klippe }]
   koralle: { label: Koralle, states: [{ strip: meer/koralle }] }
   koralle_gruen: { label: Grüne Koralle, states: [{ strip: meer/koralle_gruen }] }
   truhe: { label: Schatztruhe, states: [{ strip: meer/truhe }] }
@@ -649,7 +668,8 @@ sprites:
     label: Bombe
     traits: { bomb: {} }
     states:
-      - { strip: welt/bombe_zuendschnur, fps: 8, traits: { bomb: [fuse] } }
+      # 8 frames at 5 fps: the cord burns down within the fuse time (1.6 s)
+      - { strip: welt/bombe_zuendschnur, fps: 5, traits: { bomb: [fuse] } }
       - { strip: welt/bombe_explosion, fps: 12, traits: { bomb: [explosion] } }
   treffer_funke:
     label: Treffer-Funke
@@ -749,7 +769,7 @@ sprites:
         # a little damage: when he catches Pip, she flinches (Treffer) and blinks
         damage: 10
         vrun: 0.9
-        vjump: 7
+        vjump: 5.5
         start_dir: right
         wait_until_seen: false
         ex_left: 0.7

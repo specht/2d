@@ -114,7 +114,7 @@ The recorder relies on these runtime entry points: `window.game`,
 ```yaml
 ---
 titel: Leitern hochklettern
-kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Wasser & Weltall | Türen & Schlüssel | Kampf | Gegner
+kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Türen & Schlüssel | Kampf | Gegner | Wasser & Weltall
 # entwurf: true                # hide this recipe (not built, not shown)
 stufe: 1                       # difficulty 1–3 (kept in rezepte.json, not shown)
 kurz: Pip klettert eine Leiter hoch und läuft oben weiter.
@@ -201,6 +201,8 @@ ablauf:                        # input script, times in seconds
   - { t: 1.3, drücken: springen }      # a short tap (0.1 s)
 dauer: 3.0                     # length of the recording
 # skala: 2                     # optional screen pixels per game pixel (default 3)
+# bild_hoch: 0.5               # optional: the picture moves up by so many tiles – less floor,
+#                              # more sky (with kamera: the camera is lifted)
 # schritte: 2                  # optional simulation steps per frame (default 1); 2 = half the size
 # format: gif                  # optional: a GIF instead of a lossless WebP – for scenes full of
 #                              # shader noise (weather), where a GIF is much smaller.

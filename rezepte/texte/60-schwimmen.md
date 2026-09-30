@@ -8,33 +8,34 @@ skala: 2
 standbild: 1.6
 szene:
   himmel: ['#41a6f6', '#c3e6f6']
-  legende: { P: pip_taucher, s: steg, '|': stegpfosten, R: fels, _: sand, o: perle, w: seegras, k: koralle, K: koralle_gruen, '~': wasser_oben, '=': wasser }
+  legende: { P: pip_taucher, s: steg, '|': stegpfosten, C: uferfels_oben, R: uferfels, _: sand, o: perle, w: seegras, k: koralle, K: koralle_gruen, '~': wasser_oben, '=': wasser }
   effekte:
     # the deeper, the darker (over the water only)
     - { effekt: farbe, name: Tiefe, farben: ['#e8f0ff', '#6078c0'], mischmodus: abdunkeln, bereich: [0, 2.3, 13, 3.7] }
-    - { effekt: bubbles, name: Blasen, farbe: '#c3e6f6aa', bereich: [0, 2.3, 13, 3.7], hinter: Figuren }
+    - { effekt: bubbles, name: Blasen, farbe: '#f4f4f4ff', skala: 1.4, bereich: [0, 2.3, 13, 3.7], hinter: Figuren }
   bewegungsbereiche:
     # the water: from just below the surface down to the sea floor
     - { name: Meer, art: schwimmen, rechtecke: [[0, 2.25, 13, 3.75]] }
   ebenen:
+    # the posts carry the pier from the sea floor up to its planks
     - name: Deko
       kollision: false
       karte: |
         ................
         ................
-        ................
-        ...|............
-        ...|.........w..
-        ...|.w..k..K....
+        |..|............
+        |..|............
+        |..|.........w..
+        |..|.w..k..K....
         ................
     - name: Welt
       karte: |
         ................
         .P..............
-        ssss.........RRR
-        .............RRR
-        .........o...RRR
-        ...........o.RRR
+        ssss............
+        ................
+        .........o......
+        ...........o....
         ________________
     - name: Wasser
       kollision: false
@@ -46,6 +47,18 @@ szene:
         =============...
         =============...
         =============...
+        ................
+    # the rocks on the right lie in front of everything: whatever swims close to
+    # them disappears behind the stone instead of peeking out of the water
+    - name: Felsen
+      vorne: true
+      karte: |
+        ................
+        ................
+        .............CCC
+        .............RRR
+        .............RRR
+        .............RRR
         ................
 ablauf:
   - { t: 0.3, halten: rechts, dauer: 2.0 }
@@ -78,10 +91,11 @@ erwartet:
 ![Seegras](katalog:meer/seegras 4)
 ![Koralle](katalog:meer/koralle)
 ![Meeresboden](katalog:meer/sand)
+![Uferfels](katalog:meer/klippe_oben)
 
 ## Schritt für Schritt
 
-1. **Die Welt:** links ein Steg (*nur von oben begehbar*), unten Meeresboden, rechts ein Felsen, auf den Pip am Ende springt.
+1. **Die Welt:** links ein Steg (*nur von oben begehbar*) auf Pfosten, die bis zum Meeresgrund reichen, unten Meeresboden, rechts ein Felsen, auf den Pip am Ende springt. Leg die Felsen in eine Ebene **vor** der Figur: Schwimmt Pip dicht daran, verschwindet sie hinter dem Stein, statt seitlich aus dem Wasser zu schauen.
 2. **Das Wasser:** eine eigene Ebene ohne **Kollisionen erkennen**, in der Layer-Liste **vor** der Figur. Die Wasser-Sprites sind halbdurchsichtig – so sieht man Pip darin. Ganz oben liegt die Wasseroberfläche mit den Wellen.
 3. **Der Bewegungsbereich:** Neue Ebene über **+ → Bewegungsbereich** mit **Bewegung: Schwimmen**. Zieh das Rechteck über das ganze Wasser. Oben endet es **knapp unter der Wasseroberfläche**. Es zählt die **Mitte** der Figur: Liegt sie im Rechteck, schwimmt die Figur.
 4. Die Einstellungen sind am Anfang schon gut: **Schwerkraft 20 %** (Pip sinkt langsam), **Gleiten 90 %** (sie treibt noch ein Stück weiter, wenn du loslässt), **Tempo 0,8 ×** (im Wasser ist sie etwas langsamer) und **Schwimmzug 0,6 ×** (so kräftig ist ein Zug mit der Sprungtaste).

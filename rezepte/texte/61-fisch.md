@@ -10,7 +10,7 @@ standbild: 2.1
 szene:
   himmel: ['#41a6f6', '#29366f']
   kamera: { bildhoehe: 144 }
-  legende: { F: fisch, Q: qualle, R: riff, _: sand, o: perle, w: seegras, k: koralle, K: koralle_gruen, T: truhe }
+  legende: { F: fisch, Q: qualle, R: riff, _: sand, o: perle, w: seegras, h: seegras_decke, k: koralle, K: koralle_gruen, T: truhe }
   # the whole level is water: no gravity, no swim strokes – the fish just swims
   bewegung: { art: schwimmen, schwerkraft: 0, schwimmzug: 0, tempo: 1.2, gleiten: 85 }
   bewegungsbereiche:
@@ -28,10 +28,10 @@ szene:
       kollision: false
       karte: |
         ..............................
+        ...h....h..............h...h..
         ..............................
         ..............................
-        ..w.........................w.
-        ....k..K...w..........K..k.T..
+        ..w.k..K...w..........K..kTw..
         ..............................
     - name: Welt
       karte: |
@@ -60,7 +60,7 @@ erwartet:
 ## Das brauchst du
 
 - **Das musst du zeichnen:** einen Fisch, der nach rechts schwimmt, Riff-Felsen und Meeresboden.
-- **Das kannst du später dazumalen:** Quallen, Perlen, Seegras, Korallen und eine Schatztruhe.
+- **Das kannst du später dazumalen:** Quallen, Perlen, Seegras (auch welches, das von der Decke hängt), Korallen und eine Schatztruhe.
 
 ![Fisch](katalog:meer/fisch 10)
 ![Fisch taucht ab](katalog:meer/fisch_ab 10)

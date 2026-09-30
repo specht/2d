@@ -156,6 +156,8 @@ function behavior_uses_patrol(traits) {
 }
 
 const AI_TILE = 24;
+// how many steps an enemy holds the jump key (a short press, like the player's 0.1 s)
+const JUMP_HOLD_STEPS = 6;
 const AI_VERTICAL_SIGHT = 36;      // px: roughly "on the same floor"
 
 // Decide one simulation step. `mem` is the enemy's own memory (kept between
@@ -182,6 +184,13 @@ const AI_VERTICAL_SIGHT = 36;      // px: roughly "on the same floor"
 // behaviour's optional `alert` setting is switched on.
 function baddie_decide(b, mem, w) {
     const toward = dx => (dx < 0 ? 'left' : 'right');
+    // the keys in the air: the same direction, the jump key only for a moment
+    const air_keys = m => {
+        const keys = m.air ?? stand().keys;
+        if (!keys.jump) return keys;
+        m.jump_hold = (m.jump_hold ?? 0) - 1;
+        return m.jump_hold > 0 ? keys : { ...keys, jump: false };
+    };
     const away = dx => (dx < 0 ? 'right' : 'left');
     const walk = (dir, extra = {}) => ({ keys: { left: dir === 'left', right: dir === 'right', jump: false }, ...extra });
     const stand = (extra = {}) => ({ keys: { left: false, right: false, jump: false }, ...extra });
@@ -210,7 +219,7 @@ function baddie_decide(b, mem, w) {
             return { keys: { left: p.dx < -4, right: p.dx > 4, up: p.dy > 6, down: p.dy < -6, jump: false },
                 alert, speed: b.chase, pose: 'hunt' };
         }
-        if (!w.on_ground) return { keys: mem.air ?? stand().keys, speed: b.chase, pose: 'hunt' };
+        if (!w.on_ground) return { keys: air_keys(mem), speed: b.chase, pose: 'hunt' };
         const m = b.moves ?? {};
         // Leitern klettern: the player is on another floor – climb the ladder here,
         // or walk to one nearby (LADDER_REACH) that leads there.
@@ -248,6 +257,9 @@ function baddie_decide(b, mem, w) {
             else out = stand({ face: dir });
         } else out = walk(dir);
         mem.air = out.keys;
+        // a jump is a short press, like the player's (0.1 s): held on in the air,
+        // he jumped again as soon as he landed on the obstacle – far too high
+        mem.jump_hold = out.keys.jump ? JUMP_HOLD_STEPS : 0;
         return { ...out, alert, speed: b.chase, pose: 'hunt' };
     }
 
@@ -265,7 +277,7 @@ function baddie_decide(b, mem, w) {
         if (w.fluid && p)
             return { keys: { left: dir === 'left', right: dir === 'right', up: p.dy < -6, down: p.dy > 6, jump: false },
                 alert, speed: b.flee, pose: 'flee' };
-        if (!w.on_ground) return { keys: mem.air ?? stand().keys, speed: b.flee, pose: 'flee' };
+        if (!w.on_ground) return { keys: air_keys(mem), speed: b.flee, pose: 'flee' };
         // Cornered: stay and tremble (face the danger) – unless it has learned a way out.
         const m = b.moves ?? {};
         const hop = { keys: { left: dir === 'left', right: dir === 'right', jump: true } };
@@ -280,6 +292,9 @@ function baddie_decide(b, mem, w) {
             else out = stand({ face: p ? toward(p.dx) : dir });
         } else out = walk(dir);
         mem.air = out.keys;
+        // a jump is a short press, like the player's (0.1 s): held on in the air,
+        // he jumped again as soon as he landed on the obstacle – far too high
+        mem.jump_hold = out.keys.jump ? JUMP_HOLD_STEPS : 0;
         return { ...out, alert, speed: b.flee, pose: 'flee' };
     }
 
