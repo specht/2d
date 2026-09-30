@@ -6,3 +6,4 @@ docker/nginx/default.conf
 docker/ruby/Gemfile
 rezepte/tools/node_modules/
 rezepte/tools/fehler-*.gif
+src/static/rezepte/spiele/
