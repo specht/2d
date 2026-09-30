@@ -5,7 +5,7 @@ stufe: 3
 kurz: Eine dunkle Straße, ein Haus mit hellen Fenstern und eine offene Tür im warmen Licht – so wird aus einem Level ein Ort, an den man hinwill.
 szene:
   himmel: ['#1a1c2c', '#29366f']
-  legende: { L: hausfront_licht, '%': dachschatten }
+  legende: { L: hausfront_licht, '%': dachschatten, '6': wandlampe, '7': wandlampe_aus }
   ebenen:
     - name: Hintergrund
       kollision: false
@@ -33,6 +33,15 @@ szene:
         ............
         ............
         ...X........
+        ............
+    - name: Lampe
+      kollision: false
+      karte: |
+        ............
+        ............
+        ............
+        ...6........
+        ............
         ............
     - name: Welt
       # a low garden wall at the end of the street: Pip stops there (instead of walking off)
@@ -98,6 +107,15 @@ ohne:
           ............
           ...X........
           ............
+      - name: Lampe
+        kollision: false
+        karte: |
+          ............
+          ............
+          ............
+          ...7........
+          ............
+          ............
       - name: Welt
         karte: |
           ............
@@ -128,6 +146,8 @@ erwartet:
 ![Fensterlicht](katalog:welt/hausfront_licht)
 ![Lichtkegel](katalog:welt/lichtkegel)
 ![Lichtschein](katalog:welt/leuchtschein)
+![Wandlampe](katalog:welt/wandlampe)
+![Wandlampe aus](katalog:welt/wandlampe_aus)
 ![Schatten unterm Dach](katalog:welt/dachschatten)
 
 ## Schritt für Schritt
@@ -135,7 +155,7 @@ erwartet:
 1. **Nacht machen:** Neue Ebene über **+ → Hintergrund**, **Art: Farbe**, mit einem graublauen Farbverlauf. Stell bei der Ebene den **Mischmodus: Abdunkeln** ein. Jetzt ist alles darunter Nacht: Haus, Straße, Berge und die Figur.
 2. **Licht an:** Leg eine Ebene **Licht** ohne **Kollisionen erkennen** an, mit dem **Mischmodus: Leuchten**. Schieb sie in der Layer-Liste **über** die Nacht-Ebene – sonst wird das Licht mit abgedunkelt.
 3. Setz das **Fensterlicht** genau auf die Hausfront. Die Scheiben leuchten, der Rest des Hauses bleibt dunkel.
-4. Setz den **Lichtkegel** auf die Laterne und einen **Lichtschein** vor die offene Tür. Die Tür wird zum hellsten Ort im Bild – sie sagt: Komm herein!
+4. Häng eine **Wandlampe** über die Tür. Setz den **Lichtkegel** auf die Laterne und einen **Lichtschein** genau um die Wandlampe. Die Tür wird zum hellsten Ort im Bild – sie sagt: Komm herein!
 5. **Schatten:** Unter dem Dach ist es dunkler als an der Wand. Leg den **Schatten unterm Dach** in eine Ebene zwischen Nacht und Licht. Er bekommt beim Sprite den **Mischmodus: Abdunkeln**.
 6. Probier es aus: Rechts von Pip ist die Nacht nur dunkel. Links von ihm gehen die Lichter an – und plötzlich ist es ein Ort, an dem man bleiben möchte.
 
@@ -150,6 +170,8 @@ erwartet:
 
 > **Tipp:** Entscheide dich für eine Hauptlichtquelle. Kommt das Licht von überall, sieht es flach aus. Kommt es von einer Laterne, dem Mond oder einem Fenster, weiß man sofort, wo oben, vorne und wichtig ist.
 
+- Jedes Licht braucht eine Quelle: eine Lampe, ein Fenster, ein Feuer. Ein Lichtschein ohne Lampe wirkt, als hätte man ihn vergessen.
+- Mal die Lampe zweimal: einmal an, einmal aus. Dann kannst du sie in deinem Spiel auch ausschalten.
 - Mach das Licht nicht zu groß. Ein kleiner heller Fleck in viel Dunkel wirkt stärker als ein großer.
 - Schatten gehören dorthin, wo kein Licht hinkommt: unters Dach, unter Brücken und Plattformen, hinter Kisten und in Ecken.
 - Die Figur muss man immer erkennen. Ist die Nacht zu dunkel, nimm für die Abdunkeln-Ebene ein helleres Blau.

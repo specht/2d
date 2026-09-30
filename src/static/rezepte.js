@@ -86,6 +86,16 @@ class RecipeGallery {
         const img = $('<img>').attr({ src: this.still_url(recipe), alt: recipe.titel, loading: 'lazy', decoding: 'async' })
             .attr('data-still', this.still_url(recipe)).attr('data-animation', this.media_url(recipe));
         $('<div>').addClass('rezept-bild').css('background', recipe.himmel ?? '').append(img).appendTo(card);
+        // Cards are wider than the recording and cut from the top; `karte_unten`
+        // (a share of the height) moves the cut down, so a tall scene keeps its top.
+        if (recipe.karte_unten > 0 && recipe.breite && recipe.hoehe) {
+            const card_aspect = extra_class === 'klein' ? 3 : 12 / 5;
+            const cut = 1 - (recipe.breite / recipe.hoehe) / card_aspect;   // share of the height that is cut
+            if (cut > 0) {
+                const p = Math.max(0, Math.min(1, (cut - recipe.karte_unten) / cut));
+                img.css('object-position', `center ${(p * 100).toFixed(1)}%`);
+            }
+        }
         if (this.observer) this.observer.observe(img[0]);
         const text = $('<div>').addClass('rezept-text').appendTo(card);
         $('<div>').addClass('rezept-kopf')

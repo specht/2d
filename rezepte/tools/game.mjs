@@ -329,7 +329,10 @@ export async function build_game(catalog, recipe, repo) {
                 type: 'backdrop', backdrop_type: 'color', ...(e.id ? { id: e.id } : {}),
                 properties: { name: e.name ?? 'Tönung', ...(e.mischmodus ? { blend: blend_of(e.mischmodus, `${recipe.id}: `) } : {}) },
                 colors: clone(colors),
-                rects: [{ left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
+                // bereich: [column, row from top, width, height] in tiles – e.g. only over a cave
+                rects: [e.bereich ?
+                    { left: e.bereich[0] * TILE, bottom: (rows - e.bereich[1] - e.bereich[3]) * TILE, width: e.bereich[2] * TILE, height: e.bereich[3] * TILE } :
+                    { left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
             };
         }
         if (!EFFECT_POINTS[e.effekt]) throw new Error(`${recipe.id}: unbekannter Effekt "${e.effekt}"`);

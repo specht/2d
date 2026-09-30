@@ -73,9 +73,14 @@ beschriftung:
   - { text: Leuchten, spalte: 4, zeile: 2 }
   - { text: Aufhellen, spalte: 7, zeile: 2 }
   - { text: Abdunkeln, spalte: 10, zeile: 2 }
+# Pip walks 180 px/s and stops at once: he stands still in each disc for a moment
+# (disc centres at x = 36, 108, 180, 252; he starts at x = 12)
 ablauf:
-  - { t: 0.4, halten: rechts, dauer: 2.2 }
-dauer: 3.8
+  - { t: 0.4, halten: rechts, dauer: 0.133333 }
+  - { t: 1.4, halten: rechts, dauer: 0.4 }
+  - { t: 2.6, halten: rechts, dauer: 0.4 }
+  - { t: 3.8, halten: rechts, dauer: 0.4 }
+dauer: 5.4
 erwartet:
   figur_rechts_von: 9
 ---
@@ -98,7 +103,7 @@ erwartet:
 2. Leg vier Ebenen ohne **Kollisionen erkennen** an und schieb sie in der Layer-Liste **über** die Ebene mit der Figur.
 3. Stell bei den Ebenen den **Mischmodus** ein: **Normal**, **Leuchten**, **Aufhellen** und **Abdunkeln**.
 4. Setz in jede Ebene zwei Kreise übereinander: einen vor den Himmel, einen vor die Mauer.
-5. Probier es aus: Pip läuft durch alle vier Kreise. Im Normal-Kreis verschwindet er, im Leuchten-Kreis wird er grell, im Aufhellen-Kreis schimmert er, im Abdunkeln-Kreis wird er dunkel und rötlich.
+5. Probier es aus: Pip läuft durch alle vier Kreise und bleibt in jedem kurz stehen. Im Normal-Kreis verschwindet er, im Leuchten-Kreis wird er grell, im Aufhellen-Kreis schimmert er, im Abdunkeln-Kreis wird er dunkel und rötlich.
 
 ## So rechnet der Computer
 

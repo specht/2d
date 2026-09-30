@@ -5,6 +5,8 @@ stufe: 2
 kurz: Nichts schwebt einfach so – Pfosten, Ketten und Erde halten die Welt zusammen.
 farben: 256
 skala: 2
+# the card shows the chains at the top instead of the second row of earth
+karte_unten: 1
 schleife: true
 szene:
   ebenen:

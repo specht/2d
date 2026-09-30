@@ -2,30 +2,37 @@
 titel: Intelligente Gegner
 kategorie: Gegner
 stufe: 3
-kurz: Pip flüchtet die Leiter hoch – dort war sie vor dem Käfer bisher sicher. Aber dieser Käfer ist schlau und klettert hinterher.
+kurz: Der Waschbär lässt sich nicht abhängen. Pip springt über eine Lücke, über einen Stein und klettert eine Leiter hoch – und der Waschbär macht alles nach.
+skala: 2
+schritte: 2
+# the gallery card: the raccoon right behind Pip on the ladder
+standbild: 2.5
 szene:
-  # the scene of "Ein Gegner, der dich verfolgt" – plus Intelligenz
-  anpassen:
-    kaefer:
-      baddie: { vjump: 5.0, behavior: { type: hunter, alert: true, chase: 3.0, forget: 4.0 } }
-      smart: { climbs_ladders: true }
+  # a level wider than the screen: the camera follows Pip
+  kamera: { bildhoehe: 144 }
+  legende: { W: waschbaer }
   karte: |
-    ..............
-    ###H.........M
-    ===H.........M
-    ===H.........M
-    ===H.P....K..M
-    ##############
+    ................................
+    ...............................M
+    ...................H############
+    ...................H============
+    W.....P........M...H============
+    ##########..####################
+# Pip (180 px/s, jump 7) runs off, jumps the gap and the stone, climbs the
+# ladder and runs on along the top. The raccoon (2.25 px/frame when chasing)
+# follows: gap jump, hop over the stone, ladder, on along the top.
 ablauf:
-  - { t: 1.4, halten: rechts, dauer: 0.25 }
-  - { t: 2.4, halten: links, dauer: 0.5 }
-  - { t: 2.95, halten: hoch, dauer: 0.7 }
-  - { t: 3.7, halten: links, dauer: 0.3 }
-dauer: 8.5
+  - { t: 0.4, halten: rechts, dauer: 1.72 }
+  - { t: 0.8, drücken: springen }
+  - { t: 1.4, drücken: springen }
+  - { t: 2.15, halten: hoch, dauer: 0.6 }
+  - { t: 2.85, halten: rechts, dauer: 1.4 }
+dauer: 6.0
 erwartet:
   gegner_modi: [chase]
   gegner_ausrufezeichen: true
-  gegner_hub: 48
+  gegner_hub: 60
+  figur_hoeher_als: 3
 ---
 ## Kurz gesagt
 
@@ -36,18 +43,24 @@ erwartet:
 ## Das brauchst du
 
 - **Das musst du zeichnen:** einen Gegner mit einer Lauf-Animation und eine Leiter.
-- **Das kannst du später dazumalen:** ein Bild, auf dem der Gegner klettert (**Gegner klettert**).
+- **Das kannst du später dazumalen:** ein Bild für die Jagd, eins für den Sprung und zwei Bilder von hinten, auf denen er klettert (**Gegner klettert**). Dann glaubt man ihm, dass er das kann.
 
-![Käfer läuft](katalog:kaefer/laufen 10)
-![Käfer jagt](katalog:kaefer/jagen 16)
+![Waschbär steht](katalog:waschbaer/stehen 2)
+![Waschbär läuft](katalog:waschbaer/laufen 10)
+![Waschbär jagt](katalog:waschbaer/jagen 14)
+![Waschbär springt](katalog:waschbaer/springen)
+![Waschbär klettert](katalog:waschbaer/klettern 6)
 
 ## Schritt für Schritt
 
-1. Nimm den Käfer aus *Ein Gegner, der dich verfolgt*: einen **Gegner** mit dem **Verhalten: Jäger**. Dort ist Pip oben auf der Leiter sicher.
-2. Klick beim Käfer auf **Eigenschaft hinzufügen** und wähl unter **Fallen und Gegner** die **Intelligenz**.
-3. Setz dort das Häkchen bei **Leitern klettern**.
-4. **gibt auf nach: 4 s.** Während Pip oben ist, sieht der Käfer sie nicht mehr. So lange sucht er trotzdem weiter – Zeit genug, um bis zur Leiter zu rennen.
-5. Probier es aus: Der Käfer entdeckt Pip, Pip flüchtet die Leiter hoch – und der Käfer klettert hinterher und erwischt sie oben. Die Leiter darf auch ein Stück neben seinem Weg stehen: Bis zu fünf Blöcke weit sucht er danach.
+1. Mach den Waschbären zum **Gegner** mit dem **Verhalten: Jäger** (siehe *Ein Gegner, der dich verfolgt*). **Sichtweite: 168 px**, **Tempo beim Verfolgen: 2,5 ×** – er ist etwas langsamer als Pip, gibt aber nicht auf.
+2. **Sprungkraft: 7** – so hoch und weit wie Pip.
+3. Klick beim Waschbären auf **Eigenschaft hinzufügen** und wähl unter **Fallen und Gegner** die **Intelligenz**.
+4. Setz dort die Häkchen bei **über Lücken springen**, **über Hindernisse springen** und **Leitern klettern**.
+5. **gibt auf nach: 5 s.** Während Pip oben ist, sieht er sie nicht. So lange sucht er trotzdem weiter.
+6. Leg die Zustände an: **Gegner jagt nach rechts**, **Gegner springt nach rechts** und **Gegner klettert**.
+7. Bau eine Strecke, die breiter ist als der Bildschirm: eine Lücke, einen Stein, eine Leiter zu einer höheren Ebene. Die Kamera folgt Pip.
+8. Probier es aus: Pip rennt los, springt über die Lücke und den Stein und klettert die Leiter hinauf. Der Waschbär springt hinterher, hüpft über den Stein, klettert die Leiter hoch – und holt sie oben ein.
 
 ## Was ein Gegner noch lernen kann
 
@@ -72,6 +85,8 @@ Jeder Gegner nutzt seine Intelligenz auf seine Art. Die Häkchen, die zu seinem 
 
 ## Tipps
 
+> **Tipp:** Ein Gegner wirkt nur schlau, wenn man ihm glaubt, was er tut. Ein Waschbär mit Pfoten klettert glaubwürdig – ein Käfer ohne Arme eher nicht. Mal deinem Gegner Bilder für alles, was er kann.
+
 > **Tipp:** Ein Gegner, der alles kann, ist schwer zu besiegen – und manchmal auch langweilig. Gib jedem Gegner nur ein, zwei Fähigkeiten. Dann weiß man: „Vor dem Käfer bin ich oben sicher, vor der Ratte nicht.“
 
 - Ein Angsthase, der über Lücken springt, ist viel schwerer zu fangen.
@@ -91,4 +106,4 @@ Jeder Gegner nutzt seine Intelligenz auf seine Art. Die Häkchen, die zu seinem 
 
 ## Mach mehr draus
 
-Bau ein Haus mit drei Stockwerken und einem Käfer, der dich durchs Treppenhaus verfolgt – und einem Versteck, in das er nicht kommt.
+Bau ein Haus mit drei Stockwerken und einem Waschbären, der dich durchs Treppenhaus verfolgt – und einem Versteck, in das er nicht kommt.

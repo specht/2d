@@ -162,6 +162,16 @@ async function render_body(md, id, scenes = []) {
     return html;
 }
 
+// karte_unten: 1 – the gallery card leaves out this many map rows at the
+// bottom (and shows more at the top), for tall scenes whose interesting part is
+// up high. Stored as a share of the recording's height; the recipe itself
+// always shows the whole recording.
+function card_crop(recipe, height) {
+    const rows = Number(recipe.karte_unten);
+    if (!(rows > 0) || !(height > 0)) return {};
+    return { karte_unten: Math.min(0.5, rows * 24 * (recipe.skala ?? 3) / height) };
+}
+
 // The still frame of a recording: `standbild: 2.5` picks the moment in seconds, else 60 %.
 function still_frame(frames, recipe) {
     const steps = recipe.schritte ?? 1;
@@ -365,6 +375,7 @@ async function main() {
                     id: r.id, titel: r.titel, kategorie: r.kategorie, stufe: r.stufe ?? 1, kurz: r.kurz,
                     bild: old.bild, version: old.version, standbild: old.standbild, standbild_version: old.standbild_version,
                     breite: old.breite, hoehe: old.hoehe, himmel: old.himmel,
+                    ...card_crop(r, old.hoehe),
                     ...(r.schleife ? { schleife: true } : {}),
                     ...(r.einzelbilder ? { einzelbilder: old.einzelbilder } : {}),
                     html: await render_body(r.body, r.id, old.einzelbilder), quelle,
@@ -436,6 +447,7 @@ async function main() {
                 id: r.id, titel: r.titel, kategorie: r.kategorie, stufe: r.stufe ?? 1, kurz: r.kurz,
                 bild: `${r.id}.${ext}`, version, standbild, standbild_version,
                 breite: size.width, hoehe: size.height, himmel: top_colour,
+                ...card_crop(r, size.height),
                 ...(r.schleife ? { schleife: true } : {}),
                 ...(r.einzelbilder ? { einzelbilder: scenes } : {}),
                 html: await render_body(r.body, r.id, scenes), quelle,
