@@ -21,6 +21,7 @@ const BACKDROP_EFFECTS = {
     bubbles: 'Blasen',
     dust: 'Schwebestaub',
     lightning: 'Gewitter',
+    current: 'Strömung',
 };
 
 // Blend modes ("Mischmodus") for sprites, sprite layers and backdrop layers.
@@ -76,6 +77,12 @@ function blended_copy(base, mode) {
 // Settings of single effects, saved on the layer (absent = the default).
 // `uniform`: the name in the effect's shader.
 const BACKDROP_EFFECT_OPTIONS = {
+    current: {
+        current_angle: {
+            label: 'Richtung', suffix: '°', min: 0, max: 359, step: 15, decimalPlaces: 0, default: 0, uniform: 'angle',
+            hint: 'Wohin die Striche treiben: 0° nach rechts, 90° nach oben, 180° nach links, 270° nach unten. Nimm dieselbe Richtung wie die Strömung im Bewegungsbereich, dann sieht man, wohin es zieht.',
+        },
+    },
     lightning: {
         lightning_interval: {
             label: 'Blitz alle', suffix: 's', min: 0.5, max: 60, step: 0.5, decimalPlaces: 1, default: 5, uniform: 'interval',
@@ -106,7 +113,7 @@ function backdrop_effect_option(backdrop, key) {
 }
 
 // Effects with a "Menge" setting (backdrop.density, 1 = normal).
-const BACKDROP_DENSITY_EFFECTS = ['snow', 'rain', 'dust'];
+const BACKDROP_DENSITY_EFFECTS = ['snow', 'rain', 'dust', 'current'];
 const BACKDROP_DENSITY = { min: 0.1, max: 3, default: 1 };
 
 function backdrop_density(backdrop) {

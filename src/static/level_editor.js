@@ -399,6 +399,10 @@ class LevelEditor {
                     },
                 });
 
+                // Bewegung im ganzen Level (movement_regions.js): absent = as always
+                const movement_box = $('<div>').appendTo($('#menu_level_properties'));
+                self.add_movement_controls(movement_box, null, true);
+
                 new LineEditWidget({
                     container: $('#menu_level_properties'),
                     label: 'Youtube',
@@ -431,6 +435,7 @@ class LevelEditor {
                         ['Sprites', 'sprites'],
                         ['Hintergrund', 'backdrop'],
                         ['Sichtbarkeitsbereich', 'visibility_region'],
+                        ['Bewegungsbereich', 'movement_region'],
                         // ['Text', 'text'],
                     ],
                     gen_item: (layer, index) => {
@@ -466,6 +471,8 @@ class LevelEditor {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Hintergrund · '));
                         } else if (type === 'visibility_region') {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Sichtbarkeitsbereich · '));
+                        } else if (type === 'movement_region') {
+                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Bewegungsbereich · '));
                         } else if (type === 'text') {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Text · '));
                         }
@@ -480,7 +487,7 @@ class LevelEditor {
                         if (self.game.data.levels[self.level_index].layers[self.layer_index].type !== 'sprites') {
                             menus.level.blur();
                         }
-                        if (['backdrop', 'visibility_region'].includes(self.game.data.levels[self.level_index].layers[self.layer_index].type)) {
+                        if (['backdrop', 'visibility_region', 'movement_region'].includes(self.game.data.levels[self.level_index].layers[self.layer_index].type)) {
                             self.refresh_backdrop_controls();
                         }
                         self.setup_layer_properties();
@@ -497,9 +504,14 @@ class LevelEditor {
                             layer.properties = { name: `Sichtbarkeitsbereich ${count}` };
                             layer.inside_visible = false;
                         }
+                        if (type === 'movement_region') {
+                            let count = self.game.data.levels[self.level_index].layers.filter(x => x.type === type).length + 1;
+                            layer.properties = { name: `Bewegungsbereich ${count}` };
+                            layer.movement = { mode: 'swim' };
+                        }
                         if (type === 'sprites') {
                             layer.sprites = [];
-                        } else if (type === 'backdrop' || type === 'visibility_region') {
+                        } else if (type === 'backdrop' || type === 'visibility_region' || type === 'movement_region') {
                             let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
                             let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
                             let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
@@ -689,7 +701,7 @@ class LevelEditor {
                 },
             });
         }
-        if (layer.type === 'backdrop' || layer.type === 'visibility_region') {
+        if (layer.type === 'backdrop' || layer.type === 'visibility_region' || layer.type === 'movement_region') {
             let backdrop = layer;
             // -----------------------------------------------------------
             let rect_div = $('<div>').appendTo($('#menu_layer_properties'));
@@ -750,7 +762,7 @@ class LevelEditor {
                 let selectedIndex = -1;
                 for (let i = 0; i < layers.length; i++) {
                     const candidate = layers[i];
-                    if (candidate.type === 'visibility_region') continue;
+                    if (candidate.type === 'visibility_region' || candidate.type === 'movement_region') continue;
                     const taken = candidate.id && layers.some(other =>
                         other !== layer && other.type === 'visibility_region' &&
                         other.target_layer_id === candidate.id);
@@ -799,6 +811,10 @@ class LevelEditor {
                     get: () => layer.fade_seconds ?? 0,
                     set: (value) => { layer.fade_seconds = value; },
                 });
+            } else if (layer.type === 'movement_region') {
+                layer.movement ??= { mode: 'swim' };
+                const box = $('<div>').appendTo($('#menu_layer_properties'));
+                self.add_movement_controls(box, layer.movement, false);
             } else {
             // -----------------------------------------------------------
             new SelectWidget({
@@ -1021,7 +1037,7 @@ class LevelEditor {
                 },
             });
         }
-        if (layer.type !== 'visibility_region') {
+        if (layer.type !== 'visibility_region' && layer.type !== 'movement_region') {
         new NumberWidget({
             container: $('#menu_layer_properties'),
             label: 'Parallaxe',
@@ -1038,6 +1054,86 @@ class LevelEditor {
             },
         });
         }
+    }
+
+    // Settings of a Bewegungsbereich (movement_regions.js). settings: the layer's
+    // movement object – or null for the whole level (level.properties.movement,
+    // which is only stored once something other than "normal" is chosen).
+    add_movement_controls(box, settings, whole_level) {
+        const self = this;
+        box.empty();
+        const level = () => self.game.data.levels[self.level_index];
+        const get = () => whole_level ? level().properties.movement ?? null : settings;
+        const modes = whole_level ?
+            { none: 'normal (wie immer)', normal: 'Laufen – andere Schwerkraft', swim: 'Schwimmen', float: 'Schweben' } :
+            { swim: 'Schwimmen', float: 'Schweben', normal: 'Laufen – andere Schwerkraft', inherit: 'wie darunter (nur Strömung)' };
+        const current_mode = () => get()?.mode ?? (whole_level ? 'none' : 'swim');
+        new SelectWidget({
+            container: box,
+            label: whole_level ? 'Bewegung im ganzen Level' : 'Bewegung',
+            hint: 'Schwimmen: Die Pfeiltasten steuern in alle Richtungen, die Sprungtaste ist ein Schwimmzug, das Wasser trägt und bremst. ' +
+                'Schweben: keine Schwerkraft, die Figur gleitet lange weiter – wie im Weltall. ' +
+                'Laufen – andere Schwerkraft: laufen und springen wie immer, aber leichter oder schwerer (der Mond). ' +
+                (whole_level ? '' : 'Wie darunter: ändert nichts, fügt nur eine Strömung hinzu – ein Sog im Wasser darunter. ') +
+                'Liegen Bereiche übereinander, gilt der vorderste. Die Strömungen aller Bereiche zählen zusammen. Gegner merken von Bewegungsbereichen nichts.',
+            options: modes,
+            get: () => current_mode(),
+            set: (mode) => {
+                if (whole_level) {
+                    if (mode === 'none') delete level().properties.movement;
+                    else level().properties.movement = { ...(level().properties.movement ?? {}), mode };
+                } else {
+                    settings.mode = mode;
+                }
+                // the other settings have different defaults per mode
+                for (const key of ['gravity', 'glide', 'speed', 'stroke'])
+                    delete get()?.[key];
+                self.add_movement_controls(box, settings, whole_level);
+            },
+        });
+        const mode = current_mode();
+        if (mode === 'none') return;
+        const defaults = MovementRegions.DEFAULTS[mode] ?? {};
+        const number = (key, options) => new NumberWidget({
+            container: box, ...options,
+            get: () => get()?.[key] ?? defaults[key],
+            set: (value) => {
+                if (!Number.isFinite(value) || value < options.min || value > options.max) return;
+                get()[key] = value;
+            },
+        });
+        if (mode !== 'inherit') {
+            number('gravity', { label: 'Schwerkraft', suffix: '%', min: 0, max: 300, step: 5, decimalPlaces: 0,
+                hint: 'Wie stark die Schwerkraft hier zieht – in Prozent der Schwerkraft des Spiels. 100 % wie immer, 17 % wie auf dem Mond, 0 %: gar nicht. Im Wasser hält der Auftrieb dagegen: 20 % lässt die Figur langsam sinken.' });
+        }
+        if (mode === 'swim' || mode === 'float') {
+            number('glide', { label: 'Gleiten', suffix: '%', min: 0, max: 99, step: 1, decimalPlaces: 0,
+                hint: 'Wie lange die Figur weitertreibt, wenn du loslässt. 0 %: sie bleibt sofort stehen. 90 %: wie im Wasser. 97 % und mehr: wie im Weltall.' });
+            number('speed', { label: 'Tempo', suffix: '×', min: 0.1, max: 5, step: 0.1, decimalPlaces: 1,
+                hint: 'So schnell wird die Figur hier – als Vielfaches ihrer Geschwindigkeit.' });
+        }
+        if (mode === 'swim') {
+            number('stroke', { label: 'Schwimmzug', suffix: '×', min: 0, max: 3, step: 0.1, decimalPlaces: 1,
+                hint: 'Wie kräftig ein Druck auf die Sprungtaste nach oben schwimmt – als Vielfaches der Sprungkraft. Direkt unter der Wasseroberfläche springt die Figur damit aus dem Wasser. 0: Die Sprungtaste macht im Wasser nichts.' });
+        }
+        const current = () => get()?.current ?? {};
+        const set_current = (key, value) => {
+            const c = { ...(get().current ?? {}), [key]: value };
+            if (!(c.speed > 0) && !c.angle) delete get().current;
+            else get().current = c;
+        };
+        new NumberWidget({
+            container: box, label: 'Strömung', suffix: 'px/s', min: 0, max: 1200, step: 10, decimalPlaces: 0,
+            hint: 'Wie schnell die Figur hier in eine Richtung gezogen wird – eine Strömung, ein Sog, ein Wind. 0: keine.',
+            get: () => current().speed ?? 0,
+            set: (value) => { if (Number.isFinite(value) && value >= 0 && value <= 1200) set_current('speed', value); },
+        });
+        new NumberWidget({
+            container: box, label: 'Richtung', suffix: '°', min: 0, max: 359, step: 15, decimalPlaces: 0,
+            hint: 'Wohin die Strömung zieht: 0° nach rechts, 90° nach oben, 180° nach links, 270° nach unten. Jeder Winkel dazwischen geht auch.',
+            get: () => current().angle ?? 0,
+            set: (value) => { if (Number.isFinite(value) && value >= 0 && value <= 359) set_current('angle', value); },
+        });
     }
 
     setup_condition_properties() {
@@ -1753,15 +1849,17 @@ class LevelEditor {
         this.scene.add(this.rect_group);
 
         this.backdrop_index = null;
-        if (['backdrop', 'visibility_region'].includes(this.game.data.levels[this.level_index].layers[this.layer_index].type))
+        if (['backdrop', 'visibility_region', 'movement_region'].includes(this.game.data.levels[this.level_index].layers[this.layer_index].type))
             this.backdrop_index = this.layer_index;
 
         if (this.backdrop_index !== null && menus.level.active_key === null &&
             this.game.data.levels[this.level_index].layers[this.backdrop_index].rects?.[this.rect_index]) {
             let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
             this.backdrop_cursor.remove.apply(this.backdrop_cursor, this.backdrop_cursor.children);
-            if (backdrop.type === 'visibility_region') {
-                const outline = new THREE.LineBasicMaterial({ color: 0x56bde8, linewidth: 1.0, transparent: true, opacity: 0.65 });
+            if (backdrop.type === 'visibility_region' || backdrop.type === 'movement_region') {
+                // all rectangles of the region, so one can see where it applies
+                const outline = new THREE.LineBasicMaterial({ color: backdrop.type === 'movement_region' ? 0x38b764 : 0x56bde8,
+                    linewidth: 1.0, transparent: true, opacity: 0.65 });
                 for (const rect of backdrop.rects) {
                     if (!VisibilityRegions.validRectangle(rect)) continue;
                     const points = [

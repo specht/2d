@@ -178,7 +178,7 @@ function sprite_refs(value, out = []) {
 
 /**
  * Build the game JSON, sprite sheet and scene geometry for one recipe.
- * recipe.szene: { karte | ebenen, legende?, anpassen?, ausschnitt?, himmel?, bereiche? }
+ * recipe.szene: { karte | ebenen, legende?, anpassen?, ausschnitt?, himmel?, bereiche?, bewegung?, bewegungsbereiche? }
  * An `ebenen` entry is a map string or { karte, name?, kollision?, id? }.
  */
 export async function build_game(catalog, recipe, repo) {
@@ -317,6 +317,7 @@ export async function build_game(catalog, recipe, repo) {
         fireflies: [[0.5, 0.0], [0.5, -0.1]], bubbles: [[0.5, 0.0], [0.5, -0.1]],
         dust: [[0.5, 0.0], [0.5, -0.1]],
         lightning: [[0.5, 1.0], [0.5, 0.15]],
+        current: [[0.5, 0.0], [0.5, -0.1]],
     };
     const effect_layer = e => {
         // effekt: farbe – a colour backdrop in front, e.g. with mischmodus: abdunkeln
@@ -347,6 +348,8 @@ export async function build_game(catalog, recipe, repo) {
             ...(e.himmel_leuchtet !== undefined ? { lightning_glow: Number(e.himmel_leuchtet) } : {}),
             ...(e.blitze !== undefined ? { lightning_bolts: Boolean(e.blitze) } : {}),
             ...(e.blitz_aufbau !== undefined ? { lightning_rise: Number(e.blitz_aufbau) } : {}),
+            // Strömung: the direction of the streaks in degrees (0 right, 90 up)
+            ...(e.richtung !== undefined ? { current_angle: Number(e.richtung) } : {}),
             ...(e.mischmodus ? { properties: { name: e.name ?? e.effekt, blend: blend_of(e.mischmodus, `${recipe.id}: `) } } : {}),
             // bereich: [column, row from top, width, height] in tiles – e.g. only the air above the ground
             rects: [e.bereich ?
@@ -376,14 +379,35 @@ export async function build_game(catalog, recipe, repo) {
             rects: b.rechtecke.map(([c, r, w, h]) => ({ left: c * TILE, bottom: (rows - r - h) * TILE, width: w * TILE, height: h * TILE })),
         };
     });
+    // Bewegungsbereiche (movement_regions.js): swimming, floating, other gravity,
+    // currents – for the whole level (bewegung) or in rectangles (bewegungsbereiche,
+    // later entries lie in front).
+    const movement_of = (b, where) => {
+        const modes = { schwimmen: 'swim', schweben: 'float', laufen: 'normal', wie_darunter: 'inherit' };
+        const mode = modes[b.art];
+        if (!mode) throw new Error(`${recipe.id}: ${where}: art muss schwimmen, schweben, laufen oder wie_darunter sein`);
+        const out = { mode };
+        for (const [de, en] of [['schwerkraft', 'gravity'], ['gleiten', 'glide'], ['tempo', 'speed'], ['schwimmzug', 'stroke']])
+            if (b[de] !== undefined) out[en] = Number(b[de]);
+        // stroemung: [px/s, Richtung in Grad (0 rechts, 90 oben, 270 unten)]
+        if (b.stroemung) out.current = { speed: Number(b.stroemung[0]), angle: Number(b.stroemung[1] ?? 0) };
+        return out;
+    };
+    const movement_regions = (scene.bewegungsbereiche ?? []).map((b, i) => ({
+        type: 'movement_region', properties: { name: b.name ?? `Bewegungsbereich ${i + 1}` },
+        movement: movement_of(b, `Bewegungsbereich ${i + 1}`),
+        rects: b.rechtecke.map(([c, r, w, h]) => ({ left: c * TILE, bottom: (rows - r - h) * TILE, width: w * TILE, height: h * TILE })),
+    })).reverse();
     const tile_layer_list = tile_layers.map((p, i) => ({
         vorne: Boolean(layer_defs[i].vorne),
         layer: layer(layer_defs[i].name ?? `Ebene ${i + 1}`, p, layer_defs[i]),
     })).reverse();
     const figure_layers = [layer('Figuren', figures)];
     const level = {
-        properties: { name: recipe.titel, background_color: sky[1] },
+        properties: { name: recipe.titel, background_color: sky[1],
+            ...(scene.bewegung ? { movement: movement_of(scene.bewegung, 'bewegung') } : {}) },
         layers: [
+            ...movement_regions,
             ...regions,
             ...effects_front,
             // `vorne: true` puts a layer in front of the characters (e.g. water Pip wades through)

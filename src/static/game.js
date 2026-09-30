@@ -202,6 +202,10 @@ class Game {
                         this.data.levels[li].layers[lyi].color ??= '#ffffffff';
                         this.data.levels[li].layers[lyi].control_points ??= [];
                     }
+                } else if (this.data.levels[li].layers[lyi].type === 'movement_region') {
+                    // Bewegungsbereich (movement_regions.js): the settings of its rectangles
+                    const layer = this.data.levels[li].layers[lyi];
+                    if (!layer.movement || typeof layer.movement !== 'object') layer.movement = { mode: 'swim' };
                 }
             }
         }
@@ -1420,7 +1424,7 @@ class Game {
                     // The selection menu already supplies the group (Stehen,
                     // Angriff, ...). Applied tags below need the full label.
                     label: (sprite_trait === 'actor' || sprite_trait === 'baddie') &&
-                        /^(?:(?:walk|jump|fall|attack|hit)_)?(?:front|back|left|right)$/.test(x) ?
+                        /^(?:(?:walk|jump|fall|attack|hit|swim|float)_)?(?:front|back|left|right)$/.test(x) ?
                         { front: 'vorn', back: 'hinten', left: 'links', right: 'rechts' }[
                             x.split('_').at(-1)] : STATE_TRAITS[sprite_trait][x].label,
                     callback: () => {

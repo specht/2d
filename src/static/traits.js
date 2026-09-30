@@ -90,6 +90,8 @@ var STATE_TRAITS_ORDER = {
         'climb',
         ['Angriff', ['attack_front', 'attack_back', 'attack_left', 'attack_right']],
         ['Treffer', ['hit_front', 'hit_back', 'hit_left', 'hit_right']],
+        ['Schwimmen (Bewegungsbereich)', ['swim_front', 'swim_back', 'swim_left', 'swim_right']],
+        ['Schweben (Bewegungsbereich)', ['float_front', 'float_back', 'float_left', 'float_right']],
         'dead',
     ],
     baddie: [
@@ -904,6 +906,16 @@ var STATE_TRAITS = {
         hit_back: { label: 'Spielfigur: Treffer (hinten)' },
         hit_left: { label: 'Spielfigur: Treffer (links)' },
         hit_right: { label: 'Spielfigur: Treffer (rechts)' },
+        // in a Bewegungsbereich (movement_regions.js); without them: the walk,
+        // jump and fall pictures
+        swim_front: { label: 'Spielfigur schwimmt nach vorn' },
+        swim_back: { label: 'Spielfigur schwimmt nach hinten' },
+        swim_left: { label: 'Spielfigur schwimmt nach links' },
+        swim_right: { label: 'Spielfigur schwimmt nach rechts' },
+        float_front: { label: 'Spielfigur schwebt nach vorn' },
+        float_back: { label: 'Spielfigur schwebt nach hinten' },
+        float_left: { label: 'Spielfigur schwebt nach links' },
+        float_right: { label: 'Spielfigur schwebt nach rechts' },
         dead: { label: 'Spielfigur tot' }
     },
     baddie: {

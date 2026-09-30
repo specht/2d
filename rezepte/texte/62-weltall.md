@@ -1,0 +1,165 @@
+---
+titel: Schweben im Weltall
+kategorie: Wasser & Weltall
+stufe: 3
+kurz: Draußen vor der Raumstation gibt es keine Schwerkraft – Pip treibt durchs All und muss selbst bremsen. Auf dem Mond hüpft sie dafür riesige Sprünge.
+skala: 2
+schritte: 2
+# the gallery card: Pip drifting in space
+standbild: 2.6
+szene:
+  himmel: ['#1a1c2c', '#29366f']
+  kamera: { bildhoehe: 144 }
+  legende: { P: astronaut, W: station, B: station_boden, L: luke, b: bullauge, o: stern, S: satellit, G: planet, i: station }
+  # in space: no gravity, and Pip glides on for a long time
+  bewegung: { art: schweben, gleiten: 99, tempo: 0.7 }
+  bewegungsbereiche:
+    # inside the station there is gravity: Pip walks
+    - { name: Station, art: laufen, rechtecke: [[0, 0, 6.5, 6]] }
+  effekte:
+    - { effekt: stars, name: Sterne, farbe: '#f4f4f4ff', vorne: false }
+    # the inside of the station is darker than its walls
+    - { effekt: farbe, name: Innen, farben: ['#8a93b0', '#6c7594'], mischmodus: abdunkeln, bereich: [1, 1, 5, 4], hinter: Fenster }
+  ebenen:
+    - name: Planet
+      kollision: false
+      parallaxe: 0.7
+      karte: |
+        ..............................
+        ..............................
+        .................G............
+        ..............................
+        ..............................
+        ..............................
+    - name: Innenraum
+      kollision: false
+      karte: |
+        ..............................
+        .iiiii........................
+        .iiiii........................
+        .iiiii........................
+        .iiiiiL.......................
+        ..............................
+    - name: Fenster
+      kollision: false
+      karte: |
+        ..............................
+        ...b..........................
+        ..............................
+        ..............................
+        .........................S....
+        ..............................
+    - name: Welt
+      karte: |
+        WWWWWWW.......................
+        W.....W.......................
+        W.....W.......................
+        W.................o...........
+        W.P...................o.......
+        BBBBBBB.......................
+ablauf:
+  - { t: 0.3, halten: rechts, dauer: 1.5 }
+  - { t: 1.9, halten: hoch, dauer: 0.5 }
+  - { t: 3.2, halten: runter, dauer: 0.6 }
+dauer: 6.0
+erwartet:
+  punkte: 20
+  figur_rechts_von: 20
+# a picture of its own in the text: the same astronaut on the moon
+einzelbilder: true
+varianten:
+  - szene:
+      himmel: ['#1a1c2c', '#333c57']
+      legende: { P: astronaut, M: mondboden, X: mondgestein, s: mondstein, E: erde_planet }
+      # on the moon: walking and jumping as always, but with less gravity
+      bewegung: { art: laufen, schwerkraft: 60 }
+      bewegungsbereiche: []
+      effekte:
+        - { effekt: stars, name: Sterne, farbe: '#f4f4f4ff', vorne: false }
+      ebenen:
+        - name: Erde
+          kollision: false
+          parallaxe: 0.7
+          karte: |
+            ..............................
+            ...........E..................
+            ..............................
+            ..............................
+            ..............................
+            ..............................
+        - name: Steine
+          kollision: false
+          karte: |
+            ..............................
+            ..............................
+            ..............................
+            ..............................
+            ....s.................s...s...
+            ..............................
+        - name: Welt
+          karte: |
+            ..............................
+            ..............................
+            ..............................
+            .........X....................
+            .P.......X....................
+            MMMMMMMMMMMMMM...MMMMMMMMMMMMM
+    ablauf:
+      - { t: 0.3, halten: rechts, dauer: 3.3 }
+      - { t: 0.75, drücken: springen }
+      - { t: 1.9, drücken: springen }
+    dauer: 4.2
+    erwartet:
+      figur_rechts_von: 20
+      lebt: true
+---
+## Kurz gesagt
+
+1. Im All gibt es keine Schwerkraft: **Bewegung im ganzen Level: Schweben**.
+2. Wer schwebt, treibt immer weiter – mit **Gleiten 99 %** muss Pip selbst bremsen, indem sie in die andere Richtung drückt.
+3. In der Raumstation gibt es Schwerkraft: Dort liegt ein Bewegungsbereich mit **Laufen**. Und auf dem Mond hüpft Pip mit weniger Schwerkraft riesige Sprünge.
+
+## Das brauchst du
+
+- **Das musst du zeichnen:** Pip im Raumanzug (Stehen, Laufen, Springen), Wände und Boden der Raumstation und Sterne zum Einsammeln.
+- **Das kannst du später dazumalen:** ein Bild, auf dem Pip schwebt (**Spielfigur schwebt**), eine Luftschleuse, einen Satelliten und einen Planeten.
+
+![Pip im Raumanzug](katalog:weltall/astronaut_stehen 3)
+![Pip läuft](katalog:weltall/astronaut_laufen 10)
+![Pip schwebt](katalog:weltall/astronaut_schweben 2)
+![Stern](katalog:weltall/stern 6)
+![Satellit](katalog:weltall/satellit)
+![Ringplanet](katalog:weltall/planet)
+
+## Schritt für Schritt
+
+1. **Das All:** In den **Level-Eigenschaften** stellst du **Bewegung im ganzen Level: Schweben** ein, mit **Gleiten 99 %** und **Tempo 0,7 ×**. Einen Sternenhimmel gibt es als **Hintergrund → Effekt → Sternenhimmel**.
+2. **Die Raumstation:** Wände und Boden sind feste Blöcke. Rechts ist die Luftschleuse offen. Leg über die Station einen **Bewegungsbereich** mit **Bewegung: Laufen – andere Schwerkraft** und **Schwerkraft 100 %**: Drinnen läuft und springt Pip wie immer.
+3. **Pip schwebt:** Gib Pip einen Zustand **Spielfigur schwebt nach rechts** – Arme und Beine gespreizt. Ohne dieses Bild nimmt das Spiel die Bilder fürs Laufen, Springen und Fallen.
+4. Draußen steuern die Pfeiltasten in alle vier Richtungen. Pip kommt aber nur langsam in Fahrt – und lässt du los, treibt sie einfach weiter. Zum Anhalten drückst du in die Gegenrichtung.
+5. Verteil ein paar **Sterne** zum Einsammeln im All. Ein **Satellit** und ein **Planet** (in einer Ebene mit **Parallaxe 0,7**, damit er weit weg wirkt) machen den Weltraum groß.
+6. Probier es aus: Pip läuft aus der Luftschleuse und treibt ins All. Mit **↑** steigt sie zu einem Stern, mit **↓** sinkt sie zum nächsten – und treibt langsam weiter.
+
+![Auf dem Mond](variante:1)
+
+## Auf dem Mond
+
+Auf dem Mond gibt es Schwerkraft, nur weniger als auf der Erde. Dafür stellst du **Bewegung im ganzen Level: Laufen – andere Schwerkraft** ein, hier mit **Schwerkraft 60 %**. Pip läuft wie immer, springt aber viel höher und weiter – über einen Felsbrocken und einen Krater.
+
+> **Tipp:** Auf dem echten Mond ist die Schwerkraft nur ein Sechstel so stark wie auf der Erde – etwa **17 %**. Probier es aus: Dann fliegt Pip so hoch, dass sie oben aus dem Bild springt. Für ein Spiel ist etwas mehr Schwerkraft oft besser.
+
+## Tipps
+
+- **Gleiten** macht den Unterschied zwischen Wasser und Weltall: Unter Wasser bremst das Wasser (90 %), im All bremst fast nichts (99 %).
+- Ein Bewegungsbereich mit **Strömung** im All wird zum Sog eines Schwarzen Lochs oder zum Schub eines Triebwerks.
+- Gegner merken von Bewegungsbereichen nichts. Ein Meteorit, der durchs All fliegt, ist ein Gegner mit dem Verhalten **Flatterer**.
+
+## Wenn's nicht klappt
+
+- **Pip fällt aus der Station ins Nichts:** Draußen ist beim Level noch **normal** eingestellt – stell **Schweben** ein.
+- **Pip schwebt auch in der Station:** Der Bewegungsbereich **Laufen** deckt die Station nicht ganz ab. Es zählt die Mitte der Figur.
+- **Pip hält nie an:** Das ist im All so! Drück in die Gegenrichtung, oder stell **Gleiten** kleiner ein.
+
+## Mach mehr draus
+
+Bau eine Raumstation mit mehreren Räumen – manche mit Schwerkraft, manche ohne – und Sterne, die nur zu erreichen sind, wenn man sich geschickt treiben lässt.

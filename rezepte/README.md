@@ -114,7 +114,7 @@ The recorder relies on these runtime entry points: `window.game`,
 ```yaml
 ---
 titel: Leitern hochklettern
-kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Türen & Schlüssel | Kampf | Gegner
+kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Wasser & Weltall | Türen & Schlüssel | Kampf | Gegner
 # entwurf: true                # hide this recipe (not built, not shown)
 stufe: 1                       # difficulty 1–3 (kept in rezepte.json, not shown)
 kurz: Pip klettert eine Leiter hoch und läuft oben weiter.
@@ -146,6 +146,20 @@ szene:
   #                            # rectangles in tiles: column, row from top, width, height
   #     vorne: true            #   drawn in front of the characters (water Pip wades
   #                            #   through, light falling on him). Default: behind them.
+  # bewegung: { art: schwimmen, schwerkraft: 0, gleiten: 85, tempo: 1.2, schwimmzug: 0 }
+  #                            # how the player moves in the whole level (Level-Eigenschaften:
+  #                            # "Bewegung im ganzen Level", src/static/movement_regions.js):
+  #                            # art: schwimmen | schweben | laufen (only another schwerkraft)
+  #                            # schwerkraft: % of the game's gravity · gleiten: % how long the
+  #                            # figure drifts on (0 … 99) · tempo: × its speed · schwimmzug:
+  #                            # × jump strength per press of the jump key (schwimmen only) ·
+  #                            # stroemung: [px/s, Richtung in Grad] (0 right, 90 up, 270 down)
+  # bewegungsbereiche:         # Bewegungsbereiche (movement_region layers), later ones in front
+  #   - { art: schwimmen, rechtecke: [[0, 2.25, 13, 3.75]] }     # the water below the surface
+  #   - { art: wie_darunter, stroemung: [240, 0], rechtecke: [[12, 3, 9, 1]] }
+  #                            # wie_darunter: only adds its current to what lies below.
+  #                            # The frontmost area at the figure's centre decides the art;
+  #                            # the currents of all areas there add up.
   # eigenschaften: { show_energy: true }   # game properties (Einstellungen), e.g.
   #                            # controls: { jump: ['ArrowUp'], melee: ['ControlLeft'] }
   # himmel: ['#41a6f6', '#73eff7']         # sky: top and bottom colour, or
@@ -156,8 +170,9 @@ szene:
   # effekte:                   # backdrop effect layers (in front of the world unless vorne: false)
   #   - { effekt: snow, farbe: '#ffffffff', skala: 1.0, tempo: 1.0, pixel: true }
   #     # snow | rain | smoke | fire | lightrays | stars | aurora | clouds | fireflies |
-  #     # bubbles | dust (Schwebestaub) | lightning (Gewitter) – BACKDROP_EFFECTS in
-  #     # src/static/backdrops.js
+  #     # bubbles | dust (Schwebestaub) | lightning (Gewitter) | current (Strömung) –
+  #     # BACKDROP_EFFECTS in src/static/backdrops.js
+  #     # richtung: 250            current only: the direction of the streaks in degrees
   #     # blitz_alle: 5 · himmel_leuchtet: 0.6 · blitze: false · blitz_aufbau: 0.06
   #     #                          lightning only: seconds between strikes, sky glow 0…1,
   #     #                          no bolts = Wetterleuchten, seconds a flash takes to build up
@@ -304,6 +319,17 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   klettert*). `strohpuppe` (24×32 training dummy, *Steht still*: `stehen`,
   `treffer`, `tot` – its bullseye sits exactly at arrow height, 10 px
   above the ground). `strohballen` (solid hay bale for the training ground).
+* **Meer** (`meer/`, recipes *Pip taucht*, *Ein Fisch als Spielfigur*, *Das
+  U-Boot und der Sog*): `pip_taucher` (Pip with `pip/schwimmen`, state
+  *Spielfigur schwimmt*), `fisch` and `u_boot` (48×24) as player characters,
+  `qualle` (Flatterer, damage 10), `perle` (pickup), `sand` and `riff`
+  (solid), `seegras` (24×48, swaying), `koralle`, `koralle_gruen`, `truhe`,
+  `schlot` (48×24), `quallenlicht` (Leuchten).
+* **Weltall** (`weltall/`, recipe *Schweben im Weltall*): `astronaut` (Pip in a
+  space suit: `stehen`, `laufen`, `springen`, `schweben` – state *Spielfigur
+  schwebt*), `station`, `station_boden`, `mondboden`, `mondgestein` (solid),
+  `luke` (24×48), `bullauge`, `stern` (pickup), `satellit` (48×24), `planet`
+  (72×72), `erde_planet` (48×48), `mondstein`.
 * **Küste** (`kueste/`, recipe *Farben, die Stimmung machen*): `leuchtturm`
   (48×96, lamp pulsing), `klippe` and `fels` (solid), `steg` (von oben),
   `stegpfosten`, `meer` (4 frames, `phase_r: 0`), `boot` (48×24, bobbing),
