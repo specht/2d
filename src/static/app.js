@@ -653,6 +653,10 @@ void main() {
 			player: alive ? {
 				dx: player.mesh.position.x - this.mesh.position.x,
 				dy: player.mesh.position.y - this.mesh.position.y,
+				// how far apart the two centres are when their collision boxes touch
+				touch: (player.mesh.position.x >= this.mesh.position.x ?
+					w2 * (this.traits.ex_right ?? 1) + player.sprite.width * 0.5 * (player.traits.ex_left ?? 1) :
+					w2 * (this.traits.ex_left ?? 1) + player.sprite.width * 0.5 * (player.traits.ex_right ?? 1)),
 			} : null,
 			clear: dx => !this.has_trait_at(['block_sides'], Math.min(0, dx), Math.max(0, dx), h * 0.5 - 1, h * 0.5 + 1),
 			wall: dir => Boolean(dir === 'left' ?
@@ -947,6 +951,10 @@ void main() {
 				this.die(sprite, trait);
 			} else {
 				this.invincible_until = this.game.clock.getElapsedTime() + sprite.traits[trait].damage_cool_down;
+				// Touching something that hurts looks like a hit: the figure's
+				// "Treffer" state (if it has one) and its hit flash.
+				this.show_combat_visual('hit');
+				this.flash_on_hit();
 			}
 		}
 	}

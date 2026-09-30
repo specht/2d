@@ -265,3 +265,20 @@ test('a climbing Jäger goes on to the end of the ladder', () => {
     assert.equal(top.keys.left, true);
     assert.equal(mem.climbing, null);
 });
+
+test('a hunter that has caught up stays in front of the player, still touching', () => {
+    const b = baddie_behavior({ behavior: { type: 'hunter' } });
+    const mem = {};
+    baddie_decide(b, mem, world({ player: { dx: 80, dy: 0, touch: 14 } }));
+    const close = baddie_decide(b, mem, world({ now: 0.1, player: { dx: 9, dy: 0, touch: 14 } }));
+    assert.equal(close.keys.right, false);
+    assert.equal(close.keys.left, false);
+    assert.equal(close.face, 'right', 'he faces the player');
+    const near = baddie_decide(b, mem, world({ now: 0.2, player: { dx: 12, dy: 0, touch: 14 } }));
+    assert.equal(near.keys.right, true, 'not yet touching enough: closer');
+    const above = baddie_decide(b, mem, world({ now: 0.3, player: { dx: 9, dy: 40, touch: 14 } }));
+    assert.equal(above.keys.right, true, 'the player is above him: he walks underneath');
+    // without the touch distance (older callers) he walks right up to the player
+    const old = baddie_decide(b, mem, world({ now: 0.4, player: { dx: 9, dy: 0 } }));
+    assert.equal(old.keys.right, true);
+});

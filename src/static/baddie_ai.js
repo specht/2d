@@ -222,6 +222,11 @@ function baddie_decide(b, mem, w) {
                 if (Number.isFinite(ladder)) target = ladder;
             }
         }
+        // Caught up: he stays right in front of the player, facing it – the two
+        // still touch (so it hurts), but he does not stand on top of it.
+        if (target === p.dx && Number.isFinite(p.touch) && Math.abs(p.dy) <= 20 &&
+            Math.abs(p.dx) < Math.max(4, p.touch - 4))
+            return stand({ alert, face: toward(p.dx) });
         if (Math.abs(target) < 4) return stand({ alert, speed: b.chase, pose: 'hunt' });
         const dir = toward(target);
         let out;

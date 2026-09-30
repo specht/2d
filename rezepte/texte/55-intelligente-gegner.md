@@ -5,34 +5,53 @@ stufe: 3
 kurz: Der Waschbär lässt sich nicht abhängen. Pip springt über eine Lücke, über einen Stein und klettert eine Leiter hoch – und der Waschbär macht alles nach.
 skala: 2
 schritte: 2
-# the gallery card: the raccoon right behind Pip on the ladder
-standbild: 2.5
+# the gallery card: the raccoon has caught up with Pip
+standbild: 6.4
 szene:
   # a level wider than the screen: the camera follows Pip
   kamera: { bildhoehe: 144 }
-  legende: { W: waschbaer }
-  karte: |
-    ................................
-    ...............................M
-    ...................H############
-    ...................H============
-    W.....P........M...H============
-    ##########..####################
+  legende: { W: waschbaer, P: pip_erschrickt }
+  ebenen:
+    # Pip in a layer of her own before the world: she is placed first, so the
+    # raccoon is drawn in front of her when he catches her
+    - name: Pip
+      kollision: false
+      karte: |
+        ................................
+        ................................
+        ................................
+        ................................
+        ......P.........................
+        ................................
+    - name: Welt
+      # the wall at the end reaches the top row: the level fills the screen
+      karte: |
+        ...............................M
+        ...............................M
+        .....................H##########
+        .....................H==========
+        W..............M.....H==========
+        ##########..####################
 # Pip (180 px/s, jump 7) runs off, jumps the gap and the stone, climbs the
-# ladder and runs on along the top. The raccoon (2.25 px/frame when chasing)
-# follows: gap jump, hop over the stone, ladder, on along the top.
+# ladder and runs on along the top, where she stops and turns round. The
+# raccoon (1.8 px/frame when chasing, 60 % of Pip) follows: gap jump, hop over
+# the stone, ladder, along the top – and stops right in front of her.
 ablauf:
-  - { t: 0.4, halten: rechts, dauer: 1.72 }
+  - { t: 0.4, halten: rechts, dauer: 2.0 }
   - { t: 0.8, drücken: springen }
   - { t: 1.4, drücken: springen }
-  - { t: 2.15, halten: hoch, dauer: 0.6 }
-  - { t: 2.85, halten: rechts, dauer: 1.4 }
-dauer: 6.0
+  - { t: 2.45, halten: hoch, dauer: 0.6 }
+  - { t: 3.15, halten: rechts, dauer: 0.97 }
+  # she hears him coming and turns round (one step back to the left)
+  - { t: 4.9, halten: links, dauer: 0.02 }
+dauer: 7.6
 erwartet:
   gegner_modi: [chase]
   gegner_ausrufezeichen: true
   gegner_hub: 60
   figur_hoeher_als: 3
+  # caught: the raccoon has touched Pip
+  energie_unter: 100
 ---
 ## Kurz gesagt
 
@@ -53,14 +72,15 @@ erwartet:
 
 ## Schritt für Schritt
 
-1. Mach den Waschbären zum **Gegner** mit dem **Verhalten: Jäger** (siehe *Ein Gegner, der dich verfolgt*). **Sichtweite: 168 px**, **Tempo beim Verfolgen: 2,5 ×** – er ist etwas langsamer als Pip, gibt aber nicht auf.
+1. Mach den Waschbären zum **Gegner** mit dem **Verhalten: Jäger** (siehe *Ein Gegner, der dich verfolgt*). **Sichtweite: 168 px**, **Tempo beim Verfolgen: 2 ×** – er ist deutlich langsamer als Pip, gibt aber nicht auf. **Schaden: 10**: Wenn er sie erwischt, tut es ein bisschen weh.
 2. **Sprungkraft: 7** – so hoch und weit wie Pip.
 3. Klick beim Waschbären auf **Eigenschaft hinzufügen** und wähl unter **Fallen und Gegner** die **Intelligenz**.
 4. Setz dort die Häkchen bei **über Lücken springen**, **über Hindernisse springen** und **Leitern klettern**.
 5. **gibt auf nach: 5 s.** Während Pip oben ist, sieht er sie nicht. So lange sucht er trotzdem weiter.
 6. Leg die Zustände an: **Gegner jagt nach rechts**, **Gegner springt nach rechts** und **Gegner klettert**.
 7. Bau eine Strecke, die breiter ist als der Bildschirm: eine Lücke, einen Stein, eine Leiter zu einer höheren Ebene. Die Kamera folgt Pip.
-8. Probier es aus: Pip rennt los, springt über die Lücke und den Stein und klettert die Leiter hinauf. Der Waschbär springt hinterher, hüpft über den Stein, klettert die Leiter hoch – und holt sie oben ein.
+8. Gib Pip einen Zustand **Spielfigur: Treffer (rechts)**, in dem sie erschrickt. Berührt sie ein Gegner, der Schaden macht, zeigt sie dieses Bild und blinkt.
+9. Probier es aus: Pip rennt los, springt über die Lücke und den Stein und klettert die Leiter hinauf. Oben läuft sie bis fast ans Ende und dreht sich um. Der Waschbär springt hinterher, hüpft über den Stein, klettert die Leiter hoch – und holt sie oben ein. Er bleibt direkt vor ihr stehen, und Pip erschrickt.
 
 ## Was ein Gegner noch lernen kann
 
