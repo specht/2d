@@ -48,10 +48,11 @@ szene:
         =============...
         ................
 ablauf:
-  - { t: 0.3, halten: rechts, dauer: 3.4 }
+  - { t: 0.3, halten: rechts, dauer: 2.0 }
   - { t: 0.55, drücken: springen }
   - { t: 2.3, halten: hoch, dauer: 1.2 }
   - { t: 3.5, drücken: springen }
+  - { t: 3.45, halten: rechts, dauer: 0.5 }
 dauer: 4.5
 erwartet:
   punkte: 20

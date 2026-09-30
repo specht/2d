@@ -51,8 +51,10 @@ ablauf:
   - { t: 0.3, halten: rechts, dauer: 0.5 }
   - { t: 0.55, drücken: springen }
   - { t: 1.1, halten: [rechts, runter], dauer: 0.4 }
-  - { t: 1.5, halten: [links, hoch], dauer: 1.25 }
-  - { t: 2.48, drücken: springen }
+  - { t: 1.5, halten: [links, hoch], dauer: 1.5 }
+  # a swim stroke for speed – and at the surface one more: out of the water
+  - { t: 2.45, drücken: springen }
+  - { t: 2.8, drücken: springen }
   # safe on the rock she turns round and looks at the shark
   - { t: 3.3, halten: rechts, dauer: 0.02 }
 dauer: 4.8

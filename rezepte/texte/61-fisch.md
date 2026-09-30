@@ -42,9 +42,9 @@ szene:
         .............RRRRRRR..........
         ______________________________
 ablauf:
-  - { t: 0.3, halten: rechts, dauer: 2.4 }
+  - { t: 0.3, halten: rechts, dauer: 2.65 }
   - { t: 0.45, halten: hoch, dauer: 0.35 }
-  - { t: 1.3, halten: runter, dauer: 0.25 }
+  - { t: 1.3, halten: runter, dauer: 0.3 }
 dauer: 4.0
 erwartet:
   punkte: 20

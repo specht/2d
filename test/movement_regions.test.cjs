@@ -90,3 +90,11 @@ test('floating has no gravity and a current carries the figure along', () => {
     for (let i = 0; i < 400; i++) v = MovementRegions.fluid_step(v, { x: 0, y: 0 }, pulled, env);
     assert.ok(Math.abs(v.vy + 2) < 0.01, `the Sog sets the speed: ${v.vy}`);
 });
+
+test('diagonally the figure is as fast as straight ahead', () => {
+    const space = MovementRegions.settings({ mode: 'float', glide: 0 });
+    const straight = MovementRegions.fluid_step({ vx: 0, vy: 0 }, { x: 1, y: 0 }, space, env);
+    const diagonal = MovementRegions.fluid_step({ vx: 0, vy: 0 }, { x: 1, y: 1 }, space, env);
+    assert.ok(Math.abs(Math.hypot(diagonal.vx, diagonal.vy) - Math.hypot(straight.vx, straight.vy)) < 1e-9);
+    assert.ok(Math.abs(diagonal.vx - diagonal.vy) < 1e-9);
+});

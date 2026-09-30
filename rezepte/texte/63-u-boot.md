@@ -15,7 +15,7 @@ szene:
   bewegung: { art: schwimmen, schwerkraft: 0, schwimmzug: 0, tempo: 0.6, gleiten: 96 }
   bewegungsbereiche:
     # above the vent the water pulls down and a little to the left
-    - { name: Sog, art: wie_darunter, stroemung: [100, 250], rechtecke: [[10, 0, 8, 5]] }
+    - { name: Sog, art: wie_darunter, stroemung: [70, 250], rechtecke: [[10, 0, 8, 5]] }
   effekte:
     - { effekt: current, name: Sog, farbe: '#73eff7aa', richtung: 250, tempo: 2, bereich: [10, 0, 8, 5], hinter: Figuren }
   ebenen:
@@ -72,7 +72,7 @@ erwartet:
 
 1. **Das U-Boot:** Eigenschaft **Spielfigur**. Ein Zustand **Spielfigur schwimmt nach rechts** mit schnellem Propeller, einer zum Stehen mit langsamem.
 2. **Die Tiefsee:** **Bewegung im ganzen Level: Schwimmen** mit **Schwerkraft 0 %**, **Schwimmzug 0**, **Tempo 0,6 ×** und **Gleiten 96 %**. Der Himmel wird ein Farbverlauf von Dunkelblau nach fast Schwarz.
-3. **Der Sog:** Neue Ebene über **+ → Bewegungsbereich**, **Bewegung: wie darunter (nur Strömung)**, **Strömung: 100 px/s**, **Richtung: 250°** – das ist nach unten und ein bisschen nach links. Zieh das Rechteck über den Schlot, vom Meeresgrund bis ganz nach oben.
+3. **Der Sog:** Neue Ebene über **+ → Bewegungsbereich**, **Bewegung: wie darunter (nur Strömung)**, **Strömung: 70 px/s**, **Richtung: 250°** – das ist nach unten und ein bisschen nach links. Zieh das Rechteck über den Schlot, vom Meeresgrund bis ganz nach oben.
 4. **Den Sog sehen:** Ein **Hintergrund** mit **Art: Effekt**, **Effekt: Strömung** und ebenfalls **Richtung: 250°** über demselben Rechteck. Schieb ihn in der Layer-Liste hinter die Figur.
 5. **Leuchtplankton:** kleine leuchtende Punkte mit **Mischmodus: Leuchten** – in der dunklen Tiefe sieht man sie von weitem.
 6. Probier es aus: Das U-Boot fährt nach rechts in den Sog. Der zieht es schräg hinunter bis auf den Meeresgrund. Erst mit **→** und **↑** zusammen kämpft es sich frei – und steigt danach, schwer wie es ist, noch ein ganzes Stück weiter.
