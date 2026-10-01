@@ -179,6 +179,33 @@ Eventually it may also be useful to start playtesting near the part of the level
 
 ---
 
+# Game History and Independent Forks
+
+The no-account model is intentional.
+
+Games are public to anyone who has their code or link, and anybody may open, edit and save them. Do not add user ownership, private games or a permissions system merely to support branching. A global browser containing every saved game is not required.
+
+Normal saving should continue the current version lineage. Opening a game makes that version the parent of the next save; later saves form a version tree without modifying older versions.
+
+Add an explicit way to start an **independent game from the current state**. In the student-facing UI, prefer an understandable German label such as **Als eigenes Spiel weiterführen** over Git terminology.
+
+The operation should:
+
+- work for any loaded game
+- leave the source game and its complete history untouched
+- save the current state as a new root with no version-parent relationship to the source
+- make the new root the parent for subsequent normal saves
+- give the independent game its own code even if nothing has been edited yet
+- allow two people to fork the same version into genuinely independent lineages
+- require no accounts, ownership or copy permissions
+- remain discoverable by code/link rather than requiring a global game catalogue
+
+There is an important storage constraint: game tags are currently derived from the saved JSON. Merely setting `parent` to `null` cannot guarantee a distinct identity for an unchanged root game or for repeated identical forks. Design a small explicit lineage identity for independent forks, for example an optional non-gameplay lineage/root identifier. Games without that field must retain their existing tags, graph relationships and behaviour.
+
+The version graph and an independent fork are different concepts. Do not delete or rewrite existing graph edges when forking, and do not use the version `PARENT` relationship for optional attribution back to the source. If provenance is ever wanted, model it separately from version ancestry.
+
+---
+
 # Sprite and Animation Editor
 
 The sprite editor is already comparatively mature.
@@ -403,9 +430,10 @@ In particular:
 3. Add undo/redo and strong selection manipulation.
 4. Improve layers and large-level navigation.
 5. Shorten the playtest loop.
-6. Polish sprite-animation workflows.
-7. Add generic triggers/actions.
-8. Build new gameplay systems on those foundations.
+6. Make game lineage understandable and add an explicit independent-fork action.
+7. Polish sprite-animation workflows.
+8. Add generic triggers/actions.
+9. Build new gameplay systems on those foundations.
 
 The central question for new work should be:
 

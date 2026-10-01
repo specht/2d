@@ -110,7 +110,24 @@ Games are stored as JSON.
 
 Saving a game creates a short tag derived from its contents. The game JSON itself is written to the generated game-data directory, while Neo4j stores metadata and relationships between versions.
 
-When a saved game is edited and saved again, the new version can refer to its parent. This makes it possible to follow the development history of a game without modifying older saved versions.
+All saved games are public to anyone who has their game code or link. There are no accounts, owners or per-game permissions: anyone can open a game in the Studio, change it and save another version. This does not require a global catalogue of every game; discovery can remain based on shared codes and links.
+
+When a saved game is opened, its tag becomes the parent for the next normal save. Saving creates a new immutable child version, and that new tag then becomes the parent for the following save. Older versions remain untouched, so the development of a game forms a version tree.
+
+#### Independent forks
+
+An explicit independent-fork workflow is planned for cases where somebody wants to use an existing public game as a starting point without keeping the new work in the source game's version tree.
+
+An independent fork should:
+
+- save the current game state as the root of a new lineage
+- leave the source game and its version history unchanged
+- make subsequent normal saves descend from the new root
+- produce its own game code even when the gameplay content has not changed yet
+- require no account, ownership or permission model
+- not require a global list of all games
+
+The current tags are content-derived. Simply clearing `parent` is therefore not sufficient to guarantee a distinct new root in every case: an unchanged root game, or repeated forks of the same version, could otherwise collapse to the same tag. The fork design needs a small independent lineage identity, for example an optional non-gameplay lineage identifier, while existing games without it keep their current tags and behaviour.
 
 Existing saved JSON is considered part of the compatibility contract of the project: new engine features should continue to load old games without requiring migrations.
 

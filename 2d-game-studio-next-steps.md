@@ -1,12 +1,12 @@
 # 2D Game Studio — handoff and next steps
 
 **Repository:** https://github.com/specht/2d  
-**Active branch:** `master`; the `combat` feature work was merged and pushed on 2026-09-20. Verify the actual branch and HEAD again before every patch.
+**Active branch:** `main`; the `combat` feature work was merged and pushed on 2026-09-20. Verify the actual branch and HEAD again before every patch.
 **Audience/contract:** A child-oriented 2D editor with hundreds of existing saved games. Only give reviewable downloadable patches; never alter the user's checkout or GitHub. Preserve old JSON/defaults/gameplay. All student-facing UI and help must be in German.
 
 ## Current status (handoff, 2026-09-20)
 
-**Verified remote source:** `master` @ `e407c4644452e9d36d6650597cba7c0df1636c9c`. The user confirmed in-game that Sichtbarkeitsbereich, optional fade and the horizontal-overflow fix work; they merged to `master` and pushed. These are targeted user confirmations, not exhaustive browser or legacy-saved-game tests.
+**Verified remote source:** `main` @ `e407c4644452e9d36d6650597cba7c0df1636c9c`. The user confirmed in-game that Sichtbarkeitsbereich, optional fade and the horizontal-overflow fix work; they merged to `main` and pushed. These are targeted user confirmations, not exhaustive browser or legacy-saved-game tests.
 
 **Seamless interiors are implemented, not pending.** A named `visibility_region` / **Sichtbarkeitsbereich** layer controls one other layer through a stable target ID. Its rectangle union tests the *current centre of the player* and applies **Im Bereich: sichtbar/versteckt** (the inverse outside). Target IDs are assigned only when a creator selects a target; merely loading a legacy game does not give all layers IDs. Duplicate/invalid target configurations are inert. Dedicated facades allow two houses to behave independently. **Überblendung** is optional (`fade_seconds` 0–2 s; omitted/0 is immediate); fade direction can reverse, while initial spawn and respawn set visibility immediately. Separate fading materials reuse the original atlas texture; the sidebar no longer overflows horizontally.
 
@@ -26,7 +26,7 @@
 
 ## Earlier cleanup history (archive; not the active task)
 
-Earlier fixes through the level-exit bounds change were user-confirmed. Historical patch names and statuses below describe the earlier work; inspect the current source rather than treating older `master`-era uncertainty as current branch status.
+Earlier fixes through the level-exit bounds change were user-confirmed. Historical patch names and statuses below describe the earlier work; inspect the current source rather than treating older handoff uncertainty as current branch status.
 
 | Work item | Status / notes |
 | --- | --- |
@@ -37,8 +37,8 @@ Earlier fixes through the level-exit bounds change were user-confirmed. Historic
 | Preserve `min_points_percent` | User confirmed all work through subsequent level-exit patch committed and pushed. Existing configured percentage must not be reset to 100; missing value defaults to 100. |
 | Label unused level-end conditions accurately in editor | User confirmed all work through subsequent level-exit patch committed and pushed. These conditions are **not** implemented in the runtime; do not silently activate them. |
 | Level-exit bounds checking | User explicitly confirmed committed and pushed. A `Delta` pointing outside the level list should take the existing `THE END` path, not access a nonexistent level. |
-| Per-enemy health | Patch supplied: `2d-enemy-instance-health.patch`. On a subsequent read of `master`, `src/static/app.js` **did** contain `this.energy -= damage`, so the change appears present remotely. Each enemy should have runtime health initialized from its sprite's `Energie`; never decrement the shared sprite trait's energy. |
-| Skip inactive enemies when querying collision index | Patch supplied: `2d-enemy-collision-active-only.patch`. **Application/commit not confirmed** in conversation. Check current `master` or ask for the outcome. The change should skip inactive enemies in `has_baddie_at()` even when the interval tree is stale until the following frame. |
+| Per-enemy health | Patch supplied: `2d-enemy-instance-health.patch`. On a subsequent read of `main`, `src/static/app.js` **did** contain `this.energy -= damage`, so the change appears present remotely. Each enemy should have runtime health initialized from its sprite's `Energie`; never decrement the shared sprite trait's energy. |
+| Skip inactive enemies when querying collision index | Patch supplied: `2d-enemy-collision-active-only.patch`. **Application/commit not confirmed** in conversation. Check current `main` or ask for the outcome. The change should skip inactive enemies in `has_baddie_at()` even when the interval tree is stale until the following frame. |
 
 **Patching requirement:** Check the current *active* branch/HEAD, not the historical `combat` SHA above. Generate and verify an actual patch against complete source files before linking it. Never write to GitHub for the user.
 
@@ -69,7 +69,7 @@ Do **not** conflate this patch with new melee/ranged attacks, energy-balancing c
 - **Level-end conditions:** The editor exposes `touching_level_complete`, `min_points`, `need_sprite`, and `killed_baddie`; the runtime currently handles `level_complete` contact, but does not enforce the other conditions. The editor has been updated to mark inactive options honestly. Before activating any, decide how to opt in so older levels containing these values do not suddenly become impossible to complete. Clarify combination semantics (AND/OR), count/percentage measurement, and UI feedback; implement as a separate, carefully scoped feature.
 - **Combat extensions (deferred):** Generic stomp/area delivery, ray/laser, opt-in cooldown HUD, finite ammunition and pickup/cost integration remain separate milestones. The ranged and bomb deliveries, mouse firing and basic attack/hit visuals are already present.
 - **Gravity zones/switches:** Variable gravity per area, with smoothly rotating camera so gravity appears visually downward. Default remains existing downward gravity for old games. Requires a considered physics/camera design rather than a small blind patch.
-- **Seamless interiors (implemented):** Opt-in room regions, named per-house facade layers and visual-only optional fades are merged in `master`; see the current-status section above. Hysteresis, door dependencies and generic events are not part of this release.
+- **Seamless interiors (implemented):** Opt-in room regions, named per-house facade layers and visual-only optional fades are merged in `main`; see the current-status section above. Hysteresis, door dependencies and generic events are not part of this release.
 - **General small cleanups:** Investigate only with current source and reproducible behavior. Avoid repeated broad refactors or compulsory large test suites.
 
 ## Workflow for the next chat
