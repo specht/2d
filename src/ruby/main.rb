@@ -242,27 +242,18 @@ class Main < Sinatra::Base
     end
 
     if DEVELOPMENT
-        def collaboration_snapshot_payload(type, snapshot, extra = {})
-            {
-                :type => type,
-                :code => snapshot[:code],
-                :source_tag => snapshot[:source_tag],
-                :revision => snapshot[:revision],
-                :state => snapshot[:state],
-                :participants => snapshot[:participants],
-            }.merge(extra)
-        end
-
-        def collaboration_presence_payload(snapshot)
-            {
-                :type => "presence",
-                :revision => snapshot[:revision],
-                :participants => snapshot[:participants],
-            }
-        end
+        # Live collaboration: src/ruby/collaboration.rb keeps the sessions,
+        # src/static/collaboration.js is the studio side. Every participant has
+        # one WebSocket; messages are small JSON operations. Applied operations
+        # are broadcast to everybody in the session (including the sender, as
+        # confirmation); rejected ones are answered to the sender only.
 
         def collaboration_send(socket, payload)
-            socket.send(payload.to_json)
+            collaboration_send_raw(socket, payload.to_json)
+        end
+
+        def collaboration_send_raw(socket, json)
+            socket.send(json)
         rescue => e
             debug "Could not send collaboration message: #{e}"
         end
@@ -278,7 +269,7 @@ class Main < Sinatra::Base
 
         def collaboration_unregister_socket(code, participant_id, connection_id)
             @@collaboration_sockets_mutex.synchronize do
-                sockets = @@collaboration_sockets[code]
+                sockets = @@collaboration_sockets.fetch(code, {})
                 entry = sockets[participant_id]
                 if entry && entry[:connection_id] == connection_id
                     sockets.delete(participant_id)
@@ -287,17 +278,144 @@ class Main < Sinatra::Base
             end
         end
 
+        # The payload is serialized once and the same JSON goes to everybody.
         def collaboration_broadcast(code, payload)
+            json = payload.to_json
             sockets = @@collaboration_sockets_mutex.synchronize do
-                @@collaboration_sockets[code].values.map { |entry| entry[:socket] }
+                @@collaboration_sockets.fetch(code, {}).values.map { |entry| entry[:socket] }
             end
-            sockets.each { |socket| collaboration_send(socket, payload) }
+            sockets.each { |socket| collaboration_send_raw(socket, json) }
         end
 
-        def collaboration_broadcast_presence(code)
-            snapshot = @@collaboration_store.snapshot(:code => code)
-            collaboration_broadcast(code, collaboration_presence_payload(snapshot))
-        rescue Collaboration::SessionNotFound
+        def collaboration_broadcast_presence(code, participants)
+            collaboration_broadcast(code, { :type => "presence", :participants => participants })
+        end
+
+        def collaboration_snapshot_payload(type, snapshot, extra = {})
+            {
+                :type => type,
+                :code => snapshot[:code],
+                :source_tag => snapshot[:source_tag],
+                :revision => snapshot[:revision],
+                :resource_revisions => snapshot[:resource_revisions],
+                :state => snapshot[:state],
+                :participants => snapshot[:participants],
+            }.merge(extra)
+        end
+
+        def collaboration_string(value)
+            value.is_a?(String) && value.size <= 200 ? value : nil
+        end
+
+        def collaboration_save(socket, code, ids)
+            prepared = @@collaboration_store.begin_save(**ids)
+            unless prepared
+                collaboration_send(socket, :type => "save_error", :error => "save_in_progress")
+                return
+            end
+
+            begin
+                game_to_save = prepared[:state]
+                game_to_save["parent"] = prepared[:source_tag]
+                tag = save_game(game_to_save, true)
+                saved = @@collaboration_store.finish_save(
+                    :code => code,
+                    :token => prepared[:token],
+                    :tag => tag,
+                )
+                collaboration_broadcast(code, {
+                    :type => "saved",
+                    :tag => tag,
+                    :icon => icon_for_tag(tag),
+                    :saved_by => prepared[:participant_name],
+                    :saved_by_id => prepared[:participant_id],
+                    :source_tag => saved[:source_tag],
+                    :revision => saved[:revision],
+                    :participants => saved[:participants],
+                })
+            rescue => e
+                @@collaboration_store.abort_save(:code => code, :token => prepared[:token])
+                debug_error "Shared collaboration save failed: #{e}"
+                collaboration_send(socket, :type => "save_error", :error => "save_failed")
+            end
+        end
+
+        def handle_collaboration_message(socket, code, participant_id, connection_id, message)
+            ids = { :code => code, :participant_id => participant_id, :connection_id => connection_id }
+            type = message["type"]
+            case type
+            when "heartbeat"
+                @@collaboration_store.touch(**ids)
+            when "request_snapshot"
+                snapshot = @@collaboration_store.snapshot(:code => code)
+                collaboration_send(socket, collaboration_snapshot_payload("snapshot", snapshot))
+            when "lock", "unlock"
+                resource = collaboration_string(message["resource"])
+                result = if type == "lock"
+                    @@collaboration_store.lock(**ids, :resource => resource)
+                else
+                    @@collaboration_store.unlock(**ids, :resource => resource)
+                end
+                if result[:applied]
+                    collaboration_broadcast_presence(code, result[:participants])
+                else
+                    collaboration_send(socket, {
+                        :type => "rejected",
+                        :request => type,
+                        :resource => resource,
+                        :reason => result[:reason],
+                        :participants => result[:participants],
+                    })
+                end
+            when "update"
+                resource = collaboration_string(message["resource"])
+                result = @@collaboration_store.update(
+                    **ids,
+                    :resource => resource,
+                    :resource_revision => message["resource_revision"],
+                    :value => message["value"],
+                )
+                if result[:applied]
+                    collaboration_broadcast(code, {
+                        :type => "update",
+                        :revision => result[:revision],
+                        :resource => result[:resource],
+                        :resource_revision => result[:resource_revision],
+                        :value => result[:value],
+                        :participant_id => participant_id,
+                    })
+                else
+                    collaboration_send(socket, {
+                        :type => "rejected",
+                        :request => "update",
+                        :resource => resource,
+                        :reason => result[:reason],
+                        :resource_revision => result[:resource_revision],
+                        :value => result[:value],
+                    })
+                end
+            when "insert", "delete", "move"
+                kind = collaboration_string(message["kind"])
+                id = collaboration_string(message["id"])
+                after_id = collaboration_string(message["after_id"])
+                result = if type == "insert"
+                    @@collaboration_store.insert(**ids, :kind => kind, :value => message["value"], :after_id => after_id)
+                elsif type == "delete"
+                    @@collaboration_store.delete(**ids, :kind => kind, :id => id)
+                else
+                    @@collaboration_store.move(**ids, :kind => kind, :id => id, :after_id => after_id)
+                end
+                payload = result.reject { |key, _value| key == :applied }
+                if result[:applied]
+                    collaboration_broadcast(code, payload.merge(:type => "structure"))
+                else
+                    collaboration_send(socket, payload.merge(:type => "rejected", :request => type))
+                end
+            when "save"
+                collaboration_save(socket, code, ids)
+            else
+                collaboration_send(socket, :type => "error", :error => "unknown_message", :fatal => false)
+            end
         end
 
         post "/api/collaboration/create" do
@@ -332,15 +450,16 @@ class Main < Sinatra::Base
             socket.on :message do |event|
                 begin
                     if event.data.bytesize > 1024 * 1024 * 20
-                        collaboration_send(socket, :type => "error", :error => "too_much_data")
+                        collaboration_send(socket, :type => "error", :error => "too_much_data", :fatal => true)
                         socket.close(4009, "too_much_data")
                         next
                     end
                     message = JSON.parse(event.data)
+                    raise JSON::ParserError, "not an object" unless message.is_a?(Hash)
 
                     if participant_id.nil?
                         unless message["type"] == "join"
-                            collaboration_send(socket, :type => "error", :error => "join_required")
+                            collaboration_send(socket, :type => "error", :error => "join_required", :fatal => true)
                             socket.close(4008, "join_required")
                             next
                         end
@@ -364,95 +483,19 @@ class Main < Sinatra::Base
                                 :participant_id => participant_id,
                             ),
                         )
-                        collaboration_broadcast_presence(code)
+                        collaboration_broadcast_presence(code, joined[:snapshot][:participants])
                         next
                     end
 
-                    case message["type"]
-                    when "heartbeat"
-                        @@collaboration_store.touch(
-                            :code => code,
-                            :participant_id => participant_id,
-                            :connection_id => connection_id,
-                        )
-                    when "request_snapshot"
-                        snapshot = @@collaboration_store.snapshot(:code => code)
-                        collaboration_send(socket, collaboration_snapshot_payload("state", snapshot))
-                    when "save"
-                        prepared = @@collaboration_store.begin_save(
-                            :code => code,
-                            :participant_id => participant_id,
-                            :connection_id => connection_id,
-                        )
-                        unless prepared
-                            collaboration_send(socket, :type => "save_error", :error => "save_in_progress")
-                            next
-                        end
-
-                        begin
-                            game_to_save = prepared[:state]
-                            game_to_save["parent"] = prepared[:source_tag]
-                            tag = save_game(game_to_save, true)
-                            snapshot = @@collaboration_store.finish_save(
-                                :code => code,
-                                :token => prepared[:token],
-                                :tag => tag,
-                            )
-                            collaboration_broadcast(
-                                code,
-                                {
-                                    :type => "saved",
-                                    :tag => tag,
-                                    :icon => icon_for_tag(tag),
-                                    :saved_by => prepared[:participant_name],
-                                    :saved_by_id => prepared[:participant_id],
-                                    :source_tag => snapshot[:source_tag],
-                                    :revision => snapshot[:revision],
-                                    :participants => snapshot[:participants],
-                                },
-                            )
-                        rescue => e
-                            @@collaboration_store.abort_save(
-                                :code => code,
-                                :token => prepared[:token],
-                            )
-                            debug_error "Shared collaboration save failed: #{e}"
-                            collaboration_send(socket, :type => "save_error", :error => "save_failed")
-                        end
-                    when "replace_state"
-                        unless message["base_revision"].is_a?(Integer) && message["state"].is_a?(Hash)
-                            collaboration_send(socket, :type => "error", :error => "invalid_state_update")
-                            next
-                        end
-                        result = @@collaboration_store.replace_state(
-                            :code => code,
-                            :participant_id => participant_id,
-                            :connection_id => connection_id,
-                            :base_revision => message["base_revision"],
-                            :state => message["state"],
-                        )
-                        if result[:applied]
-                            collaboration_broadcast(
-                                code,
-                                collaboration_snapshot_payload("state", result[:snapshot]),
-                            )
-                        else
-                            collaboration_send(
-                                socket,
-                                collaboration_snapshot_payload("resync", result[:snapshot]),
-                            )
-                        end
-                    else
-                        collaboration_send(socket, :type => "error", :error => "unknown_message")
-                    end
+                    handle_collaboration_message(socket, code, participant_id, connection_id, message)
                 rescue JSON::ParserError
-                    collaboration_send(socket, :type => "error", :error => "invalid_json")
+                    collaboration_send(socket, :type => "error", :error => "invalid_json", :fatal => false)
                 rescue Collaboration::Error => e
-                    collaboration_send(socket, :type => "error", :error => e.message)
+                    collaboration_send(socket, :type => "error", :error => e.message, :fatal => true)
                     socket.close(4008, e.message)
                 rescue => e
                     debug_error "Collaboration WebSocket error: #{e}"
-                    collaboration_send(socket, :type => "error", :error => "internal_error")
+                    collaboration_send(socket, :type => "error", :error => "internal_error", :fatal => true)
                     socket.close(4011, "internal_error")
                 end
             end
@@ -465,7 +508,7 @@ class Main < Sinatra::Base
                         :connection_id => connection_id,
                     )
                     collaboration_unregister_socket(code, participant_id, connection_id)
-                    collaboration_broadcast_presence(code)
+                    collaboration_broadcast_presence(code, @@collaboration_store.participants(:code => code))
                 end
             end
 

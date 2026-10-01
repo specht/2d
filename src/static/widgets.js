@@ -176,6 +176,11 @@ class DragAndDropWidget {
     }
 
     can_delete_item() {
+        // Optional veto for the item being dragged (live collaboration: an
+        // item somebody else is editing cannot be deleted).
+        if (this.options.can_delete_index && Number.isInteger(this.moving_index) &&
+            this.options.can_delete_index(this.moving_index) === false)
+            return false;
         return this.options.can_be_empty || (this.options.container.children().length > 2);
     }
 

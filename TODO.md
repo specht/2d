@@ -210,6 +210,8 @@ The version graph and an independent fork are different concepts. Do not delete 
 
 Facilitate working on one game from two or more browsers without introducing accounts.
 
+**Current state:** the first milestone below is implemented for development mode (see README). Still open: locks that expire when a participant stops responding (and an idle lease so a forgotten tab cannot block a resource all lesson), letting a reconnecting browser take over its own participant before the old connection has timed out, and enabling the feature in production.
+
 Collaboration is an explicit temporary session, not a property of every public game. The ordinary game code remains enough to open, edit and save an independent descendant as it is today, but it must not allow somebody to enter an active shared editing session. Starting **Gemeinsam bearbeiten** should create a separate hard-to-guess collaboration link or code that can be shared deliberately.
 
 ## Joining and names
@@ -263,14 +265,7 @@ Concurrent editing cannot safely address changing arrays only by numeric index.
 
 For example, one browser may be editing sprite 7 while another deletes sprite 3. The first browser's next operation must still refer to the original sprite, not whichever sprite has moved into array position 7.
 
-Use session-only stable IDs for collaborative operations where necessary, for example for:
-
-- sprites
-- states and frames
-- levels and layers
-- placed level objects
-
-These object IDs are separate from participant display names. Both are collaboration infrastructure, not a required migration of existing game JSON. Translate back to the established saved representation when saving unless a future feature independently justifies persistent IDs.
+Sprites and levels have durable IDs and references to sprites are stored as IDs (`src/static/game_ids.js`), so collaboration operations address them by ID. States, frames, layers and placed level objects are still addressed by index; that is safe as long as they are only edited by whoever holds the lock of their sprite or level. Give them IDs only if finer-grained locking is ever needed.
 
 ## Saving and lineage
 

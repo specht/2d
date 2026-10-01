@@ -2,12 +2,33 @@ require "json"
 require "securerandom"
 require "thread"
 
+# Live collaboration sessions, kept in memory by the Ruby process.
+#
+# A session starts from one game state and keeps one authoritative copy of it.
+# Participants change that copy with small operations:
+#
+# - lock / unlock a resource ("settings", "sprite:<id>" or "level:<id>");
+#   everybody holds at most one lock
+# - update: replace a locked resource as a whole (optimistic check against the
+#   resource revision)
+# - insert / delete / move a sprite or a level
+#
+# Sprites and levels are addressed by their durable `id` (see
+# src/static/game_ids.js), never by array index. References between them are
+# stored as IDs too, so no operation ever has to rewrite another resource: a
+# deleted sprite simply leaves references that nobody can resolve any more,
+# which the studio and the game engine both skip.
+#
+# Every applied operation increases the session revision by one. Clients apply
+# broadcast operations in revision order and ask for a snapshot when they
+# notice a gap.
 module Collaboration
     class Error < StandardError; end
     class SessionNotFound < Error; end
     class InvalidName < Error; end
     class InvalidParticipant < Error; end
     class InvalidSave < Error; end
+    class InvalidGame < Error; end
 
     class Store
         DEFAULT_SESSION_TTL = 6 * 60 * 60
@@ -15,7 +36,8 @@ module Collaboration
         MAX_NAME_LENGTH = 40
         COLLABORATION_CODE_LENGTH = 6
         COLLABORATION_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".freeze
-        COMMAND_KEY = "__collaboration"
+        ID_PATTERN = /\A[A-Za-z0-9_-]{1,64}\z/
+        COLLECTIONS = { "sprite" => "sprites", "level" => "levels" }.freeze
 
         def initialize(clock: -> { Time.now.to_f },
                        session_ttl: DEFAULT_SESSION_TTL,
@@ -27,31 +49,28 @@ module Collaboration
                                ]
                            }.join
                        },
-                       resource_id_generator: -> { SecureRandom.hex(8) },
                        id_generator: -> { SecureRandom.hex(8) })
             @clock = clock
             @session_ttl = session_ttl
             @reconnect_grace = reconnect_grace
             @code_generator = code_generator
-            @resource_id_generator = resource_id_generator
             @id_generator = id_generator
             @sessions = {}
             @mutex = Mutex.new
         end
 
         def create(state:, source_tag: nil)
+            copied_state = deep_copy(state)
+            validate_game!(copied_state)
             @mutex.synchronize do
                 now = @clock.call
                 cleanup_locked(now)
                 code = unique_id(@sessions, @code_generator)
-                copied_state = deep_copy(state)
                 @sessions[code] = {
                     code: code,
                     source_tag: source_tag,
                     state: copied_state,
                     revision: 0,
-                    structure_revision: 0,
-                    resource_ids: build_resource_ids_locked(copied_state),
                     resource_revisions: {},
                     participants: {},
                     save: nil,
@@ -119,34 +138,157 @@ module Collaboration
         end
 
         def touch(code:, participant_id:, connection_id:)
-            @mutex.synchronize do
-                now = @clock.call
-                cleanup_locked(now)
-                session = fetch_session_locked(code)
-                participant = current_participant_locked(session, participant_id, connection_id)
-                participant[:last_seen] = now
-                session[:last_seen] = now
-                true
-            end
+            with_participant(code, participant_id, connection_id) { true }
         end
 
         def snapshot(code:)
             @mutex.synchronize do
-                now = @clock.call
-                cleanup_locked(now)
+                cleanup_locked(@clock.call)
                 snapshot_locked(fetch_session_locked(code))
             end
         end
 
-        def begin_save(code:, participant_id:, connection_id:)
+        def participants(code:)
             @mutex.synchronize do
-                now = @clock.call
-                cleanup_locked(now)
-                session = fetch_session_locked(code)
-                participant = current_participant_locked(session, participant_id, connection_id)
-                participant[:last_seen] = now
-                session[:last_seen] = now
-                return nil if session[:save]
+                session = @sessions[code]
+                session ? participants_locked(session) : []
+            end
+        end
+
+        # ------------------------------------------------------------ locks
+
+        def lock(code:, participant_id:, connection_id:, resource:)
+            with_participant(code, participant_id, connection_id) do |session, participant|
+                holder = lock_holder_locked(session, resource)
+                reason = nil
+                reason = "locked" if holder && holder[:id] != participant[:id]
+                reason = "unknown_resource" if resource_target_locked(session, resource).nil?
+                participant[:lock] = { resource: resource } if reason.nil?
+                result = { applied: reason.nil?, participants: participants_locked(session) }
+                result[:reason] = reason unless reason.nil?
+                result
+            end
+        end
+
+        def unlock(code:, participant_id:, connection_id:, resource: nil)
+            with_participant(code, participant_id, connection_id) do |session, participant|
+                lock = participant[:lock]
+                participant[:lock] = nil if lock && (resource.nil? || lock[:resource] == resource)
+                { applied: true, participants: participants_locked(session) }
+            end
+        end
+
+        # ----------------------------------------------------------- update
+
+        def update(code:, participant_id:, connection_id:, resource:, resource_revision:, value:)
+            with_participant(code, participant_id, connection_id) do |session, participant|
+                target = resource_target_locked(session, resource)
+                reject = lambda do |reason|
+                    {
+                        applied: false,
+                        reason: reason,
+                        resource: resource,
+                        resource_revision: target ? resource_revision_locked(session, resource) : nil,
+                        value: target ? deep_copy(resource_value_locked(session, target)) : nil,
+                    }
+                end
+                next reject.call("unknown_resource") if target.nil?
+                next reject.call("invalid") unless value.is_a?(Hash)
+                lock = participant[:lock]
+                next reject.call("not_locked") unless lock && lock[:resource] == resource
+                next reject.call("stale") unless resource_revision == resource_revision_locked(session, resource)
+
+                copied = deep_copy(value)
+                if target[:key] == "properties"
+                    session[:state]["properties"] = copied
+                else
+                    copied["id"] = target[:id]
+                    session[:state][target[:key]][target[:index]] = copied
+                end
+                next_revision = resource_revision + 1
+                session[:resource_revisions][resource] = next_revision
+                session[:revision] += 1
+                {
+                    applied: true,
+                    revision: session[:revision],
+                    resource: resource,
+                    resource_revision: next_revision,
+                    value: deep_copy(copied),
+                }
+            end
+        end
+
+        # -------------------------------------------------------- structure
+
+        # Inserts a new sprite or level after `after_id` (nil: at the start).
+        # An unknown after_id appends at the end, so an insert is never lost.
+        def insert(code:, participant_id:, connection_id:, kind:, value:, after_id: nil)
+            with_participant(code, participant_id, connection_id) do |session, participant|
+                key = COLLECTIONS[kind]
+                id = value.is_a?(Hash) ? value["id"] : nil
+                unless key && valid_id?(id) && index_of_locked(session, key, id).nil?
+                    next structure_rejection(kind, "insert", id, "invalid")
+                end
+                list = session[:state][key]
+                if after_id.nil?
+                    position = 0
+                else
+                    anchor = index_of_locked(session, key, after_id)
+                    position = anchor.nil? ? list.length : anchor + 1
+                end
+                copied = deep_copy(value)
+                list.insert(position, copied)
+                session[:resource_revisions]["#{kind}:#{id}"] = 0
+                structure_success(session, participant, kind, "insert", id, after_id, deep_copy(copied))
+            end
+        end
+
+        # Deletes a sprite or level. Not allowed while somebody else has it
+        # locked, and never for the last one (the studio would recreate it).
+        def delete(code:, participant_id:, connection_id:, kind:, id:)
+            with_participant(code, participant_id, connection_id) do |session, participant|
+                key = COLLECTIONS[kind]
+                index = key && index_of_locked(session, key, id)
+                next structure_rejection(kind, "delete", id, "unknown_resource") if index.nil?
+                next structure_rejection(kind, "delete", id, "last_item") if session[:state][key].length <= 1
+                resource = "#{kind}:#{id}"
+                holder = lock_holder_locked(session, resource)
+                if holder && holder[:id] != participant[:id]
+                    next structure_rejection(kind, "delete", id, "locked")
+                end
+
+                session[:state][key].delete_at(index)
+                session[:resource_revisions].delete(resource)
+                session[:participants].each_value do |other|
+                    other[:lock] = nil if other[:lock] && other[:lock][:resource] == resource
+                end
+                structure_success(session, participant, kind, "delete", id, nil, nil)
+            end
+        end
+
+        # Moves a sprite or level directly after `after_id` (nil: to the start).
+        def move(code:, participant_id:, connection_id:, kind:, id:, after_id: nil)
+            with_participant(code, participant_id, connection_id) do |session, participant|
+                key = COLLECTIONS[kind]
+                from = key && index_of_locked(session, key, id)
+                next structure_rejection(kind, "move", id, "unknown_resource") if from.nil?
+                if !after_id.nil? && (after_id == id || index_of_locked(session, key, after_id).nil?)
+                    next structure_rejection(kind, "move", id, "unknown_resource")
+                end
+
+                list = session[:state][key]
+                item = list.delete_at(from)
+                position = after_id.nil? ? 0 : index_of_locked(session, key, after_id) + 1
+                list.insert(position, item)
+                structure_success(session, participant, kind, "move", id, after_id, nil)
+            end
+        end
+
+        # ------------------------------------------------------------- save
+
+        def begin_save(code:, participant_id:, connection_id:)
+            with_participant(code, participant_id, connection_id) do |session, participant|
+                next nil if session[:save]
 
                 token = @id_generator.call
                 session[:save] = {
@@ -177,7 +319,11 @@ module Collaboration
                 session[:state]["parent"] = tag
                 session[:revision] += 1
                 session[:last_seen] = @clock.call
-                snapshot_locked(session)
+                {
+                    source_tag: tag,
+                    revision: session[:revision],
+                    participants: participants_locked(session),
+                }
             end
         end
 
@@ -194,40 +340,6 @@ module Collaboration
             end
         end
 
-        # replace_state remains the single WebSocket mutation entry point used by
-        # the first collaboration client. Ordinary state replacement keeps its
-        # optimistic global revision check. Structured collaboration commands are
-        # carried in a wrapper that is never written into the saved game JSON.
-        def replace_state(code:, participant_id:, connection_id:, base_revision:, state:)
-            @mutex.synchronize do
-                now = @clock.call
-                cleanup_locked(now)
-                session = fetch_session_locked(code)
-                participant = current_participant_locked(session, participant_id, connection_id)
-                participant[:last_seen] = now
-                session[:last_seen] = now
-
-                command = state[COMMAND_KEY]
-                if command.is_a?(Hash)
-                    return apply_command_locked(session, participant, command)
-                end
-
-                unless base_revision == session[:revision]
-                    return {
-                        applied: false,
-                        snapshot: snapshot_locked(session),
-                    }
-                end
-
-                session[:state] = deep_copy(state)
-                session[:revision] += 1
-                {
-                    applied: true,
-                    snapshot: snapshot_locked(session),
-                }
-            end
-        end
-
         def cleanup!
             @mutex.synchronize do
                 cleanup_locked(@clock.call)
@@ -236,8 +348,37 @@ module Collaboration
 
         private
 
+        def with_participant(code, participant_id, connection_id)
+            @mutex.synchronize do
+                now = @clock.call
+                cleanup_locked(now)
+                session = fetch_session_locked(code)
+                participant = current_participant_locked(session, participant_id, connection_id)
+                participant[:last_seen] = now
+                session[:last_seen] = now
+                yield session, participant
+            end
+        end
+
         def deep_copy(value)
             JSON.parse(JSON.generate(value))
+        end
+
+        def valid_id?(id)
+            id.is_a?(String) && ID_PATTERN.match?(id)
+        end
+
+        def validate_game!(state)
+            raise InvalidGame, "invalid_game" unless state.is_a?(Hash)
+            unless state["properties"].nil? || state["properties"].is_a?(Hash)
+                raise InvalidGame, "invalid_game"
+            end
+            COLLECTIONS.each_value do |key|
+                list = state[key]
+                raise InvalidGame, "invalid_game" unless list.is_a?(Array) && !list.empty?
+                ids = list.map { |item| item.is_a?(Hash) ? item["id"] : nil }
+                raise InvalidGame, "invalid_game" unless ids.all? { |id| valid_id?(id) } && ids.uniq.length == ids.length
+            end
         end
 
         def normalize_name(name)
@@ -276,7 +417,7 @@ module Collaboration
                 .select { |participant| participant[:connected] }
                 .map do |participant|
                     result = { id: participant[:id], name: participant[:name] }
-                    result[:lock] = deep_copy(participant[:lock]) if participant[:lock]
+                    result[:lock] = { resource: participant[:lock][:resource] } if participant[:lock]
                     result
                 end
                 .sort_by { |participant| participant[:id] }
@@ -287,8 +428,7 @@ module Collaboration
                 code: session[:code],
                 source_tag: session[:source_tag],
                 revision: session[:revision],
-                structure_revision: session[:structure_revision],
-                resource_ids: deep_copy(session[:resource_ids]),
+                resource_revisions: session[:resource_revisions].dup,
                 state: deep_copy(session[:state]),
                 participants: participants_locked(session),
             }
@@ -305,94 +445,31 @@ module Collaboration
             end
         end
 
-        def apply_command_locked(session, participant, command)
-            case command["type"]
-            when "lock"
-                lock_resource_locked(session, participant, command["resource"])
-            when "unlock"
-                unlock_resource_locked(session, participant, command["resource"])
-            when "replace_resource"
-                replace_resource_locked(
-                    session,
-                    participant,
-                    command["resource"],
-                    command["resource_revision"],
-                    command["value"],
-                    command["sprite_ids"],
-                )
-            when "insert_resource"
-                insert_resource_locked(session, participant, command)
-            when "delete_resource"
-                delete_resource_locked(session, participant, command)
-            when "move_resource"
-                move_resource_locked(session, participant, command)
-            else
-                {
-                    applied: false,
-                    snapshot: snapshot_locked(session),
-                }
-            end
+        def index_of_locked(session, key, id)
+            return nil unless valid_id?(id)
+            list = session[:state][key]
+            return nil unless list.is_a?(Array)
+            list.index { |item| item.is_a?(Hash) && item["id"] == id }
         end
 
-        def build_resource_ids_locked(state)
-            used = {}
-            result = {}
-            %w[sprites levels].each do |key|
-                count = state[key].is_a?(Array) ? state[key].length : 0
-                result[key] = Array.new(count) do
-                    id = unique_id(used, @resource_id_generator)
-                    used[id] = true
-                    id
-                end
-            end
-            result
-        end
-
-        def collection_key_for_kind(kind)
-            return "sprites" if kind == "sprite"
-            return "levels" if kind == "level"
-            nil
-        end
-
-        def resource_location_locked(session, resource)
-            return ["settings", nil, nil] if resource == "settings"
+        # { key: "properties" } for the settings, or { key:, index:, id: } for
+        # a sprite or level that currently exists; nil otherwise.
+        def resource_target_locked(session, resource)
+            return { key: "properties" } if resource == "settings"
             match = /\A(sprite|level):(.+)\z/.match(resource.to_s)
             return nil unless match
-            kind = match[1]
-            key = collection_key_for_kind(kind)
-            ids = session[:resource_ids][key]
-            index = ids.index(match[2])
-            if index.nil? && match[2].match?(/\A\d+\z/)
-                legacy_index = match[2].to_i
-                index = legacy_index if legacy_index < ids.length
-            end
-            return nil if index.nil?
-            [kind, key, index]
+            key = COLLECTIONS[match[1]]
+            index = index_of_locked(session, key, match[2])
+            index.nil? ? nil : { key: key, index: index, id: match[2] }
         end
 
-        def valid_resource_locked?(session, resource)
-            !resource_location_locked(session, resource).nil?
+        def resource_value_locked(session, target)
+            return session[:state]["properties"] if target[:key] == "properties"
+            session[:state][target[:key]][target[:index]]
         end
 
         def resource_revision_locked(session, resource)
             session[:resource_revisions][resource] || 0
-        end
-
-        def resource_value_locked(session, resource)
-            return session[:state]["properties"] if resource == "settings"
-            location = resource_location_locked(session, resource)
-            return nil unless location
-            _kind, key, index = location
-            session[:state][key][index]
-        end
-
-        def set_resource_value_locked(session, resource, value)
-            if resource == "settings"
-                session[:state]["properties"] = deep_copy(value)
-                return
-            end
-            _kind, key, index = resource_location_locked(session, resource)
-            session[:state][key][index] = deep_copy(value)
         end
 
         def lock_holder_locked(session, resource)
@@ -401,237 +478,26 @@ module Collaboration
             end
         end
 
-        def lock_resource_locked(session, participant, resource)
-            unless valid_resource_locked?(session, resource)
-                return { applied: false, snapshot: snapshot_locked(session) }
-            end
-
-            holder = lock_holder_locked(session, resource)
-            if holder && holder[:id] != participant[:id]
-                return { applied: false, snapshot: snapshot_locked(session) }
-            end
-
-            participant[:lock] = {
-                resource: resource,
-                revision: resource_revision_locked(session, resource),
-            }
-            {
-                applied: true,
-                snapshot: snapshot_locked(session),
-            }
+        def structure_rejection(kind, action, id, reason)
+            { applied: false, reason: reason, kind: kind, action: action, id: id }
         end
 
-        def unlock_resource_locked(session, participant, resource)
-            if participant[:lock] && (resource.nil? || participant[:lock][:resource] == resource)
-                participant[:lock] = nil
-            end
-            {
-                applied: true,
-                snapshot: snapshot_locked(session),
-            }
-        end
-
-        def translate_sprite_index(index, old_ids, new_ids)
-            return nil unless index.is_a?(Integer) && index >= 0 && index < old_ids.length
-            new_ids.index(old_ids[index])
-        end
-
-        def remap_sprite_object_references!(sprite, old_ids, new_ids)
-            traits = sprite["traits"]
-            return unless traits.is_a?(Hash)
-
-            attacks = [
-                traits.dig("melee_attack", "attack"),
-                traits.dig("ranged_attack", "attack"),
-            ]
-            %w[actor baddie].each do |role|
-                role_attacks = traits.dig(role, "attacks")
-                attacks.concat(role_attacks) if role_attacks.is_a?(Array)
-            end
-            attacks.compact.each do |attack|
-                visual = attack.is_a?(Hash) ? attack["visual"] : nil
-                next unless visual.is_a?(Hash)
-                %w[hit_sprite_index attack_sprite_index projectile_sprite_index].each do |key|
-                    next unless visual[key].is_a?(Integer)
-                    translated = translate_sprite_index(visual[key], old_ids, new_ids)
-                    translated.nil? ? visual.delete(key) : visual[key] = translated
-                end
-            end
-
-            drop = traits.dig("baddie", "drop")
-            if drop.is_a?(Hash) && drop["sprite_index"].is_a?(Integer)
-                translated = translate_sprite_index(drop["sprite_index"], old_ids, new_ids)
-                translated.nil? ? traits["baddie"].delete("drop") : drop["sprite_index"] = translated
-            end
-        end
-
-        def remap_level_sprite_references!(level, old_ids, new_ids)
-            layers = level["layers"]
-            if layers.is_a?(Array)
-                layers.each do |layer|
-                    next unless layer.is_a?(Hash) && layer["type"] == "sprites" && layer["sprites"].is_a?(Array)
-                    layer["sprites"] = layer["sprites"].filter_map do |entry|
-                        next unless entry.is_a?(Array) && entry[0].is_a?(Integer)
-                        translated = translate_sprite_index(entry[0], old_ids, new_ids)
-                        next if translated.nil?
-                        entry[0] = translated
-                        entry
-                    end
-                end
-            end
-
-            conditions = level["conditions"]
-            return unless conditions.is_a?(Array)
-            conditions.each do |condition|
-                next unless condition.is_a?(Hash) && condition["type"] == "need_sprite"
-                properties = condition["properties"]
-                next unless properties.is_a?(Hash) && properties["sprite_index"].is_a?(Integer)
-                translated = translate_sprite_index(properties["sprite_index"], old_ids, new_ids)
-                translated.nil? ? properties.delete("sprite_index") : properties["sprite_index"] = translated
-            end
-        end
-
-        def remap_state_sprite_references!(state, old_ids, new_ids)
-            (state["sprites"] || []).each do |sprite|
-                remap_sprite_object_references!(sprite, old_ids, new_ids) if sprite.is_a?(Hash)
-            end
-            (state["levels"] || []).each do |level|
-                remap_level_sprite_references!(level, old_ids, new_ids) if level.is_a?(Hash)
-            end
-        end
-
-        def remap_resource_sprite_references!(kind, value, old_ids, new_ids)
-            return if old_ids == new_ids
-            remap_sprite_object_references!(value, old_ids, new_ids) if kind == "sprite"
-            remap_level_sprite_references!(value, old_ids, new_ids) if kind == "level"
-        end
-
-        def replace_resource_locked(session, participant, resource, resource_revision, value, client_sprite_ids = nil)
-            location = resource_location_locked(session, resource)
-            unless location && value.is_a?(Hash)
-                return { applied: false, snapshot: snapshot_locked(session) }
-            end
-            lock = participant[:lock]
-            unless lock && lock[:resource] == resource
-                return { applied: false, snapshot: snapshot_locked(session) }
-            end
-            unless resource_revision.is_a?(Integer) && resource_revision == resource_revision_locked(session, resource)
-                return { applied: false, snapshot: snapshot_locked(session) }
-            end
-
-            copied = deep_copy(value)
-            if client_sprite_ids.is_a?(Array) && client_sprite_ids.all? { |id| id.is_a?(String) }
-                remap_resource_sprite_references!(location[0], copied, client_sprite_ids, session[:resource_ids]["sprites"])
-            end
-            set_resource_value_locked(session, resource, copied)
-            next_resource_revision = resource_revision + 1
-            session[:resource_revisions][resource] = next_resource_revision
-            participant[:lock] = {
-                resource: resource,
-                revision: next_resource_revision,
-            }
+        def structure_success(session, participant, kind, action, id, after_id, value)
             session[:revision] += 1
-            {
+            key = COLLECTIONS[kind]
+            result = {
                 applied: true,
-                snapshot: snapshot_locked(session),
+                revision: session[:revision],
+                kind: kind,
+                action: action,
+                id: id,
+                after_id: after_id,
+                order: session[:state][key].map { |item| item["id"] },
+                participant_id: participant[:id],
+                participants: participants_locked(session),
             }
-        end
-
-        def valid_structure_command_locked?(session, command)
-            command["structure_revision"].is_a?(Integer) &&
-                command["structure_revision"] == session[:structure_revision] &&
-                %w[sprite level].include?(command["kind"]) &&
-                command["operation_id"].is_a?(String) &&
-                command["operation_id"].length.between?(1, 64)
-        end
-
-        def structure_error_locked(session, error)
-            { applied: false, error: error, snapshot: snapshot_locked(session) }
-        end
-
-        def structure_success_locked(session, participant, command, action)
-            session[:structure_revision] += 1
-            session[:revision] += 1
-            {
-                applied: true,
-                structure: {
-                    "action" => action,
-                    "kind" => command["kind"],
-                    "id" => command["id"],
-                    "operation_id" => command["operation_id"],
-                    "participant_id" => participant[:id],
-                },
-                snapshot: snapshot_locked(session),
-            }
-        end
-
-        def valid_new_resource_id_locked?(session, id)
-            return false unless id.is_a?(String) && id.match?(/\A[a-zA-Z0-9_-]{8,64}\z/)
-            !session[:resource_ids].values.flatten.include?(id)
-        end
-
-        def insert_resource_locked(session, participant, command)
-            return structure_error_locked(session, "stale_structure") unless valid_structure_command_locked?(session, command)
-            key = collection_key_for_kind(command["kind"])
-            id = command["id"]
-            value = command["value"]
-            return structure_error_locked(session, "invalid_structure") unless valid_new_resource_id_locked?(session, id) && value.is_a?(Hash)
-
-            session[:state][key] ||= []
-            session[:state][key] << deep_copy(value)
-            session[:resource_ids][key] << id
-            structure_success_locked(session, participant, command, "insert")
-        end
-
-        def delete_resource_locked(session, participant, command)
-            return structure_error_locked(session, "stale_structure") unless valid_structure_command_locked?(session, command)
-            key = collection_key_for_kind(command["kind"])
-            id = command["id"]
-            index = session[:resource_ids][key].index(id)
-            return structure_error_locked(session, "invalid_structure") if index.nil?
-
-            resource = "#{command["kind"]}:#{id}"
-            holder = lock_holder_locked(session, resource)
-            return structure_error_locked(session, "resource_locked") if holder && holder[:id] != participant[:id]
-
-            old_sprite_ids = session[:resource_ids]["sprites"].dup
-            session[:state][key].delete_at(index)
-            session[:resource_ids][key].delete_at(index)
-            session[:resource_revisions].delete(resource)
-            session[:participants].each_value do |other|
-                other[:lock] = nil if other[:lock] && other[:lock][:resource] == resource
-            end
-            if command["kind"] == "sprite"
-                remap_state_sprite_references!(session[:state], old_sprite_ids, session[:resource_ids]["sprites"])
-            end
-            structure_success_locked(session, participant, command, "delete")
-        end
-
-        def move_resource_locked(session, participant, command)
-            return structure_error_locked(session, "stale_structure") unless valid_structure_command_locked?(session, command)
-            key = collection_key_for_kind(command["kind"])
-            ids = session[:resource_ids][key]
-            from = ids.index(command["id"])
-            return structure_error_locked(session, "invalid_structure") if from.nil?
-
-            old_sprite_ids = session[:resource_ids]["sprites"].dup
-            value = session[:state][key].delete_at(from)
-            id = ids.delete_at(from)
-            target = nil
-            target = ids.index(command["before_id"]) if command["before_id"].is_a?(String)
-            if target.nil? && command["after_id"].is_a?(String)
-                after_index = ids.index(command["after_id"])
-                target = after_index + 1 if after_index
-            end
-            target ||= ids.length
-            target = [[target, 0].max, ids.length].min
-
-            ids.insert(target, id)
-            session[:state][key].insert(target, value)
-            if command["kind"] == "sprite"
-                remap_state_sprite_references!(session[:state], old_sprite_ids, session[:resource_ids]["sprites"])
-            end
-            structure_success_locked(session, participant, command, "move")
+            result[:value] = value unless value.nil?
+            result
         end
     end
 end

@@ -349,14 +349,17 @@ class Game {
                 self.data.sprites.push(sprite);
                 self.fix_game_data();
                 self.create_geometry_and_material_for_sprite(self.data.sprites.length - 1);
+                window.collaboration?.structure_changed?.('sprite', 'insert', sprite.id);
                 return self.data.sprites[self.data.sprites.length - 1];
             },
+            can_delete_index: (index) => window.collaboration?.can_delete?.('sprite', self.data.sprites[index]?.id) ?? true,
             delete_item: (index) => {
                 canvas.detachSprite();
                 // References use sprite IDs, so only references to the deleted
                 // sprite itself need to go; nothing else is renumbered.
                 const [deleted] = self.data.sprites.splice(index, 1);
                 remove_sprite_references(self.data, deleted?.id);
+                window.collaboration?.structure_changed?.('sprite', 'delete', deleted?.id);
                 self.refresh_sprite_reference_pickers();
                 this.refresh_frames_on_screen();
                 for (let si = 0; si < self.data.sprites.length; si++)
@@ -370,6 +373,7 @@ class Game {
             on_move_item: (from, to) => {
                 // Sprite IDs travel with their sprite: no references change.
                 move_item_helper(self.data.sprites, from, to);
+                window.collaboration?.structure_changed?.('sprite', 'move', self.data.sprites[to]?.id);
                 self.refresh_sprite_reference_pickers();
                 this.refresh_frames_on_screen();
                 for (let si = 0; si < self.data.sprites.length; si++)
