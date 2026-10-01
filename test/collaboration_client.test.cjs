@@ -12,6 +12,7 @@ const {
     collaboration_saved_notice,
     collaboration_save_error_message,
 } = require('../src/static/collaboration.js');
+const { CollaborationClient } = require('../src/static/collaboration.js');
 
 test('collaboration names are required, compact and bounded', () => {
     assert.equal(normalize_collaboration_name('  Mia   Muster  '), 'Mia Muster');
@@ -129,4 +130,104 @@ test('collaboration code from URL is normalized to uppercase', () => {
         collaboration.collaboration_code_from_url('https://2d.example/studio?collab=ab12cd#level'),
         'AB12CD',
     );
+});
+
+test('remote sprite updates preserve an attached sprite even while another pane is visible', () => {
+    const old_window = global.window;
+    let attach_args = null;
+    let trait_refreshes = 0;
+    let thumbnail_refreshes = 0;
+
+    global.window = {
+        canvas: {
+            sprite_index: 0,
+            state_index: 1,
+            frame_index: 1,
+            detachSprite() {
+                this.sprite_index = null;
+                this.state_index = null;
+                this.frame_index = null;
+            },
+            attachSprite(sprite_index, state_index, frame_index, callback) {
+                this.sprite_index = sprite_index;
+                this.state_index = state_index;
+                this.frame_index = frame_index;
+                attach_args = [sprite_index, state_index, frame_index];
+                callback();
+            },
+        },
+        game: {
+            data: {
+                properties: {},
+                sprites: [{
+                    properties: { name: 'Alt' },
+                    states: [
+                        { frames: [{ src: 'a' }] },
+                        { frames: [{ src: 'b' }, { src: 'c' }] },
+                    ],
+                }],
+                levels: [],
+            },
+            create_geometry_and_material_for_sprite() {},
+            update_material_for_sprite() {},
+            refresh_frames_on_screen() { thumbnail_refreshes += 1; },
+            build_sprite_traits_menu() { trait_refreshes += 1; },
+            level_editor: null,
+        },
+    };
+
+    try {
+        const client = new CollaborationClient();
+        client.top_level_sprite_refs = [global.window.game.data.sprites[0]];
+        client.apply_resource_from_state({
+            properties: {},
+            sprites: [{
+                properties: { name: 'Neu' },
+                states: [
+                    { frames: [{ src: 'n0' }] },
+                    { frames: [{ src: 'n1' }, { src: 'n2' }] },
+                ],
+            }],
+            levels: [],
+        }, 'sprite:0', true);
+
+        assert.deepEqual(attach_args, [0, 1, 1]);
+        assert.equal(global.window.canvas.sprite_index, 0);
+        assert.equal(global.window.game.data.sprites[0].properties.name, 'Neu');
+        assert.equal(thumbnail_refreshes, 1);
+        assert.equal(trait_refreshes, 1);
+    } finally {
+        global.window = old_window;
+    }
+});
+
+test('remote settings update refreshes settings controls without rebuilding the whole game', () => {
+    const old_window = global.window;
+    let settings_refreshes = 0;
+
+    global.window = {
+        game: {
+            data: {
+                properties: { gravity: 0.5 },
+                sprites: [],
+                levels: [],
+            },
+            refresh_game_settings_controls() { settings_refreshes += 1; },
+            _load() { throw new Error('full game reload must not be used for settings sync'); },
+        },
+    };
+
+    try {
+        const client = new CollaborationClient();
+        client.apply_resource_from_state({
+            properties: { gravity: 0.8 },
+            sprites: [],
+            levels: [],
+        }, 'settings', true);
+
+        assert.equal(global.window.game.data.properties.gravity, 0.8);
+        assert.equal(settings_refreshes, 1);
+    } finally {
+        global.window = old_window;
+    }
 });

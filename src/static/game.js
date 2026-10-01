@@ -597,6 +597,13 @@ class Game {
         }
     }
 
+    refresh_game_settings_controls() {
+        $('#game-settings-here .item').each(function () {
+            $(this).data('widget-instance')?.refresh?.();
+        });
+        this.refresh_controls_settings?.();
+    }
+
     // Einstellungen: every section (a separator and the fields after it) becomes a
     // card; the cards fill the width in columns instead of one long narrow list.
     arrange_settings_cards(container) {
@@ -687,6 +694,7 @@ class Game {
                 .on('click', () => { delete this.data.properties.controls; render(); })
                 .appendTo(box);
         };
+        this.refresh_controls_settings = render;
         render();
     }
 
