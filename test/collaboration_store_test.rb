@@ -276,4 +276,100 @@ class CollaborationStoreTest < Minitest::Test
         assert_equal "Ben", acquired[:snapshot][:participants].find { |p| p[:lock] }[:name]
     end
 
+    def test_only_one_shared_save_can_be_in_progress
+        @store.create(state: @state, source_tag: "abc1234")
+        anna = @store.join(code: "session", name: "Anna")
+        ben = @store.join(code: "session", name: "Ben")
+
+        first = @store.begin_save(
+            code: "session",
+            participant_id: anna[:participant_id],
+            connection_id: anna[:connection_id],
+        )
+        second = @store.begin_save(
+            code: "session",
+            participant_id: ben[:participant_id],
+            connection_id: ben[:connection_id],
+        )
+
+        refute_nil first
+        assert_nil second
+        assert_equal anna[:participant_id], first[:participant_id]
+        assert_equal "Anna", first[:participant_name]
+        assert_equal "abc1234", first[:source_tag]
+    end
+
+    def test_shared_save_uses_a_copy_of_the_authoritative_state
+        @store.create(state: @state, source_tag: "abc1234")
+        anna = @store.join(code: "session", name: "Anna")
+        prepared = @store.begin_save(
+            code: "session",
+            participant_id: anna[:participant_id],
+            connection_id: anna[:connection_id],
+        )
+
+        prepared[:state]["properties"]["title"] = "mutated by saver"
+
+        assert_equal "Gemeinsam", @store.snapshot(code: "session")[:state]["properties"]["title"]
+    end
+
+    def test_finishing_shared_save_updates_lineage_without_losing_newer_session_edits
+        @store.create(state: @state, source_tag: "abc1234")
+        anna = @store.join(code: "session", name: "Anna")
+        ben = @store.join(code: "session", name: "Ben")
+        prepared = @store.begin_save(
+            code: "session",
+            participant_id: anna[:participant_id],
+            connection_id: anna[:connection_id],
+        )
+
+        @store.replace_state(
+            code: "session",
+            participant_id: ben[:participant_id],
+            connection_id: ben[:connection_id],
+            base_revision: 0,
+            state: @state.merge("properties" => { "title" => "nach Save-Klick geändert" }),
+        )
+
+        snapshot = @store.finish_save(code: "session", token: prepared[:token], tag: "new1234")
+
+        assert_equal "new1234", snapshot[:source_tag]
+        assert_equal "new1234", snapshot[:state]["parent"]
+        assert_equal "nach Save-Klick geändert", snapshot[:state]["properties"]["title"]
+        assert_equal 2, snapshot[:revision]
+    end
+
+    def test_aborting_shared_save_releases_the_save_slot
+        @store.create(state: @state)
+        anna = @store.join(code: "session", name: "Anna")
+        ben = @store.join(code: "session", name: "Ben")
+        prepared = @store.begin_save(
+            code: "session",
+            participant_id: anna[:participant_id],
+            connection_id: anna[:connection_id],
+        )
+
+        assert @store.abort_save(code: "session", token: prepared[:token])
+        retry_save = @store.begin_save(
+            code: "session",
+            participant_id: ben[:participant_id],
+            connection_id: ben[:connection_id],
+        )
+        refute_nil retry_save
+    end
+
+    def test_finishing_shared_save_rejects_the_wrong_token
+        @store.create(state: @state)
+        anna = @store.join(code: "session", name: "Anna")
+        @store.begin_save(
+            code: "session",
+            participant_id: anna[:participant_id],
+            connection_id: anna[:connection_id],
+        )
+
+        assert_raises(Collaboration::InvalidSave) do
+            @store.finish_save(code: "session", token: "wrong", tag: "new1234")
+        end
+    end
+
 end

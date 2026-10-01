@@ -58,6 +58,17 @@ function collaboration_resource_description(resource) {
     return 'diesen Bereich';
 }
 
+function collaboration_saved_notice(saved_by, is_me) {
+    if (is_me || !saved_by) return 'Spiel gespeichert.';
+    return `${saved_by} hat das Spiel gespeichert.`;
+}
+
+function collaboration_save_error_message(error) {
+    if (error === 'save_in_progress')
+        return 'Jemand anderes speichert das Spiel gerade. Versuche es gleich noch einmal.';
+    return 'Das gemeinsame Spiel konnte nicht gespeichert werden.';
+}
+
 class CollaborationClient {
     constructor() {
         this.code = null;
@@ -90,6 +101,8 @@ class CollaborationClient {
         this.notice_override = null;
         this.notice_override_until = 0;
         this.original_game_save = null;
+        this.save_after_sync = false;
+        this.save_pending = false;
     }
 
     participant_storage_key(code) {
@@ -185,6 +198,9 @@ class CollaborationClient {
             this.connected = false;
             this.pending_resource_update = false;
             this.lock_request_pending = false;
+            this.save_after_sync = false;
+            this.save_pending = false;
+            if (window.game) window.game.currently_saving = false;
             this.stop_heartbeat();
             this.render_control();
             this.update_resource_access();
@@ -234,6 +250,16 @@ class CollaborationClient {
 
         if (message.type === 'state' || message.type === 'resync') {
             this.handle_state_message(message);
+            return;
+        }
+
+        if (message.type === 'saved') {
+            this.handle_saved(message);
+            return;
+        }
+
+        if (message.type === 'save_error') {
+            this.handle_save_error(message);
             return;
         }
 
@@ -298,6 +324,10 @@ class CollaborationClient {
         this.render_control();
         this.render_status();
         this.update_resource_access();
+        if (message.type === 'resync' && this.save_after_sync)
+            this.cancel_shared_save('Vor dem Speichern musste der gemeinsame Stand neu geladen werden. Prüfe deine Änderung und speichere noch einmal.');
+        else
+            this.continue_shared_save();
     }
 
     handle_lock_transition(state, previous_participants) {
@@ -601,12 +631,101 @@ class CollaborationClient {
         this.original_game_save = window.game.save.bind(window.game);
         const self = this;
         window.game.save = function () {
-            if (self.code) {
-                self.show_temporary_notice('Gemeinsames Speichern kommt im nächsten Schritt. Verlasse die Sitzung, wenn du dieses Spiel jetzt normal speichern möchtest.', 5500);
-                return;
-            }
+            if (self.code) return self.request_shared_save();
             return self.original_game_save();
         };
+    }
+
+    request_shared_save() {
+        if (!this.code) return this.original_game_save?.();
+        if (!this.connected || this.socket?.readyState !== WebSocket.OPEN) {
+            this.show_temporary_notice('Das Spiel kann erst gespeichert werden, wenn die gemeinsame Sitzung wieder verbunden ist.', 4500);
+            return;
+        }
+        if (this.save_pending || this.save_after_sync) {
+            this.show_temporary_notice('Das gemeinsame Spiel wird bereits gespeichert.', 3000);
+            return;
+        }
+        if (this.structure_resync_pending) {
+            this.show_temporary_notice('Warte kurz, bis der gemeinsame Stand wieder vollständig synchronisiert ist.', 4000);
+            return;
+        }
+
+        this.save_after_sync = true;
+        this.continue_shared_save();
+    }
+
+    continue_shared_save() {
+        if (!this.save_after_sync || this.save_pending || this.pending_resource_update) return;
+
+        const resource = this.focused_resource;
+        if (resource && this.owns_lock(resource)) {
+            const serialized = this.serialize_local_resource(resource);
+            if (serialized !== null && serialized !== this.synced_resource_serialized) {
+                this.pending_resource_update = true;
+                const sent = this.send_command({
+                    type: 'replace_resource',
+                    resource,
+                    resource_revision: this.current_resource_revision(resource),
+                    value: JSON.parse(serialized),
+                });
+                if (!sent) {
+                    this.pending_resource_update = false;
+                    this.cancel_shared_save('Die letzte Änderung konnte vor dem Speichern nicht synchronisiert werden.');
+                }
+                return;
+            }
+        }
+
+        this.save_after_sync = false;
+        this.save_pending = true;
+        if (window.game) window.game.currently_saving = true;
+        try {
+            this.socket.send(JSON.stringify({ type: 'save' }));
+        } catch (_error) {
+            this.cancel_shared_save('Das gemeinsame Spiel konnte nicht gespeichert werden.');
+        }
+    }
+
+    cancel_shared_save(message = null) {
+        this.save_after_sync = false;
+        this.save_pending = false;
+        if (window.game) window.game.currently_saving = false;
+        if (message) this.show_temporary_notice(message, 5000);
+    }
+
+    handle_saved(message) {
+        if (typeof message.tag !== 'string' || !message.tag) return;
+        const mine = message.saved_by_id === this.participant_id;
+        this.source_tag = message.tag;
+        if (Number.isInteger(message.revision)) this.revision = message.revision;
+        if (Array.isArray(message.participants)) this.participants = message.participants;
+        if (window.game?.data) window.game.data.parent = message.tag;
+
+        $('#game_code_div').show();
+        $('#game_code').text(message.tag);
+        $('#game_link')
+            .attr('href', `https://2d.hackschule.de/play/${message.tag}`)
+            .text(`https://2d.hackschule.de/play/${message.tag}`);
+
+        if (mine) {
+            this.save_after_sync = false;
+            this.save_pending = false;
+            if (window.game) window.game.currently_saving = false;
+        }
+        if (message.icon) {
+            $('#save_notification img').attr('src', `noto/${message.icon}.png`);
+            $('#save_notification').addClass('showing');
+            setTimeout(() => $('#save_notification').removeClass('showing'), 3000);
+        }
+        this.show_temporary_notice(collaboration_saved_notice(message.saved_by, mine), 3500);
+        this.render_control();
+        this.render_status();
+        if (!mine) this.continue_shared_save();
+    }
+
+    handle_save_error(message) {
+        this.cancel_shared_save(collaboration_save_error_message(message.error));
     }
 
     show() {
@@ -651,6 +770,9 @@ class CollaborationClient {
         this.focused_resource = null;
         this.pending_resource_update = false;
         this.lock_request_pending = false;
+        this.save_after_sync = false;
+        this.save_pending = false;
+        if (window.game) window.game.currently_saving = false;
         if (this.code) {
             sessionStorage.removeItem(this.participant_storage_key(this.code));
             sessionStorage.removeItem(this.name_storage_key(this.code));
@@ -947,5 +1069,7 @@ if (typeof module !== 'undefined' && module.exports) {
         collaboration_lock_revisions,
         collaboration_changed_resources,
         collaboration_resource_description,
+        collaboration_saved_notice,
+        collaboration_save_error_message,
     };
 }

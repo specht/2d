@@ -7,6 +7,7 @@ module Collaboration
     class SessionNotFound < Error; end
     class InvalidName < Error; end
     class InvalidParticipant < Error; end
+    class InvalidSave < Error; end
 
     class Store
         DEFAULT_SESSION_TTL = 6 * 60 * 60
@@ -40,6 +41,7 @@ module Collaboration
                     revision: 0,
                     resource_revisions: {},
                     participants: {},
+                    save: nil,
                     created_at: now,
                     last_seen: now,
                 }
@@ -120,6 +122,62 @@ module Collaboration
                 now = @clock.call
                 cleanup_locked(now)
                 snapshot_locked(fetch_session_locked(code))
+            end
+        end
+
+        def begin_save(code:, participant_id:, connection_id:)
+            @mutex.synchronize do
+                now = @clock.call
+                cleanup_locked(now)
+                session = fetch_session_locked(code)
+                participant = current_participant_locked(session, participant_id, connection_id)
+                participant[:last_seen] = now
+                session[:last_seen] = now
+                return nil if session[:save]
+
+                token = @id_generator.call
+                session[:save] = {
+                    token: token,
+                    participant_id: participant[:id],
+                }
+                {
+                    token: token,
+                    state: deep_copy(session[:state]),
+                    source_tag: session[:source_tag],
+                    revision: session[:revision],
+                    participant_id: participant[:id],
+                    participant_name: participant[:name],
+                }
+            end
+        end
+
+        def finish_save(code:, token:, tag:)
+            @mutex.synchronize do
+                session = fetch_session_locked(code)
+                save = session[:save]
+                unless save && save[:token] == token && tag.is_a?(String) && !tag.empty?
+                    raise InvalidSave, "invalid_save"
+                end
+
+                session[:save] = nil
+                session[:source_tag] = tag
+                session[:state]["parent"] = tag
+                session[:revision] += 1
+                session[:last_seen] = @clock.call
+                snapshot_locked(session)
+            end
+        end
+
+        def abort_save(code:, token:)
+            @mutex.synchronize do
+                session = @sessions[code]
+                return false unless session
+                save = session[:save]
+                return false unless save && save[:token] == token
+
+                session[:save] = nil
+                session[:last_seen] = @clock.call
+                true
             end
         end
 

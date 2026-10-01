@@ -9,6 +9,8 @@ const {
     collaboration_lock_revisions,
     collaboration_changed_resources,
     collaboration_resource_description,
+    collaboration_saved_notice,
+    collaboration_save_error_message,
 } = require('../src/static/collaboration.js');
 
 test('collaboration names are required, compact and bounded', () => {
@@ -91,4 +93,22 @@ test('resource descriptions are student-facing German', () => {
     assert.equal(collaboration_resource_description('sprite:0'), 'dieses Sprite');
     assert.equal(collaboration_resource_description('level:0'), 'dieses Level');
     assert.equal(collaboration_resource_description('settings'), 'die Einstellungen');
+});
+
+
+test('shared save messages name the saver without turning names into identities', () => {
+    assert.equal(collaboration_saved_notice('Anna', false), 'Anna hat das Spiel gespeichert.');
+    assert.equal(collaboration_saved_notice('Anna', true), 'Spiel gespeichert.');
+    assert.equal(collaboration_saved_notice(null, false), 'Spiel gespeichert.');
+});
+
+test('shared save errors distinguish a concurrent save from a real failure', () => {
+    assert.equal(
+        collaboration_save_error_message('save_in_progress'),
+        'Jemand anderes speichert das Spiel gerade. Versuche es gleich noch einmal.',
+    );
+    assert.equal(
+        collaboration_save_error_message('save_failed'),
+        'Das gemeinsame Spiel konnte nicht gespeichert werden.',
+    );
 });
