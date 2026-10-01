@@ -583,11 +583,11 @@ body {
     transition: none;
 }
 
+.collaboration-status-button {
+    vertical-align: top;
+}
+
 .collaboration-status-button.active-session {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: rgba(0, 0, 0, 0.92);
     color: #fff;
     font-weight: 500;
 }
@@ -608,29 +608,214 @@ body {
     box-shadow: 0 0 7px rgba(88, 210, 111, 0.8);
 }
 
+.collaboration-dialog {
+    color: #ddd;
+}
+
+.collaboration-dialog-lead {
+    margin: 0 0 1.1em 0;
+    color: #eee;
+    line-height: 1.45;
+}
+
+.collaboration-choice-list {
+    display: grid;
+    gap: 10px;
+}
+
+button.collaboration-choice-card {
+    width: 100%;
+    padding: 14px 16px;
+    text-align: left;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.045);
+    color: #eee;
+}
+
+button.collaboration-choice-card:hover {
+    border-color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.09);
+}
+
+.collaboration-choice-card strong {
+    display: block;
+    margin-bottom: 0.25em;
+    font-size: 105%;
+    color: #fff;
+}
+
+.collaboration-choice-card span {
+    display: block;
+    color: #aaa;
+    line-height: 1.4;
+}
+
+.collaboration-field {
+    display: block;
+    margin-top: 1em;
+}
+
+.collaboration-field > span {
+    display: block;
+    margin-bottom: 0.35em;
+    color: #eee;
+}
+
+.collaboration-field > small {
+    display: block;
+    margin-top: 0.4em;
+    color: #8f8f8f;
+}
+
+.collaboration-field input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.55em 0.65em;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 4px;
+    outline: none;
+    background: rgba(255, 255, 255, 0.055);
+    color: #fff;
+    font: inherit;
+}
+
+.collaboration-field input:focus {
+    border-color: rgba(255, 255, 255, 0.62);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
 .collaboration-session-code,
-.collaboration-code-input {
+.collaboration-code-input,
+.collaboration-inline-code {
     font-family: 'IBM Plex Mono', 'Roboto Mono', monospace;
     letter-spacing: 0.16em;
     text-transform: uppercase;
 }
 
-.collaboration-session-code {
+.collaboration-code-input {
+    max-width: 9em;
+    font-size: 130% !important;
+}
+
+.collaboration-inline-code {
     display: inline-block;
-    margin: 0.1em 0 0.5em 0;
-    padding: 0.35em 0.6em;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.08);
+    margin: 0 0.15em;
     color: #fff;
-    font-size: 180%;
     font-weight: 600;
+}
+
+.collaboration-connection {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55em;
+    margin-bottom: 1em;
+    color: #bbb;
+}
+
+.collaboration-connection-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #d6a84b;
+    box-shadow: 0 0 6px rgba(214, 168, 75, 0.65);
+}
+
+.collaboration-connection.connected {
+    color: #dff6e4;
+}
+
+.collaboration-connection.connected .collaboration-connection-dot {
+    background: #58d26f;
+    box-shadow: 0 0 7px rgba(88, 210, 111, 0.8);
+}
+
+.collaboration-code-panel {
+    padding: 1.1em 1em;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    text-align: center;
+}
+
+.collaboration-code-label {
+    margin-bottom: 0.35em;
+    color: #929292;
+    font-size: 85%;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.collaboration-session-code {
+    margin: 0.05em 0 0.35em 0;
+    color: #fff;
+    font-size: 210%;
+    font-weight: 650;
+    line-height: 1.15;
     user-select: text;
 }
 
-.collaboration-code-input {
-    width: 8em;
-    font-size: 120%;
+.collaboration-code-help {
+    max-width: 30em;
+    margin: 0 auto;
+    color: #aaa;
+    line-height: 1.4;
+}
+
+.collaboration-participants-section {
+    margin-top: 1.25em;
+}
+
+.collaboration-participants-section h4 {
+    margin: 0 0 0.55em 0;
+    color: #ddd;
+}
+
+.collaboration-participants {
+    display: grid;
+    gap: 6px;
+}
+
+.collaboration-participant {
+    padding: 0.6em 0.7em;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.045);
+}
+
+.collaboration-participant-name {
+    color: #eee;
+}
+
+.collaboration-participant-me {
+    display: inline-block;
+    margin-left: 0.5em;
+    padding: 0.08em 0.35em;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.09);
+    color: #aaa;
+    font-size: 80%;
+}
+
+.collaboration-participant-activity {
+    margin-top: 0.15em;
+    color: #969696;
+    font-size: 88%;
+}
+
+.collaboration-privacy {
+    margin: 1em 0 0 0;
+    color: #858585;
+    font-size: 88%;
+}
+
+button.collaboration-leave {
+    color: #e3aaaa;
+}
+
+button.collaboration-leave:hover {
+    border-color: rgba(220, 110, 110, 0.7);
+    background: rgba(120, 35, 35, 0.35);
+    color: #ffd6d6;
 }
 
 #main-nav {
