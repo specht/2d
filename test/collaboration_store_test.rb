@@ -4,7 +4,7 @@ require_relative "../src/ruby/collaboration"
 class CollaborationStoreTest < Minitest::Test
     def setup
         @now = 1_000.0
-        @ids = %w(session participant-a connection-a participant-b connection-b connection-new extra)
+        @ids = %w(session participant-a connection-a participant-b connection-b connection-new extra extra2 extra3 extra4 extra5 extra6 extra7 extra8 extra9)
         @store = Collaboration::Store.new(
             clock: -> { @now },
             session_ttl: 100,
@@ -15,8 +15,8 @@ class CollaborationStoreTest < Minitest::Test
         @state = {
             "parent" => "abc1234",
             "properties" => { "title" => "Gemeinsam" },
-            "sprites" => [],
-            "levels" => [],
+            "sprites" => [{ "properties" => { "name" => "Held" }, "states" => [] }, { "properties" => { "name" => "Muenze" }, "states" => [] }],
+            "levels" => [{ "properties" => { "name" => "Start" }, "layers" => [] }],
         }
     end
 
@@ -184,4 +184,96 @@ class CollaborationStoreTest < Minitest::Test
 
         refute_equal joined[:participant_id], fresh[:participant_id]
     end
+
+    def command(type, **values)
+        { Collaboration::Store::COMMAND_KEY => { "type" => type }.merge(values.transform_keys(&:to_s)) }
+    end
+
+    def replace_command(joined, state, base_revision: 0)
+        @store.replace_state(
+            code: "session",
+            participant_id: joined[:participant_id],
+            connection_id: joined[:connection_id],
+            base_revision: base_revision,
+            state: state,
+        )
+    end
+
+    def test_different_resources_can_be_locked_at_the_same_time
+        @store.create(state: @state)
+        anna = @store.join(code: "session", name: "Anna")
+        ben = @store.join(code: "session", name: "Ben")
+
+        assert replace_command(anna, command("lock", resource: "sprite:0"))[:applied]
+        assert replace_command(ben, command("lock", resource: "level:0"))[:applied]
+
+        participants = @store.snapshot(code: "session")[:participants]
+        assert_equal "sprite:0", participants.find { |p| p[:name] == "Anna" }[:lock]["resource"]
+        assert_equal "level:0", participants.find { |p| p[:name] == "Ben" }[:lock]["resource"]
+    end
+
+    def test_same_resource_lock_is_denied_and_reports_the_holder
+        @store.create(state: @state)
+        anna = @store.join(code: "session", name: "Anna")
+        ben = @store.join(code: "session", name: "Ben")
+
+        assert replace_command(anna, command("lock", resource: "sprite:0"))[:applied]
+        denied = replace_command(ben, command("lock", resource: "sprite:0"))
+
+        refute denied[:applied]
+        holder = denied[:snapshot][:participants].find { |p| p[:lock] && p[:lock]["resource"] == "sprite:0" }
+        assert_equal "Anna", holder[:name]
+    end
+
+    def test_resource_replacement_merges_only_the_locked_resource
+        @store.create(state: @state)
+        anna = @store.join(code: "session", name: "Anna")
+        ben = @store.join(code: "session", name: "Ben")
+        replace_command(anna, command("lock", resource: "sprite:0"))
+        replace_command(ben, command("lock", resource: "level:0"))
+
+        sprite = { "properties" => { "name" => "Held neu" }, "states" => [] }
+        level = { "properties" => { "name" => "Level neu" }, "layers" => [] }
+
+        first = replace_command(anna, command("replace_resource", resource: "sprite:0", resource_revision: 0, value: sprite))
+        second = replace_command(ben, command("replace_resource", resource: "level:0", resource_revision: 0, value: level), base_revision: 0)
+
+        assert first[:applied]
+        assert second[:applied], "a change to another locked resource must not make this update stale"
+        snapshot = second[:snapshot]
+        assert_equal 2, snapshot[:revision]
+        assert_equal "Held neu", snapshot[:state]["sprites"][0]["properties"]["name"]
+        assert_equal "Level neu", snapshot[:state]["levels"][0]["properties"]["name"]
+        assert_equal "Muenze", snapshot[:state]["sprites"][1]["properties"]["name"]
+    end
+
+    def test_resource_revision_rejects_a_stale_update_without_dropping_the_lock
+        @store.create(state: @state)
+        anna = @store.join(code: "session", name: "Anna")
+        replace_command(anna, command("lock", resource: "sprite:0"))
+        replace_command(anna, command("replace_resource", resource: "sprite:0", resource_revision: 0,
+            value: { "properties" => { "name" => "Version 1" }, "states" => [] }))
+
+        stale = replace_command(anna, command("replace_resource", resource: "sprite:0", resource_revision: 0,
+            value: { "properties" => { "name" => "stale" }, "states" => [] }), base_revision: 1)
+
+        refute stale[:applied]
+        me = stale[:snapshot][:participants].find { |p| p[:name] == "Anna" }
+        assert_equal 1, me[:lock]["revision"]
+        assert_equal "Version 1", stale[:snapshot][:state]["sprites"][0]["properties"]["name"]
+    end
+
+    def test_leave_releases_the_resource_lock_immediately
+        @store.create(state: @state)
+        anna = @store.join(code: "session", name: "Anna")
+        replace_command(anna, command("lock", resource: "sprite:0"))
+
+        @store.leave(code: "session", participant_id: anna[:participant_id], connection_id: anna[:connection_id])
+        ben = @store.join(code: "session", name: "Ben")
+        acquired = replace_command(ben, command("lock", resource: "sprite:0"))
+
+        assert acquired[:applied]
+        assert_equal "Ben", acquired[:snapshot][:participants].find { |p| p[:lock] }[:name]
+    end
+
 end

@@ -5,6 +5,10 @@ const {
     collaboration_code_from_url,
     collaboration_websocket_url,
     collaboration_connection_status,
+    collaboration_resource_value,
+    collaboration_lock_revisions,
+    collaboration_changed_resources,
+    collaboration_resource_description,
 } = require('../src/static/collaboration.js');
 
 test('collaboration names are required, compact and bounded', () => {
@@ -42,4 +46,49 @@ test('connection status distinguishes first connect from reconnect', () => {
     assert.equal(collaboration_connection_status(false, false), 'Verbindung wird hergestellt …');
     assert.equal(collaboration_connection_status(false, true), 'Verbindung wird wiederhergestellt …');
     assert.equal(collaboration_connection_status(true, true), 'Verbunden');
+});
+
+
+test('resource helper addresses settings, sprites and levels without changing saved data', () => {
+    const state = {
+        properties: { title: 'Spiel' },
+        sprites: [{ name: 'A' }, { name: 'B' }],
+        levels: [{ name: 'L1' }],
+    };
+    assert.deepEqual(collaboration_resource_value(state, 'settings'), { title: 'Spiel' });
+    assert.deepEqual(collaboration_resource_value(state, 'sprite:1'), { name: 'B' });
+    assert.deepEqual(collaboration_resource_value(state, 'level:0'), { name: 'L1' });
+    assert.equal(collaboration_resource_value(state, 'sprite:99'), null);
+    assert.equal(collaboration_resource_value(state, 'nope'), null);
+});
+
+test('lock revisions expose only resources currently being edited', () => {
+    const participants = [
+        { id: 'a', name: 'Anna', lock: { resource: 'sprite:0', revision: 3 } },
+        { id: 'b', name: 'Ben' },
+        { id: 'c', name: 'Cem', lock: { resource: 'level:1', revision: 2 } },
+    ];
+    assert.deepEqual(collaboration_lock_revisions(participants), {
+        'sprite:0': 3,
+        'level:1': 2,
+    });
+});
+
+test('changed resources are detected by per-resource revision, not by session revision', () => {
+    const before = [
+        { id: 'a', lock: { resource: 'sprite:0', revision: 1 } },
+        { id: 'b', lock: { resource: 'level:0', revision: 4 } },
+    ];
+    const after = [
+        { id: 'a', lock: { resource: 'sprite:0', revision: 2 } },
+        { id: 'b', lock: { resource: 'level:0', revision: 4 } },
+        { id: 'c', lock: { resource: 'sprite:1', revision: 0 } },
+    ];
+    assert.deepEqual(collaboration_changed_resources(before, after), ['sprite:0']);
+});
+
+test('resource descriptions are student-facing German', () => {
+    assert.equal(collaboration_resource_description('sprite:0'), 'dieses Sprite');
+    assert.equal(collaboration_resource_description('level:0'), 'dieses Level');
+    assert.equal(collaboration_resource_description('settings'), 'die Einstellungen');
 });
