@@ -618,6 +618,12 @@ body {
     line-height: 1.45;
 }
 
+.collaboration-dialog-note {
+    margin: 0 0 1em 0;
+    font-size: 90%;
+    opacity: 0.8;
+}
+
 .collaboration-choice-list {
     display: grid;
     gap: 10px;

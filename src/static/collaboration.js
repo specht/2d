@@ -109,6 +109,19 @@ function apply_collaboration_structure(list, message) {
     return { ok: reorder_collaboration_list(list, message.order).ok, changed: true };
 }
 
+// Text of the question asked before leaving the session. Leaving loses
+// nothing as long as somebody else stays or everything has been saved.
+function collaboration_leave_text(reason, { alone = false, unsaved = false } = {}) {
+    const start = reason === 'load'
+        ? 'Wenn du ein anderes Spiel lädst, verlässt du die gemeinsame Sitzung.'
+        : 'Du verlässt die gemeinsame Sitzung.';
+    if (alone && unsaved)
+        return `${start} Außer dir ist niemand mehr dabei, und die gemeinsamen Änderungen sind noch nicht gespeichert. Speichere vorher, sonst gehen sie verloren.`;
+    if (alone)
+        return `${start} Der gemeinsame Stand ist gespeichert.`;
+    return `${start} Die anderen können weiterarbeiten und das Spiel speichern.`;
+}
+
 function collaboration_lock_taken_notice(name, resource) {
     const kind = parse_collaboration_resource(resource)?.kind;
     const what = kind === 'settings' ? 'den Einstellungen' : kind === 'level' ? 'diesem Level' : 'diesem Sprite';
@@ -180,6 +193,10 @@ class CollaborationClient {
         this.notice_override = null;
         this.notice_override_until = 0;
         this.original_game_save = null;
+        this.original_game_load = null;
+        // what to do after the user confirmed leaving the session
+        this.pending_leave = null;
+        this.saved_revision = 0;
         this.save_after_sync = false;
         this.save_pending = false;
     }
@@ -362,6 +379,7 @@ class CollaborationClient {
         this.start_heartbeat();
         this.start_resource_loop();
         this.install_save_guard();
+        this.install_load_guard();
         if (this.scroll_status_after_welcome) {
             this.scroll_status_after_welcome = false;
             $('#status-bar').scrollLeft(0);
@@ -380,6 +398,7 @@ class CollaborationClient {
         this.reset_sync_state();
         this.source_tag = message.source_tag ?? null;
         this.revision = message.revision;
+        this.saved_revision = Number.isInteger(message.saved_revision) ? message.saved_revision : 0;
         this.participants = message.participants ?? [];
         this.resource_revisions = { ...(message.resource_revisions ?? {}) };
 
@@ -548,6 +567,11 @@ class CollaborationClient {
 
         this.intentional_close = true;
         const session_not_found = message.error === 'session_not_found';
+        if (session_not_found && this.has_connected_once) {
+            // We were in this session before: it ended while we were away.
+            this.end_session('Die gemeinsame Sitzung gibt es nicht mehr, zum Beispiel weil längere Zeit niemand dabei war. Dein Stand ist noch hier. Speichere ihn, damit nichts verloren geht.');
+            return;
+        }
         const text = session_not_found
             ? 'Unter diesem Code gibt es keine gemeinsame Sitzung. Prüfe den Code.'
             : 'Bitte gib einen gültigen Namen ein (höchstens 40 Zeichen).';
@@ -891,10 +915,80 @@ class CollaborationClient {
         }, true);
     }
 
+    // ------------------------------------------------------- leaving
+
+    others_present() {
+        return this.participants.some(participant => participant.id !== this.participant_id);
+    }
+
+    // Changes in the session that no shared save contains yet, including our
+    // own latest change that may not even have reached the server.
+    has_unsaved_changes() {
+        if (this.revision > this.saved_revision || this.pending_update) return true;
+        const resource = this.focused_resource;
+        return !!resource && this.owns_lock(resource) && !this.resource_synced(resource);
+    }
+
+    // Leaves the session and then calls proceed(). Asks first when loading
+    // another game (easy to do without thinking of the session), and
+    // whenever leaving would lose unsaved shared work.
+    confirm_leave(reason, proceed = null) {
+        if (!this.code) {
+            proceed?.();
+            return;
+        }
+        const alone = !this.others_present();
+        const unsaved = this.has_unsaved_changes();
+        if (reason !== 'load' && !(alone && unsaved)) {
+            this.leave();
+            proceed?.();
+            return;
+        }
+        this.pending_leave = proceed ?? (() => {});
+        const text = collaboration_leave_text(reason, { alone, unsaved });
+        // Shown after the current click handler: the game list closes its own
+        // dialog right after asking to load, which would hide this one too.
+        setTimeout(() => {
+            if (typeof $ !== 'undefined') $('#collaboration_leave_text').text(text);
+            globalThis.window?.collaborationLeaveModal?.show();
+        }, 0);
+    }
+
+    confirmed_leave() {
+        const proceed = this.pending_leave;
+        this.pending_leave = null;
+        this.leave();
+        proceed?.();
+    }
+
+    install_load_guard() {
+        if (typeof window.game?.load !== 'function' || this.original_game_load) return;
+        this.original_game_load = window.game.load.bind(window.game);
+        const self = this;
+        window.game.load = function (tag) {
+            if (!self.code) return self.original_game_load(tag);
+            self.confirm_leave('load', () => self.original_game_load(tag));
+        };
+    }
+
+    // Closing or reloading the tab: send our last change, and let the browser
+    // ask first if this would lose shared work nobody else can save.
+    install_page_guards() {
+        window.addEventListener('pagehide', () => {
+            if (this.connected && this.owns_lock(this.focused_resource))
+                this.flush_resource(this.focused_resource);
+        });
+        window.addEventListener('beforeunload', (event) => {
+            if (!this.code || !this.connected || this.others_present() || !this.has_unsaved_changes()) return;
+            event.preventDefault();
+            event.returnValue = '';
+        });
+    }
+
     // ------------------------------------------------------- shared save
 
     install_save_guard() {
-        if (!window.game || this.original_game_save) return;
+        if (typeof window.game?.save !== 'function' || this.original_game_save) return;
         this.original_game_save = window.game.save.bind(window.game);
         const self = this;
         window.game.save = function () {
@@ -936,7 +1030,9 @@ class CollaborationClient {
         this.save_after_sync = false;
         this.save_pending = true;
         if (window.game) window.game.currently_saving = true;
-        if (!this.send({ type: 'save' }))
+        const palette = typeof palettes !== 'undefined' && typeof selected_palette_index !== 'undefined'
+            ? palettes[selected_palette_index]?.colors : undefined;
+        if (!this.send({ type: 'save', ...(Array.isArray(palette) ? { palette } : {}) }))
             this.cancel_shared_save('Das gemeinsame Spiel konnte nicht gespeichert werden.');
     }
 
@@ -955,6 +1051,7 @@ class CollaborationClient {
         const in_order = this.accept_revision(message);
         this.source_tag = message.tag;
         if (in_order) {
+            this.saved_revision = message.revision;
             if (Array.isArray(message.participants)) this.participants = message.participants;
             if (window.game?.data) window.game.data.parent = message.tag;
         }
@@ -1001,6 +1098,8 @@ class CollaborationClient {
     // Stops taking part in the session in this tab, without reconnecting.
     end_session(notice = null) {
         this.intentional_close = true;
+        this.has_connected_once = false;
+        this.pending_leave = null;
         this.stop_heartbeat();
         if (this.reconnect_timeout !== null) {
             clearTimeout(this.reconnect_timeout);
@@ -1212,6 +1311,37 @@ function wait_for_collaboration_game(callback) {
 function setup_collaboration_ui() {
     window.collaboration = new CollaborationClient();
     window.collaboration.install_structure_guards();
+    window.collaboration.install_page_guards();
+
+    window.collaborationLeaveModal = new ModalDialog({
+        title: 'Gemeinsame Sitzung verlassen?',
+        width: '460px',
+        max_width: '90vw',
+        body: `
+            <div class="collaboration-dialog">
+                <p id="collaboration_leave_text" class="collaboration-dialog-lead"></p>
+            </div>
+        `,
+        footer: [
+            {
+                type: 'button',
+                label: 'Abbrechen',
+                callback: (self) => {
+                    window.collaboration.pending_leave = null;
+                    self.dismiss();
+                },
+            },
+            {
+                type: 'button',
+                label: 'Sitzung verlassen',
+                color: 'collaboration-leave',
+                callback: (self) => {
+                    self.dismiss();
+                    window.collaboration.confirmed_leave();
+                },
+            },
+        ],
+    });
 
     window.collaborationChoiceModal = new ModalDialog({
         title: 'Zusammenarbeiten',
@@ -1299,6 +1429,7 @@ function setup_collaboration_ui() {
         body: `
             <div class="collaboration-dialog collaboration-form">
                 <p class="collaboration-dialog-lead">Gib den Code der gemeinsamen Sitzung ein.</p>
+                <p class="collaboration-dialog-note">Dein aktuelles Spiel wird dabei durch das gemeinsame Spiel ersetzt. Speichere es vorher, wenn du es behalten willst.</p>
                 <label class="collaboration-field">
                     <span>Sitzungscode</span>
                     <input id="collaboration_join_input_code" class="collaboration-code-input"
@@ -1421,7 +1552,7 @@ function setup_collaboration_ui() {
                 type: 'button',
                 label: 'Sitzung verlassen',
                 color: 'collaboration-leave',
-                callback: () => window.collaboration.leave(),
+                callback: () => window.collaboration.confirm_leave('leave'),
             },
             {
                 type: 'button',
@@ -1473,6 +1604,7 @@ if (typeof module !== 'undefined' && module.exports) {
         apply_collaboration_structure,
         collaboration_rejection_notice,
         collaboration_lock_taken_notice,
+        collaboration_leave_text,
         collaboration_resource_description,
         collaboration_saved_notice,
         collaboration_save_error_message,

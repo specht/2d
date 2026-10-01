@@ -300,6 +300,7 @@ class Main < Sinatra::Base
                 :code => snapshot[:code],
                 :source_tag => snapshot[:source_tag],
                 :revision => snapshot[:revision],
+                :saved_revision => snapshot[:saved_revision],
                 :resource_revisions => snapshot[:resource_revisions],
                 :state => snapshot[:state],
                 :participants => snapshot[:participants],
@@ -310,7 +311,15 @@ class Main < Sinatra::Base
             value.is_a?(String) && value.size <= 200 ? value : nil
         end
 
-        def collaboration_save(socket, code, ids)
+        # A normal save stores the palette the saver has selected; a shared
+        # save does the same with the palette of whoever clicked save.
+        def collaboration_palette(value)
+            return nil unless value.is_a?(Array) && value.length.between?(1, 256)
+            return nil unless value.all? { |color| color.is_a?(String) && color.match?(/\A#[0-9a-fA-F]{3,8}\z/) }
+            value
+        end
+
+        def collaboration_save(socket, code, ids, palette = nil)
             prepared = @@collaboration_store.begin_save(**ids)
             unless prepared
                 collaboration_send(socket, :type => "save_error", :error => "save_in_progress")
@@ -320,6 +329,7 @@ class Main < Sinatra::Base
             begin
                 game_to_save = prepared[:state]
                 game_to_save["parent"] = prepared[:source_tag]
+                game_to_save["palette"] = palette if palette
                 tag = save_game(game_to_save, true)
                 saved = @@collaboration_store.finish_save(
                     :code => code,
@@ -416,7 +426,7 @@ class Main < Sinatra::Base
                     collaboration_send(socket, payload.merge(:type => "rejected", :request => type))
                 end
             when "save"
-                collaboration_save(socket, code, ids)
+                collaboration_save(socket, code, ids, collaboration_palette(message["palette"]))
             else
                 collaboration_send(socket, :type => "error", :error => "unknown_message", :fatal => false)
             end

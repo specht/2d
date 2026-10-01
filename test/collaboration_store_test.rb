@@ -640,4 +640,21 @@ class CollaborationStoreTest < Minitest::Test
         assert @store.lock(**ids(ben), resource: "sprite:held")[:applied]
     end
 
+
+    # ----------------------------------------------------------- unsaved work
+
+    def test_the_snapshot_tells_whether_changes_are_unsaved
+        anna, = session_with("Anna")
+        assert_equal 0, @store.snapshot(code: "session")[:saved_revision]
+
+        @store.lock(**ids(anna), resource: "sprite:held")
+        @store.update(**ids(anna), resource: "sprite:held", resource_revision: 0, value: {})
+        snapshot = @store.snapshot(code: "session")
+        assert_operator snapshot[:revision], :>, snapshot[:saved_revision]
+
+        prepared = @store.begin_save(**ids(anna))
+        @store.finish_save(code: "session", token: prepared[:token], tag: "new1234")
+        snapshot = @store.snapshot(code: "session")
+        assert_equal snapshot[:revision], snapshot[:saved_revision]
+    end
 end
