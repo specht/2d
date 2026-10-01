@@ -583,6 +583,56 @@ body {
     transition: none;
 }
 
+.collaboration-status-button.active-session {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: rgba(0, 0, 0, 0.92);
+    color: #fff;
+    font-weight: 500;
+}
+
+.collaboration-status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 0.55em;
+    border-radius: 50%;
+    background: #d6a84b;
+    box-shadow: 0 0 5px rgba(214, 168, 75, 0.65);
+    vertical-align: 1px;
+}
+
+.collaboration-status-button.connected .collaboration-status-dot {
+    background: #58d26f;
+    box-shadow: 0 0 7px rgba(88, 210, 111, 0.8);
+}
+
+.collaboration-session-code,
+.collaboration-code-input {
+    font-family: 'IBM Plex Mono', 'Roboto Mono', monospace;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.collaboration-session-code {
+    display: inline-block;
+    margin: 0.1em 0 0.5em 0;
+    padding: 0.35em 0.6em;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font-size: 180%;
+    font-weight: 600;
+    user-select: text;
+}
+
+.collaboration-code-input {
+    width: 8em;
+    font-size: 120%;
+}
+
 #main-nav {
     position: absolute;
     top: 0;

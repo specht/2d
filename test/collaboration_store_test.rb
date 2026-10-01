@@ -372,4 +372,11 @@ class CollaborationStoreTest < Minitest::Test
         end
     end
 
+    def test_default_session_code_is_six_readable_uppercase_characters
+        store = Collaboration::Store.new
+        code = store.create(state: @state)[:code]
+
+        assert_match(/\A[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}\z/, code)
+    end
+
 end

@@ -13,12 +13,20 @@ module Collaboration
         DEFAULT_SESSION_TTL = 6 * 60 * 60
         DEFAULT_RECONNECT_GRACE = 60
         MAX_NAME_LENGTH = 40
+        COLLABORATION_CODE_LENGTH = 6
+        COLLABORATION_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".freeze
         COMMAND_KEY = "__collaboration"
 
         def initialize(clock: -> { Time.now.to_f },
                        session_ttl: DEFAULT_SESSION_TTL,
                        reconnect_grace: DEFAULT_RECONNECT_GRACE,
-                       code_generator: -> { SecureRandom.hex(12) },
+                       code_generator: -> {
+                           Array.new(COLLABORATION_CODE_LENGTH) {
+                               COLLABORATION_CODE_ALPHABET[
+                                   SecureRandom.random_number(COLLABORATION_CODE_ALPHABET.length)
+                               ]
+                           }.join
+                       },
                        id_generator: -> { SecureRandom.hex(8) })
             @clock = clock
             @session_ttl = session_ttl

@@ -324,7 +324,7 @@ class Main < Sinatra::Base
                 return "WebSocket required"
             end
 
-            code = params[:code]
+            code = params[:code].to_s.upcase
             socket = Faye::WebSocket.new(request.env, nil, :ping => 30)
             participant_id = nil
             connection_id = nil
