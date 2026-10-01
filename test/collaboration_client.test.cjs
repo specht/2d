@@ -112,3 +112,21 @@ test('shared save errors distinguish a concurrent save from a real failure', () 
         'Das gemeinsame Spiel konnte nicht gespeichert werden.',
     );
 });
+
+test('classroom collaboration codes are uppercased, cleaned and exactly six characters', () => {
+    const collaboration = require('../src/static/collaboration.js');
+
+    assert.equal(collaboration.format_collaboration_code_input(' ab-12 cd '), 'AB12CD');
+    assert.equal(collaboration.format_collaboration_code_input('abcdefghi'), 'ABCDEF');
+    assert.equal(collaboration.normalize_collaboration_code('ab12cd'), 'AB12CD');
+    assert.equal(collaboration.normalize_collaboration_code('AB12'), null);
+});
+
+test('collaboration code from URL is normalized to uppercase', () => {
+    const collaboration = require('../src/static/collaboration.js');
+
+    assert.equal(
+        collaboration.collaboration_code_from_url('https://2d.example/studio?collab=ab12cd#level'),
+        'AB12CD',
+    );
+});

@@ -1,4 +1,5 @@
 const COLLABORATION_COMMAND_KEY = '__collaboration';
+const COLLABORATION_CODE_LENGTH = 6;
 
 function normalize_collaboration_name(value) {
     const raw = String(value ?? '');
@@ -8,8 +9,20 @@ function normalize_collaboration_name(value) {
     return name;
 }
 
+function format_collaboration_code_input(value) {
+    return String(value ?? '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, COLLABORATION_CODE_LENGTH);
+}
+
+function normalize_collaboration_code(value) {
+    const code = format_collaboration_code_input(value);
+    return code.length === COLLABORATION_CODE_LENGTH ? code : null;
+}
+
 function collaboration_code_from_url(url) {
-    return new URL(url).searchParams.get('collab');
+    return normalize_collaboration_code(new URL(url).searchParams.get('collab'));
 }
 
 function collaboration_websocket_url(code, location_like) {
@@ -154,11 +167,21 @@ class CollaborationClient {
             modal.showError('Bitte gib deinen Namen ein (höchstens 40 Zeichen).');
             return;
         }
+        code = normalize_collaboration_code(code);
+        if (!code) {
+            modal.showError('Bitte gib den sechsstelligen Sitzungscode ein.');
+            return;
+        }
         modal.dismiss();
         this.connect(code, name, modal);
     }
 
     connect(code, name, error_modal = null) {
+        code = normalize_collaboration_code(code);
+        if (!code) {
+            error_modal?.showError('Bitte gib den sechsstelligen Sitzungscode ein.');
+            return;
+        }
         this.intentional_close = false;
         this.code = code;
         this.name = name;
@@ -265,11 +288,21 @@ class CollaborationClient {
 
         if (message.type === 'error') {
             this.intentional_close = true;
-            const text = message.error === 'session_not_found'
-                ? 'Diese gemeinsame Sitzung gibt es nicht mehr.'
+            const session_not_found = message.error === 'session_not_found';
+            const text = session_not_found
+                ? 'Unter diesem Code gibt es keine gemeinsame Sitzung. Prüfe den Code.'
                 : message.error === 'name_required' || message.error === 'invalid_name' || message.error === 'name_too_long'
                     ? 'Bitte gib einen gültigen Namen ein (höchstens 40 Zeichen).'
                     : 'Die gemeinsame Sitzung konnte nicht geöffnet werden.';
+            if (session_not_found) {
+                this.code = null;
+                this.participant_id = null;
+                const url = new URL(window.location.href);
+                url.searchParams.delete('collab');
+                history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+                this.render_control();
+                this.update_resource_access();
+            }
             if (this.error_modal) {
                 this.error_modal.show();
                 this.error_modal.showError(text);
@@ -736,23 +769,12 @@ class CollaborationClient {
         }
     }
 
-    share_url() {
-        if (!this.code) return '';
-        const url = new URL(window.location.href);
-        url.search = '';
-        url.searchParams.set('collab', this.code);
-        return url.toString();
-    }
-
-    copy_link(modal) {
-        const url = this.share_url();
-        if (!url) return;
-        navigator.clipboard.writeText(url).then(() => {
-            $('#collaboration_copy_status').text('Link kopiert.');
+    copy_code(modal) {
+        if (!this.code) return;
+        navigator.clipboard.writeText(this.code).then(() => {
+            $('#collaboration_copy_status').text('Code kopiert.');
         }).catch(() => {
-            const input = $('#collaboration_link');
-            input.trigger('focus').trigger('select');
-            modal.showError('Bitte kopiere den markierten Link.');
+            modal.showError(`Sitzungscode: ${this.code}`);
         });
     }
 
@@ -790,6 +812,8 @@ class CollaborationClient {
     }
 
     set_code_in_url(code) {
+        code = normalize_collaboration_code(code);
+        if (!code) return;
         const url = new URL(window.location.href);
         url.search = '';
         url.searchParams.set('collab', code);
@@ -802,20 +826,32 @@ class CollaborationClient {
         if (!control.length) {
             control = $('<div id="collaboration-control">')
                 .addClass('status-bar-item status-bar-button collaboration-status-button')
-                .attr('title', 'Gemeinsame Sitzung starten oder anzeigen')
                 .on('click', (event) => {
                     event.preventDefault();
                     event.stopPropagation();
                     this.show();
                 });
-            status_bar.append(control);
         }
+
+        control.detach();
         control.toggleClass('connected', this.connected);
         control.toggleClass('disconnected', !!this.code && !this.connected);
-        let label = 'Zusammenarbeiten';
-        if (this.connected) label += ` (${this.participants.length})`;
-        else if (this.code) label += ' …';
-        control.text(label);
+        control.toggleClass('active-session', !!this.code);
+        control.empty();
+
+        if (this.code) {
+            control.attr('title', `Gemeinsame Sitzung ${this.code} anzeigen`);
+            control.append($('<span>').addClass('collaboration-status-dot'));
+            const label = this.connected
+                ? `Gemeinsam · ${this.code} · ${this.participants.length}`
+                : `Gemeinsam · ${this.code} …`;
+            control.append($('<span>').text(label));
+            status_bar.prepend(control);
+        } else {
+            control.attr('title', 'Gemeinsame Sitzung starten oder beitreten');
+            control.text('Zusammenarbeiten');
+            status_bar.append(control);
+        }
     }
 
     render_control() {
@@ -824,7 +860,7 @@ class CollaborationClient {
 
     render_status() {
         if (typeof $ === 'undefined') return;
-        $('#collaboration_link').val(this.share_url());
+        $('#collaboration_session_code').text(this.code ?? '—');
         const list = $('#collaboration_participants').empty();
         for (const participant of this.participants) {
             const item = $('<li>').text(participant.name);
@@ -937,14 +973,26 @@ function setup_collaboration_ui() {
     window.collaboration.install_structure_guards();
 
     window.collaborationStartModal = new ModalDialog({
-        title: 'Gemeinsam bearbeiten',
+        title: 'Zusammenarbeiten',
         width: '420px',
         max_width: '90vw',
         body: `
-            <p>Starte eine gemeinsame Sitzung und teile anschließend den Link.</p>
+            <p>Starte eine neue gemeinsame Sitzung oder tritt mit einem Sitzungscode bei.</p>
             <p><label>Dein Name<br><input id="collaboration_start_name" maxlength="40" autocomplete="name"></label></p>
+            <p>
+                <label>Sitzungscode<br>
+                    <input id="collaboration_start_code" class="collaboration-code-input"
+                           maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false">
+                </label><br>
+                <small>Nur nötig, wenn du einer bestehenden Sitzung beitreten möchtest.</small>
+            </p>
         `,
         onshow: () => {
+            $('#collaboration_start_code')
+                .off('input.collaboration')
+                .on('input.collaboration', function () {
+                    this.value = format_collaboration_code_input(this.value);
+                });
             $('#collaboration_start_name').trigger('focus');
         },
         footer: [
@@ -956,7 +1004,19 @@ function setup_collaboration_ui() {
             },
             {
                 type: 'button',
-                label: 'Sitzung starten',
+                label: 'Mit Code beitreten',
+                icon: 'fa-sign-in',
+                callback: (self) => {
+                    window.collaboration.join(
+                        $('#collaboration_start_code').val(),
+                        $('#collaboration_start_name').val(),
+                        self,
+                    );
+                },
+            },
+            {
+                type: 'button',
+                label: 'Neue Sitzung',
                 icon: 'fa-users',
                 color: 'green',
                 callback: (self) => {
@@ -971,12 +1031,13 @@ function setup_collaboration_ui() {
         width: '420px',
         max_width: '90vw',
         body: `
-            <p>Gib deinen Namen ein, bevor du gemeinsam mit den anderen arbeitest.</p>
+            <p>Du trittst der gemeinsamen Sitzung <strong id="collaboration_join_code"></strong> bei.</p>
             <p><label>Dein Name<br><input id="collaboration_join_name" maxlength="40" autocomplete="name"></label></p>
         `,
         onshow: () => {
             const code = collaboration_code_from_url(window.location.href);
             const remembered = code ? sessionStorage.getItem(window.collaboration.name_storage_key(code)) : '';
+            $('#collaboration_join_code').text(code ?? '');
             $('#collaboration_join_name').val(remembered ?? '').trigger('focus');
         },
         footer: [
@@ -1005,8 +1066,9 @@ function setup_collaboration_ui() {
         max_width: '90vw',
         body: `
             <p id="collaboration_connection_status"></p>
-            <p>Teile diesen Link mit den anderen:</p>
-            <p><input id="collaboration_link" readonly style="width: 100%; box-sizing: border-box;"></p>
+            <p>Sitzungscode:</p>
+            <div id="collaboration_session_code" class="collaboration-session-code"></div>
+            <p>Andere wählen <strong>Zusammenarbeiten</strong> und geben diesen Code ein.</p>
             <p id="collaboration_copy_status"></p>
             <h4>Gerade dabei</h4>
             <ul id="collaboration_participants"></ul>
@@ -1016,9 +1078,9 @@ function setup_collaboration_ui() {
         footer: [
             {
                 type: 'button',
-                label: 'Link kopieren',
+                label: 'Code kopieren',
                 icon: 'fa-copy',
-                callback: (self) => window.collaboration.copy_link(self),
+                callback: (self) => window.collaboration.copy_code(self),
             },
             {
                 type: 'button',
@@ -1062,6 +1124,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         normalize_collaboration_name,
+        format_collaboration_code_input,
+        normalize_collaboration_code,
         collaboration_code_from_url,
         collaboration_websocket_url,
         collaboration_connection_status,
