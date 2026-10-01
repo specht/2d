@@ -420,8 +420,8 @@ class CollaborationClient {
 
         if (resource === 'settings') {
             window.game.data.properties = copied;
-            if (refresh_ui && this.current_resource() === resource)
-                window.game._load();
+            if (refresh_ui)
+                window.game.refresh_game_settings_controls?.();
             return;
         }
 
@@ -430,8 +430,17 @@ class CollaborationClient {
         const index = Number(match[2]);
         if (match[1] === 'sprite') {
             if (!window.game.data.sprites?.[index]) return;
-            const was_current_sprite = window.canvas?.sprite_index === index;
-            if (was_current_sprite) window.canvas.detachSprite();
+
+            // The sprite canvas stays attached even while another pane (for
+            // example the level editor) is visible. Preserve that selection
+            // before replacing the authoritative sprite data so returning to
+            // the sprite pane never shows stale pixels or a detached canvas.
+            const canvas = window.canvas;
+            const was_attached = canvas?.sprite_index === index;
+            const previous_state_index = was_attached ? canvas.state_index : 0;
+            const previous_frame_index = was_attached ? canvas.frame_index : 0;
+            if (was_attached) canvas.detachSprite();
+
             window.game.data.sprites[index] = copied;
             this.top_level_sprite_refs[index] = window.game.data.sprites[index];
             window.game.create_geometry_and_material_for_sprite(index);
@@ -442,9 +451,22 @@ class CollaborationClient {
                 window.game.level_editor.refresh?.();
                 window.game.level_editor.render?.();
             }
-            if (refresh_ui && this.current_resource() === resource) {
-                const item = $('#menu_sprites > ._dnd_item').eq(index).children().eq(0);
-                item.trigger('click');
+
+            if (was_attached && copied.states?.length) {
+                const state_index = Math.min(
+                    Math.max(Number.isInteger(previous_state_index) ? previous_state_index : 0, 0),
+                    copied.states.length - 1,
+                );
+                const frames = copied.states[state_index]?.frames ?? [];
+                if (frames.length) {
+                    const frame_index = Math.min(
+                        Math.max(Number.isInteger(previous_frame_index) ? previous_frame_index : 0, 0),
+                        frames.length - 1,
+                    );
+                    canvas.attachSprite(index, state_index, frame_index, () => {
+                        window.game.build_sprite_traits_menu?.();
+                    });
+                }
             }
         } else {
             if (!window.game.data.levels?.[index]) return;
@@ -1135,5 +1157,6 @@ if (typeof module !== 'undefined' && module.exports) {
         collaboration_resource_description,
         collaboration_saved_notice,
         collaboration_save_error_message,
+        CollaborationClient,
     };
 }

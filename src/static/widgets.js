@@ -570,7 +570,7 @@ class LineEditWidget {
         console.log("LineEditWidget", data);
         this.data = data;
         this.container = data.container;
-        let div = $(`<div class='item'>`);
+        let div = $(`<div class='item'>`).data('widget-instance', this);
         let label = $(`<div style='margin-right: 1em; white-space: pre;'>`).text(data.label);
         div.append(label);
         this.input = $(`<input type='text'>`);
@@ -595,6 +595,10 @@ class LineEditWidget {
     update() {
         this.data.set(this.input.val().trim());
     }
+
+    refresh() {
+        this.input.val(this.data.get());
+    }
 }
 
 class NumberWidget {
@@ -616,7 +620,7 @@ class NumberWidget {
             data.max = [data.max];
         this.data = data;
         this.container = data.container;
-        let div = $(`<div class='item'>`);
+        let div = $(`<div class='item'>`).data('widget-instance', this);
         let subdiv = $('<div>').css('display', 'flex').css('align-items', 'center');
         let label = $(`<div style='margin-right: 1em;'>`).html(data.label);
         div.append(label);
@@ -733,7 +737,7 @@ class CheckboxWidget {
     constructor(data) {
         this.data = data;
         this.container = data.container;
-        let div = $(`<div class='item'>`);
+        let div = $(`<div class='item'>`).data('widget-instance', this);
         let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
         div.append(label);
         this.input = $(`<button class='btn-checkbox' data-state='${this.data.get()}'>`);
@@ -755,6 +759,10 @@ class CheckboxWidget {
 
     update() {
         this.data.set(this.input.val().trim());
+    }
+
+    refresh() {
+        this.input.attr('data-state', `${!!this.data.get()}`);
     }
 }
 
