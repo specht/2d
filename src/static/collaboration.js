@@ -172,6 +172,7 @@ class CollaborationClient {
             modal.showError('Bitte gib den sechsstelligen Sitzungscode ein.');
             return;
         }
+        this.set_code_in_url(code);
         modal.dismiss();
         this.connect(code, name, modal);
     }
@@ -787,17 +788,8 @@ class CollaborationClient {
         if (this.code) {
             window.collaborationStatusModal.show();
         } else {
-            window.collaborationStartModal.show();
+            window.collaborationChoiceModal.show();
         }
-    }
-
-    copy_code(modal) {
-        if (!this.code) return;
-        navigator.clipboard.writeText(this.code).then(() => {
-            $('#collaboration_copy_status').text('Code kopiert.');
-        }).catch(() => {
-            modal.showError(`Sitzungscode: ${this.code}`);
-        });
     }
 
     leave() {
@@ -882,18 +874,36 @@ class CollaborationClient {
 
     render_status() {
         if (typeof $ === 'undefined') return;
-        $('#collaboration_session_code').text(this.code ?? '—');
-        const list = $('#collaboration_participants').empty();
-        for (const participant of this.participants) {
-            const item = $('<li>').text(participant.name);
-            if (participant.id === this.participant_id) item.append(' (du)');
-            if (participant.lock?.resource)
-                item.append(` — ${collaboration_resource_description(participant.lock.resource)}`);
-            list.append(item);
-        }
+
+        const connection = $('#collaboration_connection');
+        connection.toggleClass('connected', this.connected);
+        connection.toggleClass('reconnecting', !!this.code && !this.connected);
         $('#collaboration_connection_status').text(
             collaboration_connection_status(this.connected, this.has_connected_once)
         );
+
+        $('#collaboration_session_code').text(this.code ?? '—');
+
+        const count = this.participants.length;
+        $('#collaboration_participants_title').text(
+            count === 1 ? '1 Person dabei' : `${count} Personen dabei`
+        );
+        const list = $('#collaboration_participants').empty();
+        for (const participant of this.participants) {
+            const item = $('<div>').addClass('collaboration-participant');
+            const name = $('<div>').addClass('collaboration-participant-name').text(participant.name);
+            if (participant.id === this.participant_id)
+                name.append($('<span>').addClass('collaboration-participant-me').text('du'));
+            item.append(name);
+            if (participant.lock?.resource) {
+                item.append(
+                    $('<div>')
+                        .addClass('collaboration-participant-activity')
+                        .text(`Bearbeitet ${collaboration_resource_description(participant.lock.resource)}`)
+                );
+            }
+            list.append(item);
+        }
     }
 
     ensure_notice() {
@@ -994,52 +1004,77 @@ function setup_collaboration_ui() {
     window.collaboration = new CollaborationClient();
     window.collaboration.install_structure_guards();
 
-    window.collaborationStartModal = new ModalDialog({
+    window.collaborationChoiceModal = new ModalDialog({
         title: 'Zusammenarbeiten',
-        width: '420px',
+        width: '460px',
         max_width: '90vw',
         body: `
-            <p>Starte eine neue gemeinsame Sitzung oder tritt mit einem Sitzungscode bei.</p>
-            <p><label>Dein Name<br><input id="collaboration_start_name" maxlength="40" autocomplete="name"></label></p>
-            <p>
-                <label>Sitzungscode<br>
-                    <input id="collaboration_start_code" class="collaboration-code-input"
-                           maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false">
-                </label><br>
-                <small>Nur nötig, wenn du einer bestehenden Sitzung beitreten möchtest.</small>
-            </p>
+            <div class="collaboration-dialog collaboration-choice-dialog">
+                <p class="collaboration-dialog-lead">Was möchtest du tun?</p>
+                <div class="collaboration-choice-list">
+                    <button id="collaboration_choose_start" class="collaboration-choice-card" type="button">
+                        <strong>Neue Sitzung starten</strong>
+                        <span>Andere können deinem aktuellen Spiel mit einem sechsstelligen Code beitreten.</span>
+                    </button>
+                    <button id="collaboration_choose_join" class="collaboration-choice-card" type="button">
+                        <strong>Sitzung beitreten</strong>
+                        <span>Du hast von jemandem einen Sitzungscode bekommen.</span>
+                    </button>
+                </div>
+            </div>
         `,
-        onshow: () => {
-            $('#collaboration_start_code')
-                .off('input.collaboration')
-                .on('input.collaboration', function () {
-                    this.value = format_collaboration_code_input(this.value);
+        onshow: (self) => {
+            $('#collaboration_choose_start')
+                .off('click.collaboration')
+                .on('click.collaboration', () => {
+                    self.dismiss();
+                    window.collaborationStartModal.show();
                 });
-            $('#collaboration_start_name').trigger('focus');
+            $('#collaboration_choose_join')
+                .off('click.collaboration')
+                .on('click.collaboration', () => {
+                    self.dismiss();
+                    window.collaborationJoinCodeModal.show();
+                });
         },
         footer: [
             {
                 type: 'button',
                 label: 'Abbrechen',
-                icon: 'fa-times',
                 callback: (self) => self.dismiss(),
             },
+        ],
+    });
+
+    window.collaborationStartModal = new ModalDialog({
+        title: 'Neue Sitzung',
+        width: '420px',
+        max_width: '90vw',
+        body: `
+            <div class="collaboration-dialog collaboration-form">
+                <p class="collaboration-dialog-lead">Starte eine gemeinsame Sitzung für dieses Spiel.</p>
+                <label class="collaboration-field">
+                    <span>Dein Name</span>
+                    <input id="collaboration_start_name" maxlength="40" autocomplete="name">
+                    <small>Der Name ist nur für diese Sitzung sichtbar.</small>
+                </label>
+            </div>
+        `,
+        onshow: () => {
+            $('#collaboration_start_name').trigger('focus');
+        },
+        footer: [
             {
                 type: 'button',
-                label: 'Mit Code beitreten',
-                icon: 'fa-sign-in',
+                label: 'Zurück',
                 callback: (self) => {
-                    window.collaboration.join(
-                        $('#collaboration_start_code').val(),
-                        $('#collaboration_start_name').val(),
-                        self,
-                    );
+                    self.dismiss();
+                    window.collaborationChoiceModal.show();
                 },
             },
             {
                 type: 'button',
-                label: 'Neue Sitzung',
-                icon: 'fa-users',
+                label: 'Sitzung starten',
                 color: 'green',
                 callback: (self) => {
                     window.collaboration.start($('#collaboration_start_name').val(), self);
@@ -1048,13 +1083,76 @@ function setup_collaboration_ui() {
         ],
     });
 
-    window.collaborationJoinModal = new ModalDialog({
-        title: 'Gemeinsame Sitzung',
+    window.collaborationJoinCodeModal = new ModalDialog({
+        title: 'Sitzung beitreten',
         width: '420px',
         max_width: '90vw',
         body: `
-            <p>Du trittst der gemeinsamen Sitzung <strong id="collaboration_join_code"></strong> bei.</p>
-            <p><label>Dein Name<br><input id="collaboration_join_name" maxlength="40" autocomplete="name"></label></p>
+            <div class="collaboration-dialog collaboration-form">
+                <p class="collaboration-dialog-lead">Gib den Code der gemeinsamen Sitzung ein.</p>
+                <label class="collaboration-field">
+                    <span>Sitzungscode</span>
+                    <input id="collaboration_join_input_code" class="collaboration-code-input"
+                           maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false">
+                </label>
+                <label class="collaboration-field">
+                    <span>Dein Name</span>
+                    <input id="collaboration_join_input_name" maxlength="40" autocomplete="name">
+                    <small>Der Name ist nur für diese Sitzung sichtbar.</small>
+                </label>
+            </div>
+        `,
+        onshow: () => {
+            $('#collaboration_join_input_code')
+                .val('')
+                .off('input.collaboration')
+                .on('input.collaboration', function () {
+                    this.value = format_collaboration_code_input(this.value);
+                })
+                .trigger('focus');
+        },
+        footer: [
+            {
+                type: 'button',
+                label: 'Zurück',
+                callback: (self) => {
+                    self.dismiss();
+                    window.collaborationChoiceModal.show();
+                },
+            },
+            {
+                type: 'button',
+                label: 'Beitreten',
+                color: 'green',
+                callback: (self) => {
+                    window.collaboration.join(
+                        $('#collaboration_join_input_code').val(),
+                        $('#collaboration_join_input_name').val(),
+                        self,
+                    );
+                },
+            },
+        ],
+    });
+
+    // Used when somebody opens a collaboration URL directly. The code is
+    // already known here, so the student only has to enter a name.
+    window.collaborationJoinModal = new ModalDialog({
+        title: 'Sitzung beitreten',
+        width: '420px',
+        max_width: '90vw',
+        body: `
+            <div class="collaboration-dialog collaboration-form">
+                <p class="collaboration-dialog-lead">
+                    Du trittst der Sitzung
+                    <span id="collaboration_join_code" class="collaboration-inline-code"></span>
+                    bei.
+                </p>
+                <label class="collaboration-field">
+                    <span>Dein Name</span>
+                    <input id="collaboration_join_name" maxlength="40" autocomplete="name">
+                </label>
+            </div>
         `,
         onshow: () => {
             const code = collaboration_code_from_url(window.location.href);
@@ -1066,13 +1164,11 @@ function setup_collaboration_ui() {
             {
                 type: 'button',
                 label: 'Abbrechen',
-                icon: 'fa-times',
                 callback: (self) => self.dismiss(),
             },
             {
                 type: 'button',
                 label: 'Beitreten',
-                icon: 'fa-users',
                 color: 'green',
                 callback: (self) => {
                     const code = collaboration_code_from_url(window.location.href);
@@ -1083,37 +1179,44 @@ function setup_collaboration_ui() {
     });
 
     window.collaborationStatusModal = new ModalDialog({
-        title: 'Gemeinsam bearbeiten',
-        width: '520px',
+        title: 'Gemeinsame Sitzung',
+        width: '460px',
         max_width: '90vw',
         body: `
-            <p id="collaboration_connection_status"></p>
-            <p>Sitzungscode:</p>
-            <div id="collaboration_session_code" class="collaboration-session-code"></div>
-            <p>Andere wählen <strong>Zusammenarbeiten</strong> und geben diesen Code ein.</p>
-            <p id="collaboration_copy_status"></p>
-            <h4>Gerade dabei</h4>
-            <ul id="collaboration_participants"></ul>
-            <p><small>Die Namen gelten nur für diese gemeinsame Sitzung. Sie sind keine Konten.</small></p>
+            <div class="collaboration-dialog collaboration-status-dialog">
+                <div id="collaboration_connection" class="collaboration-connection">
+                    <span class="collaboration-connection-dot"></span>
+                    <span id="collaboration_connection_status"></span>
+                </div>
+
+                <div class="collaboration-code-panel">
+                    <div class="collaboration-code-label">Sitzungscode</div>
+                    <div id="collaboration_session_code" class="collaboration-session-code"></div>
+                    <div class="collaboration-code-help">
+                        Andere wählen <strong>Zusammenarbeiten</strong> → <strong>Sitzung beitreten</strong>
+                        und geben diesen Code ein.
+                    </div>
+                </div>
+
+                <div class="collaboration-participants-section">
+                    <h4 id="collaboration_participants_title">Dabei</h4>
+                    <div id="collaboration_participants" class="collaboration-participants"></div>
+                </div>
+
+                <p class="collaboration-privacy">Die Namen gelten nur für diese Sitzung. Sie sind keine Konten.</p>
+            </div>
         `,
         onshow: () => window.collaboration.render_status(),
         footer: [
             {
                 type: 'button',
-                label: 'Code kopieren',
-                icon: 'fa-copy',
-                callback: (self) => window.collaboration.copy_code(self),
-            },
-            {
-                type: 'button',
                 label: 'Sitzung verlassen',
-                icon: 'fa-sign-out',
+                color: 'collaboration-leave',
                 callback: () => window.collaboration.leave(),
             },
             {
                 type: 'button',
                 label: 'Schließen',
-                icon: 'fa-times',
                 callback: (self) => self.dismiss(),
             },
         ],
