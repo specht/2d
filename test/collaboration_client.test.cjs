@@ -5,6 +5,7 @@ const {
     collaboration_code_from_url,
     collaboration_websocket_url,
     collaboration_connection_status,
+    collaboration_status_label,
     collaboration_resource_value,
     collaboration_lock_revisions,
     collaboration_changed_resources,
@@ -26,7 +27,7 @@ test('collaboration names are required, compact and bounded', () => {
 test('collaboration code is separate from the normal game hash', () => {
     assert.equal(
         collaboration_code_from_url('https://2d.example/studio?collab=abc123#level'),
-        'abc123',
+        'ABC123',
     );
     assert.equal(
         collaboration_code_from_url('https://2d.example/studio#level'),
@@ -49,6 +50,11 @@ test('connection status distinguishes first connect from reconnect', () => {
     assert.equal(collaboration_connection_status(false, false), 'Verbindung wird hergestellt …');
     assert.equal(collaboration_connection_status(false, true), 'Verbindung wird wiederhergestellt …');
     assert.equal(collaboration_connection_status(true, true), 'Verbunden');
+});
+
+test('status-bar label does not expose the session code', () => {
+    assert.equal(collaboration_status_label(true, 2), 'Gemeinsam · 2');
+    assert.equal(collaboration_status_label(false, 2), 'Gemeinsam …');
 });
 
 
