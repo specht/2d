@@ -12,6 +12,7 @@ module Collaboration
         DEFAULT_SESSION_TTL = 6 * 60 * 60
         DEFAULT_RECONNECT_GRACE = 60
         MAX_NAME_LENGTH = 40
+        COMMAND_KEY = "__collaboration"
 
         def initialize(clock: -> { Time.now.to_f },
                        session_ttl: DEFAULT_SESSION_TTL,
@@ -37,6 +38,7 @@ module Collaboration
                     source_tag: source_tag,
                     state: deep_copy(state),
                     revision: 0,
+                    resource_revisions: {},
                     participants: {},
                     created_at: now,
                     last_seen: now,
@@ -61,6 +63,7 @@ module Collaboration
                         name: display_name,
                         connected: false,
                         connection_id: nil,
+                        lock: nil,
                         last_seen: now,
                     }
                     session[:participants][participant_id] = participant
@@ -70,6 +73,7 @@ module Collaboration
                 participant[:name] = display_name
                 participant[:connected] = true
                 participant[:connection_id] = connection_id
+                participant[:lock] = nil
                 participant[:last_seen] = now
                 session[:last_seen] = now
 
@@ -92,6 +96,7 @@ module Collaboration
 
                 now = @clock.call
                 participant[:connected] = false
+                participant[:lock] = nil
                 participant[:last_seen] = now
                 session[:last_seen] = now
                 true
@@ -118,10 +123,10 @@ module Collaboration
             end
         end
 
-        # Foundation protocol for the next editor-integration patch. The first
-        # browser UI does not submit state replacements yet. Keeping the
-        # revision check here makes stale-write/resync behaviour testable before
-        # individual editor operations are wired up.
+        # replace_state remains the single WebSocket mutation entry point used by
+        # the first collaboration client. Ordinary state replacement keeps its
+        # optimistic global revision check. Structured collaboration commands are
+        # carried in a wrapper that is never written into the saved game JSON.
         def replace_state(code:, participant_id:, connection_id:, base_revision:, state:)
             @mutex.synchronize do
                 now = @clock.call
@@ -130,6 +135,11 @@ module Collaboration
                 participant = current_participant_locked(session, participant_id, connection_id)
                 participant[:last_seen] = now
                 session[:last_seen] = now
+
+                command = state[COMMAND_KEY]
+                if command.is_a?(Hash)
+                    return apply_command_locked(session, participant, command)
+                end
 
                 unless base_revision == session[:revision]
                     return {
@@ -193,7 +203,11 @@ module Collaboration
         def participants_locked(session)
             session[:participants].values
                 .select { |participant| participant[:connected] }
-                .map { |participant| { id: participant[:id], name: participant[:name] } }
+                .map do |participant|
+                    result = { id: participant[:id], name: participant[:name] }
+                    result[:lock] = deep_copy(participant[:lock]) if participant[:lock]
+                    result
+                end
                 .sort_by { |participant| participant[:id] }
         end
 
@@ -216,6 +230,119 @@ module Collaboration
 
                 now - session[:last_seen] > @session_ttl
             end
+        end
+
+        def apply_command_locked(session, participant, command)
+            case command["type"]
+            when "lock"
+                lock_resource_locked(session, participant, command["resource"])
+            when "unlock"
+                unlock_resource_locked(session, participant, command["resource"])
+            when "replace_resource"
+                replace_resource_locked(
+                    session,
+                    participant,
+                    command["resource"],
+                    command["resource_revision"],
+                    command["value"],
+                )
+            else
+                {
+                    applied: false,
+                    snapshot: snapshot_locked(session),
+                }
+            end
+        end
+
+        def valid_resource_locked?(session, resource)
+            return true if resource == "settings"
+            match = /\A(sprite|level):(\d+)\z/.match(resource.to_s)
+            return false unless match
+            collection = match[1] == "sprite" ? session[:state]["sprites"] : session[:state]["levels"]
+            collection.is_a?(Array) && match[2].to_i < collection.length
+        end
+
+        def resource_revision_locked(session, resource)
+            session[:resource_revisions][resource] || 0
+        end
+
+        def resource_value_locked(session, resource)
+            return session[:state]["properties"] if resource == "settings"
+            match = /\A(sprite|level):(\d+)\z/.match(resource)
+            collection = match[1] == "sprite" ? session[:state]["sprites"] : session[:state]["levels"]
+            collection[match[2].to_i]
+        end
+
+        def set_resource_value_locked(session, resource, value)
+            if resource == "settings"
+                session[:state]["properties"] = deep_copy(value)
+                return
+            end
+            match = /\A(sprite|level):(\d+)\z/.match(resource)
+            collection = match[1] == "sprite" ? session[:state]["sprites"] : session[:state]["levels"]
+            collection[match[2].to_i] = deep_copy(value)
+        end
+
+        def lock_holder_locked(session, resource)
+            session[:participants].values.find do |other|
+                other[:connected] && other[:lock] && other[:lock][:resource] == resource
+            end
+        end
+
+        def lock_resource_locked(session, participant, resource)
+            unless valid_resource_locked?(session, resource)
+                return { applied: false, snapshot: snapshot_locked(session) }
+            end
+
+            holder = lock_holder_locked(session, resource)
+            if holder && holder[:id] != participant[:id]
+                return { applied: false, snapshot: snapshot_locked(session) }
+            end
+
+            participant[:lock] = {
+                resource: resource,
+                revision: resource_revision_locked(session, resource),
+            }
+            {
+                applied: true,
+                snapshot: snapshot_locked(session),
+            }
+        end
+
+        def unlock_resource_locked(session, participant, resource)
+            if participant[:lock] && (resource.nil? || participant[:lock][:resource] == resource)
+                participant[:lock] = nil
+            end
+            {
+                applied: true,
+                snapshot: snapshot_locked(session),
+            }
+        end
+
+        def replace_resource_locked(session, participant, resource, resource_revision, value)
+            unless valid_resource_locked?(session, resource) && value.is_a?(Hash)
+                return { applied: false, snapshot: snapshot_locked(session) }
+            end
+            lock = participant[:lock]
+            unless lock && lock[:resource] == resource
+                return { applied: false, snapshot: snapshot_locked(session) }
+            end
+            unless resource_revision.is_a?(Integer) && resource_revision == resource_revision_locked(session, resource)
+                return { applied: false, snapshot: snapshot_locked(session) }
+            end
+
+            set_resource_value_locked(session, resource, value)
+            next_resource_revision = resource_revision + 1
+            session[:resource_revisions][resource] = next_resource_revision
+            participant[:lock] = {
+                resource: resource,
+                revision: next_resource_revision,
+            }
+            session[:revision] += 1
+            {
+                applied: true,
+                snapshot: snapshot_locked(session),
+            }
         end
     end
 end

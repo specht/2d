@@ -1,3 +1,5 @@
+const COLLABORATION_COMMAND_KEY = '__collaboration';
+
 function normalize_collaboration_name(value) {
     const raw = String(value ?? '');
     if (/[\u0000-\u001f\u007f]/.test(raw)) return null;
@@ -22,6 +24,40 @@ function collaboration_connection_status(connected, has_connected_once) {
         : 'Verbindung wird hergestellt …';
 }
 
+function collaboration_resource_value(state, resource) {
+    if (!state || !resource) return null;
+    if (resource === 'settings') return state.properties ?? null;
+    const match = /^(sprite|level):(\d+)$/.exec(resource);
+    if (!match) return null;
+    const collection = match[1] === 'sprite' ? state.sprites : state.levels;
+    return Array.isArray(collection) ? (collection[Number(match[2])] ?? null) : null;
+}
+
+function collaboration_lock_revisions(participants) {
+    const result = {};
+    for (const participant of participants ?? []) {
+        const lock = participant.lock;
+        if (!lock?.resource) continue;
+        result[lock.resource] = Number.isInteger(lock.revision) ? lock.revision : 0;
+    }
+    return result;
+}
+
+function collaboration_changed_resources(before_participants, after_participants) {
+    const before = collaboration_lock_revisions(before_participants);
+    const after = collaboration_lock_revisions(after_participants);
+    return Object.keys(after).filter(resource =>
+        Object.prototype.hasOwnProperty.call(before, resource) && after[resource] > before[resource]
+    );
+}
+
+function collaboration_resource_description(resource) {
+    if (resource === 'settings') return 'die Einstellungen';
+    if (resource?.startsWith('sprite:')) return 'dieses Sprite';
+    if (resource?.startsWith('level:')) return 'dieses Level';
+    return 'diesen Bereich';
+}
+
 class CollaborationClient {
     constructor() {
         this.code = null;
@@ -38,7 +74,22 @@ class CollaborationClient {
         this.reconnect_timeout = null;
         this.reconnect_delay = 1000;
         this.heartbeat_interval = null;
+        this.resource_interval = null;
         this.error_modal = null;
+
+        this.focused_resource = null;
+        this.lock_request_pending = false;
+        this.pending_resource_update = false;
+        this.synced_resource_serialized = null;
+        this.last_observed_resource_serialized = null;
+        this.resource_changed_at = 0;
+        this.force_full_snapshot = false;
+        this.structure_resync_pending = false;
+        this.top_level_sprite_refs = [];
+        this.top_level_level_refs = [];
+        this.notice_override = null;
+        this.notice_override_until = 0;
+        this.original_game_save = null;
     }
 
     participant_storage_key(code) {
@@ -101,6 +152,7 @@ class CollaborationClient {
         this.error_modal = error_modal;
         this.participant_id = sessionStorage.getItem(this.participant_storage_key(code));
         this.render_control();
+        this.update_resource_access();
 
         const ws = new WebSocket(collaboration_websocket_url(code, window.location));
         this.socket = ws;
@@ -131,8 +183,11 @@ class CollaborationClient {
             console.warn('Collaboration WebSocket closed', { code: event.code, reason: event.reason });
             this.socket = null;
             this.connected = false;
+            this.pending_resource_update = false;
+            this.lock_request_pending = false;
             this.stop_heartbeat();
             this.render_control();
+            this.update_resource_access();
             if (!this.intentional_close) this.schedule_reconnect();
         });
 
@@ -152,9 +207,13 @@ class CollaborationClient {
             this.participants = message.participants ?? [];
             this.remember_participant();
             this.apply_snapshot(message);
+            this.capture_top_level_refs();
             this.start_heartbeat();
+            this.start_resource_loop();
+            this.install_save_guard();
             this.render_control();
             this.render_status();
+            this.focus_current_resource(true);
             if (this.show_status_after_welcome) {
                 this.show_status_after_welcome = false;
                 window.collaborationStatusModal?.show();
@@ -165,18 +224,16 @@ class CollaborationClient {
         if (message.type === 'presence') {
             this.participants = message.participants ?? [];
             this.revision = message.revision ?? this.revision;
+            this.lock_request_pending = false;
             this.render_control();
             this.render_status();
+            this.ensure_current_resource_lock();
+            this.update_resource_access();
             return;
         }
 
         if (message.type === 'state' || message.type === 'resync') {
-            if ('source_tag' in message) this.source_tag = message.source_tag;
-            this.revision = message.revision;
-            this.participants = message.participants ?? this.participants;
-            this.apply_snapshot(message);
-            this.render_control();
-            this.render_status();
+            this.handle_state_message(message);
             return;
         }
 
@@ -197,6 +254,74 @@ class CollaborationClient {
         }
     }
 
+    handle_state_message(message) {
+        const previous_participants = this.participants;
+        const previous_revision = this.revision;
+        const next_participants = message.participants ?? this.participants;
+        const changed_resources = collaboration_changed_resources(previous_participants, next_participants);
+
+        if ('source_tag' in message) this.source_tag = message.source_tag;
+        this.revision = message.revision;
+        this.participants = next_participants;
+        this.lock_request_pending = false;
+
+        if (this.force_full_snapshot) {
+            const restore_resource = this.current_resource();
+            this.force_full_snapshot = false;
+            this.structure_resync_pending = false;
+            this.apply_snapshot(message);
+            this.capture_top_level_refs();
+            this.restore_resource_selection(restore_resource);
+            this.focused_resource = null;
+            this.focus_current_resource(true);
+        } else if (message.type === 'resync') {
+            this.pending_resource_update = false;
+            if (this.focused_resource && message.state) {
+                this.apply_resource_from_state(message.state, this.focused_resource, true);
+                this.set_resource_baseline(message.state, this.focused_resource);
+            }
+        } else if (message.revision > previous_revision) {
+            if (changed_resources.length > 0) {
+                for (const resource of changed_resources)
+                    this.apply_resource_update(message.state, resource);
+            } else {
+                // Compatibility path for the foundation's whole-state replacement
+                // and for future session-wide operations such as shared save.
+                const restore_resource = this.current_resource();
+                this.apply_snapshot(message);
+                this.capture_top_level_refs();
+                this.restore_resource_selection(restore_resource);
+            }
+        }
+
+        this.handle_lock_transition(message.state, previous_participants);
+        this.render_control();
+        this.render_status();
+        this.update_resource_access();
+    }
+
+    handle_lock_transition(state, previous_participants) {
+        const resource = this.focused_resource;
+        if (!resource) return;
+        const old_holder = this.lock_holder(resource, previous_participants);
+        const new_holder = this.lock_holder(resource, this.participants);
+        const was_mine = old_holder?.id === this.participant_id;
+        const is_mine = new_holder?.id === this.participant_id;
+
+        if (!was_mine && is_mine) {
+            this.pending_resource_update = false;
+            this.apply_resource_from_state(state, resource, true);
+            this.set_resource_baseline(state, resource);
+        } else if (was_mine && !is_mine) {
+            this.pending_resource_update = false;
+            this.synced_resource_serialized = null;
+            this.last_observed_resource_serialized = null;
+        } else if (!is_mine && new_holder && state) {
+            this.apply_resource_from_state(state, resource, true);
+            this.set_resource_baseline(state, resource);
+        }
+    }
+
     apply_snapshot(message) {
         if (!message.state || !window.game) return;
         window.game.data = message.state;
@@ -208,6 +333,75 @@ class CollaborationClient {
             $('#game_link')
                 .attr('href', `https://2d.hackschule.de/play/${message.source_tag}`)
                 .text(`https://2d.hackschule.de/play/${message.source_tag}`);
+        }
+    }
+
+    apply_resource_update(state, resource) {
+        const holder = this.lock_holder(resource, this.participants);
+        const mine = holder?.id === this.participant_id;
+        if (mine) {
+            this.pending_resource_update = false;
+            this.set_resource_baseline(state, resource, false);
+            return;
+        }
+        this.apply_resource_from_state(state, resource, true);
+        if (resource === this.focused_resource)
+            this.set_resource_baseline(state, resource);
+    }
+
+    apply_resource_from_state(state, resource, refresh_ui) {
+        if (!window.game?.data) return;
+        const value = collaboration_resource_value(state, resource);
+        if (value === null) return;
+        const copied = JSON.parse(JSON.stringify(value));
+
+        if (resource === 'settings') {
+            window.game.data.properties = copied;
+            if (refresh_ui && this.current_resource() === resource)
+                window.game._load();
+            return;
+        }
+
+        const match = /^(sprite|level):(\d+)$/.exec(resource);
+        if (!match) return;
+        const index = Number(match[2]);
+        if (match[1] === 'sprite') {
+            if (!window.game.data.sprites?.[index]) return;
+            const was_current_sprite = window.canvas?.sprite_index === index;
+            if (was_current_sprite) window.canvas.detachSprite();
+            window.game.data.sprites[index] = copied;
+            this.top_level_sprite_refs[index] = window.game.data.sprites[index];
+            window.game.create_geometry_and_material_for_sprite(index);
+            window.game.update_material_for_sprite(index);
+            window.game.refresh_frames_on_screen();
+            if (window.game.level_editor) {
+                window.game.level_editor.refresh_blend_materials?.();
+                window.game.level_editor.refresh?.();
+                window.game.level_editor.render?.();
+            }
+            if (refresh_ui && this.current_resource() === resource) {
+                const item = $('#menu_sprites > ._dnd_item').eq(index).children().eq(0);
+                item.trigger('click');
+            }
+        } else {
+            if (!window.game.data.levels?.[index]) return;
+            window.game.data.levels[index] = copied;
+            this.top_level_level_refs[index] = window.game.data.levels[index];
+            if (refresh_ui && this.current_resource() === resource) {
+                const item = $('#menu_levels > ._dnd_item').eq(index).children().eq(0);
+                item.trigger('click');
+            }
+        }
+    }
+
+    restore_resource_selection(resource) {
+        if (!resource || typeof $ === 'undefined') return;
+        if (resource.startsWith('sprite:') && current_pane === 'sprites') {
+            const index = Number(resource.split(':')[1]);
+            $('#menu_sprites > ._dnd_item').eq(index).children().eq(0).trigger('click');
+        } else if (resource.startsWith('level:') && current_pane === 'level') {
+            const index = Number(resource.split(':')[1]);
+            $('#menu_levels > ._dnd_item').eq(index).children().eq(0).trigger('click');
         }
     }
 
@@ -226,6 +420,16 @@ class CollaborationClient {
         }
     }
 
+    start_resource_loop() {
+        if (this.resource_interval !== null) return;
+        this.resource_interval = setInterval(() => {
+            this.focus_current_resource();
+            this.detect_unsupported_structure_change();
+            this.sync_current_resource();
+            this.update_resource_access();
+        }, 200);
+    }
+
     schedule_reconnect() {
         if (!this.code || !this.name || this.reconnect_timeout !== null) return;
         this.reconnect_timeout = setTimeout(() => {
@@ -233,6 +437,176 @@ class CollaborationClient {
             this.connect(this.code, this.name, this.error_modal);
         }, this.reconnect_delay);
         this.reconnect_delay = Math.min(this.reconnect_delay * 2, 10_000);
+    }
+
+    current_resource() {
+        if (!window.game?.data || typeof current_pane === 'undefined') return null;
+        if (current_pane === 'sprites' && window.canvas?.sprite_index !== null)
+            return `sprite:${window.canvas.sprite_index}`;
+        if (current_pane === 'level' && window.game.level_editor?.level_index !== null)
+            return `level:${window.game.level_editor.level_index}`;
+        if (current_pane === 'settings') return 'settings';
+        return null;
+    }
+
+    focus_current_resource(force = false) {
+        if (!this.connected) return;
+        const resource = this.current_resource();
+        if (!force && resource === this.focused_resource) {
+            this.ensure_current_resource_lock();
+            return;
+        }
+
+        const old_resource = this.focused_resource;
+        if (old_resource && this.owns_lock(old_resource))
+            this.send_command({ type: 'unlock', resource: old_resource });
+
+        this.focused_resource = resource;
+        this.lock_request_pending = false;
+        this.pending_resource_update = false;
+        this.synced_resource_serialized = null;
+        this.last_observed_resource_serialized = null;
+        this.resource_changed_at = 0;
+
+        if (resource) this.request_lock(resource);
+        this.update_resource_access();
+    }
+
+    ensure_current_resource_lock() {
+        const resource = this.focused_resource;
+        if (!this.connected || !resource || this.lock_request_pending) return;
+        const holder = this.lock_holder(resource);
+        if (!holder) this.request_lock(resource);
+    }
+
+    request_lock(resource) {
+        if (!this.connected || !resource || this.lock_request_pending) return;
+        this.lock_request_pending = true;
+        this.send_command({ type: 'lock', resource });
+        this.update_resource_access();
+    }
+
+    send_command(command) {
+        if (this.socket?.readyState !== WebSocket.OPEN) return false;
+        this.socket.send(JSON.stringify({
+            type: 'replace_state',
+            base_revision: this.revision,
+            state: { [COLLABORATION_COMMAND_KEY]: command },
+        }));
+        return true;
+    }
+
+    lock_holder(resource, participants = this.participants) {
+        return (participants ?? []).find(participant => participant.lock?.resource === resource) ?? null;
+    }
+
+    owns_lock(resource) {
+        return this.lock_holder(resource)?.id === this.participant_id;
+    }
+
+    current_resource_revision(resource) {
+        const holder = this.lock_holder(resource);
+        return holder && Number.isInteger(holder.lock?.revision) ? holder.lock.revision : 0;
+    }
+
+    serialize_local_resource(resource) {
+        const value = collaboration_resource_value(window.game?.data, resource);
+        return value === null ? null : JSON.stringify(value);
+    }
+
+    set_resource_baseline(state, resource, reset_observed = true) {
+        const value = collaboration_resource_value(state, resource);
+        if (value === null) return;
+        this.synced_resource_serialized = JSON.stringify(value);
+        if (reset_observed) {
+            this.last_observed_resource_serialized = this.serialize_local_resource(resource);
+            this.resource_changed_at = performance.now();
+        }
+    }
+
+    sync_current_resource() {
+        const resource = this.focused_resource;
+        if (!this.connected || !resource || !this.owns_lock(resource) || this.pending_resource_update)
+            return;
+        if (this.structure_resync_pending) return;
+
+        const serialized = this.serialize_local_resource(resource);
+        if (serialized === null) return;
+        const now = performance.now();
+        if (serialized !== this.last_observed_resource_serialized) {
+            this.last_observed_resource_serialized = serialized;
+            this.resource_changed_at = now;
+            return;
+        }
+        if (serialized === this.synced_resource_serialized || now - this.resource_changed_at < 300)
+            return;
+
+        this.pending_resource_update = true;
+        const sent = this.send_command({
+            type: 'replace_resource',
+            resource,
+            resource_revision: this.current_resource_revision(resource),
+            value: JSON.parse(serialized),
+        });
+        if (!sent) this.pending_resource_update = false;
+    }
+
+    capture_top_level_refs() {
+        if (!window.game?.data) return;
+        this.top_level_sprite_refs = [...(window.game.data.sprites ?? [])];
+        this.top_level_level_refs = [...(window.game.data.levels ?? [])];
+    }
+
+    top_level_structure_changed() {
+        if (!window.game?.data) return false;
+        const sprites = window.game.data.sprites ?? [];
+        const levels = window.game.data.levels ?? [];
+        if (sprites.length !== this.top_level_sprite_refs.length || levels.length !== this.top_level_level_refs.length)
+            return true;
+        for (let i = 0; i < sprites.length; i++)
+            if (sprites[i] !== this.top_level_sprite_refs[i]) return true;
+        for (let i = 0; i < levels.length; i++)
+            if (levels[i] !== this.top_level_level_refs[i]) return true;
+        return false;
+    }
+
+    detect_unsupported_structure_change() {
+        if (!this.connected || this.structure_resync_pending || !this.top_level_structure_changed()) return;
+        this.structure_resync_pending = true;
+        this.force_full_snapshot = true;
+        this.show_temporary_notice('Sprites und Level können in der gemeinsamen Sitzung noch nicht hinzugefügt, gelöscht oder umsortiert werden.', 4500);
+        if (this.socket?.readyState === WebSocket.OPEN)
+            this.socket.send(JSON.stringify({ type: 'request_snapshot' }));
+    }
+
+    install_structure_guards() {
+        document.addEventListener('mousedown', (event) => {
+            if (!this.code) return;
+            const item = event.target.closest?.('#menu_sprites > ._dnd_item:not(.add), #menu_levels > ._dnd_item:not(.add)');
+            if (item) event.stopPropagation();
+        }, true);
+        document.addEventListener('click', (event) => {
+            if (!this.code) return;
+            const add = event.target.closest?.('#menu_sprites > ._dnd_item.add, #menu_levels > ._dnd_item.add');
+            if (!add) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            this.show_temporary_notice('Sprites und Level können in der gemeinsamen Sitzung noch nicht hinzugefügt, gelöscht oder umsortiert werden.', 4500);
+        }, true);
+    }
+
+    install_save_guard() {
+        if (!window.game || this.original_game_save) return;
+        this.original_game_save = window.game.save.bind(window.game);
+        const self = this;
+        window.game.save = function () {
+            if (self.code) {
+                self.show_temporary_notice('Gemeinsames Speichern kommt im nächsten Schritt. Verlasse die Sitzung, wenn du dieses Spiel jetzt normal speichern möchtest.', 5500);
+                return;
+            }
+            return self.original_game_save();
+        };
     }
 
     show() {
@@ -274,6 +648,9 @@ class CollaborationClient {
         this.socket = null;
         this.connected = false;
         this.participants = [];
+        this.focused_resource = null;
+        this.pending_resource_update = false;
+        this.lock_request_pending = false;
         if (this.code) {
             sessionStorage.removeItem(this.participant_storage_key(this.code));
             sessionStorage.removeItem(this.name_storage_key(this.code));
@@ -286,6 +663,7 @@ class CollaborationClient {
         this.source_tag = null;
         history.replaceState(history.state, '', url.pathname + url.search + url.hash);
         this.render_control();
+        this.update_resource_access();
         window.collaborationStatusModal?.dismiss();
     }
 
@@ -329,11 +707,98 @@ class CollaborationClient {
         for (const participant of this.participants) {
             const item = $('<li>').text(participant.name);
             if (participant.id === this.participant_id) item.append(' (du)');
+            if (participant.lock?.resource)
+                item.append(` — ${collaboration_resource_description(participant.lock.resource)}`);
             list.append(item);
         }
         $('#collaboration_connection_status').text(
             collaboration_connection_status(this.connected, this.has_connected_once)
         );
+    }
+
+    ensure_notice() {
+        if (typeof $ === 'undefined') return $();
+        let notice = $('#collaboration-resource-notice');
+        if (!notice.length) {
+            notice = $('<div id="collaboration-resource-notice">').css({
+                position: 'fixed',
+                left: '50%',
+                bottom: '42px',
+                transform: 'translateX(-50%)',
+                'z-index': 850,
+                'max-width': 'min(720px, 90vw)',
+                padding: '0.45em 0.8em',
+                'border-radius': '5px',
+                border: '1px solid rgba(255,255,255,0.25)',
+                background: 'rgba(15,15,18,0.92)',
+                color: '#ddd',
+                'box-shadow': '0 2px 12px rgba(0,0,0,0.55)',
+                'font-size': '14px',
+                'pointer-events': 'none',
+            }).hide().appendTo('body');
+        }
+        return notice;
+    }
+
+    show_temporary_notice(text, duration = 3500) {
+        this.notice_override = text;
+        this.notice_override_until = Date.now() + duration;
+        this.ensure_notice().text(text).show();
+    }
+
+    set_controls_readonly(resource, readonly) {
+        if (typeof $ === 'undefined') return;
+        const all = [
+            '#tool_menu', '#color_menu', '#color_variations_menu', '#functions_dropdown', '#canvas', '#undo_stack',
+            '#menu_frames', '#states_container', '#menu_sprite_properties',
+            '#tool_menu_level', '#tool_menu_level_settings', '#menu_level_sprites', '#level', '#menu_layers',
+            '#menu_level_properties', '#menu_layer_properties', '#menu_placed_properties',
+            '#game-settings-here',
+        ].join(', ');
+        $(all).css({ 'pointer-events': '', opacity: '' });
+        if (!readonly || !resource) return;
+
+        let selectors = '';
+        if (resource.startsWith('sprite:')) {
+            selectors = '#tool_menu, #color_menu, #color_variations_menu, #functions_dropdown, #canvas, #undo_stack, #menu_frames, #states_container, #menu_sprite_properties';
+        } else if (resource.startsWith('level:')) {
+            selectors = '#tool_menu_level, #tool_menu_level_settings, #menu_level_sprites, #level, #menu_layers, #menu_level_properties, #menu_layer_properties, #menu_placed_properties';
+        } else if (resource === 'settings') {
+            selectors = '#game-settings-here';
+        }
+        $(selectors).css({ 'pointer-events': 'none', opacity: 0.55 });
+    }
+
+    update_resource_access() {
+        if (typeof $ === 'undefined') return;
+        const resource = this.current_resource();
+        const notice = this.ensure_notice();
+
+        if (this.notice_override && Date.now() < this.notice_override_until) {
+            notice.text(this.notice_override).show();
+        } else {
+            this.notice_override = null;
+            if (!this.code || !resource) {
+                notice.hide();
+            } else if (!this.connected) {
+                notice.text('Die Verbindung zur gemeinsamen Sitzung ist unterbrochen. Bearbeiten ist vorübergehend gesperrt.').show();
+            } else {
+                const holder = this.lock_holder(resource);
+                if (holder && holder.id !== this.participant_id)
+                    notice.text(`${holder.name} bearbeitet gerade ${collaboration_resource_description(resource)}.`).show();
+                else if (!holder)
+                    notice.text('Bearbeitung wird vorbereitet …').show();
+                else
+                    notice.hide();
+            }
+        }
+
+        if (!this.code || !resource) {
+            this.set_controls_readonly(resource, false);
+            return;
+        }
+        const can_edit = this.connected && this.owns_lock(resource) && !this.structure_resync_pending;
+        this.set_controls_readonly(resource, !can_edit);
     }
 }
 
@@ -347,6 +812,7 @@ function wait_for_collaboration_game(callback) {
 
 function setup_collaboration_ui() {
     window.collaboration = new CollaborationClient();
+    window.collaboration.install_structure_guards();
 
     window.collaborationStartModal = new ModalDialog({
         title: 'Gemeinsam bearbeiten',
@@ -448,10 +914,12 @@ function setup_collaboration_ui() {
     });
 
     window.collaboration.render_control();
+    window.collaboration.install_save_guard();
 
     const code = collaboration_code_from_url(window.location.href);
     if (code) {
         wait_for_collaboration_game(() => {
+            window.collaboration.install_save_guard();
             const remembered_name = sessionStorage.getItem(window.collaboration.name_storage_key(code));
             const remembered_participant = sessionStorage.getItem(window.collaboration.participant_storage_key(code));
             if (remembered_name && remembered_participant) {
@@ -475,5 +943,9 @@ if (typeof module !== 'undefined' && module.exports) {
         collaboration_code_from_url,
         collaboration_websocket_url,
         collaboration_connection_status,
+        collaboration_resource_value,
+        collaboration_lock_revisions,
+        collaboration_changed_resources,
+        collaboration_resource_description,
     };
 }
