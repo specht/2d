@@ -37,6 +37,10 @@ function collaboration_connection_status(connected, has_connected_once) {
         : 'Verbindung wird hergestellt …';
 }
 
+function collaboration_status_label(connected, participant_count) {
+    return connected ? `Gemeinsam · ${participant_count}` : 'Gemeinsam …';
+}
+
 function collaboration_resource_value(state, resource) {
     if (!state || !resource) return null;
     if (resource === 'settings') return state.properties ?? null;
@@ -94,6 +98,7 @@ class CollaborationClient {
         this.connected = false;
         this.has_connected_once = false;
         this.show_status_after_welcome = false;
+        this.scroll_status_after_welcome = false;
         this.intentional_close = false;
         this.reconnect_timeout = null;
         this.reconnect_delay = 1000;
@@ -157,6 +162,7 @@ class CollaborationClient {
             modal.dismiss();
             this.set_code_in_url(data.code);
             this.show_status_after_welcome = true;
+            this.scroll_status_after_welcome = true;
             this.connect(data.code, name);
         });
     }
@@ -173,6 +179,7 @@ class CollaborationClient {
             return;
         }
         this.set_code_in_url(code);
+        this.scroll_status_after_welcome = true;
         modal.dismiss();
         this.connect(code, name, modal);
     }
@@ -254,6 +261,10 @@ class CollaborationClient {
             this.render_control();
             this.render_status();
             this.focus_current_resource(true);
+            if (this.scroll_status_after_welcome) {
+                this.scroll_status_after_welcome = false;
+                $('#status-bar').scrollLeft(0);
+            }
             if (this.show_status_after_welcome) {
                 this.show_status_after_welcome = false;
                 window.collaborationStatusModal?.show();
@@ -854,12 +865,11 @@ class CollaborationClient {
         control.empty();
 
         if (this.code) {
-            control.attr('title', `Gemeinsame Sitzung ${this.code} anzeigen`);
+            control.attr('title', 'Gemeinsame Sitzung anzeigen');
             control.append($('<span>').addClass('collaboration-status-dot'));
-            const label = this.connected
-                ? `Gemeinsam · ${this.code} · ${this.participants.length}`
-                : `Gemeinsam · ${this.code} …`;
-            control.append($('<span>').text(label));
+            control.append($('<span>').text(
+                collaboration_status_label(this.connected, this.participants.length)
+            ));
             status_bar.prepend(control);
         } else {
             control.attr('title', 'Gemeinsame Sitzung starten oder beitreten');
@@ -1254,6 +1264,7 @@ if (typeof module !== 'undefined' && module.exports) {
         collaboration_code_from_url,
         collaboration_websocket_url,
         collaboration_connection_status,
+        collaboration_status_label,
         collaboration_resource_value,
         collaboration_lock_revisions,
         collaboration_changed_resources,
