@@ -2,12 +2,15 @@ require "base64"
 require "chunky_png"
 require "date"
 require "digest"
+require "faye/websocket"
+Faye::WebSocket.load_adapter("thin")
 require 'fileutils'
 require "json"
 require "neo4j_bolt"
 require "sinatra/base"
 require "sinatra/cookies"
 require 'vips'
+require_relative "collaboration"
 
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 DEVELOPMENT = ENV['DEVELOPMENT'] == '1'
@@ -105,6 +108,12 @@ end
 class Main < Sinatra::Base
     include Neo4jBolt
     helpers Sinatra::Cookies
+
+    if DEVELOPMENT
+        @@collaboration_store = Collaboration::Store.new
+        @@collaboration_sockets = Hash.new { |hash, code| hash[code] = {} }
+        @@collaboration_sockets_mutex = Mutex.new
+    end
 
     configure do
         set :show_exceptions, false
@@ -230,6 +239,197 @@ class Main < Sinatra::Base
 
     post "/api/ping" do
         respond(:pong => "yay")
+    end
+
+    if DEVELOPMENT
+        def collaboration_snapshot_payload(type, snapshot, extra = {})
+            {
+                :type => type,
+                :code => snapshot[:code],
+                :source_tag => snapshot[:source_tag],
+                :revision => snapshot[:revision],
+                :state => snapshot[:state],
+                :participants => snapshot[:participants],
+            }.merge(extra)
+        end
+
+        def collaboration_presence_payload(snapshot)
+            {
+                :type => "presence",
+                :revision => snapshot[:revision],
+                :participants => snapshot[:participants],
+            }
+        end
+
+        def collaboration_send(socket, payload)
+            socket.send(payload.to_json)
+        rescue => e
+            debug "Could not send collaboration message: #{e}"
+        end
+
+        def collaboration_register_socket(code, participant_id, connection_id, socket)
+            @@collaboration_sockets_mutex.synchronize do
+                @@collaboration_sockets[code][participant_id] = {
+                    :connection_id => connection_id,
+                    :socket => socket,
+                }
+            end
+        end
+
+        def collaboration_unregister_socket(code, participant_id, connection_id)
+            @@collaboration_sockets_mutex.synchronize do
+                sockets = @@collaboration_sockets[code]
+                entry = sockets[participant_id]
+                if entry && entry[:connection_id] == connection_id
+                    sockets.delete(participant_id)
+                end
+                @@collaboration_sockets.delete(code) if sockets.empty?
+            end
+        end
+
+        def collaboration_broadcast(code, payload)
+            sockets = @@collaboration_sockets_mutex.synchronize do
+                @@collaboration_sockets[code].values.map { |entry| entry[:socket] }
+            end
+            sockets.each { |socket| collaboration_send(socket, payload) }
+        end
+
+        def collaboration_broadcast_presence(code)
+            snapshot = @@collaboration_store.snapshot(:code => code)
+            collaboration_broadcast(code, collaboration_presence_payload(snapshot))
+        rescue Collaboration::SessionNotFound
+        end
+
+        post "/api/collaboration/create" do
+            data = parse_request_data(
+                :required_keys => [:game],
+                :optional_keys => [:source_tag],
+                :types => { :game => Hash, :source_tag => String },
+                :max_value_lengths => { :source_tag => 64 },
+                :max_body_length => 1024 * 1024 * 20,
+            )
+            snapshot = @@collaboration_store.create(
+                :state => data[:game],
+                :source_tag => data[:source_tag],
+            )
+            respond(
+                :code => snapshot[:code],
+                :revision => snapshot[:revision],
+            )
+        end
+
+        get "/collaboration/:code" do
+            unless Faye::WebSocket.websocket?(request.env)
+                status 426
+                return "WebSocket required"
+            end
+
+            code = params[:code]
+            socket = Faye::WebSocket.new(request.env, nil, :ping => 30)
+            participant_id = nil
+            connection_id = nil
+
+            socket.on :message do |event|
+                begin
+                    if event.data.bytesize > 1024 * 1024 * 20
+                        collaboration_send(socket, :type => "error", :error => "too_much_data")
+                        socket.close(1009, "too_much_data")
+                        next
+                    end
+                    message = JSON.parse(event.data)
+
+                    if participant_id.nil?
+                        unless message["type"] == "join"
+                            collaboration_send(socket, :type => "error", :error => "join_required")
+                            socket.close(1008, "join_required")
+                            next
+                        end
+                        requested_participant_id = message["participant_id"]
+                        unless requested_participant_id.is_a?(String) && requested_participant_id.size <= 64
+                            requested_participant_id = nil
+                        end
+                        joined = @@collaboration_store.join(
+                            :code => code,
+                            :name => message["name"],
+                            :participant_id => requested_participant_id,
+                        )
+                        participant_id = joined[:participant_id]
+                        connection_id = joined[:connection_id]
+                        collaboration_register_socket(code, participant_id, connection_id, socket)
+                        collaboration_send(
+                            socket,
+                            collaboration_snapshot_payload(
+                                "welcome",
+                                joined[:snapshot],
+                                :participant_id => participant_id,
+                            ),
+                        )
+                        collaboration_broadcast_presence(code)
+                        next
+                    end
+
+                    case message["type"]
+                    when "heartbeat"
+                        @@collaboration_store.touch(
+                            :code => code,
+                            :participant_id => participant_id,
+                            :connection_id => connection_id,
+                        )
+                    when "request_snapshot"
+                        snapshot = @@collaboration_store.snapshot(:code => code)
+                        collaboration_send(socket, collaboration_snapshot_payload("state", snapshot))
+                    when "replace_state"
+                        unless message["base_revision"].is_a?(Integer) && message["state"].is_a?(Hash)
+                            collaboration_send(socket, :type => "error", :error => "invalid_state_update")
+                            next
+                        end
+                        result = @@collaboration_store.replace_state(
+                            :code => code,
+                            :participant_id => participant_id,
+                            :connection_id => connection_id,
+                            :base_revision => message["base_revision"],
+                            :state => message["state"],
+                        )
+                        if result[:applied]
+                            collaboration_broadcast(
+                                code,
+                                collaboration_snapshot_payload("state", result[:snapshot]),
+                            )
+                        else
+                            collaboration_send(
+                                socket,
+                                collaboration_snapshot_payload("resync", result[:snapshot]),
+                            )
+                        end
+                    else
+                        collaboration_send(socket, :type => "error", :error => "unknown_message")
+                    end
+                rescue JSON::ParserError
+                    collaboration_send(socket, :type => "error", :error => "invalid_json")
+                rescue Collaboration::Error => e
+                    collaboration_send(socket, :type => "error", :error => e.message)
+                    socket.close(1008, e.message)
+                rescue => e
+                    debug_error "Collaboration WebSocket error: #{e}"
+                    collaboration_send(socket, :type => "error", :error => "internal_error")
+                    socket.close(1011, "internal_error")
+                end
+            end
+
+            socket.on :close do |_event|
+                if participant_id && connection_id
+                    @@collaboration_store.leave(
+                        :code => code,
+                        :participant_id => participant_id,
+                        :connection_id => connection_id,
+                    )
+                    collaboration_unregister_socket(code, participant_id, connection_id)
+                    collaboration_broadcast_presence(code)
+                end
+            end
+
+            socket.rack_response
+        end
     end
 
     def self.render_spritesheet_for_tag(tag)

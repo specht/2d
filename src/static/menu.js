@@ -331,6 +331,7 @@ class Menu {
                 }
             }
         }
+        window.collaboration?.append_status_control?.(statusBar);
     }
 
     handle_click(key) {
