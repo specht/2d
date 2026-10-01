@@ -14,6 +14,9 @@ const {
     apply_collaboration_structure,
     collaboration_rejection_notice,
     collaboration_lock_taken_notice,
+    collaboration_lock_race_notice,
+    collaboration_same_sprite_structure,
+    collaboration_copy_frame_sources,
     collaboration_leave_text,
     collaboration_join_error_text,
     collaboration_resource_description,
@@ -195,6 +198,7 @@ function harness({ pane = 'sprites', sprite_index = 0 } = {}) {
     client.connected = true;
     client.participant_id = 'me';
     client.socket = { readyState: 1, send(json) { sent.push(JSON.parse(json)); } };
+    client.remember_all_server_values(); // what a snapshot does
     const restore = () => Object.assign(global, saved);
     return { client, sent, loads, data: global.window.game.data, restore };
 }
@@ -265,7 +269,8 @@ test('leaving a resource sends its last change before giving up the lock', () =>
         h.client.handle_message({ type: 'update', revision: 1, resource: 'sprite:held', resource_revision: 1,
             value: h.sent[0].value, participant_id: 'me' });
         h.client.focus_current_resource();
-        assert.deepEqual(h.sent.slice(1), [{ type: 'unlock', resource: 'sprite:held' }, { type: 'lock', resource: 'sprite:muenze' }]);
+        // one message: the server moves the lock to the new sprite
+        assert.deepEqual(h.sent.slice(1), [{ type: 'lock', resource: 'sprite:muenze' }]);
         assert.equal(h.client.focused_resource, 'sprite:muenze');
     } finally { h.restore(); }
 });
@@ -624,4 +629,115 @@ test('a refused join drops the code, a bad name keeps it', () => {
         assert.equal(h.client.code, null);
         assert.equal(errors.length, 2);
     } finally { h.restore(); }
+});
+
+// ------------------------------------------------------------ switching without flicker
+
+test('a resource nobody holds can be edited right away, before our lock arrives', () => {
+    const h = harness();
+    try {
+        h.client.focus_current_resource(true);
+        assert.deepEqual(h.sent, [{ type: 'lock', resource: 'sprite:held' }]);
+        assert.equal(h.client.can_edit_current(), true, 'no waiting, no dimming');
+        h.client.participants = [{ id: 'o', name: 'Ben', lock: { resource: 'sprite:held' } }];
+        assert.equal(h.client.can_edit_current(), false, 'somebody else holds it');
+        h.client.participants = [];
+        h.client.connected = false;
+        assert.equal(h.client.can_edit_current(), false, 'disconnected');
+    } finally { h.restore(); }
+});
+
+test('changes made before the lock arrived are sent once it is there', () => {
+    const h = harness();
+    try {
+        h.client.focus_current_resource(true);
+        h.data.sprites[0].name = 'schon gezeichnet';
+        h.client.sync_current_resource();
+        h.client.resource_changed_at -= 1000;
+        h.client.sync_current_resource();
+        assert.deepEqual(h.sent.map(m => m.type), ['lock'], 'nothing is sent without the lock');
+        assert.equal(h.client.has_unsaved_changes(), true);
+
+        h.client.handle_presence(me_holding('sprite:held'));
+        assert.equal(h.client.lock_request, null);
+        h.client.sync_current_resource();
+        h.client.resource_changed_at -= 1000;
+        h.client.sync_current_resource();
+        const update = h.sent.find(m => m.type === 'update');
+        assert.equal(update?.value.name, 'schon gezeichnet');
+    } finally { h.restore(); }
+});
+
+test('if somebody else was faster, our early changes are undone and the old lock is released', () => {
+    const h = harness({ sprite_index: 1 });
+    try {
+        h.client.focused_resource = 'sprite:held';
+        h.client.handle_presence(me_holding('sprite:held'));
+        h.client.focus_current_resource(); // the canvas now shows "muenze"
+        assert.deepEqual(h.sent.at(-1), { type: 'lock', resource: 'sprite:muenze' });
+        h.data.sprites[1].name = 'meins';
+
+        h.client.handle_message({ type: 'presence', participants: [
+            { id: 'me', name: 'Ich', lock: { resource: 'sprite:held' } },
+            { id: 'o', name: 'Ben', lock: { resource: 'sprite:muenze' } },
+        ] });
+        assert.equal(h.data.sprites[1].name, 'Münze', 'back to the server version');
+        assert.equal(h.client.notice_override, collaboration_lock_race_notice('Ben', 'sprite:muenze'));
+        assert.deepEqual(h.sent.at(-1), { type: 'unlock', resource: 'sprite:held' });
+        assert.equal(h.client.has_unsaved_changes(), false);
+    } finally { h.restore(); }
+});
+
+test('a stroke finished after somebody else took the sprite is undone', () => {
+    const h = harness();
+    try {
+        h.client.focus_current_resource(true);
+        h.client.handle_presence([{ id: 'me', name: 'Ich' }, { id: 'o', name: 'Ben', lock: { resource: 'sprite:held' } }]);
+        h.data.sprites[0].name = 'Mausklick kam zu spät';
+        h.client.sync_current_resource();
+        assert.equal(h.data.sprites[0].name, 'Held');
+        assert.ok(!h.sent.some(m => m.type === 'update'));
+    } finally { h.restore(); }
+});
+
+test('a lock request without an answer is sent again', () => {
+    const h = harness();
+    try {
+        h.client.focus_current_resource(true);
+        h.client.ensure_current_resource_lock();
+        assert.equal(h.sent.filter(m => m.type === 'lock').length, 1);
+        h.client.lock_request.at -= 10_000;
+        h.client.ensure_current_resource_lock();
+        assert.equal(h.sent.filter(m => m.type === 'lock').length, 2);
+    } finally { h.restore(); }
+});
+
+test('a shared save waits for our lock and then sends the early change first', () => {
+    const h = harness();
+    try {
+        h.client.focus_current_resource(true);
+        h.data.sprites[0].name = 'vor dem Speichern';
+        h.client.request_shared_save();
+        assert.ok(!h.sent.some(m => m.type === 'save' || m.type === 'update'));
+        h.client.handle_presence(me_holding('sprite:held'));
+        const update = h.sent.find(m => m.type === 'update');
+        assert.equal(update?.value.name, 'vor dem Speichern');
+        h.client.handle_message({ type: 'update', revision: 1, resource: 'sprite:held', resource_revision: 1,
+            value: update.value, participant_id: 'me' });
+        assert.equal(h.sent.at(-1).type, 'save');
+    } finally { h.restore(); }
+});
+
+test('pixel-only changes are recognised so the editor is not rebuilt', () => {
+    const sprite = (src, fps = 8) => ({ id: 's', traits: { pickup: {} },
+        states: [{ properties: { name: 'a', fps }, frames: [{ src }, { src: 'x' }] }] });
+    assert.equal(collaboration_same_sprite_structure(sprite('a'), sprite('b')), true);
+    assert.equal(collaboration_same_sprite_structure(sprite('a'), sprite('a', 12)), false);
+    const fewer = sprite('a');
+    fewer.states[0].frames.pop();
+    assert.equal(collaboration_same_sprite_structure(sprite('a'), fewer), false);
+    const target = sprite('alt');
+    const first_frame = target.states[0].frames[0];
+    collaboration_copy_frame_sources(target, sprite('neu'));
+    assert.equal(first_frame.src, 'neu', 'frames are updated in place');
 });
