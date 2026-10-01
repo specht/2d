@@ -131,7 +131,7 @@ The current tags are content-derived. Simply clearing `parent` is therefore not 
 
 #### Live collaboration
 
-Live collaboration lets groups work on the **same game at the same time from different browsers**. It is currently only enabled in development mode (`DEVELOPMENT = true`); the sessions live in the memory of the Ruby process, so restarting it ends all sessions.
+Live collaboration lets groups work on the **same game at the same time from different browsers**. It is enabled in development and production; `COLLABORATION = false` in `env.rb` switches it off (then run `./config.rb build` and restart). Sessions live in the memory of the Ruby process and are written to `raw/collaboration/sessions.json` every 30 seconds and on shutdown, so a restart or deploy does not end them: browsers reconnect and continue. That file contains the secret session codes and reconnect tokens; it lives below `raw/`, which nginx does not serve, and must stay there. A session ends six hours after the last activity. At most 200 sessions run at the same time (`COLLABORATION_MAX_SESSIONS` in the Ruby container's environment changes that) and 40 people can be in one session; one client address can keep at most 60 sessions open, and a client that enters many wrong session codes is blocked for a few minutes.
 
 Collaboration should stay compatible with the no-account model:
 

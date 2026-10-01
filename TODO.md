@@ -210,7 +210,7 @@ The version graph and an independent fork are different concepts. Do not delete 
 
 Facilitate working on one game from two or more browsers without introducing accounts.
 
-**Current state:** the first milestone below is implemented for development mode (see README). Still open: enabling it in production (sessions currently live in the memory of one Ruby process and end when it restarts), and deciding from classroom use whether the lock lease (3 minutes without a change) is right.
+**Current state:** the first milestone below is implemented and enabled in production (see README). Still open: deciding from classroom use whether the lock lease (3 minutes without a change) and the limits (200 sessions, 40 people per session) are right, and whether sessions should ever run on more than one Ruby process (they are kept in the memory of one).
 
 Collaboration is an explicit temporary session, not a property of every public game. The ordinary game code remains enough to open, edit and save an independent descendant as it is today, but it must not allow somebody to enter an active shared editing session. Starting **Gemeinsam bearbeiten** should create a separate hard-to-guess collaboration link or code that can be shared deliberately.
 

@@ -6,6 +6,9 @@
 # für Produktionsumgebungen bitte auf false setzen
 DEVELOPMENT = true
 
+# Gemeinsames Bearbeiten (Live-Collaboration) im Studio; false schaltet es ab
+COLLABORATION = true
+
 # Präfix für Docker-Container-Namen
 PROJECT_NAME = '2d' + (DEVELOPMENT ? 'dev' : '')
 

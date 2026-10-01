@@ -122,6 +122,20 @@ function collaboration_leave_text(reason, { alone = false, unsaved = false } = {
     return `${start} Die anderen können weiterarbeiten und das Spiel speichern.`;
 }
 
+// What to tell somebody whose join was refused; null for errors that are not
+// about joining (those are handled by reconnecting).
+function collaboration_join_error_text(error) {
+    switch (error) {
+        case 'session_not_found': return 'Unter diesem Code gibt es keine gemeinsame Sitzung. Prüfe den Code.';
+        case 'session_full': return 'In dieser Sitzung sind schon sehr viele dabei. Mehr passen nicht hinein.';
+        case 'too_many_attempts': return 'Es wurden zu oft falsche Codes eingegeben. Warte ein paar Minuten und versuche es dann noch einmal.';
+        case 'name_required':
+        case 'invalid_name':
+        case 'name_too_long': return 'Bitte gib einen gültigen Namen ein (höchstens 40 Zeichen).';
+        default: return null;
+    }
+}
+
 function collaboration_lock_taken_notice(name, resource) {
     const kind = parse_collaboration_resource(resource)?.kind;
     const what = kind === 'settings' ? 'den Einstellungen' : kind === 'level' ? 'diesem Level' : 'diesem Sprite';
@@ -243,7 +257,9 @@ class CollaborationClient {
 
         api_call('/api/collaboration/create', payload, (data) => {
             if (!data.success) {
-                modal.showError('Die gemeinsame Sitzung konnte nicht gestartet werden.');
+                modal.showError(data.error === 'too_many_sessions'
+                    ? 'Gerade laufen sehr viele gemeinsame Sitzungen. Versuche es in ein paar Minuten noch einmal.'
+                    : 'Die gemeinsame Sitzung konnte nicht gestartet werden.');
                 return;
             }
             modal.dismiss();
@@ -560,10 +576,10 @@ class CollaborationClient {
 
     handle_error(message) {
         console.warn('Collaboration error', message.error);
-        const join_errors = ['session_not_found', 'name_required', 'invalid_name', 'name_too_long'];
+        const text = collaboration_join_error_text(message.error);
         // Other errors are either harmless or the server closes the socket,
         // after which we reconnect.
-        if (!message.fatal || !join_errors.includes(message.error)) return;
+        if (!message.fatal || text === null) return;
 
         this.intentional_close = true;
         const session_not_found = message.error === 'session_not_found';
@@ -572,10 +588,8 @@ class CollaborationClient {
             this.end_session('Die gemeinsame Sitzung gibt es nicht mehr, zum Beispiel weil längere Zeit niemand dabei war. Dein Stand ist noch hier. Speichere ihn, damit nichts verloren geht.');
             return;
         }
-        const text = session_not_found
-            ? 'Unter diesem Code gibt es keine gemeinsame Sitzung. Prüfe den Code.'
-            : 'Bitte gib einen gültigen Namen ein (höchstens 40 Zeichen).';
-        if (session_not_found) {
+        // With a bad name the code is fine and stays; otherwise it is dropped.
+        if (!['name_required', 'invalid_name', 'name_too_long'].includes(message.error)) {
             this.code = null;
             this.participant_id = null;
             const url = new URL(window.location.href);
@@ -1582,7 +1596,7 @@ function setup_collaboration_ui() {
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     document.addEventListener('DOMContentLoaded', () => {
-        if (window.DEVELOPMENT) setup_collaboration_ui();
+        if (window.COLLABORATION) setup_collaboration_ui();
     });
 }
 
@@ -1605,6 +1619,7 @@ if (typeof module !== 'undefined' && module.exports) {
         collaboration_rejection_notice,
         collaboration_lock_taken_notice,
         collaboration_leave_text,
+        collaboration_join_error_text,
         collaboration_resource_description,
         collaboration_saved_notice,
         collaboration_save_error_message,

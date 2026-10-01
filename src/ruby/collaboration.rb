@@ -1,3 +1,4 @@
+require "fileutils"
 require "json"
 require "securerandom"
 require "thread"
@@ -30,6 +31,10 @@ require "thread"
 # every participant gets a secret reconnect token; with it, a browser whose
 # connection dropped takes over its own participant (and lock) again, even
 # before the server noticed that the old connection is gone.
+#
+# Sessions live in memory. persist_to/restore_from write them to a private file
+# and read them back, so a server restart (a deploy, for example) does not end
+# them: after the restart everybody reconnects with their token.
 module Collaboration
     class Error < StandardError; end
     class SessionNotFound < Error; end
@@ -37,6 +42,48 @@ module Collaboration
     class InvalidParticipant < Error; end
     class InvalidSave < Error; end
     class InvalidGame < Error; end
+    class TooManySessions < Error; end
+    class SessionFull < Error; end
+    class TooManyAttempts < Error; end
+
+    # Counts failed attempts (wrong session codes) per client and blocks a
+    # client that keeps guessing. Generous on purpose: a whole school may share
+    # one IP address, and children mistype codes.
+    class AttemptLimiter
+        def initialize(clock: -> { Time.now.to_f }, max_failures: 60, window: 10 * 60)
+            @clock = clock
+            @max_failures = max_failures
+            @window = window
+            @failures = {}
+            @mutex = Mutex.new
+        end
+
+        def blocked?(key)
+            @mutex.synchronize do
+                prune_locked(key)
+                (@failures[key] || []).length >= @max_failures
+            end
+        end
+
+        def failure!(key)
+            @mutex.synchronize do
+                prune_locked(key)
+                (@failures[key] ||= []) << @clock.call
+                # keep the table small
+                @failures.delete_if { |_key, times| times.empty? } if @failures.size > 10_000
+            end
+        end
+
+        private
+
+        def prune_locked(key)
+            times = @failures[key]
+            return unless times
+            limit = @clock.call - @window
+            times.shift while times.first && times.first < limit
+            @failures.delete(key) if times.empty?
+        end
+    end
 
     class Store
         DEFAULT_SESSION_TTL = 6 * 60 * 60
@@ -44,6 +91,12 @@ module Collaboration
         # Background tabs may send their heartbeat only once a minute.
         DEFAULT_STALE_AFTER = 120
         DEFAULT_LOCK_LEASE = 3 * 60
+        DEFAULT_MAX_SESSIONS = 200
+        # Sessions one client address may have open at the same time. A whole
+        # school may share one address, so this is generous.
+        DEFAULT_MAX_SESSIONS_PER_CREATOR = 60
+        DEFAULT_MAX_PARTICIPANTS = 40
+        PERSISTENCE_VERSION = 1
         MAX_NAME_LENGTH = 40
         COLLABORATION_CODE_LENGTH = 6
         COLLABORATION_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".freeze
@@ -55,6 +108,9 @@ module Collaboration
                        reconnect_grace: DEFAULT_RECONNECT_GRACE,
                        stale_after: DEFAULT_STALE_AFTER,
                        lock_lease: DEFAULT_LOCK_LEASE,
+                       max_sessions: DEFAULT_MAX_SESSIONS,
+                       max_sessions_per_creator: DEFAULT_MAX_SESSIONS_PER_CREATOR,
+                       max_participants: DEFAULT_MAX_PARTICIPANTS,
                        code_generator: -> {
                            Array.new(COLLABORATION_CODE_LENGTH) {
                                COLLABORATION_CODE_ALPHABET[
@@ -69,6 +125,13 @@ module Collaboration
             @reconnect_grace = reconnect_grace
             @stale_after = stale_after
             @lock_lease = lock_lease
+            @max_sessions = max_sessions
+            @max_sessions_per_creator = max_sessions_per_creator
+            @max_participants = max_participants
+            # code => [fingerprint, json] of the last persisted version of each
+            # session; only changed sessions are serialized again.
+            @persist_cache = {}
+            @persist_mutex = Mutex.new
             @token_generator = token_generator
             @code_generator = code_generator
             @id_generator = id_generator
@@ -76,15 +139,22 @@ module Collaboration
             @mutex = Mutex.new
         end
 
-        def create(state:, source_tag: nil)
+        # creator identifies the client (its address); it is only used to limit
+        # how many sessions one client keeps open, and never written to disk.
+        def create(state:, source_tag: nil, creator: nil)
             copied_state = deep_copy(state)
             validate_game!(copied_state)
             @mutex.synchronize do
                 now = @clock.call
                 cleanup_locked(now)
+                raise TooManySessions, "too_many_sessions" if @sessions.size >= @max_sessions
+                if creator && @sessions.values.count { |session| session[:creator] == creator } >= @max_sessions_per_creator
+                    raise TooManySessions, "too_many_sessions"
+                end
                 code = unique_id(@sessions, @code_generator)
                 @sessions[code] = {
                     code: code,
+                    creator: creator,
                     source_tag: source_tag,
                     state: copied_state,
                     revision: 0,
@@ -117,6 +187,8 @@ module Collaboration
                 participant = nil unless participant && secure_equal?(participant[:reconnect_token], reconnect_token)
                 replaced_connection_id = nil
                 if participant.nil?
+                    connected = session[:participants].values.count { |other| other[:connected] }
+                    raise SessionFull, "session_full" if connected >= @max_participants
                     participant_id = unique_id(session[:participants], @id_generator)
                     participant = {
                         id: participant_id,
@@ -392,6 +464,71 @@ module Collaboration
             end
         end
 
+        # ------------------------------------------------------ persistence
+
+        # Writes all sessions to path (atomically, readable only by the
+        # server). Skipped if nothing changed since the last write. Each session
+        # is serialized on its own while holding the lock, and only when it
+        # changed, so other sessions are not held up by a large game. The file
+        # holds the reconnect tokens: it must never be served to browsers.
+        def persist_to(path, force: false)
+            @persist_mutex.synchronize do
+                codes = @mutex.synchronize do
+                    cleanup_locked(@clock.call)
+                    @sessions.keys.sort
+                end
+                changed = force || codes != @persist_cache.keys.sort
+                cache = {}
+                codes.each do |code|
+                    entry = @mutex.synchronize do
+                        session = @sessions[code]
+                        if session
+                            fingerprint = persist_fingerprint(session)
+                            cached = @persist_cache[code]
+                            if cached && cached[0] == fingerprint
+                                cached
+                            else
+                                [fingerprint, JSON.generate(persistable_session(session))]
+                            end
+                        end
+                    end
+                    next if entry.nil? # ended in the meantime
+                    changed ||= !@persist_cache[code].equal?(entry)
+                    cache[code] = entry
+                end
+                changed ||= cache.size != codes.size
+                next false unless changed
+
+                data = "{\"version\":#{PERSISTENCE_VERSION},\"sessions\":[#{cache.values.map(&:last).join(",")}]}"
+                FileUtils.mkdir_p(File.dirname(path))
+                temporary = "#{path}.#{Process.pid}.tmp"
+                File.open(temporary, "w", 0o600) { |f| f.write(data) }
+                File.rename(temporary, path)
+                @persist_cache = cache
+                true
+            end
+        end
+
+        # Reads sessions written by persist_to. Every participant starts out
+        # disconnected (their reconnect grace starts now) and without a lock.
+        # Returns the number of restored sessions.
+        def restore_from(path)
+            return 0 unless File.exist?(path)
+            data = JSON.parse(File.read(path), symbolize_names: false)
+            return 0 unless data.is_a?(Hash) && data["version"] == PERSISTENCE_VERSION
+            @mutex.synchronize do
+                now = @clock.call
+                Array(data["sessions"]).each do |raw|
+                    session = restore_session(raw, now)
+                    @sessions[session[:code]] = session if session && !@sessions.key?(session[:code])
+                end
+                cleanup_locked(now)
+                @sessions.size
+            end
+        rescue JSON::ParserError, TypeError, NoMethodError, KeyError
+            0
+        end
+
         private
 
         def with_participant(code, participant_id, connection_id)
@@ -428,6 +565,51 @@ module Collaboration
             result = 0
             expected.bytes.zip(given.bytes) { |a, b| result |= a ^ b }
             result.zero?
+        end
+
+        # Everything persist_to writes that can change; last_seen is left out
+        # on purpose (it changes with every heartbeat).
+        def persist_fingerprint(session)
+            [
+                session[:revision], session[:saved_revision], session[:source_tag],
+                session[:participants].map { |id, p| [id, p[:name], p[:reconnect_token]] }.sort,
+            ]
+        end
+
+        def persistable_session(session)
+            session.reject { |key, _value| key == :creator }.merge(
+                save: nil,
+                participants: session[:participants].transform_values { |p| p.merge(lock: nil, connected: false, connection_id: nil) },
+            )
+        end
+
+        def restore_session(raw, now)
+            return nil unless raw.is_a?(Hash) && raw["code"].is_a?(String) && raw["state"].is_a?(Hash)
+            participants = {}
+            (raw["participants"] || {}).each do |id, p|
+                next unless p.is_a?(Hash) && p["reconnect_token"].is_a?(String)
+                participants[id] = {
+                    id: id,
+                    name: p["name"].to_s,
+                    reconnect_token: p["reconnect_token"],
+                    connected: false,
+                    connection_id: nil,
+                    lock: nil,
+                    last_seen: now,
+                }
+            end
+            {
+                code: raw["code"],
+                source_tag: raw["source_tag"],
+                state: raw["state"],
+                revision: raw["revision"].to_i,
+                saved_revision: raw["saved_revision"].to_i,
+                resource_revisions: (raw["resource_revisions"] || {}).transform_values(&:to_i),
+                participants: participants,
+                save: nil,
+                created_at: raw["created_at"].to_f,
+                last_seen: raw["last_seen"].to_f,
+            }
         end
 
         def deep_copy(value)

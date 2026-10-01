@@ -14,6 +14,11 @@ require_relative "collaboration"
 
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 DEVELOPMENT = ENV['DEVELOPMENT'] == '1'
+# Live collaboration is on unless env.rb sets COLLABORATION = false.
+COLLABORATION_ENABLED = ENV['COLLABORATION'] != '0'
+# Private: holds session codes and reconnect tokens. /raw is not served by nginx
+# (unlike /gen), so this file never reaches a browser.
+COLLABORATION_SESSIONS_PATH = "/raw/collaboration/sessions.json"
 
 # PLAYTESTING_CODES = %w(julsvqy 1jbz4p0 qgwoy5f i4m59yz lmj7an3 8xhq8j1 8dstqjr 9qm3dia 1xmrz1a 2nr282i 87ptg6p bxxrg3y batpvl1 3a0bjsj 63n5ctg fca36s9 6r5s9la)
 # PLAYTESTING_CODES =  %w(ecl2n33 p27pvol h584cqf lb2672t qlwiuc3 okykj2a l7ve07z nf1erli tddzhot i5twcj9 n2kddt3 5awyxio qhrphxd njwb0dj 3n89o25)
@@ -109,10 +114,40 @@ class Main < Sinatra::Base
     include Neo4jBolt
     helpers Sinatra::Cookies
 
-    if DEVELOPMENT
-        @@collaboration_store = Collaboration::Store.new
+    if COLLABORATION_ENABLED
+        @@collaboration_store = Collaboration::Store.new(
+            max_sessions: (ENV['COLLABORATION_MAX_SESSIONS'] || Collaboration::Store::DEFAULT_MAX_SESSIONS).to_i,
+        )
+        @@collaboration_join_attempts = Collaboration::AttemptLimiter.new
         @@collaboration_sockets = Hash.new { |hash, code| hash[code] = {} }
         @@collaboration_sockets_mutex = Mutex.new
+
+        # Sessions outlive a restart of this process (a deploy, or a code
+        # reload in development): written every 30 s when something changed,
+        # and once more on a regular shutdown.
+        begin
+            restored = @@collaboration_store.restore_from(COLLABORATION_SESSIONS_PATH)
+            debug "Restored #{restored} collaboration session(s)" if restored > 0
+        rescue => e
+            debug_error "Could not restore collaboration sessions: #{e}"
+        end
+        Thread.new do
+            loop do
+                sleep 30
+                begin
+                    @@collaboration_store.persist_to(COLLABORATION_SESSIONS_PATH)
+                rescue => e
+                    debug_error "Could not persist collaboration sessions: #{e}"
+                end
+            end
+        end
+        at_exit do
+            begin
+                @@collaboration_store.persist_to(COLLABORATION_SESSIONS_PATH, force: true)
+            rescue => e
+                STDERR.puts "Could not persist collaboration sessions: #{e}"
+            end
+        end
     end
 
     configure do
@@ -241,7 +276,7 @@ class Main < Sinatra::Base
         respond(:pong => "yay")
     end
 
-    if DEVELOPMENT
+    if COLLABORATION_ENABLED
         # Live collaboration: src/ruby/collaboration.rb keeps the sessions,
         # src/static/collaboration.js is the studio side. Every participant has
         # one WebSocket; messages are small JSON operations. Applied operations
@@ -305,6 +340,11 @@ class Main < Sinatra::Base
                 :state => snapshot[:state],
                 :participants => snapshot[:participants],
             }.merge(extra)
+        end
+
+        # The client's address as nginx reports it (X-Client-IP, see config.rb).
+        def collaboration_client_key
+            request.env["HTTP_X_CLIENT_IP"] || request.ip || "unknown"
         end
 
         def collaboration_string(value)
@@ -440,14 +480,20 @@ class Main < Sinatra::Base
                 :max_value_lengths => { :source_tag => 64 },
                 :max_body_length => 1024 * 1024 * 20,
             )
-            snapshot = @@collaboration_store.create(
-                :state => data[:game],
-                :source_tag => data[:source_tag],
-            )
-            respond(
-                :code => snapshot[:code],
-                :revision => snapshot[:revision],
-            )
+            begin
+                snapshot = @@collaboration_store.create(
+                    :state => data[:game],
+                    :source_tag => data[:source_tag],
+                    :creator => collaboration_client_key,
+                )
+                respond(
+                    :code => snapshot[:code],
+                    :revision => snapshot[:revision],
+                )
+            rescue Collaboration::TooManySessions, Collaboration::InvalidGame => e
+                status(e.is_a?(Collaboration::TooManySessions) ? 503 : 400)
+                respond(:error => e.message)
+            end
         end
 
         get "/collaboration/:code" do
@@ -457,6 +503,7 @@ class Main < Sinatra::Base
             end
 
             code = params[:code].to_s.upcase
+            client_key = collaboration_client_key
             socket = Faye::WebSocket.new(request.env, nil, :ping => 30)
             participant_id = nil
             connection_id = nil
@@ -477,12 +524,20 @@ class Main < Sinatra::Base
                             socket.close(4008, "join_required")
                             next
                         end
-                        joined = @@collaboration_store.join(
-                            :code => code,
-                            :name => message["name"],
-                            :participant_id => collaboration_string(message["participant_id"]),
-                            :reconnect_token => collaboration_string(message["reconnect_token"]),
-                        )
+                        if @@collaboration_join_attempts.blocked?(client_key)
+                            raise Collaboration::TooManyAttempts, "too_many_attempts"
+                        end
+                        begin
+                            joined = @@collaboration_store.join(
+                                :code => code,
+                                :name => message["name"],
+                                :participant_id => collaboration_string(message["participant_id"]),
+                                :reconnect_token => collaboration_string(message["reconnect_token"]),
+                            )
+                        rescue Collaboration::SessionNotFound
+                            @@collaboration_join_attempts.failure!(client_key)
+                            raise
+                        end
                         participant_id = joined[:participant_id]
                         connection_id = joined[:connection_id]
                         replaced = collaboration_register_socket(code, participant_id, connection_id, socket)

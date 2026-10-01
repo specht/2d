@@ -15,6 +15,7 @@ const {
     collaboration_rejection_notice,
     collaboration_lock_taken_notice,
     collaboration_leave_text,
+    collaboration_join_error_text,
     collaboration_resource_description,
     collaboration_saved_notice,
     collaboration_save_error_message,
@@ -602,4 +603,25 @@ test('a shared save sends the palette the saver has selected', () => {
         h.client.continue_shared_save();
         assert.deepEqual(h.sent.at(-1), { type: 'save', palette: ['#000000', '#ffffff'] });
     } finally { Object.assign(global, saved); h.restore(); }
+});
+
+test('refused joins are explained; other errors are not treated as refusals', () => {
+    assert.match(collaboration_join_error_text('session_full'), /Mehr passen nicht/);
+    assert.match(collaboration_join_error_text('too_many_attempts'), /falsche Codes/);
+    assert.match(collaboration_join_error_text('name_too_long'), /40 Zeichen/);
+    assert.equal(collaboration_join_error_text('internal_error'), null);
+});
+
+test('a refused join drops the code, a bad name keeps it', () => {
+    const h = connection_harness();
+    try {
+        let errors = [];
+        global.window.collaborationJoinModal = { show() {}, showError(text) { errors.push(text); } };
+        in_session(h);
+        h.client.handle_message({ type: 'error', error: 'name_required', fatal: true });
+        assert.equal(h.client.code, 'ABC123');
+        h.client.handle_message({ type: 'error', error: 'session_full', fatal: true });
+        assert.equal(h.client.code, null);
+        assert.equal(errors.length, 2);
+    } finally { h.restore(); }
 });
