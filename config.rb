@@ -45,6 +45,15 @@ nginx_config = <<~eos
     # content hash from the recipe build) never change and may be cached forever.
     # Everything else is revalidated on every load (cheap 304), so an update is
     # always picked up.
+    # The client's address for the Ruby app (collaboration limits guessing of
+    # session codes per client). In production the reverse proxy in front
+    # appends the real address as the last X-Forwarded-For entry; locally
+    # there is no such header.
+    map $http_x_forwarded_for $client_ip {
+        "~(?<forwarded_ip>[^, ]+) *$" $forwarded_ip;
+        default $remote_addr;
+    }
+
     map $args $static_cache_control {
         ""      "no-cache";
         default "public, max-age=31536000, immutable";
@@ -100,6 +109,7 @@ nginx_config = <<~eos
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection Upgrade;
+            proxy_set_header X-Client-IP $client_ip;
         }
     }
 
@@ -111,6 +121,8 @@ docker_compose[:services][:nginx][:depends_on] = [:ruby]
 
 env = []
 env << 'DEVELOPMENT=1' if DEVELOPMENT
+# Live collaboration is on unless env.rb sets COLLABORATION = false.
+env << 'COLLABORATION=0' if defined?(COLLABORATION) && !COLLABORATION
 docker_compose[:services][:ruby] = {
     :build => './docker/ruby',
     :volumes => ['./src/ruby:/app:ro',
@@ -170,6 +182,8 @@ end
 FileUtils::mkpath(LOGS_PATH)
 FileUtils::cp('src/ruby/Gemfile', 'docker/ruby/')
 FileUtils::mkpath(File::join(RAW_FILES_PATH, 'uploads'))
+# collaboration sessions across restarts (private: /raw is not served)
+FileUtils::mkpath(File::join(RAW_FILES_PATH, 'collaboration'))
 FileUtils::mkpath(GEN_FILES_PATH)
 FileUtils::mkpath(File.join(GEN_FILES_PATH, 'png'))
 FileUtils::mkpath(File.join(GEN_FILES_PATH, 'games'))

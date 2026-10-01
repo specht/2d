@@ -1,4 +1,5 @@
 require "minitest/autorun"
+require "tmpdir"
 require_relative "../src/ruby/collaboration"
 
 class CollaborationStoreTest < Minitest::Test
@@ -656,5 +657,150 @@ class CollaborationStoreTest < Minitest::Test
         @store.finish_save(code: "session", token: prepared[:token], tag: "new1234")
         snapshot = @store.snapshot(code: "session")
         assert_equal snapshot[:revision], snapshot[:saved_revision]
+    end
+
+    # ------------------------------------------------------------------ limits
+
+    def test_the_number_of_sessions_is_limited
+        store = Collaboration::Store.new(max_sessions: 2)
+        2.times { store.create(state: @state) }
+
+        assert_raises(Collaboration::TooManySessions) { store.create(state: @state) }
+    end
+
+    def test_the_number_of_connected_participants_is_limited_but_rejoining_works
+        store = Collaboration::Store.new(max_participants: 2)
+        code = store.create(state: @state)[:code]
+        first = store.join(code: code, name: "A")
+        store.join(code: code, name: "B")
+
+        assert_raises(Collaboration::SessionFull) { store.join(code: code, name: "C") }
+        again = store.join(code: code, name: "A", participant_id: first[:participant_id],
+            reconnect_token: first[:reconnect_token])
+        assert_equal first[:participant_id], again[:participant_id]
+    end
+
+    def test_repeated_wrong_codes_block_a_client_for_a_while
+        limiter = Collaboration::AttemptLimiter.new(clock: -> { @now }, max_failures: 3, window: 60)
+        3.times { limiter.failure!("1.2.3.4") }
+
+        assert limiter.blocked?("1.2.3.4")
+        refute limiter.blocked?("5.6.7.8")
+        @now += 61
+        refute limiter.blocked?("1.2.3.4")
+    end
+
+    # ------------------------------------------------------------- persistence
+
+    def test_sessions_survive_a_restart_and_participants_reconnect_with_their_token
+        Dir.mktmpdir do |dir|
+            path = File.join(dir, "collaboration", "sessions.json")
+            anna, ben = session_with("Anna", "Ben")
+            @store.lock(**ids(anna), resource: "sprite:held")
+            @store.update(**ids(anna), resource: "sprite:held", resource_revision: 0,
+                value: { "properties" => { "name" => "vor dem Neustart" }, "states" => [] })
+            assert @store.persist_to(path)
+            assert_equal "600", format("%o", File.stat(path).mode & 0o777)
+
+            @now += 30
+            restarted = Collaboration::Store.new(clock: -> { @now }, session_ttl: 100, reconnect_grace: 10,
+                id_generator: -> { "new-#{rand(1_000_000)}" })
+            assert_equal 1, restarted.restore_from(path)
+
+            snapshot = restarted.snapshot(code: "session")
+            assert_equal "vor dem Neustart", snapshot[:state]["sprites"][0]["properties"]["name"]
+            assert_equal 1, snapshot[:revision]
+            assert_equal({ "sprite:held" => 1 }, snapshot[:resource_revisions])
+            assert_empty snapshot[:participants], "nobody is connected right after a restart"
+
+            again = restarted.join(code: "session", name: "Anna", participant_id: anna[:participant_id],
+                reconnect_token: anna[:reconnect_token])
+            assert_equal anna[:participant_id], again[:participant_id]
+            assert_nil again[:snapshot][:participants].first[:lock], "locks are taken again after a restart"
+            stranger = restarted.join(code: "session", name: "Ben", participant_id: ben[:participant_id])
+            refute_equal ben[:participant_id], stranger[:participant_id], "the token is still required"
+        end
+    end
+
+    def test_persisting_is_skipped_when_nothing_changed
+        Dir.mktmpdir do |dir|
+            path = File.join(dir, "sessions.json")
+            anna, = session_with("Anna")
+            assert @store.persist_to(path)
+            refute @store.persist_to(path)
+
+            @store.lock(**ids(anna), resource: "settings")
+            @store.update(**ids(anna), resource: "settings", resource_revision: 0, value: {})
+            assert @store.persist_to(path)
+        end
+    end
+
+    def test_expired_and_broken_files_restore_nothing
+        Dir.mktmpdir do |dir|
+            path = File.join(dir, "sessions.json")
+            session_with("Anna")
+            @store.persist_to(path)
+            @now += 101
+            later = Collaboration::Store.new(clock: -> { @now }, session_ttl: 100)
+            assert_equal 0, later.restore_from(path)
+
+            File.write(path, "{kaputt")
+            assert_equal 0, Collaboration::Store.new.restore_from(path)
+            assert_equal 0, Collaboration::Store.new.restore_from(File.join(dir, "missing.json"))
+        end
+    end
+
+    def test_one_client_can_only_keep_a_limited_number_of_sessions_open
+        store = Collaboration::Store.new(clock: -> { @now }, max_sessions_per_creator: 2)
+        2.times { store.create(state: @state, creator: "10.0.0.1") }
+
+        assert_raises(Collaboration::TooManySessions) { store.create(state: @state, creator: "10.0.0.1") }
+        store.create(state: @state, creator: "10.0.0.2")
+        store.create(state: @state)
+    end
+
+    def test_the_creator_address_is_never_written_to_disk
+        Dir.mktmpdir do |dir|
+            path = File.join(dir, "sessions.json")
+            @store.create(state: @state, creator: "192.0.2.17")
+            @store.persist_to(path)
+
+            refute_includes File.read(path), "192.0.2.17"
+        end
+    end
+
+    def test_unchanged_sessions_are_not_serialized_again
+        Dir.mktmpdir do |dir|
+            path = File.join(dir, "sessions.json")
+            anna, = session_with("Anna")
+            @ids.unshift("second")
+            @store.create(state: @state)
+            @store.persist_to(path)
+
+            cache = -> { @store.instance_variable_get(:@persist_cache) }
+            before = cache.call.transform_values(&:last)
+            @store.lock(**ids(anna), resource: "settings")
+            @store.update(**ids(anna), resource: "settings", resource_revision: 0, value: { "title" => "neu" })
+            assert @store.persist_to(path)
+            after = cache.call.transform_values(&:last)
+
+            assert after["second"].equal?(before["second"]), "the unchanged session's JSON is reused"
+            refute after["session"].equal?(before["session"])
+            restored = Collaboration::Store.new(clock: -> { @now }).tap { |store| store.restore_from(path) }
+            assert_equal "neu", restored.snapshot(code: "session")[:state]["properties"]["title"]
+            assert_equal "Gemeinsam", restored.snapshot(code: "second")[:state]["properties"]["title"]
+        end
+    end
+
+    def test_an_ended_session_disappears_from_the_file
+        Dir.mktmpdir do |dir|
+            path = File.join(dir, "sessions.json")
+            session_with("Anna")
+            @store.persist_to(path)
+            @now += 101
+
+            assert @store.persist_to(path)
+            assert_equal 0, Collaboration::Store.new(clock: -> { @now }).restore_from(path)
+        end
     end
 end

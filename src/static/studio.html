@@ -15,6 +15,7 @@
     <script>
         window.CACHE_BUSTER = '#{@@cache_buster}';
         window.DEVELOPMENT = '#{DEVELOPMENT ? '1' : '0'}' === '1';
+        window.COLLABORATION = '#{COLLABORATION_ENABLED ? '1' : '0'}' === '1';
     </script>
     <!-- defer: the page (and its "wird geladen" curtain) shows at once; the
          scripts still run in this order, before DOMContentLoaded -->
