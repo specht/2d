@@ -14,6 +14,7 @@ const {
     apply_collaboration_structure,
     collaboration_rejection_notice,
     collaboration_lock_taken_notice,
+    collaboration_leave_text,
     collaboration_resource_description,
     collaboration_saved_notice,
     collaboration_save_error_message,
@@ -430,7 +431,7 @@ function connection_harness() {
         location: { protocol: 'http:', host: 'localhost:8025', href: 'http://localhost:8025/studio?collab=ABC123' },
         canvas: { sprite_index: 0 },
         game: { data: { properties: {}, sprites: [{ id: 'held', states: [] }], levels: [{ id: 'start' }] },
-            _load() {}, save() {} },
+            _load() {}, save() {}, load() {} },
     };
     const client = new CollaborationClient();
     client.schedule_reconnect = () => { client.reconnects = (client.reconnects ?? 0) + 1; };
@@ -503,4 +504,102 @@ test('a lock somebody else holds is asked for again now and then', () => {
         h.client.ensure_current_resource_lock();
         assert.equal(h.sent.length, 1, 'not again before the retry interval');
     } finally { h.restore(); }
+});
+
+// ------------------------------------------------------------ leaving
+
+test('the leave question only warns about losing work when nobody else can save it', () => {
+    assert.equal(collaboration_leave_text('load', { alone: false, unsaved: true }),
+        'Wenn du ein anderes Spiel lädst, verlässt du die gemeinsame Sitzung. Die anderen können weiterarbeiten und das Spiel speichern.');
+    assert.match(collaboration_leave_text('leave', { alone: true, unsaved: true }), /noch nicht gespeichert.*verloren/);
+    assert.match(collaboration_leave_text('load', { alone: true, unsaved: false }), /ist gespeichert/);
+});
+
+function in_session(h) {
+    h.client.code = 'ABC123';
+    h.client.connected = true;
+    h.client.participant_id = 'me';
+    h.client.socket = { readyState: 1, sent: [], send(json) { this.sent.push(JSON.parse(json)); }, close() {} };
+}
+
+test('unsaved shared work is recognised from the revisions', () => {
+    const h = connection_harness();
+    try {
+        in_session(h);
+        h.client.revision = 3;
+        h.client.saved_revision = 3;
+        assert.equal(h.client.has_unsaved_changes(), false);
+        h.client.revision = 4;
+        assert.equal(h.client.has_unsaved_changes(), true);
+    } finally { h.restore(); }
+});
+
+test('loading another game asks first, then leaves the session and loads', async () => {
+    const h = connection_harness();
+    try {
+        const loaded = [];
+        global.window.game.load = (tag) => loaded.push(tag);
+        in_session(h);
+        h.client.participants = [{ id: 'me', name: 'Ich' }, { id: 'o', name: 'Ben' }];
+        let shown = 0;
+        global.window.collaborationLeaveModal = { show() { shown += 1; } };
+        h.client.install_load_guard();
+
+        global.window.game.load('abc1234');
+        await new Promise(resolve => setTimeout(resolve, 0));
+        assert.equal(shown, 1);
+        assert.deepEqual(loaded, []);
+        assert.equal(h.client.code, 'ABC123');
+
+        h.client.confirmed_leave();
+        assert.deepEqual(loaded, ['abc1234']);
+        assert.equal(h.client.code, null);
+
+        global.window.game.load('def5678'); // outside a session: no question
+        assert.deepEqual(loaded, ['abc1234', 'def5678']);
+    } finally { h.restore(); }
+});
+
+test('the leave button only asks when the last participant would lose unsaved work', async () => {
+    const h = connection_harness();
+    try {
+        global.window.collaborationLeaveModal = { show() {} };
+        in_session(h);
+        h.client.participants = [{ id: 'me', name: 'Ich' }, { id: 'o', name: 'Ben' }];
+        h.client.revision = 5;
+        h.client.confirm_leave('leave');
+        assert.equal(h.client.code, null, 'others stay: leave at once');
+
+        in_session(h);
+        h.client.participants = [{ id: 'me', name: 'Ich' }];
+        h.client.revision = 5;
+        h.client.saved_revision = 4;
+        h.client.confirm_leave('leave');
+        assert.equal(h.client.code, 'ABC123', 'alone with unsaved work: ask first');
+        assert.ok(h.client.pending_leave);
+        await new Promise(resolve => setTimeout(resolve, 0));
+    } finally { h.restore(); }
+});
+
+test('a session that ended while we were away is closed with an explanation', () => {
+    const h = connection_harness();
+    try {
+        in_session(h);
+        h.client.has_connected_once = true;
+        h.client.handle_message({ type: 'error', error: 'session_not_found', fatal: true });
+        assert.equal(h.client.code, null);
+        assert.match(h.client.notice_override, /gibt es nicht mehr/);
+    } finally { h.restore(); }
+});
+
+test('a shared save sends the palette the saver has selected', () => {
+    const h = harness();
+    const saved = { palettes: global.palettes, selected_palette_index: global.selected_palette_index };
+    try {
+        global.palettes = [{ colors: ['#000000', '#ffffff'] }];
+        global.selected_palette_index = 0;
+        h.client.save_after_sync = true;
+        h.client.continue_shared_save();
+        assert.deepEqual(h.sent.at(-1), { type: 'save', palette: ['#000000', '#ffffff'] });
+    } finally { Object.assign(global, saved); h.restore(); }
 });

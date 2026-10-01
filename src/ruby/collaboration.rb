@@ -88,6 +88,9 @@ module Collaboration
                     source_tag: source_tag,
                     state: copied_state,
                     revision: 0,
+                    # revision of the last shared save; a higher revision means
+                    # there are changes nobody has saved yet
+                    saved_revision: 0,
                     resource_revisions: {},
                     participants: {},
                     save: nil,
@@ -360,6 +363,7 @@ module Collaboration
                 session[:source_tag] = tag
                 session[:state]["parent"] = tag
                 session[:revision] += 1
+                session[:saved_revision] = session[:revision]
                 session[:last_seen] = @clock.call
                 {
                     source_tag: tag,
@@ -494,6 +498,7 @@ module Collaboration
                 code: session[:code],
                 source_tag: session[:source_tag],
                 revision: session[:revision],
+                saved_revision: session[:saved_revision],
                 resource_revisions: session[:resource_revisions].dup,
                 state: deep_copy(session[:state]),
                 participants: participants_locked(session),

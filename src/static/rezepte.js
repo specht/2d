@@ -73,6 +73,11 @@ class RecipeGallery {
 
     async load_recipe_game(recipe, link) {
         if (!window.DEVELOPMENT || link.attr('aria-disabled') === 'true') return;
+        if (window.collaboration?.code) {
+            // Opening another game leaves the live session (after asking).
+            window.collaboration.confirm_leave('load', () => this.load_recipe_game(recipe, link));
+            return;
+        }
         const label = link.text();
         link.attr('aria-disabled', 'true').text('Rezeptspiel wird geladen …');
         try {
