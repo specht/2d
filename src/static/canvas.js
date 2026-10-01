@@ -715,6 +715,10 @@ class Canvas {
         this.stop_ticker();
     }
 
+    current_frame_src() {
+        return this.game?.data?.sprites?.[this.sprite_index]?.states?.[this.state_index]?.frames?.[this.frame_index]?.src;
+    }
+
     write_frame_to_game_data() {
         this.game.data.sprites[this.sprite_index].states[this.state_index].frames[this.frame_index].src = this.toUrl();
         this.game.refresh_frames_on_screen();
@@ -958,7 +962,13 @@ class Canvas {
             $(self.selection_bitmap).css('width', `${self.bitmap.width * self.scale}px`);
             $(self.selection_bitmap).css('height', `${self.bitmap.height * self.scale}px`);
             self.autoFit();
-            self.write_frame_to_game_data();
+            // Showing a frame must not change it: re-encoding the canvas can
+            // produce different PNG data (and slightly different semi-
+            // transparent pixels) than the frame that was just loaded.
+            if (self.current_frame_src() === url && url.startsWith('data:image/png'))
+                self.game.refresh_frames_on_screen();
+            else
+                self.write_frame_to_game_data();
             if (add_to_undo_stack)
                 self.append_to_undo_stack();
             if (typeof (callback) !== 'undefined')

@@ -13,6 +13,8 @@
 const COLLABORATION_CODE_LENGTH = 6;
 const COLLABORATION_COLLECTIONS = { sprite: 'sprites', level: 'levels' };
 const COLLABORATION_LOCK_RETRY_MS = 15_000;
+// a lock request without any answer is sent again after this time
+const COLLABORATION_LOCK_TIMEOUT_MS = 5_000;
 
 function normalize_collaboration_name(value) {
     const raw = String(value ?? '');
@@ -95,6 +97,21 @@ function reorder_collaboration_list(list, order) {
     return { ok: true, changed };
 }
 
+// Two versions of a sprite that differ at most in the pixels of their frames.
+function collaboration_same_sprite_structure(a, b) {
+    const shape = sprite => JSON.stringify({
+        ...sprite,
+        states: (sprite?.states ?? []).map(state => ({ ...state, frames: (state?.frames ?? []).length })),
+    });
+    return !!a && !!b && shape(a) === shape(b);
+}
+
+function collaboration_copy_frame_sources(target, source) {
+    source.states.forEach((state, si) => state.frames.forEach((frame, fi) => {
+        target.states[si].frames[fi].src = frame.src;
+    }));
+}
+
 // Applies somebody else's insert, delete or move to the local list.
 function apply_collaboration_structure(list, message) {
     if (!Array.isArray(list)) return { ok: false, changed: false };
@@ -134,6 +151,12 @@ function collaboration_join_error_text(error) {
         case 'name_too_long': return 'Bitte gib einen gültigen Namen ein (höchstens 40 Zeichen).';
         default: return null;
     }
+}
+
+function collaboration_lock_race_notice(name, resource) {
+    const kind = parse_collaboration_resource(resource)?.kind;
+    const what = kind === 'settings' ? 'den Einstellungen' : kind === 'level' ? 'diesem Level' : 'diesem Sprite';
+    return `${name ?? 'Jemand anderes'} hat im selben Moment angefangen, an ${what} zu arbeiten. Deine Änderung daran wurde zurückgenommen.`;
 }
 
 function collaboration_lock_taken_notice(name, resource) {
@@ -192,13 +215,18 @@ class CollaborationClient {
         this.resource_interval = null;
         this.error_modal = null;
 
+        // the resource this tab is working on, and the lock request on its way
         this.focused_resource = null;
-        this.lock_request_pending = false;
+        this.lock_request = null; // { resource, at }
         // asking again for a lock somebody else holds (it may have become idle)
         this.lock_retry_at = 0;
+        // the stray lock we already asked the server to release
+        this.unlock_sent_for = null;
         // { resource, serialized } of the update on its way to the server
         this.pending_update = null;
-        this.synced_serialized = null;
+        // resource => its last value confirmed by the server, serialized the
+        // way the local copy serializes. Local edits are whatever differs.
+        this.server_values = new Map();
         this.last_observed_serialized = null;
         this.resource_changed_at = 0;
         this.awaiting_snapshot = false;
@@ -362,10 +390,11 @@ class CollaborationClient {
 
     reset_sync_state() {
         this.pending_update = null;
-        this.lock_request_pending = false;
+        this.lock_request = null;
+        this.unlock_sent_for = null;
         this.awaiting_snapshot = false;
         this.pending_structure = 0;
-        this.synced_serialized = null;
+        this.server_values = new Map();
         this.last_observed_serialized = null;
         this.resource_changed_at = 0;
     }
@@ -420,6 +449,7 @@ class CollaborationClient {
 
         window.game.data = message.state;
         window.game._load();
+        this.remember_all_server_values();
         this.show_game_code(this.source_tag);
         this.restore_resource_selection(restore);
         this.focused_resource = null;
@@ -455,12 +485,41 @@ class CollaborationClient {
     handle_presence(participants) {
         const previous = this.participants;
         this.participants = participants ?? [];
-        this.lock_request_pending = false;
+        this.settle_lock_request();
         this.handle_lock_transition(previous);
+        this.release_stray_lock();
         this.render_control();
         this.render_status();
         this.ensure_current_resource_lock();
         this.update_resource_access();
+        this.continue_shared_save();
+    }
+
+    // The answer to our lock request is the first participant list that shows
+    // somebody holding that resource (us, or somebody who was faster).
+    settle_lock_request() {
+        const request = this.lock_request;
+        if (!request) return;
+        const holder = this.lock_holder(request.resource);
+        if (!holder) return;
+        this.lock_request = null;
+        if (holder.id !== this.participant_id) this.lock_denied(request.resource, holder);
+    }
+
+    // Somebody else got the resource we started editing optimistically: put
+    // back the server's version of it.
+    lock_denied(resource, holder) {
+        if (this.resource_synced(resource)) return;
+        this.revert_to_server_value(resource);
+        this.show_temporary_notice(collaboration_lock_race_notice(holder?.name, resource), 6000);
+    }
+
+    revert_to_server_value(resource) {
+        const serialized = this.server_values.get(resource);
+        if (serialized === undefined) return;
+        this.apply_resource_value(resource, JSON.parse(serialized));
+        this.last_observed_serialized = serialized;
+        this.resource_changed_at = performance.now();
     }
 
     handle_lock_transition(previous_participants) {
@@ -468,18 +527,27 @@ class CollaborationClient {
         if (!resource) return;
         const was_mine = this.lock_holder(resource, previous_participants)?.id === this.participant_id;
         const is_mine = this.owns_lock(resource);
-        // Everything others changed has already arrived (updates are applied
-        // in order), so the local copy is the server's copy when we get the lock.
-        if (is_mine && !was_mine) this.reset_baseline();
         if (!is_mine && was_mine) {
-            this.synced_serialized = null;
-            this.last_observed_serialized = null;
             const holder = this.lock_holder(resource);
             if (holder) {
-                // Taken over after the lock was unused for a while (the server's lease).
+                // Taken over after the lock was unused for a while (the server's
+                // lease). Anything not yet sent cannot be sent any more.
+                if (!this.resource_synced(resource)) this.revert_to_server_value(resource);
                 this.show_temporary_notice(collaboration_lock_taken_notice(holder.name, resource), 6000);
             }
         }
+    }
+
+    // A lock we still hold on something we are no longer working on (for
+    // example because the lock on the new resource was refused) is released.
+    release_stray_lock() {
+        const mine = this.participants.find(participant => participant.id === this.participant_id)?.lock?.resource;
+        if (!mine || mine === this.focused_resource || mine === this.lock_request?.resource) {
+            this.unlock_sent_for = null;
+            return;
+        }
+        if (this.unlock_sent_for === mine || !this.resource_synced(mine)) return;
+        if (this.send({ type: 'unlock', resource: mine })) this.unlock_sent_for = mine;
     }
 
     handle_update(message) {
@@ -490,8 +558,9 @@ class CollaborationClient {
         if (own) {
             // Our own change came back: keep the local copy, which may already
             // contain newer edits, and only move the baseline.
-            this.synced_serialized = this.pending_update.serialized;
+            this.server_values.set(message.resource, this.pending_update.serialized);
             this.pending_update = null;
+            this.release_stray_lock();
             this.continue_shared_save();
             return;
         }
@@ -499,7 +568,11 @@ class CollaborationClient {
             this.request_snapshot();
             return;
         }
-        if (message.resource === this.focused_resource) this.reset_baseline();
+        this.remember_server_value(message.resource);
+        if (message.resource === this.focused_resource) {
+            this.last_observed_serialized = this.server_values.get(message.resource);
+            this.resource_changed_at = performance.now();
+        }
     }
 
     handle_structure(message) {
@@ -529,10 +602,14 @@ class CollaborationClient {
 
         const resource = collaboration_resource(message.kind, message.id);
         if (message.action === 'insert') this.resource_revisions[resource] = 0;
-        if (message.action === 'delete') delete this.resource_revisions[resource];
+        if (message.action === 'delete') {
+            delete this.resource_revisions[resource];
+            this.server_values.delete(resource);
+        }
         const previous = this.participants;
         if (Array.isArray(message.participants)) this.participants = message.participants;
         if (result.changed) this.rebuild_editor(restore);
+        if (message.action === 'insert' && !mine) this.remember_server_value(resource);
         this.handle_lock_transition(previous);
         this.render_control();
         this.render_status();
@@ -544,15 +621,23 @@ class CollaborationClient {
         if (Array.isArray(message.participants)) this.participants = message.participants;
 
         if (message.request === 'lock' || message.request === 'unlock') {
-            this.lock_request_pending = false;
+            if (message.request === 'lock' && this.lock_request?.resource === message.resource) {
+                this.lock_request = null;
+                if (message.reason === 'locked')
+                    this.lock_denied(message.resource, this.lock_holder(message.resource));
+                else
+                    this.revert_to_server_value(message.resource);
+            }
             this.handle_lock_transition(previous);
+            this.release_stray_lock();
         } else if (message.request === 'update') {
             this.pending_update = null;
             if (message.value && typeof message.value === 'object' && Number.isInteger(message.resource_revision)) {
                 // Take the server's version of the resource.
                 this.resource_revisions[message.resource] = message.resource_revision;
                 this.apply_resource_value(message.resource, message.value);
-                if (message.resource === this.focused_resource) this.reset_baseline();
+                this.remember_server_value(message.resource);
+                this.last_observed_serialized = this.server_values.get(message.resource);
             } else {
                 this.request_snapshot();
             }
@@ -646,49 +731,114 @@ class CollaborationClient {
         if (index < 0) return false;
 
         if (target.kind === 'sprite') {
-            // The sprite canvas stays attached even while another pane (for
-            // example the level editor) is visible. Preserve that selection
-            // before replacing the sprite so returning to the sprite pane never
-            // shows stale pixels or a detached canvas.
-            const canvas = window.canvas;
-            const was_attached = canvas?.sprite_index === index;
-            const previous_state_index = was_attached ? canvas.state_index : 0;
-            const previous_frame_index = was_attached ? canvas.frame_index : 0;
-            if (was_attached) canvas.detachSprite();
-
-            list[index] = copied;
-            window.game.create_geometry_and_material_for_sprite(index);
-            window.game.update_material_for_sprite(index);
-            window.game.refresh_frames_on_screen();
-            if (window.game.level_editor) {
-                window.game.level_editor.refresh_blend_materials?.();
-                window.game.level_editor.refresh?.();
-                window.game.level_editor.render?.();
-            }
-
-            if (was_attached && copied.states?.length) {
-                const state_index = Math.min(
-                    Math.max(Number.isInteger(previous_state_index) ? previous_state_index : 0, 0),
-                    copied.states.length - 1,
-                );
-                const frames = copied.states[state_index]?.frames ?? [];
-                if (frames.length) {
-                    const frame_index = Math.min(
-                        Math.max(Number.isInteger(previous_frame_index) ? previous_frame_index : 0, 0),
-                        frames.length - 1,
-                    );
-                    canvas.attachSprite(index, state_index, frame_index, () => {
-                        window.game.build_sprite_traits_menu?.();
-                    });
-                }
-            }
+            this.apply_sprite_value(index, copied);
             return true;
         }
 
         list[index] = copied;
         if (this.current_resource() === resource && typeof $ !== 'undefined')
-            $('#menu_levels > ._dnd_item').eq(index).children().eq(0).trigger('click');
+            this.reload_level_keeping_view(index);
         return true;
+    }
+
+    apply_sprite_value(index, copied) {
+        const list = window.game.data.sprites;
+        const canvas = window.canvas;
+        const was_attached = canvas?.sprite_index === index;
+
+        // While somebody draws, usually only pixels change. Then the frames
+        // are updated in place and only the visible frame is reloaded: state
+        // and frame lists, traits panel and zoom stay as they are.
+        if (collaboration_same_sprite_structure(list[index], copied)) {
+            collaboration_copy_frame_sources(list[index], copied);
+            window.game.update_material_for_sprite(index);
+            window.game.refresh_frames_on_screen();
+            window.game.level_editor?.render?.();
+            if (was_attached) {
+                const src = list[index].states[canvas.state_index]?.frames[canvas.frame_index]?.src;
+                if (src) this.reload_canvas_keeping_view(() => canvas.loadFromUrl(src, false, () => this.restore_canvas_view()));
+            }
+            return;
+        }
+
+        // The sprite canvas stays attached even while another pane (for
+        // example the level editor) is visible. Preserve that selection
+        // before replacing the sprite so returning to the sprite pane never
+        // shows stale pixels or a detached canvas.
+        const previous_state_index = was_attached ? canvas.state_index : 0;
+        const previous_frame_index = was_attached ? canvas.frame_index : 0;
+        if (was_attached) canvas.detachSprite();
+
+        list[index] = copied;
+        window.game.create_geometry_and_material_for_sprite(index);
+        window.game.update_material_for_sprite(index);
+        window.game.refresh_frames_on_screen();
+        if (window.game.level_editor) {
+            window.game.level_editor.refresh_blend_materials?.();
+            window.game.level_editor.refresh?.();
+            window.game.level_editor.render?.();
+        }
+
+        if (was_attached && copied.states?.length) {
+            const state_index = Math.min(
+                Math.max(Number.isInteger(previous_state_index) ? previous_state_index : 0, 0),
+                copied.states.length - 1,
+            );
+            const frames = copied.states[state_index]?.frames ?? [];
+            if (frames.length) {
+                const frame_index = Math.min(
+                    Math.max(Number.isInteger(previous_frame_index) ? previous_frame_index : 0, 0),
+                    frames.length - 1,
+                );
+                this.reload_canvas_keeping_view(() => canvas.attachSprite(index, state_index, frame_index, () => {
+                    this.restore_canvas_view();
+                    window.game.build_sprite_traits_menu?.();
+                }));
+            }
+        }
+    }
+
+    // Loading a frame fits the zoom to the sprite; somebody watching another
+    // person draw keeps their own zoom and position instead.
+    reload_canvas_keeping_view(load) {
+        const canvas = window.canvas;
+        this.canvas_view = canvas ? {
+            visible_pixels: canvas.visible_pixels, offset_x: canvas.offset_x, offset_y: canvas.offset_y,
+            width: canvas.bitmap?.width, height: canvas.bitmap?.height,
+        } : null;
+        load();
+    }
+
+    restore_canvas_view() {
+        const view = this.canvas_view;
+        const canvas = window.canvas;
+        this.canvas_view = null;
+        if (!view || !canvas || canvas.bitmap?.width !== view.width || canvas.bitmap?.height !== view.height) return;
+        canvas.visible_pixels = view.visible_pixels;
+        canvas.offset_x = view.offset_x;
+        canvas.offset_y = view.offset_y;
+        canvas.handleResize?.();
+    }
+
+    // Rebuilds the level editor for a level somebody else changed, keeping
+    // the camera and the selected layer of whoever is watching.
+    reload_level_keeping_view(index) {
+        const editor = window.game.level_editor;
+        const view = editor ? {
+            camera_x: editor.camera_x, camera_y: editor.camera_y,
+            visible_pixels: editor.visible_pixels, layer_index: editor.layer_index,
+        } : null;
+        $('#menu_levels > ._dnd_item').eq(index).children().eq(0).trigger('click');
+        if (!view || editor.level_index !== index) return;
+        editor.auto_adjust_camera = false;
+        editor.camera_x = view.camera_x;
+        editor.camera_y = view.camera_y;
+        editor.visible_pixels = view.visible_pixels;
+        editor.fix_scale?.();
+        const layers = window.game.data.levels[index]?.layers ?? [];
+        if (view.layer_index > 0 && view.layer_index < layers.length)
+            $('#menu_layers > ._dnd_item').eq(view.layer_index).children().eq(0).trigger('click');
+        editor.render?.();
     }
 
     restore_resource_selection(resource) {
@@ -750,6 +900,10 @@ class CollaborationClient {
 
     // ------------------------------------------------------- locks
 
+    // Follows what the user is looking at. Switching costs one message: the
+    // server moves our lock to the new resource in one step. Editing does not
+    // wait for that answer (see can_edit_current); only a lock somebody else
+    // holds makes a resource read-only.
     focus_current_resource(force = false) {
         if (!this.connected || this.awaiting_snapshot) return;
         const resource = this.current_resource();
@@ -759,29 +913,31 @@ class CollaborationClient {
         }
 
         const old_resource = this.focused_resource;
-        if (old_resource && old_resource !== resource && this.owns_lock(old_resource)) {
-            // Send the last changes of the resource we are leaving before its
-            // lock goes; until then the new resource stays read-only.
-            if (!this.resource_synced(old_resource)) {
-                this.flush_resource(old_resource);
-                return;
-            }
-            this.send({ type: 'unlock', resource: old_resource });
+        if (old_resource && old_resource !== resource && !this.resource_synced(old_resource)) {
+            // Send the last changes of the resource we are leaving first. If
+            // its lock is still on the way, wait for it (then they are sent).
+            if (this.owns_lock(old_resource)) this.flush_resource(old_resource);
+            if (this.owns_lock(old_resource) || this.lock_request?.resource === old_resource) return;
         }
 
         this.focused_resource = resource;
-        this.lock_request_pending = false;
+        this.lock_request = null;
         this.lock_retry_at = Date.now() + COLLABORATION_LOCK_RETRY_MS;
-        this.synced_serialized = null;
-        this.last_observed_serialized = null;
-        this.resource_changed_at = 0;
+        this.last_observed_serialized = this.serialize_local_resource(resource);
+        this.resource_changed_at = performance.now();
         if (resource) this.request_lock(resource);
+        else this.release_stray_lock();
         this.update_resource_access();
     }
 
     ensure_current_resource_lock() {
         const resource = this.focused_resource;
-        if (!this.connected || !resource || this.lock_request_pending) return;
+        if (!this.connected || !resource) return;
+        if (this.lock_request) {
+            // No answer for a long time (should not happen): ask again.
+            if (Date.now() - this.lock_request.at < COLLABORATION_LOCK_TIMEOUT_MS) return;
+            this.lock_request = null;
+        }
         const holder = this.lock_holder(resource);
         if (!holder) {
             this.request_lock(resource);
@@ -794,9 +950,9 @@ class CollaborationClient {
     }
 
     request_lock(resource) {
-        if (!this.connected || !resource || this.lock_request_pending) return;
-        if (this.send({ type: 'lock', resource })) this.lock_request_pending = true;
-        this.update_resource_access();
+        if (!this.connected || !resource || this.lock_request) return;
+        if (this.owns_lock(resource)) return;
+        if (this.send({ type: 'lock', resource })) this.lock_request = { resource, at: Date.now() };
     }
 
     lock_holder(resource, participants = this.participants) {
@@ -808,6 +964,21 @@ class CollaborationClient {
         return !!resource && this.lock_holder(resource)?.id === this.participant_id;
     }
 
+    // Who else is working on this resource, if anybody.
+    other_holder(resource) {
+        const holder = this.lock_holder(resource);
+        return holder && holder.id !== this.participant_id ? holder : null;
+    }
+
+    // Editing is possible while connected unless somebody else holds the
+    // resource. Before our own lock arrives, edits are kept locally and sent
+    // once it is there (or undone if somebody else was faster).
+    can_edit_current() {
+        const resource = this.current_resource();
+        if (!this.code || !resource) return true;
+        return this.connected && !this.awaiting_snapshot && !this.other_holder(resource);
+    }
+
     // ------------------------------------------------------- resource sync
 
     serialize_local_resource(resource) {
@@ -815,17 +986,29 @@ class CollaborationClient {
         return value === null ? null : JSON.stringify(value);
     }
 
-    reset_baseline() {
-        const serialized = this.serialize_local_resource(this.focused_resource);
-        this.synced_serialized = serialized;
-        this.last_observed_serialized = serialized;
-        this.resource_changed_at = performance.now();
+    remember_server_value(resource) {
+        const serialized = this.serialize_local_resource(resource);
+        if (serialized === null) this.server_values.delete(resource);
+        else this.server_values.set(resource, serialized);
     }
 
+    remember_all_server_values() {
+        this.server_values = new Map();
+        const data = window.game?.data;
+        if (!data) return;
+        this.remember_server_value('settings');
+        for (const [kind, key] of Object.entries(COLLABORATION_COLLECTIONS))
+            for (const item of Array.isArray(data[key]) ? data[key] : [])
+                if (typeof item?.id === 'string') this.remember_server_value(collaboration_resource(kind, item.id));
+    }
+
+    // True if the local copy holds nothing the server does not have yet.
     resource_synced(resource) {
-        if (this.pending_update) return false;
+        if (!resource) return true;
+        if (this.pending_update?.resource === resource) return false;
+        const base = this.server_values.get(resource);
         const serialized = this.serialize_local_resource(resource);
-        return serialized === null || this.synced_serialized === null || serialized === this.synced_serialized;
+        return serialized === null || base === undefined || serialized === base;
     }
 
     send_update(resource, serialized) {
@@ -841,30 +1024,30 @@ class CollaborationClient {
     }
 
     flush_resource(resource) {
-        if (!this.owns_lock(resource) || this.pending_update) return;
-        const serialized = this.serialize_local_resource(resource);
-        if (serialized !== null && this.synced_serialized !== null && serialized !== this.synced_serialized)
-            this.send_update(resource, serialized);
+        if (!this.owns_lock(resource) || this.pending_update || this.resource_synced(resource)) return;
+        this.send_update(resource, this.serialize_local_resource(resource));
     }
 
     // Polled: sends the resource we hold once it has not changed for 300 ms.
+    // A resource somebody else holds always shows the server's version: a
+    // stroke that was still being drawn when their lock arrived is undone.
     sync_current_resource() {
         const resource = this.focused_resource;
-        if (!this.connected || !resource || this.awaiting_snapshot || this.pending_update || !this.owns_lock(resource))
-            return;
-        const serialized = this.serialize_local_resource(resource);
-        if (serialized === null) return;
-        if (this.synced_serialized === null) {
-            this.reset_baseline();
+        if (!this.connected || !resource || this.awaiting_snapshot || this.pending_update) return;
+        if (!this.owns_lock(resource)) {
+            const holder = this.other_holder(resource);
+            if (holder && !this.resource_synced(resource)) this.lock_denied(resource, holder);
             return;
         }
+        const serialized = this.serialize_local_resource(resource);
+        if (serialized === null) return;
         const now = performance.now();
         if (serialized !== this.last_observed_serialized) {
             this.last_observed_serialized = serialized;
             this.resource_changed_at = now;
             return;
         }
-        if (serialized === this.synced_serialized || now - this.resource_changed_at < 300) return;
+        if (serialized === this.server_values.get(resource) || now - this.resource_changed_at < 300) return;
         this.send_update(resource, serialized);
     }
 
@@ -901,7 +1084,12 @@ class CollaborationClient {
 
         if (this.connected && !this.awaiting_snapshot && this.send(message)) {
             this.pending_structure += 1;
-            if (action === 'insert') this.resource_revisions[collaboration_resource(kind, id)] = 0;
+            const resource = collaboration_resource(kind, id);
+            if (action === 'insert') {
+                this.resource_revisions[resource] = 0;
+                this.server_values.set(resource, JSON.stringify(message.value));
+            }
+            if (action === 'delete') this.server_values.delete(resource);
         } else {
             // The change cannot be shared right now; the next snapshot (or the
             // welcome after reconnecting) replaces it.
@@ -939,8 +1127,7 @@ class CollaborationClient {
     // own latest change that may not even have reached the server.
     has_unsaved_changes() {
         if (this.revision > this.saved_revision || this.pending_update) return true;
-        const resource = this.focused_resource;
-        return !!resource && this.owns_lock(resource) && !this.resource_synced(resource);
+        return !this.resource_synced(this.focused_resource);
     }
 
     // Leaves the session and then calls proceed(). Asks first when loading
@@ -1035,7 +1222,10 @@ class CollaborationClient {
         if (!this.save_after_sync || this.save_pending || this.pending_update) return;
 
         const resource = this.focused_resource;
-        if (resource && this.owns_lock(resource) && !this.resource_synced(resource)) {
+        if (resource && !this.resource_synced(resource)) {
+            // Our lock may still be on its way; the save continues once the
+            // change has been sent and confirmed.
+            if (!this.owns_lock(resource)) return;
             if (!this.send_update(resource, this.serialize_local_resource(resource)))
                 this.cancel_shared_save('Die letzte Änderung konnte vor dem Speichern nicht synchronisiert werden.');
             return;
@@ -1260,6 +1450,10 @@ class CollaborationClient {
 
     set_controls_readonly(resource, readonly) {
         if (typeof $ === 'undefined') return;
+        // Called several times a second: only touch the page when something changed.
+        const key = `${readonly ? resource : ''}`;
+        if (key === this.readonly_key) return;
+        this.readonly_key = key;
         const all = [
             '#tool_menu', '#color_menu', '#color_variations_menu', '#functions_dropdown', '#canvas', '#undo_stack',
             '#menu_frames', '#states_container', '#menu_sprite_properties',
@@ -1295,11 +1489,11 @@ class CollaborationClient {
             } else if (!this.connected) {
                 notice.text('Die Verbindung zur gemeinsamen Sitzung ist unterbrochen. Bearbeiten ist vorübergehend gesperrt.').show();
             } else {
-                const holder = this.lock_holder(resource);
-                if (holder && holder.id !== this.participant_id)
+                // While our own lock is on its way there is nothing to say:
+                // editing already works (see can_edit_current).
+                const holder = this.other_holder(resource);
+                if (holder)
                     notice.text(`${holder.name} bearbeitet gerade ${collaboration_resource_description(resource)}.`).show();
-                else if (!holder)
-                    notice.text('Bearbeitung wird vorbereitet …').show();
                 else
                     notice.hide();
             }
@@ -1309,8 +1503,7 @@ class CollaborationClient {
             this.set_controls_readonly(resource, false);
             return;
         }
-        const can_edit = this.connected && this.owns_lock(resource) && !this.awaiting_snapshot;
-        this.set_controls_readonly(resource, !can_edit);
+        this.set_controls_readonly(resource, !this.can_edit_current());
     }
 }
 
@@ -1616,8 +1809,11 @@ if (typeof module !== 'undefined' && module.exports) {
         collaboration_after_id,
         reorder_collaboration_list,
         apply_collaboration_structure,
+        collaboration_same_sprite_structure,
+        collaboration_copy_frame_sources,
         collaboration_rejection_notice,
         collaboration_lock_taken_notice,
+        collaboration_lock_race_notice,
         collaboration_leave_text,
         collaboration_join_error_text,
         collaboration_resource_description,
