@@ -629,7 +629,9 @@ class LevelEditor {
                 self.render();
             },
             gen_new_item: () => {
-                self.game.data.levels.push({});
+                const level = {};
+                assign_new_game_id(self.game.data, 'levels', level);
+                self.game.data.levels.push(level);
                 self.game.fix_game_data();
                 return self.game.data.levels[self.game.data.levels.length - 1];
             },

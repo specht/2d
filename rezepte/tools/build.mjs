@@ -42,7 +42,7 @@ function engine_hash() {
     const html = fs.readFileSync(path.join(static_dir, 'standalone.html'), 'utf8');
     const scripts = [...html.matchAll(/<script src="([^"?]+)/g)].map(m => m[1]).filter(f => !/^https?:/.test(f));
     const files = [...new Set([
-        'standalone.html', ...scripts, 'traits.js', 'baddie_ai.js', 'game.js',
+        'standalone.html', ...scripts, 'traits.js', 'baddie_ai.js', 'game_ids.js', 'game.js',
         ...fs.readdirSync(path.join(static_dir, 'shaders')).map(f => `shaders/${f}`),
     ])].map(f => path.join(static_dir, f));
     files.push(...['build.mjs', 'record.mjs', 'game.mjs'].map(f => path.join(here, f)));
