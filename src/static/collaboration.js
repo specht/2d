@@ -12,6 +12,7 @@
 
 const COLLABORATION_CODE_LENGTH = 6;
 const COLLABORATION_COLLECTIONS = { sprite: 'sprites', level: 'levels' };
+const COLLABORATION_LOCK_RETRY_MS = 15_000;
 
 function normalize_collaboration_name(value) {
     const raw = String(value ?? '');
@@ -108,6 +109,12 @@ function apply_collaboration_structure(list, message) {
     return { ok: reorder_collaboration_list(list, message.order).ok, changed: true };
 }
 
+function collaboration_lock_taken_notice(name, resource) {
+    const kind = parse_collaboration_resource(resource)?.kind;
+    const what = kind === 'settings' ? 'den Einstellungen' : kind === 'level' ? 'diesem Level' : 'diesem Sprite';
+    return `${name} arbeitet jetzt an ${what} weiter, weil du eine Weile nichts daran geändert hast.`;
+}
+
 function collaboration_rejection_notice(message, holder_name = null) {
     const thing = message?.kind === 'level' ? 'Level' : 'Sprite';
     if (message?.request === 'update')
@@ -141,6 +148,7 @@ class CollaborationClient {
         this.code = null;
         this.name = null;
         this.participant_id = null;
+        this.reconnect_token = null;
         this.source_tag = null;
         this.revision = 0;
         this.resource_revisions = {};
@@ -159,6 +167,8 @@ class CollaborationClient {
 
         this.focused_resource = null;
         this.lock_request_pending = false;
+        // asking again for a lock somebody else holds (it may have become idle)
+        this.lock_retry_at = 0;
         // { resource, serialized } of the update on its way to the server
         this.pending_update = null;
         this.synced_serialized = null;
@@ -182,12 +192,21 @@ class CollaborationClient {
         return `2d-collaboration:${code}:name`;
     }
 
+    // The reconnect token is the secret that lets this tab take over its own
+    // participant again after a dropped connection (participant ids are
+    // visible to everybody in the session).
+    token_storage_key(code) {
+        return `2d-collaboration:${code}:token`;
+    }
+
     remember_participant() {
         if (!this.code) return;
         if (this.name)
             sessionStorage.setItem(this.name_storage_key(this.code), this.name);
         if (this.participant_id)
             sessionStorage.setItem(this.participant_storage_key(this.code), this.participant_id);
+        if (this.reconnect_token)
+            sessionStorage.setItem(this.token_storage_key(this.code), this.reconnect_token);
     }
 
     start(name, modal) {
@@ -246,6 +265,7 @@ class CollaborationClient {
         this.name = name;
         this.error_modal = error_modal;
         this.participant_id = sessionStorage.getItem(this.participant_storage_key(code));
+        this.reconnect_token = sessionStorage.getItem(this.token_storage_key(code));
         this.render_control();
         this.update_resource_access();
 
@@ -258,6 +278,7 @@ class CollaborationClient {
                 type: 'join',
                 name: this.name,
                 participant_id: this.participant_id,
+                reconnect_token: this.reconnect_token,
             }));
         });
 
@@ -283,6 +304,11 @@ class CollaborationClient {
             this.save_pending = false;
             if (window.game) window.game.currently_saving = false;
             this.stop_heartbeat();
+            if (event.code === 4010) {
+                // The same participant joined again from another tab or window.
+                this.end_session('Diese gemeinsame Sitzung ist jetzt in einem anderen Tab oder Fenster geöffnet. Hier ist sie beendet.');
+                return;
+            }
             this.render_control();
             this.update_resource_access();
             if (!this.intentional_close) this.schedule_reconnect();
@@ -330,6 +356,7 @@ class CollaborationClient {
         this.has_connected_once = true;
         this.reconnect_delay = 1000;
         this.participant_id = message.participant_id;
+        this.reconnect_token = message.reconnect_token ?? this.reconnect_token;
         this.remember_participant();
         this.apply_snapshot(message);
         this.start_heartbeat();
@@ -412,6 +439,11 @@ class CollaborationClient {
         if (!is_mine && was_mine) {
             this.synced_serialized = null;
             this.last_observed_serialized = null;
+            const holder = this.lock_holder(resource);
+            if (holder) {
+                // Taken over after the lock was unused for a while (the server's lease).
+                this.show_temporary_notice(collaboration_lock_taken_notice(holder.name, resource), 6000);
+            }
         }
     }
 
@@ -701,6 +733,7 @@ class CollaborationClient {
 
         this.focused_resource = resource;
         this.lock_request_pending = false;
+        this.lock_retry_at = Date.now() + COLLABORATION_LOCK_RETRY_MS;
         this.synced_serialized = null;
         this.last_observed_serialized = null;
         this.resource_changed_at = 0;
@@ -711,7 +744,15 @@ class CollaborationClient {
     ensure_current_resource_lock() {
         const resource = this.focused_resource;
         if (!this.connected || !resource || this.lock_request_pending) return;
-        if (!this.lock_holder(resource)) this.request_lock(resource);
+        const holder = this.lock_holder(resource);
+        if (!holder) {
+            this.request_lock(resource);
+        } else if (holder.id !== this.participant_id && Date.now() >= this.lock_retry_at) {
+            // The server hands the lock over once its holder has not used it
+            // for a while, so keep asking now and then.
+            this.lock_retry_at = Date.now() + COLLABORATION_LOCK_RETRY_MS;
+            this.request_lock(resource);
+        }
     }
 
     request_lock(resource) {
@@ -951,13 +992,20 @@ class CollaborationClient {
         // Send the last change of the resource we are editing before leaving.
         if (this.connected && this.owns_lock(this.focused_resource))
             this.flush_resource(this.focused_resource);
+        const socket = this.socket;
+        this.socket = null;
+        if (socket) socket.close(1000, 'left_session');
+        this.end_session();
+    }
+
+    // Stops taking part in the session in this tab, without reconnecting.
+    end_session(notice = null) {
         this.intentional_close = true;
         this.stop_heartbeat();
         if (this.reconnect_timeout !== null) {
             clearTimeout(this.reconnect_timeout);
             this.reconnect_timeout = null;
         }
-        if (this.socket) this.socket.close(1000, 'left_session');
         this.socket = null;
         this.connected = false;
         this.participants = [];
@@ -969,10 +1017,12 @@ class CollaborationClient {
         if (this.code) {
             sessionStorage.removeItem(this.participant_storage_key(this.code));
             sessionStorage.removeItem(this.name_storage_key(this.code));
+            sessionStorage.removeItem(this.token_storage_key(this.code));
         }
         this.code = null;
         this.name = null;
         this.participant_id = null;
+        this.reconnect_token = null;
         const url = new URL(window.location.href);
         url.search = this.source_tag ? `?${this.source_tag}` : '';
         this.source_tag = null;
@@ -980,6 +1030,7 @@ class CollaborationClient {
         this.render_control();
         this.update_resource_access();
         window.collaborationStatusModal?.dismiss();
+        if (notice) this.show_temporary_notice(notice, 8000);
     }
 
     set_code_in_url(code) {
@@ -1421,6 +1472,7 @@ if (typeof module !== 'undefined' && module.exports) {
         reorder_collaboration_list,
         apply_collaboration_structure,
         collaboration_rejection_notice,
+        collaboration_lock_taken_notice,
         collaboration_resource_description,
         collaboration_saved_notice,
         collaboration_save_error_message,

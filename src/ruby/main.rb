@@ -258,12 +258,15 @@ class Main < Sinatra::Base
             debug "Could not send collaboration message: #{e}"
         end
 
+        # Returns the socket this participant used before, if it is replaced.
         def collaboration_register_socket(code, participant_id, connection_id, socket)
             @@collaboration_sockets_mutex.synchronize do
+                previous = @@collaboration_sockets[code][participant_id]
                 @@collaboration_sockets[code][participant_id] = {
                     :connection_id => connection_id,
                     :socket => socket,
                 }
+                previous && previous[:connection_id] != connection_id ? previous[:socket] : nil
             end
         end
 
@@ -345,7 +348,8 @@ class Main < Sinatra::Base
             type = message["type"]
             case type
             when "heartbeat"
-                @@collaboration_store.touch(**ids)
+                result = @@collaboration_store.touch(**ids)
+                collaboration_broadcast_presence(code, result[:participants]) if result[:expired]
             when "request_snapshot"
                 snapshot = @@collaboration_store.snapshot(:code => code)
                 collaboration_send(socket, collaboration_snapshot_payload("snapshot", snapshot))
@@ -463,24 +467,26 @@ class Main < Sinatra::Base
                             socket.close(4008, "join_required")
                             next
                         end
-                        requested_participant_id = message["participant_id"]
-                        unless requested_participant_id.is_a?(String) && requested_participant_id.size <= 64
-                            requested_participant_id = nil
-                        end
                         joined = @@collaboration_store.join(
                             :code => code,
                             :name => message["name"],
-                            :participant_id => requested_participant_id,
+                            :participant_id => collaboration_string(message["participant_id"]),
+                            :reconnect_token => collaboration_string(message["reconnect_token"]),
                         )
                         participant_id = joined[:participant_id]
                         connection_id = joined[:connection_id]
-                        collaboration_register_socket(code, participant_id, connection_id, socket)
+                        replaced = collaboration_register_socket(code, participant_id, connection_id, socket)
+                        # The same participant joined again (after a dropped
+                        # connection, or from a duplicated tab): the old
+                        # connection must not keep acting for it.
+                        replaced&.close(4010, "replaced")
                         collaboration_send(
                             socket,
                             collaboration_snapshot_payload(
                                 "welcome",
                                 joined[:snapshot],
                                 :participant_id => participant_id,
+                                :reconnect_token => joined[:reconnect_token],
                             ),
                         )
                         collaboration_broadcast_presence(code, joined[:snapshot][:participants])

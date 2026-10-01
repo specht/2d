@@ -13,6 +13,7 @@ const {
     reorder_collaboration_list,
     apply_collaboration_structure,
     collaboration_rejection_notice,
+    collaboration_lock_taken_notice,
     collaboration_resource_description,
     collaboration_saved_notice,
     collaboration_save_error_message,
@@ -388,5 +389,118 @@ test('remote settings update refreshes settings controls without rebuilding the 
         assert.equal(h.data.properties.gravity, 0.8);
         assert.equal(refreshes, 1);
         assert.equal(h.loads.length, 0);
+    } finally { h.restore(); }
+});
+
+// ------------------------------------------------------------ reconnecting and leases
+
+function storage() {
+    const items = new Map();
+    return {
+        getItem: key => items.has(key) ? items.get(key) : null,
+        setItem: (key, value) => items.set(key, String(value)),
+        removeItem: key => items.delete(key),
+        items,
+    };
+}
+
+function connection_harness() {
+    const saved = {};
+    for (const key of ['window', 'WebSocket', 'sessionStorage', 'history', 'current_pane'])
+        saved[key] = global[key];
+    const sockets = [];
+    class FakeWebSocket {
+        static OPEN = 1;
+        constructor(url) {
+            this.url = url;
+            this.readyState = 1;
+            this.sent = [];
+            this.listeners = {};
+            sockets.push(this);
+        }
+        addEventListener(type, listener) { this.listeners[type] = listener; }
+        send(json) { this.sent.push(JSON.parse(json)); }
+        close() {}
+    }
+    global.WebSocket = FakeWebSocket;
+    global.sessionStorage = storage();
+    global.history = { state: null, replaceState() {} };
+    global.current_pane = 'sprites';
+    global.window = {
+        location: { protocol: 'http:', host: 'localhost:8025', href: 'http://localhost:8025/studio?collab=ABC123' },
+        canvas: { sprite_index: 0 },
+        game: { data: { properties: {}, sprites: [{ id: 'held', states: [] }], levels: [{ id: 'start' }] },
+            _load() {}, save() {} },
+    };
+    const client = new CollaborationClient();
+    client.schedule_reconnect = () => { client.reconnects = (client.reconnects ?? 0) + 1; };
+    const restore = () => Object.assign(global, saved);
+    return { client, sockets, restore };
+}
+
+test('the reconnect token from the welcome is remembered and sent when joining again', () => {
+    const h = connection_harness();
+    try {
+        h.client.connect('ABC123', 'Mia');
+        h.sockets[0].listeners.open();
+        assert.deepEqual(h.sockets[0].sent[0], { type: 'join', name: 'Mia', participant_id: null, reconnect_token: null });
+        h.sockets[0].listeners.message({ data: JSON.stringify({
+            type: 'welcome', participant_id: 'p1', reconnect_token: 'geheim', revision: 0,
+            state: global.window.game.data, participants: [], resource_revisions: {},
+        }) });
+        clearInterval(h.client.heartbeat_interval);
+        clearInterval(h.client.resource_interval);
+        assert.equal(sessionStorage.getItem('2d-collaboration:ABC123:token'), 'geheim');
+
+        h.client.connect('ABC123', 'Mia');
+        h.sockets[1].listeners.open();
+        assert.deepEqual(h.sockets[1].sent[0], { type: 'join', name: 'Mia', participant_id: 'p1', reconnect_token: 'geheim' });
+    } finally { h.restore(); }
+});
+
+test('a connection replaced by another tab ends the session here instead of reconnecting', () => {
+    const h = connection_harness();
+    try {
+        sessionStorage.setItem('2d-collaboration:ABC123:token', 'geheim');
+        h.client.connect('ABC123', 'Mia');
+        h.sockets[0].listeners.close({ code: 4010, reason: 'replaced' });
+        assert.equal(h.client.reconnects, undefined);
+        assert.equal(h.client.code, null);
+        assert.equal(sessionStorage.getItem('2d-collaboration:ABC123:token'), null);
+        assert.match(h.client.notice_override, /anderen Tab/);
+
+        h.client.connect('ABC123', 'Mia');
+        h.sockets[1].listeners.close({ code: 1006, reason: '' });
+        assert.equal(h.client.reconnects, 1, 'an ordinary drop still reconnects');
+    } finally { h.restore(); }
+});
+
+test('losing a lock to somebody else is explained', () => {
+    const h = harness();
+    try {
+        h.client.focused_resource = 'sprite:held';
+        h.client.handle_presence([{ id: 'me', name: 'Ich', lock: { resource: 'sprite:held' } }]);
+        h.client.handle_presence([{ id: 'me', name: 'Ich' }, { id: 'o', name: 'Ben', lock: { resource: 'sprite:held' } }]);
+        assert.equal(h.client.notice_override,
+            'Ben arbeitet jetzt an diesem Sprite weiter, weil du eine Weile nichts daran geändert hast.');
+        assert.match(collaboration_lock_taken_notice('Ben', 'level:start'), /an diesem Level weiter/);
+        assert.match(collaboration_lock_taken_notice('Ben', 'settings'), /an den Einstellungen weiter/);
+    } finally { h.restore(); }
+});
+
+test('a lock somebody else holds is asked for again now and then', () => {
+    const h = harness();
+    try {
+        h.client.focused_resource = 'sprite:held';
+        h.client.participants = [{ id: 'o', name: 'Ben', lock: { resource: 'sprite:held' } }];
+        h.client.lock_retry_at = Date.now() + 10_000;
+        h.client.ensure_current_resource_lock();
+        assert.equal(h.sent.length, 0);
+        h.client.lock_retry_at = Date.now() - 1;
+        h.client.ensure_current_resource_lock();
+        assert.deepEqual(h.sent, [{ type: 'lock', resource: 'sprite:held' }]);
+        h.client.lock_request_pending = false;
+        h.client.ensure_current_resource_lock();
+        assert.equal(h.sent.length, 1, 'not again before the retry interval');
     } finally { h.restore(); }
 });

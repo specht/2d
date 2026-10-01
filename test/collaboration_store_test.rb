@@ -5,10 +5,14 @@ class CollaborationStoreTest < Minitest::Test
     def setup
         @now = 1_000.0
         @ids = %w(session participant-a connection-a participant-b connection-b connection-new extra extra2 extra3 extra4 extra5 extra6 extra7 extra8 extra9)
+        @token_count = 0
         @store = Collaboration::Store.new(
             clock: -> { @now },
             session_ttl: 100,
             reconnect_grace: 10,
+            stale_after: 50,
+            lock_lease: 30,
+            token_generator: -> { "token-#{@token_count += 1}" },
             code_generator: -> { @ids.shift },
             id_generator: -> { @ids.shift },
         )
@@ -70,6 +74,7 @@ class CollaborationStoreTest < Minitest::Test
             code: "session",
             name: "Mia",
             participant_id: participant_id,
+            reconnect_token: first[:reconnect_token],
         )
 
         refute_equal old_connection, reconnected[:connection_id]
@@ -81,17 +86,45 @@ class CollaborationStoreTest < Minitest::Test
         assert_equal ["Mia"], @store.snapshot(code: "session")[:participants].map { |p| p[:name] }
     end
 
-    def test_same_participant_id_cannot_take_over_an_active_connection
+    def test_a_known_participant_id_alone_does_not_take_over_a_participant
         @store.create(state: @state)
         first = @store.join(code: "session", name: "Mia")
-        second = @store.join(
-            code: "session",
-            name: "Mia",
-            participant_id: first[:participant_id],
-        )
+        @store.leave(code: "session", participant_id: first[:participant_id], connection_id: first[:connection_id])
 
-        refute_equal first[:participant_id], second[:participant_id]
-        assert_equal 2, second[:snapshot][:participants].length
+        without_token = @store.join(code: "session", name: "Mia", participant_id: first[:participant_id])
+        wrong_token = @store.join(code: "session", name: "Mia", participant_id: first[:participant_id],
+            reconnect_token: "token-99")
+
+        refute_equal first[:participant_id], without_token[:participant_id]
+        refute_equal first[:participant_id], wrong_token[:participant_id]
+    end
+
+    def test_the_reconnect_token_takes_over_a_still_connected_participant_with_its_lock
+        @store.create(state: @state)
+        first = @store.join(code: "session", name: "Mia")
+        @store.lock(**ids(first), resource: "sprite:held")
+
+        again = @store.join(code: "session", name: "Mia", participant_id: first[:participant_id],
+            reconnect_token: first[:reconnect_token])
+
+        assert_equal first[:participant_id], again[:participant_id]
+        assert_equal first[:connection_id], again[:replaced_connection_id]
+        assert_equal first[:reconnect_token], again[:reconnect_token]
+        participants = again[:snapshot][:participants]
+        assert_equal 1, participants.length
+        assert_equal "sprite:held", participants.first[:lock][:resource]
+        assert_raises(Collaboration::InvalidParticipant) { @store.touch(**ids(first)) }
+        refute @store.leave(**ids(first)), "the old connection closing later changes nothing"
+        assert @store.touch(**ids(again))[:participants].first[:lock]
+    end
+
+    def test_reconnect_tokens_are_never_shown_to_others
+        @store.create(state: @state)
+        mia = @store.join(code: "session", name: "Mia")
+        ben = @store.join(code: "session", name: "Ben")
+
+        refute_includes ben[:snapshot].to_s, mia[:reconnect_token]
+        refute_equal mia[:reconnect_token], ben[:reconnect_token]
     end
 
     def test_current_connection_can_leave_and_reconnect_within_grace_period
@@ -110,6 +143,7 @@ class CollaborationStoreTest < Minitest::Test
             code: "session",
             name: "Mia",
             participant_id: first[:participant_id],
+            reconnect_token: first[:reconnect_token],
         )
         assert_equal first[:participant_id], second[:participant_id]
     end
@@ -139,6 +173,7 @@ class CollaborationStoreTest < Minitest::Test
             code: "session",
             name: "Mia",
             participant_id: joined[:participant_id],
+            reconnect_token: joined[:reconnect_token],
         )
 
         refute_equal joined[:participant_id], fresh[:participant_id]
@@ -525,6 +560,84 @@ class CollaborationStoreTest < Minitest::Test
         assert_raises(Collaboration::InvalidParticipant) do
             @store.lock(**ids(anna), resource: "sprite:held")
         end
+    end
+
+
+    # ---------------------------------------------------------------- liveness
+
+    def test_a_participant_that_stops_responding_loses_its_lock
+        anna, ben = session_with("Anna", "Ben")
+        @store.lock(**ids(anna), resource: "sprite:held")
+        @now += 40
+        refute @store.touch(**ids(ben))[:expired]
+        @now += 11 # Anna silent for 51 s, Ben for 11 s
+
+        result = @store.touch(**ids(ben))
+
+        assert result[:expired]
+        assert_equal ["Ben"], result[:participants].map { |p| p[:name] }
+        assert @store.lock(**ids(ben), resource: "sprite:held")[:applied]
+        assert_raises(Collaboration::InvalidParticipant) { @store.touch(**ids(anna)) }
+    end
+
+    def test_an_expired_participant_can_rejoin_with_its_token
+        anna, ben = session_with("Anna", "Ben")
+        @now += 40
+        @store.touch(**ids(ben))
+        @now += 11
+        @store.touch(**ids(ben)) # Anna expires now; her reconnect grace starts now
+        @now += 5
+
+        again = @store.join(code: "session", name: "Anna", participant_id: anna[:participant_id],
+            reconnect_token: anna[:reconnect_token])
+
+        assert_equal anna[:participant_id], again[:participant_id]
+        assert_nil again[:replaced_connection_id]
+    end
+
+    def test_heartbeats_keep_a_participant_alive
+        anna, = session_with("Anna")
+        3.times do
+            @now += 40
+            refute @store.touch(**ids(anna))[:expired]
+        end
+    end
+
+    def test_an_unused_lock_can_be_taken_over_after_the_lease
+        anna, ben = session_with("Anna", "Ben")
+        @store.lock(**ids(anna), resource: "sprite:held")
+        @now += 20
+        refute @store.lock(**ids(ben), resource: "sprite:held")[:applied]
+        @now += 11 # Anna's lock unused for 31 s
+
+        result = @store.lock(**ids(ben), resource: "sprite:held")
+
+        assert result[:applied]
+        locks = result[:participants].to_h { |p| [p[:name], p[:lock] && p[:lock][:resource]] }
+        assert_equal({ "Anna" => nil, "Ben" => "sprite:held" }, locks)
+        refute @store.update(**ids(anna), resource: "sprite:held", resource_revision: 0, value: {})[:applied]
+    end
+
+    def test_editing_keeps_the_lease_fresh
+        anna, ben = session_with("Anna", "Ben")
+        @store.lock(**ids(anna), resource: "sprite:held")
+        @now += 25
+        @store.update(**ids(anna), resource: "sprite:held", resource_revision: 0, value: {})
+        @now += 25 # 50 s after locking, but only 25 s after the last change
+        @store.touch(**ids(ben))
+
+        refute @store.lock(**ids(ben), resource: "sprite:held")[:applied]
+    end
+
+    def test_locking_the_same_resource_again_does_not_renew_the_lease
+        anna, ben = session_with("Anna", "Ben")
+        @store.lock(**ids(anna), resource: "sprite:held")
+        @now += 25
+        @store.lock(**ids(anna), resource: "sprite:held")
+        @now += 6
+        @store.touch(**ids(ben))
+
+        assert @store.lock(**ids(ben), resource: "sprite:held")[:applied]
     end
 
 end
