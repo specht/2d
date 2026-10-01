@@ -378,6 +378,47 @@ class Main < Sinatra::Base
                     when "request_snapshot"
                         snapshot = @@collaboration_store.snapshot(:code => code)
                         collaboration_send(socket, collaboration_snapshot_payload("state", snapshot))
+                    when "save"
+                        prepared = @@collaboration_store.begin_save(
+                            :code => code,
+                            :participant_id => participant_id,
+                            :connection_id => connection_id,
+                        )
+                        unless prepared
+                            collaboration_send(socket, :type => "save_error", :error => "save_in_progress")
+                            next
+                        end
+
+                        begin
+                            game_to_save = prepared[:state]
+                            game_to_save["parent"] = prepared[:source_tag]
+                            tag = save_game(game_to_save, true)
+                            snapshot = @@collaboration_store.finish_save(
+                                :code => code,
+                                :token => prepared[:token],
+                                :tag => tag,
+                            )
+                            collaboration_broadcast(
+                                code,
+                                {
+                                    :type => "saved",
+                                    :tag => tag,
+                                    :icon => icon_for_tag(tag),
+                                    :saved_by => prepared[:participant_name],
+                                    :saved_by_id => prepared[:participant_id],
+                                    :source_tag => snapshot[:source_tag],
+                                    :revision => snapshot[:revision],
+                                    :participants => snapshot[:participants],
+                                },
+                            )
+                        rescue => e
+                            @@collaboration_store.abort_save(
+                                :code => code,
+                                :token => prepared[:token],
+                            )
+                            debug_error "Shared collaboration save failed: #{e}"
+                            collaboration_send(socket, :type => "save_error", :error => "save_failed")
+                        end
                     when "replace_state"
                         unless message["base_revision"].is_a?(Integer) && message["state"].is_a?(Hash)
                             collaboration_send(socket, :type => "error", :error => "invalid_state_update")
