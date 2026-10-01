@@ -273,6 +273,14 @@ extensions:
 Publish a recipe only for features that work in the current editor. Its
 `erwartet` block must prove the effect the text promises.
 
+For combat recipes, use the same implemented attack family for player and
+enemy examples where applicable. Make **required drawings** and **optional
+presentation art** explicit: a character attack state, hit animation or extra
+projectile frames may improve the look, but must never be taught as controlling
+damage, timing or hit geometry. Do not publish recipes for planned attack
+families (for example a laser) until their editor controls and runtime behaviour
+actually exist and the recipe can verify the promised result.
+
 Useful numbers when tuning a scene: Pip walks 3 px per simulation step (180
 px/s); with Sprungkraft 7 a jump rises about 75 px. A character that leaves
 the level at the side or bottom dies. Keep every scene closed.
