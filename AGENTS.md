@@ -12,12 +12,22 @@ Read `TODO.md` and inspect the current repository before proposing changes. This
 
 ## Current direction and document ownership
 
-Read `2d-game-studio-next-steps.md` for the active branch, confirmed features and future roadmap. Read `2d-combat-design-and-recipes.md` for combat contracts and recipes. This file contains only standing rules; `TODO.md` is historical feedback rather than an approved feature list. Always inspect the current source instead of relying on old handoff SHAs.
+Keep the active documentation small and purpose-specific:
+
+- `README.md`: what the project is, how games and versions work, architecture and local setup.
+- `TODO.md`: the active backlog and open design questions. Remove entries when they are implemented.
+- `AGENTS.md`: standing development contracts and code orientation for future development sessions.
+- `rezepte/README.md`: recipe authoring, recording and verification.
+- `docs/archive/`: historical handoffs and design explorations. They are context only, not current requirements.
+
+Always inspect the current source and `TODO.md` instead of relying on archived handoff SHAs or implementation-status prose.
 
 ## Established behavior and design boundaries
 
 - **Seamless interiors are implemented:** A named Sichtbarkeitsbereich targets one layer via player-position rectangles; optional fading is visual only. Dedicated facade/roof art should have collision explicitly disabled. Hidden layers must retain their existing gameplay/collision structures.
-- **Combat foundation is implemented:** Shared actor/baddie melee, ranged projectiles and timed bombs; preserve legacy attacks and J/K/F controls. Instant lasers, bilateral area attacks, cooldown HUD and collectible ammunition remain distinct future proposals.
+- **Combat foundation is implemented:** Shared actor/baddie melee, ranged projectiles and timed bombs; preserve legacy attacks and J/K/F controls. New attack families must use the same owner-neutral combat machinery for actor and baddie from their first playable version rather than creating a second enemy-only or player-only damage system.
+- **Combat rules are independent of artwork:** Delivery, targeting, damage, timing and hit geometry come from combat configuration and runtime state, never from image pixels, frame count or sprite colour. Optional attack/hit/death animation states are presentation and must not silently change damage or collision semantics. Projectiles and other attack visuals likewise do not inherit unrelated placed-sprite traits.
+- **Future combat stays incremental:** Instant lasers/rays, reusable area attacks, cooldown feedback and finite ammunition remain separate backlog items. A continuous beam is a distinct mechanic from an instant ray because it needs explicit re-hit/interrupt timing.
 - **Movement and gravity remain separate ideas:** Keep control, movement/physics, abilities and presentation conceptually separate. Variable gravity/camera changes must be opt-in; old games retain established downward gravity.
 
 ## Student-facing language and help
@@ -34,6 +44,6 @@ All student-facing labels, explanations, hints, tutorials, and warnings must be 
 - `src/static/movement_regions.js`: opt-in Bewegungsbereiche (swim, float, other gravity, currents) for the player character and walking enemies, per rectangle layer or for the whole level.
 - `src/static/combat.js`, `src/static/combat_swing.js`, `src/static/combat_projectile.js`, `src/static/combat_melee_trait.js`: shared attack, melee, projectile/bomb deliveries and legacy/new trait adapters.
 - `rezepte/`: German how-to recipes for the Hilfe tab. `rezepte/tools/build.mjs` records each recipe's GIF from the real engine in headless Chromium, checks the recipe's promised outcome and writes `src/static/rezepte/` (commit the generated files). Rebuild after gameplay changes; a failing recipe means children would be told something that no longer works. See `rezepte/README.md`.
-- `TODO.md`: historical ideas and bug reports, not an implementation contract; newer decisions in the two project documents supersede conflicting suggestions.
+- `TODO.md`: active backlog and open design questions. It is not proof that a reported bug still exists; verify current source and behaviour before implementing an item.
 
 Be clear whether an observation came from source review, an isolated check, or a real browser/gameplay test. Never claim existing games were tested unless they actually were.

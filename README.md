@@ -438,6 +438,17 @@ In particular:
 
 See `AGENTS.md` for the standing development rules and `TODO.md` for the current backlog.
 
+## Documentation
+
+The active project documentation is intentionally small:
+
+- `README.md` describes the project, architecture, save/version model and local setup.
+- `TODO.md` contains only work that is still open or needs a design decision.
+- `AGENTS.md` contains standing compatibility and development contracts.
+- `rezepte/README.md` documents the recipe system and its build/verification workflow.
+
+Older handoff and design documents live under `docs/archive/`. They are retained as historical context, but they are not authoritative descriptions of the current implementation or roadmap. Current source code and the active documents above take precedence.
+
 ## Production
 
 Production uses the same generated Docker Compose setup but with `DEVELOPMENT = false` and production-specific values in `env.rb`.

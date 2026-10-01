@@ -323,6 +323,10 @@ The combat foundation is already broad enough for many games.
 
 Existing capabilities include melee, projectiles, bombs, enemy health, hit reactions, death states and enemy drops.
 
+Any new attack family should work for both player characters and enemies through the same combat path from its first playable version. Keep delivery, damage/timing and presentation separate so optional artwork never becomes game logic.
+
+Publish a combat recipe only after the corresponding feature works in the current editor/runtime and can be verified by the recipe build.
+
 Potential extensions:
 
 ## Laser / ray attacks
@@ -332,6 +336,8 @@ Potential extensions:
 - nearest valid target
 - visual beam
 - reuse existing damage handling
+
+Implement an instant ray first. Treat a continuous beam as a separate later mechanic with explicit re-hit timing and interruption rules.
 
 ## Area attacks
 
