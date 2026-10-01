@@ -333,7 +333,7 @@ class Main < Sinatra::Base
                 begin
                     if event.data.bytesize > 1024 * 1024 * 20
                         collaboration_send(socket, :type => "error", :error => "too_much_data")
-                        socket.close(1009, "too_much_data")
+                        socket.close(4009, "too_much_data")
                         next
                     end
                     message = JSON.parse(event.data)
@@ -341,7 +341,7 @@ class Main < Sinatra::Base
                     if participant_id.nil?
                         unless message["type"] == "join"
                             collaboration_send(socket, :type => "error", :error => "join_required")
-                            socket.close(1008, "join_required")
+                            socket.close(4008, "join_required")
                             next
                         end
                         requested_participant_id = message["participant_id"]
@@ -449,11 +449,11 @@ class Main < Sinatra::Base
                     collaboration_send(socket, :type => "error", :error => "invalid_json")
                 rescue Collaboration::Error => e
                     collaboration_send(socket, :type => "error", :error => e.message)
-                    socket.close(1008, e.message)
+                    socket.close(4008, e.message)
                 rescue => e
                     debug_error "Collaboration WebSocket error: #{e}"
                     collaboration_send(socket, :type => "error", :error => "internal_error")
-                    socket.close(1011, "internal_error")
+                    socket.close(4011, "internal_error")
                 end
             end
 
