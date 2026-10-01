@@ -803,4 +803,58 @@ class CollaborationStoreTest < Minitest::Test
             assert_equal 0, Collaboration::Store.new(clock: -> { @now }).restore_from(path)
         end
     end
+
+    # ----------------------------------------------------------------- colours
+
+    def test_participants_get_different_colours_in_join_order
+        @store.create(state: @state)
+        names = %w[Anna Ben Mia Cem]
+        joined = names.map { |name| @store.join(code: "session", name: name) }
+        participants = @store.snapshot(code: "session")[:participants]
+
+        assert_equal names, participants.map { |p| p[:name] }, "listed in the order they joined"
+        assert_equal [0, 1, 2, 3], participants.map { |p| p[:color] }
+        refute_nil joined
+    end
+
+    def test_a_participant_keeps_its_colour_when_reconnecting_and_a_newcomer_does_not_take_it
+        anna, ben = session_with("Anna", "Ben")
+        @store.leave(**ids(anna))
+        mia = @store.join(code: "session", name: "Mia")
+        again = @store.join(code: "session", name: "Anna", participant_id: anna[:participant_id],
+            reconnect_token: anna[:reconnect_token])
+
+        colours = again[:snapshot][:participants].to_h { |p| [p[:name], p[:color]] }
+        assert_equal({ "Anna" => 0, "Ben" => 1, "Mia" => 2 }, colours)
+        refute_nil ben
+        refute_nil mia
+    end
+
+    def test_colours_are_reused_when_there_are_more_people_than_colours
+        store = Collaboration::Store.new(clock: -> { @now })
+        code = store.create(state: @state)[:code]
+        colours = 10.times.map { |i| store.join(code: code, name: "Kind #{i}") }
+        listed = store.snapshot(code: code)[:participants].map { |p| p[:color] }
+
+        assert_equal (0..7).to_a + [0, 1], listed
+        refute_nil colours
+    end
+
+    def test_colours_survive_a_restart
+        Dir.mktmpdir do |dir|
+            path = File.join(dir, "sessions.json")
+            anna, ben = session_with("Anna", "Ben")
+            @store.persist_to(path)
+            restarted = Collaboration::Store.new(clock: -> { @now })
+            restarted.restore_from(path)
+
+            again = restarted.join(code: "session", name: "Ben", participant_id: ben[:participant_id],
+                reconnect_token: ben[:reconnect_token])
+            newcomer = restarted.join(code: "session", name: "Mia")
+            colours = newcomer[:snapshot][:participants].to_h { |p| [p[:name], p[:color]] }
+            assert_equal({ "Ben" => 1, "Mia" => 2 }, colours)
+            refute_nil again
+            refute_nil anna
+        end
+    end
 end

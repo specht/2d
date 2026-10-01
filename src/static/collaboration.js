@@ -13,6 +13,9 @@
 const COLLABORATION_CODE_LENGTH = 6;
 const COLLABORATION_COLLECTIONS = { sprite: 'sprites', level: 'levels' };
 const COLLABORATION_LOCK_RETRY_MS = 15_000;
+// Participant colours (the server hands out indices, see COLOR_COUNT in
+// collaboration.rb). Tuned to read on the studio's dark panels with dark text.
+const COLLABORATION_COLORS = ['#f5b83d', '#5cc8ff', '#ff7aa8', '#9be36a', '#b79cff', '#ff9e5e', '#4fe0c8', '#e27bff'];
 // a lock request without any answer is sent again after this time
 const COLLABORATION_LOCK_TIMEOUT_MS = 5_000;
 
@@ -50,10 +53,6 @@ function collaboration_connection_status(connected, has_connected_once) {
     return has_connected_once
         ? 'Verbindung wird wiederhergestellt …'
         : 'Verbindung wird hergestellt …';
-}
-
-function collaboration_status_label(connected, participant_count) {
-    return connected ? `Gemeinsam · ${participant_count}` : 'Gemeinsam …';
 }
 
 function collaboration_resource(kind, id) {
@@ -153,6 +152,55 @@ function collaboration_join_error_text(error) {
     }
 }
 
+// ------------------------------------------------------------ people
+
+function collaboration_color(participant) {
+    if (Number.isInteger(participant?.color))
+        return COLLABORATION_COLORS[((participant.color % COLLABORATION_COLORS.length) + COLLABORATION_COLORS.length) % COLLABORATION_COLORS.length];
+    // fallback for an older server: derived from the id, stable as well
+    let hash = 0;
+    for (const char of String(participant?.id ?? '')) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+    return COLLABORATION_COLORS[hash % COLLABORATION_COLORS.length];
+}
+
+function collaboration_initial(name) {
+    const first = [...String(name ?? '').trim()][0];
+    return first ? first.toLocaleUpperCase('de') : '?';
+}
+
+// What somebody is doing, as shown in the participant list. `me` switches to
+// the second person ("zeichnest"), data is the game (for names and pictures).
+function collaboration_activity(participant, data, me = false) {
+    const target = parse_collaboration_resource(participant?.lock?.resource);
+    if (target?.kind === 'sprite') {
+        const sprite = (data?.sprites ?? []).find(item => item?.id === target.id);
+        const frames = sprite?.states?.[0]?.frames ?? [];
+        const frame = frames[Math.max(0, Math.floor((frames.length - 1) / 2))];
+        return { text: me ? 'zeichnest' : 'zeichnet', picture: frame?.src ?? null };
+    }
+    if (target?.kind === 'level') {
+        const levels = data?.levels ?? [];
+        const index = levels.findIndex(item => item?.id === target.id);
+        const name = levels[index]?.properties?.name?.trim() || `Level ${index + 1}`;
+        return { text: `${me ? 'baust' : 'baut'} an „${name}“`, picture: null };
+    }
+    if (target?.kind === 'settings')
+        return { text: me ? 'änderst die Einstellungen' : 'ändert die Einstellungen', picture: null };
+    return { text: me ? 'schaust dich um' : 'schaut sich um', picture: null };
+}
+
+// The tag on a sprite, level or the settings somebody else is working on.
+function collaboration_occupied_text(name, resource) {
+    const kind = parse_collaboration_resource(resource)?.kind;
+    if (kind === 'level') return `${name} baut gerade an diesem Level. Du kannst zuschauen.`;
+    if (kind === 'settings') return `${name} ändert gerade die Einstellungen. Du kannst zuschauen.`;
+    return `${name} zeichnet gerade dieses Sprite. Du kannst zuschauen.`;
+}
+
+function collaboration_people_title(count) {
+    return count === 1 ? 'Du bist allein in der Sitzung' : `${count} Leute in der Sitzung`;
+}
+
 function collaboration_lock_race_notice(name, resource) {
     const kind = parse_collaboration_resource(resource)?.kind;
     const what = kind === 'settings' ? 'den Einstellungen' : kind === 'level' ? 'diesem Level' : 'diesem Sprite';
@@ -174,13 +222,6 @@ function collaboration_rejection_notice(message, holder_name = null) {
     if (message?.reason === 'last_item')
         return `Das letzte ${thing} kann nicht gelöscht werden.`;
     return 'Das hat nicht geklappt, weil sich gleichzeitig etwas anderes geändert hat. Der gemeinsame Stand wird neu geladen.';
-}
-
-function collaboration_resource_description(resource) {
-    if (resource === 'settings') return 'die Einstellungen';
-    if (resource?.startsWith('sprite:')) return 'dieses Sprite';
-    if (resource?.startsWith('level:')) return 'dieses Level';
-    return 'diesen Bereich';
 }
 
 function collaboration_saved_notice(saved_by, is_me) {
@@ -1149,8 +1190,12 @@ class CollaborationClient {
         const text = collaboration_leave_text(reason, { alone, unsaved });
         // Shown after the current click handler: the game list closes its own
         // dialog right after asking to load, which would hide this one too.
+        // Asked from the session dialog: that one makes room and comes back
+        // if the answer is "Abbrechen".
+        this.leave_asked_from_status = reason === 'leave';
         setTimeout(() => {
             if (typeof $ !== 'undefined') $('#collaboration_leave_text').text(text);
+            globalThis.window?.collaborationStatusModal?.hide();
             globalThis.window?.collaborationLeaveModal?.show();
         }, 0);
     }
@@ -1345,6 +1390,19 @@ class CollaborationClient {
         history.replaceState(history.state, '', url.pathname + url.search + url.hash);
     }
 
+    // ------------------------------------------------------- status bar
+
+    // A small square in the participant's colour with their initial, like a
+    // swatch from the palette.
+    token(participant, extra_class = '') {
+        return $('<span>')
+            .addClass(`collab-token ${extra_class}`.trim())
+            .toggleClass('is-me', participant.id === this.participant_id)
+            .css('--collab-color', collaboration_color(participant))
+            .attr('title', participant.name)
+            .text(collaboration_initial(participant.name));
+    }
+
     append_status_control(status_bar = null) {
         if (typeof $ === 'undefined') return;
         status_bar ??= $('#status-bar');
@@ -1352,7 +1410,7 @@ class CollaborationClient {
         let control = status_bar.find('#collaboration-control');
         if (!control.length) {
             control = $('<div id="collaboration-control">')
-                .addClass('status-bar-item status-bar-button collaboration-status-button')
+                .addClass('status-bar-item status-bar-button collab-status')
                 .on('click', (event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -1367,22 +1425,31 @@ class CollaborationClient {
         control.empty();
 
         if (this.code) {
-            control.attr('title', 'Gemeinsame Sitzung anzeigen');
-            control.append($('<span>').addClass('collaboration-status-dot'));
-            control.append($('<span>').text(
-                collaboration_status_label(this.connected, this.participants.length)
-            ));
+            control.attr('title', this.connected
+                ? 'Gemeinsame Sitzung: Code, Leute und wer woran arbeitet'
+                : collaboration_connection_status(false, this.has_connected_once));
+            control.append($('<span>').addClass('collab-status-dot'));
+            control.append($('<span>').addClass('collab-status-label').text('Gemeinsam'));
+            const stack = $('<span>').addClass('collab-token-stack');
+            const shown = this.participants.slice(0, 6);
+            for (const participant of shown) stack.append(this.token(participant));
+            if (this.participants.length > shown.length)
+                stack.append($('<span>').addClass('collab-token collab-token-more').text(`+${this.participants.length - shown.length}`));
+            control.append(stack);
             status_bar.prepend(control);
         } else {
-            control.attr('title', 'Gemeinsame Sitzung starten oder beitreten');
-            control.text('Zusammenarbeiten');
+            control.attr('title', 'Mit anderen zusammen an diesem Spiel arbeiten');
+            control.append($('<i class="fa fa-users"></i>'), $('<span>').text('Zusammenarbeiten'));
             status_bar.append(control);
         }
     }
 
     render_control() {
         this.append_status_control();
+        this.render_activity();
     }
+
+    // ------------------------------------------------------- session dialog
 
     render_status() {
         if (typeof $ === 'undefined') return;
@@ -1394,51 +1461,93 @@ class CollaborationClient {
             collaboration_connection_status(this.connected, this.has_connected_once)
         );
 
-        $('#collaboration_session_code').text(this.code ?? '—');
+        const tiles = $('#collaboration_session_code').empty();
+        for (const char of this.code ?? '——————') tiles.append($('<span>').text(char));
 
-        const count = this.participants.length;
-        $('#collaboration_participants_title').text(
-            count === 1 ? '1 Person dabei' : `${count} Personen dabei`
-        );
+        $('#collaboration_participants_title').text(collaboration_people_title(this.participants.length));
         const list = $('#collaboration_participants').empty();
         for (const participant of this.participants) {
-            const item = $('<div>').addClass('collaboration-participant');
-            const name = $('<div>').addClass('collaboration-participant-name').text(participant.name);
-            if (participant.id === this.participant_id)
-                name.append($('<span>').addClass('collaboration-participant-me').text('du'));
-            item.append(name);
-            if (participant.lock?.resource) {
-                item.append(
-                    $('<div>')
-                        .addClass('collaboration-participant-activity')
-                        .text(`Bearbeitet ${collaboration_resource_description(participant.lock.resource)}`)
-                );
-            }
-            list.append(item);
+            const me = participant.id === this.participant_id;
+            const activity = collaboration_activity(participant, window.game?.data, me);
+            const row = $('<div>').addClass('collab-person').toggleClass('is-me', me)
+                .css('--collab-color', collaboration_color(participant));
+            row.append(this.token(participant, 'collab-token-large'));
+            const text = $('<div>').addClass('collab-person-text').appendTo(row);
+            const name = $('<div>').addClass('collab-person-name').text(participant.name).appendTo(text);
+            if (me) name.append($('<span>').addClass('collab-me').text('du'));
+            const doing = $('<div>').addClass('collab-person-activity').text(activity.text).appendTo(text);
+            if (activity.picture) doing.append($('<img>').attr({ src: activity.picture, alt: '' }));
+            list.append(row);
         }
     }
+
+    copy_to_clipboard(text, button) {
+        const done = () => {
+            const label = button.data('label') ?? button.html();
+            button.data('label', label).addClass('copied').html('<i class="fa fa-check"></i> Kopiert');
+            clearTimeout(button.data('timer'));
+            button.data('timer', setTimeout(() => button.removeClass('copied').html(label), 2000));
+        };
+        const fallback = () => {
+            const input = $('<textarea>').val(text).css({ position: 'fixed', opacity: 0 }).appendTo('body');
+            input[0].select();
+            try { document.execCommand('copy'); done(); } catch (_error) {}
+            input.remove();
+        };
+        if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+        else fallback();
+    }
+
+    session_link() {
+        const url = new URL(window.location.href);
+        url.search = '';
+        url.hash = '';
+        url.searchParams.set('collab', this.code);
+        return url.toString();
+    }
+
+    // ------------------------------------------------------- who works where
+
+    // Marks the sprites and levels other people are working on with their
+    // colour and initial. Runs often, so it only touches items that change.
+    render_activity() {
+        if (typeof $ === 'undefined' || !window.game?.data) return;
+        if ($('html').data('_dnd_moving')) return; // the lists are being rearranged
+        const holders = new Map();
+        if (this.code) {
+            for (const participant of this.participants) {
+                if (participant.id !== this.participant_id && participant.lock?.resource)
+                    holders.set(participant.lock.resource, participant);
+            }
+        }
+        for (const [kind, key, list] of [['sprite', 'sprites', '#menu_sprites'], ['level', 'levels', '#menu_levels']]) {
+            const items = $(`${list} > ._dnd_item:not(.add)`);
+            const data = window.game.data[key] ?? [];
+            items.each((index, element) => {
+                const item = $(element).children().eq(0);
+                const holder = holders.get(collaboration_resource(kind, data[index]?.id)) ?? null;
+                const marker = holder ? `${holder.id}:${holder.name}:${holder.color}` : '';
+                if (item.attr('data-collab-holder') === marker) return;
+                item.attr('data-collab-holder', marker);
+                item.children('.collab-marker').remove();
+                item.toggleClass('collab-held', !!holder);
+                if (!holder) {
+                    item.css('--collab-color', '');
+                    return;
+                }
+                item.css('--collab-color', collaboration_color(holder));
+                item.append(this.token(holder, 'collab-marker').attr('title', collaboration_occupied_text(holder.name, collaboration_resource(kind, data[index].id)).split('.')[0]));
+            });
+        }
+    }
+
+    // ------------------------------------------------------- notices
 
     ensure_notice() {
         if (typeof $ === 'undefined') return { text() { return this; }, show() { return this; }, hide() { return this; } };
         let notice = $('#collaboration-resource-notice');
-        if (!notice.length) {
-            notice = $('<div id="collaboration-resource-notice">').css({
-                position: 'fixed',
-                left: '50%',
-                bottom: '42px',
-                transform: 'translateX(-50%)',
-                'z-index': 850,
-                'max-width': 'min(720px, 90vw)',
-                padding: '0.45em 0.8em',
-                'border-radius': '5px',
-                border: '1px solid rgba(255,255,255,0.25)',
-                background: 'rgba(15,15,18,0.92)',
-                color: '#ddd',
-                'box-shadow': '0 2px 12px rgba(0,0,0,0.55)',
-                'font-size': '14px',
-                'pointer-events': 'none',
-            }).hide().appendTo('body');
-        }
+        if (!notice.length)
+            notice = $('<div id="collaboration-resource-notice" class="collab-toast" role="status">').hide().appendTo('body');
         return notice;
     }
 
@@ -1448,31 +1557,87 @@ class CollaborationClient {
         this.ensure_notice().text(text).show();
     }
 
-    set_controls_readonly(resource, readonly) {
+    // ------------------------------------------------------- read-only view
+
+    // The drawing surface, level or settings for a resource, and the panels
+    // around it that only make sense when one may edit.
+    static targets(resource) {
+        const kind = parse_collaboration_resource(resource)?.kind;
+        // The tool bars stay usable: choosing the hand tool to look around
+        // does not change anything.
+        if (kind === 'sprite') return {
+            surface: '#canvas',
+            tools: '#color_menu, #color_variations_menu, #functions_dropdown, #undo_stack, #menu_frames, #states_container, #menu_sprite_properties',
+        };
+        if (kind === 'level') return {
+            surface: '#level',
+            tools: '#tool_menu_level_settings, #menu_level_sprites, #menu_layers, #menu_level_properties, #menu_layer_properties, #menu_placed_properties',
+        };
+        if (kind === 'settings') return { surface: '#game-settings-here', tools: '' };
+        return null;
+    }
+
+    // Read-only means: the surface stays fully visible (watching somebody
+    // work is the point) inside a frame in their colour with a name tag; the
+    // tools around it are dimmed. holder is null when we are disconnected.
+    set_controls_readonly(resource, readonly, holder = null) {
         if (typeof $ === 'undefined') return;
         // Called several times a second: only touch the page when something changed.
-        const key = `${readonly ? resource : ''}`;
-        if (key === this.readonly_key) return;
-        this.readonly_key = key;
-        const all = [
-            '#tool_menu', '#color_menu', '#color_variations_menu', '#functions_dropdown', '#canvas', '#undo_stack',
-            '#menu_frames', '#states_container', '#menu_sprite_properties',
-            '#tool_menu_level', '#tool_menu_level_settings', '#menu_level_sprites', '#level', '#menu_layers',
-            '#menu_level_properties', '#menu_layer_properties', '#menu_placed_properties',
-            '#game-settings-here',
-        ].join(', ');
-        $(all).css({ 'pointer-events': '', opacity: '' });
-        if (!readonly || !resource) return;
-
-        let selectors = '';
-        if (resource.startsWith('sprite:')) {
-            selectors = '#tool_menu, #color_menu, #color_variations_menu, #functions_dropdown, #canvas, #undo_stack, #menu_frames, #states_container, #menu_sprite_properties';
-        } else if (resource.startsWith('level:')) {
-            selectors = '#tool_menu_level, #tool_menu_level_settings, #menu_level_sprites, #level, #menu_layers, #menu_level_properties, #menu_layer_properties, #menu_placed_properties';
-        } else if (resource === 'settings') {
-            selectors = '#game-settings-here';
+        const key = readonly ? `${resource}|${holder ? `${holder.id}:${holder.name}:${holder.color}` : 'offline'}` : '';
+        if (key !== this.readonly_key) {
+            this.readonly_key = key;
+            $('.collab-readonly-tools').removeClass('collab-readonly-tools');
+            $('.collab-occupied').removeClass('collab-occupied collab-offline').css('--collab-color', '');
+            const targets = readonly ? CollaborationClient.targets(resource) : null;
+            if (targets) {
+                if (targets.tools) $(targets.tools).addClass('collab-readonly-tools');
+                $(targets.surface).addClass('collab-occupied').toggleClass('collab-offline', !holder)
+                    .css('--collab-color', holder ? collaboration_color(holder) : '');
+                const tag = this.ensure_occupied_tag().empty().toggleClass('collab-offline', !holder)
+                    .css('--collab-color', holder ? collaboration_color(holder) : '');
+                if (holder) tag.append(this.token(holder), $('<span>').text(collaboration_occupied_text(holder.name, resource)));
+                else tag.append($('<i class="fa fa-plug"></i>'), $('<span>').text('Die Verbindung ist unterbrochen. Bis sie wieder da ist, kannst du nichts ändern.'));
+            }
         }
-        $(selectors).css({ 'pointer-events': 'none', opacity: 0.55 });
+        this.place_occupied_tag(readonly ? CollaborationClient.targets(resource)?.surface : null);
+    }
+
+    // On a surface somebody else is working on, only looking around works:
+    // the hand tool, the mouse wheel and two-finger gestures.
+    install_readonly_guard() {
+        const looking_around = (event, surface) => {
+            if ((event.touches?.length ?? 0) >= 2) return true;
+            if (surface.id === 'canvas') return window.canvas?.menu?.get?.('tool') === 'tool/pan';
+            if (surface.id === 'level') return typeof menus !== 'undefined' && menus.level?.active_key === 'tool/pan';
+            return false;
+        };
+        for (const type of ['mousedown', 'touchstart', 'pointerdown', 'dblclick']) {
+            document.addEventListener(type, (event) => {
+                const surface = event.target.closest?.('.collab-occupied');
+                if (!surface || looking_around(event, surface)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            }, { capture: true, passive: false });
+        }
+    }
+
+    ensure_occupied_tag() {
+        let tag = $('#collaboration-occupied-tag');
+        if (!tag.length) tag = $('<div id="collaboration-occupied-tag" class="collab-occupied-tag" role="status">').hide().appendTo('body');
+        return tag;
+    }
+
+    // The tag sits inside the top left corner of the surface it belongs to.
+    place_occupied_tag(surface) {
+        const tag = $('#collaboration-occupied-tag');
+        const element = surface ? $(surface)[0] : null;
+        const rect = element?.getBoundingClientRect();
+        if (!rect || rect.width === 0 || !$(element).is(':visible')) {
+            tag.hide();
+            return;
+        }
+        tag.css({ left: `${Math.round(rect.left + 8)}px`, top: `${Math.round(rect.top + 8)}px`, 'max-width': `${Math.max(160, Math.round(rect.width - 16))}px` }).show();
     }
 
     update_resource_access() {
@@ -1484,26 +1649,15 @@ class CollaborationClient {
             notice.text(this.notice_override).show();
         } else {
             this.notice_override = null;
-            if (!this.code || !resource) {
-                notice.hide();
-            } else if (!this.connected) {
-                notice.text('Die Verbindung zur gemeinsamen Sitzung ist unterbrochen. Bearbeiten ist vorübergehend gesperrt.').show();
-            } else {
-                // While our own lock is on its way there is nothing to say:
-                // editing already works (see can_edit_current).
-                const holder = this.other_holder(resource);
-                if (holder)
-                    notice.text(`${holder.name} bearbeitet gerade ${collaboration_resource_description(resource)}.`).show();
-                else
-                    notice.hide();
-            }
+            notice.hide();
         }
 
+        this.render_activity();
         if (!this.code || !resource) {
             this.set_controls_readonly(resource, false);
             return;
         }
-        this.set_controls_readonly(resource, !this.can_edit_current());
+        this.set_controls_readonly(resource, !this.can_edit_current(), this.connected ? this.other_holder(resource) : null);
     }
 }
 
@@ -1519,14 +1673,15 @@ function setup_collaboration_ui() {
     window.collaboration = new CollaborationClient();
     window.collaboration.install_structure_guards();
     window.collaboration.install_page_guards();
+    window.collaboration.install_readonly_guard();
 
     window.collaborationLeaveModal = new ModalDialog({
         title: 'Gemeinsame Sitzung verlassen?',
         width: '460px',
         max_width: '90vw',
         body: `
-            <div class="collaboration-dialog">
-                <p id="collaboration_leave_text" class="collaboration-dialog-lead"></p>
+            <div class="collab-dialog">
+                <p id="collaboration_leave_text" class="collab-lead"></p>
             </div>
         `,
         footer: [
@@ -1536,12 +1691,13 @@ function setup_collaboration_ui() {
                 callback: (self) => {
                     window.collaboration.pending_leave = null;
                     self.dismiss();
+                    if (window.collaboration.leave_asked_from_status) window.collaborationStatusModal.show();
                 },
             },
             {
                 type: 'button',
                 label: 'Sitzung verlassen',
-                color: 'collaboration-leave',
+                color: 'collab-leave',
                 callback: (self) => {
                     self.dismiss();
                     window.collaboration.confirmed_leave();
@@ -1555,16 +1711,18 @@ function setup_collaboration_ui() {
         width: '460px',
         max_width: '90vw',
         body: `
-            <div class="collaboration-dialog collaboration-choice-dialog">
-                <p class="collaboration-dialog-lead">Was möchtest du tun?</p>
-                <div class="collaboration-choice-list">
-                    <button id="collaboration_choose_start" class="collaboration-choice-card" type="button">
+            <div class="collab-dialog">
+                <p class="collab-lead">Mehrere Leute können gleichzeitig am selben Spiel arbeiten, jede und jeder am eigenen Computer.</p>
+                <div class="collab-choices">
+                    <button id="collaboration_choose_start" class="collab-choice" type="button">
+                        <i class="fa fa-user-plus"></i>
                         <strong>Neue Sitzung starten</strong>
-                        <span>Andere können deinem aktuellen Spiel mit einem sechsstelligen Code beitreten.</span>
+                        <span>Mit deinem Spiel, so wie es gerade ist. Du bekommst einen Code für die anderen.</span>
                     </button>
-                    <button id="collaboration_choose_join" class="collaboration-choice-card" type="button">
+                    <button id="collaboration_choose_join" class="collab-choice" type="button">
+                        <i class="fa fa-sign-in"></i>
                         <strong>Sitzung beitreten</strong>
-                        <span>Du hast von jemandem einen Sitzungscode bekommen.</span>
+                        <span>Jemand hat dir einen Code genannt.</span>
                     </button>
                 </div>
             </div>
@@ -1597,12 +1755,11 @@ function setup_collaboration_ui() {
         width: '420px',
         max_width: '90vw',
         body: `
-            <div class="collaboration-dialog collaboration-form">
-                <p class="collaboration-dialog-lead">Starte eine gemeinsame Sitzung für dieses Spiel.</p>
-                <label class="collaboration-field">
+            <div class="collab-dialog">
+                <p class="collab-lead">Die anderen sehen deinen Namen, solange die Sitzung läuft. Ein Vorname reicht.</p>
+                <label class="collab-field">
                     <span>Dein Name</span>
-                    <input id="collaboration_start_name" maxlength="40" autocomplete="name">
-                    <small>Der Name ist nur für diese Sitzung sichtbar.</small>
+                    <input id="collaboration_start_name" maxlength="40" autocomplete="off" spellcheck="false">
                 </label>
             </div>
         `,
@@ -1634,19 +1791,17 @@ function setup_collaboration_ui() {
         width: '420px',
         max_width: '90vw',
         body: `
-            <div class="collaboration-dialog collaboration-form">
-                <p class="collaboration-dialog-lead">Gib den Code der gemeinsamen Sitzung ein.</p>
-                <p class="collaboration-dialog-note">Dein aktuelles Spiel wird dabei durch das gemeinsame Spiel ersetzt. Speichere es vorher, wenn du es behalten willst.</p>
-                <label class="collaboration-field">
-                    <span>Sitzungscode</span>
-                    <input id="collaboration_join_input_code" class="collaboration-code-input"
+            <div class="collab-dialog">
+                <label class="collab-field">
+                    <span>Code der Sitzung</span>
+                    <input id="collaboration_join_input_code" class="collab-code-input" placeholder="······"
                            maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false">
                 </label>
-                <label class="collaboration-field">
+                <label class="collab-field">
                     <span>Dein Name</span>
-                    <input id="collaboration_join_input_name" maxlength="40" autocomplete="name">
-                    <small>Der Name ist nur für diese Sitzung sichtbar.</small>
+                    <input id="collaboration_join_input_name" maxlength="40" autocomplete="off" spellcheck="false">
                 </label>
+                <p class="collab-note"><i class="fa fa-info-circle"></i> Dein Spiel hier wird durch das gemeinsame Spiel ersetzt. Speichere es vorher, wenn du es behalten willst.</p>
             </div>
         `,
         onshow: () => {
@@ -1689,16 +1844,13 @@ function setup_collaboration_ui() {
         width: '420px',
         max_width: '90vw',
         body: `
-            <div class="collaboration-dialog collaboration-form">
-                <p class="collaboration-dialog-lead">
-                    Du trittst der Sitzung
-                    <span id="collaboration_join_code" class="collaboration-inline-code"></span>
-                    bei.
-                </p>
-                <label class="collaboration-field">
+            <div class="collab-dialog">
+                <p class="collab-lead">Du trittst der Sitzung <span id="collaboration_join_code" class="collab-inline-code"></span> bei.</p>
+                <label class="collab-field">
                     <span>Dein Name</span>
-                    <input id="collaboration_join_name" maxlength="40" autocomplete="name">
+                    <input id="collaboration_join_name" maxlength="40" autocomplete="off" spellcheck="false">
                 </label>
+                <p class="collab-note"><i class="fa fa-info-circle"></i> Dein Spiel hier wird durch das gemeinsame Spiel ersetzt.</p>
             </div>
         `,
         onshow: () => {
@@ -1730,35 +1882,41 @@ function setup_collaboration_ui() {
         width: '460px',
         max_width: '90vw',
         body: `
-            <div class="collaboration-dialog collaboration-status-dialog">
-                <div id="collaboration_connection" class="collaboration-connection">
-                    <span class="collaboration-connection-dot"></span>
-                    <span id="collaboration_connection_status"></span>
-                </div>
-
-                <div class="collaboration-code-panel">
-                    <div class="collaboration-code-label">Sitzungscode</div>
-                    <div id="collaboration_session_code" class="collaboration-session-code"></div>
-                    <div class="collaboration-code-help">
-                        Andere wählen <strong>Zusammenarbeiten</strong> → <strong>Sitzung beitreten</strong>
-                        und geben diesen Code ein.
+            <div class="collab-dialog">
+                <div class="collab-code">
+                    <div id="collaboration_session_code" class="collab-code-tiles" aria-label="Code der Sitzung"></div>
+                    <p class="collab-code-help">Die anderen klicken in der Leiste unten auf <b>Zusammenarbeiten</b>, dann auf <b>Sitzung beitreten</b>, und tippen diesen Code ein.</p>
+                    <div class="collab-code-actions">
+                        <button id="collaboration_copy_code" type="button"><i class="fa fa-clipboard"></i> Code kopieren</button>
+                        <button id="collaboration_copy_link" type="button"><i class="fa fa-link"></i> Link kopieren</button>
                     </div>
                 </div>
 
-                <div class="collaboration-participants-section">
-                    <h4 id="collaboration_participants_title">Dabei</h4>
-                    <div id="collaboration_participants" class="collaboration-participants"></div>
+                <div class="collab-people-head">
+                    <h4 id="collaboration_participants_title"></h4>
+                    <div id="collaboration_connection" class="collab-connection">
+                        <span class="collab-status-dot"></span>
+                        <span id="collaboration_connection_status"></span>
+                    </div>
                 </div>
-
-                <p class="collaboration-privacy">Die Namen gelten nur für diese Sitzung. Sie sind keine Konten.</p>
+                <div id="collaboration_participants" class="collab-people"></div>
+                <p class="collab-note">Die Namen gibt es nur in dieser Sitzung. Sie sind keine Konten.</p>
             </div>
         `,
-        onshow: () => window.collaboration.render_status(),
+        onshow: () => {
+            window.collaboration.render_status();
+            $('#collaboration_copy_code').off('click.collaboration').on('click.collaboration', function () {
+                window.collaboration.copy_to_clipboard(window.collaboration.code ?? '', $(this));
+            });
+            $('#collaboration_copy_link').off('click.collaboration').on('click.collaboration', function () {
+                window.collaboration.copy_to_clipboard(window.collaboration.session_link(), $(this));
+            });
+        },
         footer: [
             {
                 type: 'button',
                 label: 'Sitzung verlassen',
-                color: 'collaboration-leave',
+                color: 'collab-leave',
                 callback: () => window.collaboration.confirm_leave('leave'),
             },
             {
@@ -1768,6 +1926,15 @@ function setup_collaboration_ui() {
             },
         ],
     });
+
+    // Enter in a field does what the green button does.
+    for (const modal of [window.collaborationStartModal, window.collaborationJoinCodeModal, window.collaborationJoinModal]) {
+        modal.dialog.on('keydown', 'input', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            modal.dialog.find('.modal-footer button.green').trigger('click');
+        });
+    }
 
     window.collaboration.render_control();
     window.collaboration.install_save_guard();
@@ -1802,7 +1969,6 @@ if (typeof module !== 'undefined' && module.exports) {
         collaboration_code_from_url,
         collaboration_websocket_url,
         collaboration_connection_status,
-        collaboration_status_label,
         collaboration_resource,
         parse_collaboration_resource,
         collaboration_resource_value,
@@ -1815,8 +1981,13 @@ if (typeof module !== 'undefined' && module.exports) {
         collaboration_lock_taken_notice,
         collaboration_lock_race_notice,
         collaboration_leave_text,
+        COLLABORATION_COLORS,
+        collaboration_color,
+        collaboration_initial,
+        collaboration_activity,
+        collaboration_occupied_text,
+        collaboration_people_title,
         collaboration_join_error_text,
-        collaboration_resource_description,
         collaboration_saved_notice,
         collaboration_save_error_message,
         CollaborationClient,

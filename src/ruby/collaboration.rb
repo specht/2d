@@ -96,6 +96,9 @@ module Collaboration
         # school may share one address, so this is generous.
         DEFAULT_MAX_SESSIONS_PER_CREATOR = 60
         DEFAULT_MAX_PARTICIPANTS = 40
+        # Every participant gets one of these colours (an index; the studio
+        # knows the actual colours) for as long as the participant exists.
+        COLOR_COUNT = 8
         PERSISTENCE_VERSION = 1
         MAX_NAME_LENGTH = 40
         COLLABORATION_CODE_LENGTH = 6
@@ -194,6 +197,8 @@ module Collaboration
                         id: participant_id,
                         name: display_name,
                         reconnect_token: @token_generator.call,
+                        color: next_color_locked(session),
+                        joined: (session[:joined_count] = session[:joined_count].to_i + 1),
                         connected: false,
                         connection_id: nil,
                         lock: nil,
@@ -592,13 +597,15 @@ module Collaboration
                     id: id,
                     name: p["name"].to_s,
                     reconnect_token: p["reconnect_token"],
+                    color: p["color"].is_a?(Integer) ? p["color"] : nil,
+                    joined: p["joined"].to_i,
                     connected: false,
                     connection_id: nil,
                     lock: nil,
                     last_seen: now,
                 }
             end
-            {
+            session = {
                 code: raw["code"],
                 source_tag: raw["source_tag"],
                 state: raw["state"],
@@ -606,10 +613,13 @@ module Collaboration
                 saved_revision: raw["saved_revision"].to_i,
                 resource_revisions: (raw["resource_revisions"] || {}).transform_values(&:to_i),
                 participants: participants,
+                joined_count: [raw["joined_count"].to_i, participants.values.map { |p| p[:joined] }.max.to_i].max,
                 save: nil,
                 created_at: raw["created_at"].to_f,
                 last_seen: raw["last_seen"].to_f,
             }
+            participants.each_value { |p| p[:color] ||= next_color_locked(session) }
+            session
         end
 
         def deep_copy(value)
@@ -667,12 +677,23 @@ module Collaboration
         def participants_locked(session)
             session[:participants].values
                 .select { |participant| participant[:connected] }
+                .sort_by { |participant| [participant[:joined].to_i, participant[:id]] }
                 .map do |participant|
-                    result = { id: participant[:id], name: participant[:name] }
+                    result = { id: participant[:id], name: participant[:name], color: participant[:color] }
                     result[:lock] = { resource: participant[:lock][:resource] } if participant[:lock]
                     result
                 end
-                .sort_by { |participant| participant[:id] }
+        end
+
+        # The colour fewest participants of this session have (those who
+        # just lost their connection still count, so they keep theirs).
+        def next_color_locked(session)
+            counts = Array.new(COLOR_COUNT, 0)
+            session[:participants].each_value do |participant|
+                color = participant[:color]
+                counts[color] += 1 if color.is_a?(Integer) && color.between?(0, COLOR_COUNT - 1)
+            end
+            counts.index(counts.min)
         end
 
         def snapshot_locked(session)
