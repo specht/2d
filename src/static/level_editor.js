@@ -642,16 +642,20 @@ class LevelEditor {
                 assign_new_game_id(self.game.data, 'levels', level);
                 self.game.data.levels.push(level);
                 self.game.fix_game_data();
+                window.collaboration?.structure_changed?.('level', 'insert', level.id);
                 return self.game.data.levels[self.game.data.levels.length - 1];
             },
+            can_delete_index: (index) => window.collaboration?.can_delete?.('level', self.game.data.levels[index]?.id) ?? true,
             delete_item: (index) => {
-                self.game.data.levels.splice(index, 1);
+                const [deleted] = self.game.data.levels.splice(index, 1);
                 self.label_for_level.splice(index, 1);
                 self.level_index = 0;
+                window.collaboration?.structure_changed?.('level', 'delete', deleted?.id);
             },
             on_move_item: (from, to) => {
                 move_item_helper(self.game.data.levels, from, to);
                 move_item_helper(self.label_for_level, from, to);
+                window.collaboration?.structure_changed?.('level', 'move', self.game.data.levels[to]?.id);
             }
         });
 

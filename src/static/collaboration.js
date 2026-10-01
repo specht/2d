@@ -1,5 +1,17 @@
-const COLLABORATION_COMMAND_KEY = '__collaboration';
+// Live collaboration in the studio (server side: src/ruby/collaboration.rb).
+//
+// Resources are "settings", "sprite:<id>" and "level:<id>": sprites and levels
+// are addressed by their durable id (game_ids.js), never by array index.
+// Everybody edits at most one resource at a time and holds its lock while
+// doing so. The resource being edited is polled, and once it has not changed
+// for a moment it is sent as a whole ("update"). Adding, deleting and moving
+// sprites or levels happens locally first and is then sent as a small
+// operation ("insert", "delete", "move"); the server confirms it with the
+// authoritative order of the list. Every confirmed operation carries the
+// session revision; a client that notices a gap asks for a snapshot.
+
 const COLLABORATION_CODE_LENGTH = 6;
+const COLLABORATION_COLLECTIONS = { sprite: 'sprites', level: 'levels' };
 
 function normalize_collaboration_name(value) {
     const raw = String(value ?? '');
@@ -41,31 +53,70 @@ function collaboration_status_label(connected, participant_count) {
     return connected ? `Gemeinsam · ${participant_count}` : 'Gemeinsam …';
 }
 
+function collaboration_resource(kind, id) {
+    return typeof id === 'string' && id ? `${kind}:${id}` : null;
+}
+
+function parse_collaboration_resource(resource) {
+    if (resource === 'settings') return { kind: 'settings', key: 'properties' };
+    const match = /^(sprite|level):(.+)$/.exec(typeof resource === 'string' ? resource : '');
+    return match ? { kind: match[1], id: match[2], key: COLLABORATION_COLLECTIONS[match[1]] } : null;
+}
+
 function collaboration_resource_value(state, resource) {
-    if (!state || !resource) return null;
-    if (resource === 'settings') return state.properties ?? null;
-    const match = /^(sprite|level):(\d+)$/.exec(resource);
-    if (!match) return null;
-    const collection = match[1] === 'sprite' ? state.sprites : state.levels;
-    return Array.isArray(collection) ? (collection[Number(match[2])] ?? null) : null;
+    const target = parse_collaboration_resource(resource);
+    if (!state || !target) return null;
+    if (target.kind === 'settings') return state.properties ?? null;
+    const list = state[target.key];
+    return Array.isArray(list) ? (list.find(item => item?.id === target.id) ?? null) : null;
 }
 
-function collaboration_lock_revisions(participants) {
-    const result = {};
-    for (const participant of participants ?? []) {
-        const lock = participant.lock;
-        if (!lock?.resource) continue;
-        result[lock.resource] = Number.isInteger(lock.revision) ? lock.revision : 0;
+// The id of the item directly before `id`, or null if it is the first.
+function collaboration_after_id(list, id) {
+    const index = (Array.isArray(list) ? list : []).findIndex(item => item?.id === id);
+    return index > 0 ? (list[index - 1]?.id ?? null) : null;
+}
+
+// Brings a list of objects with ids into the order reported by the server.
+// ok is false if the ids do not match exactly, so the caller can resync.
+function reorder_collaboration_list(list, order) {
+    const failed = { ok: false, changed: false };
+    if (!Array.isArray(list) || !Array.isArray(order) || list.length !== order.length) return failed;
+    const by_id = new Map(list.map(item => [item?.id, item]));
+    if (by_id.size !== list.length) return failed;
+    const sorted = order.map(id => by_id.get(id));
+    if (sorted.some(item => item === undefined)) return failed;
+    let changed = false;
+    sorted.forEach((item, index) => {
+        if (list[index] !== item) changed = true;
+        list[index] = item;
+    });
+    return { ok: true, changed };
+}
+
+// Applies somebody else's insert, delete or move to the local list.
+function apply_collaboration_structure(list, message) {
+    if (!Array.isArray(list)) return { ok: false, changed: false };
+    if (message.action === 'insert') {
+        if (!message.value || message.value.id !== message.id) return { ok: false, changed: false };
+        if (!list.some(item => item?.id === message.id))
+            list.push(JSON.parse(JSON.stringify(message.value)));
+    } else if (message.action === 'delete') {
+        const index = list.findIndex(item => item?.id === message.id);
+        if (index >= 0) list.splice(index, 1);
     }
-    return result;
+    return { ok: reorder_collaboration_list(list, message.order).ok, changed: true };
 }
 
-function collaboration_changed_resources(before_participants, after_participants) {
-    const before = collaboration_lock_revisions(before_participants);
-    const after = collaboration_lock_revisions(after_participants);
-    return Object.keys(after).filter(resource =>
-        Object.prototype.hasOwnProperty.call(before, resource) && after[resource] > before[resource]
-    );
+function collaboration_rejection_notice(message, holder_name = null) {
+    const thing = message?.kind === 'level' ? 'Level' : 'Sprite';
+    if (message?.request === 'update')
+        return 'Deine letzte Änderung konnte nicht übernommen werden. Du siehst jetzt den gemeinsamen Stand.';
+    if (message?.reason === 'locked')
+        return `${holder_name ?? 'Jemand anderes'} bearbeitet dieses ${thing} gerade. Es kann deshalb nicht gelöscht werden.`;
+    if (message?.reason === 'last_item')
+        return `Das letzte ${thing} kann nicht gelöscht werden.`;
+    return 'Das hat nicht geklappt, weil sich gleichzeitig etwas anderes geändert hat. Der gemeinsame Stand wird neu geladen.';
 }
 
 function collaboration_resource_description(resource) {
@@ -85,7 +136,6 @@ function collaboration_save_error_message(error) {
         return 'Jemand anderes speichert das Spiel gerade. Versuche es gleich noch einmal.';
     return 'Das gemeinsame Spiel konnte nicht gespeichert werden.';
 }
-
 class CollaborationClient {
     constructor() {
         this.code = null;
@@ -93,6 +143,7 @@ class CollaborationClient {
         this.participant_id = null;
         this.source_tag = null;
         this.revision = 0;
+        this.resource_revisions = {};
         this.participants = [];
         this.socket = null;
         this.connected = false;
@@ -108,14 +159,14 @@ class CollaborationClient {
 
         this.focused_resource = null;
         this.lock_request_pending = false;
-        this.pending_resource_update = false;
-        this.synced_resource_serialized = null;
-        this.last_observed_resource_serialized = null;
+        // { resource, serialized } of the update on its way to the server
+        this.pending_update = null;
+        this.synced_serialized = null;
+        this.last_observed_serialized = null;
         this.resource_changed_at = 0;
-        this.force_full_snapshot = false;
-        this.structure_resync_pending = false;
-        this.top_level_sprite_refs = [];
-        this.top_level_level_refs = [];
+        this.awaiting_snapshot = false;
+        // own structure changes not yet confirmed by the server
+        this.pending_structure = 0;
         this.notice_override = null;
         this.notice_override_until = 0;
         this.original_game_save = null;
@@ -227,8 +278,7 @@ class CollaborationClient {
             console.warn('Collaboration WebSocket closed', { code: event.code, reason: event.reason });
             this.socket = null;
             this.connected = false;
-            this.pending_resource_update = false;
-            this.lock_request_pending = false;
+            this.reset_sync_state();
             this.save_after_sync = false;
             this.save_pending = false;
             if (window.game) window.game.currently_saving = false;
@@ -243,218 +293,300 @@ class CollaborationClient {
         });
     }
 
+    // ------------------------------------------------------------ messages
+
+    send(message) {
+        if (this.socket?.readyState !== WebSocket.OPEN) return false;
+        this.socket.send(JSON.stringify(message));
+        return true;
+    }
+
+    reset_sync_state() {
+        this.pending_update = null;
+        this.lock_request_pending = false;
+        this.awaiting_snapshot = false;
+        this.pending_structure = 0;
+        this.synced_serialized = null;
+        this.last_observed_serialized = null;
+        this.resource_changed_at = 0;
+    }
+
     handle_message(message) {
-        if (message.type === 'welcome') {
-            this.connected = true;
-            this.has_connected_once = true;
-            this.reconnect_delay = 1000;
-            this.participant_id = message.participant_id;
-            this.source_tag = message.source_tag ?? null;
-            this.revision = message.revision;
-            this.participants = message.participants ?? [];
-            this.remember_participant();
-            this.apply_snapshot(message);
-            this.capture_top_level_refs();
-            this.start_heartbeat();
-            this.start_resource_loop();
-            this.install_save_guard();
-            this.render_control();
-            this.render_status();
-            this.focus_current_resource(true);
-            if (this.scroll_status_after_welcome) {
-                this.scroll_status_after_welcome = false;
-                $('#status-bar').scrollLeft(0);
-            }
-            if (this.show_status_after_welcome) {
-                this.show_status_after_welcome = false;
-                window.collaborationStatusModal?.show();
-            }
-            return;
-        }
-
-        if (message.type === 'presence') {
-            this.participants = message.participants ?? [];
-            this.revision = message.revision ?? this.revision;
-            this.lock_request_pending = false;
-            this.render_control();
-            this.render_status();
-            this.ensure_current_resource_lock();
-            this.update_resource_access();
-            return;
-        }
-
-        if (message.type === 'state' || message.type === 'resync') {
-            this.handle_state_message(message);
-            return;
-        }
-
-        if (message.type === 'saved') {
-            this.handle_saved(message);
-            return;
-        }
-
-        if (message.type === 'save_error') {
-            this.handle_save_error(message);
-            return;
-        }
-
-        if (message.type === 'error') {
-            this.intentional_close = true;
-            const session_not_found = message.error === 'session_not_found';
-            const text = session_not_found
-                ? 'Unter diesem Code gibt es keine gemeinsame Sitzung. Prüfe den Code.'
-                : message.error === 'name_required' || message.error === 'invalid_name' || message.error === 'name_too_long'
-                    ? 'Bitte gib einen gültigen Namen ein (höchstens 40 Zeichen).'
-                    : 'Die gemeinsame Sitzung konnte nicht geöffnet werden.';
-            if (session_not_found) {
-                this.code = null;
-                this.participant_id = null;
-                const url = new URL(window.location.href);
-                url.searchParams.delete('collab');
-                history.replaceState(history.state, '', url.pathname + url.search + url.hash);
-                this.render_control();
-                this.update_resource_access();
-            }
-            if (this.error_modal) {
-                this.error_modal.show();
-                this.error_modal.showError(text);
-            } else {
-                window.collaborationJoinModal?.show();
-                window.collaborationJoinModal?.showError(text);
-            }
+        switch (message.type) {
+            case 'welcome': return this.handle_welcome(message);
+            case 'snapshot': return this.apply_snapshot(message);
+            case 'presence': return this.handle_presence(message.participants);
+            case 'update': return this.handle_update(message);
+            case 'structure': return this.handle_structure(message);
+            case 'rejected': return this.handle_rejected(message);
+            case 'saved': return this.handle_saved(message);
+            case 'save_error': return this.handle_save_error(message);
+            case 'error': return this.handle_error(message);
         }
     }
 
-    handle_state_message(message) {
-        const previous_participants = this.participants;
-        const previous_revision = this.revision;
-        const next_participants = message.participants ?? this.participants;
-        const changed_resources = collaboration_changed_resources(previous_participants, next_participants);
-
-        if ('source_tag' in message) this.source_tag = message.source_tag;
-        this.revision = message.revision;
-        this.participants = next_participants;
-        this.lock_request_pending = false;
-
-        if (this.force_full_snapshot) {
-            const restore_resource = this.current_resource();
-            this.force_full_snapshot = false;
-            this.structure_resync_pending = false;
-            this.apply_snapshot(message);
-            this.capture_top_level_refs();
-            this.restore_resource_selection(restore_resource);
-            this.focused_resource = null;
-            this.focus_current_resource(true);
-        } else if (message.type === 'resync') {
-            this.pending_resource_update = false;
-            if (this.focused_resource && message.state) {
-                this.apply_resource_from_state(message.state, this.focused_resource, true);
-                this.set_resource_baseline(message.state, this.focused_resource);
-            }
-        } else if (message.revision > previous_revision) {
-            if (changed_resources.length > 0) {
-                for (const resource of changed_resources)
-                    this.apply_resource_update(message.state, resource);
-            } else {
-                // Compatibility path for the foundation's whole-state replacement
-                // and for future session-wide operations such as shared save.
-                const restore_resource = this.current_resource();
-                this.apply_snapshot(message);
-                this.capture_top_level_refs();
-                this.restore_resource_selection(restore_resource);
-            }
+    handle_welcome(message) {
+        this.connected = true;
+        this.has_connected_once = true;
+        this.reconnect_delay = 1000;
+        this.participant_id = message.participant_id;
+        this.remember_participant();
+        this.apply_snapshot(message);
+        this.start_heartbeat();
+        this.start_resource_loop();
+        this.install_save_guard();
+        if (this.scroll_status_after_welcome) {
+            this.scroll_status_after_welcome = false;
+            $('#status-bar').scrollLeft(0);
         }
+        if (this.show_status_after_welcome) {
+            this.show_status_after_welcome = false;
+            window.collaborationStatusModal?.show();
+        }
+    }
 
-        this.handle_lock_transition(message.state, previous_participants);
+    // Replaces the whole local game with the session state. Used when joining
+    // and whenever the client lost track of the order of operations.
+    apply_snapshot(message) {
+        if (!message.state || !window.game) return;
+        const restore = this.current_resource() ?? this.focused_resource;
+        this.reset_sync_state();
+        this.source_tag = message.source_tag ?? null;
+        this.revision = message.revision;
+        this.participants = message.participants ?? [];
+        this.resource_revisions = { ...(message.resource_revisions ?? {}) };
+
+        window.game.data = message.state;
+        window.game._load();
+        this.show_game_code(this.source_tag);
+        this.restore_resource_selection(restore);
+        this.focused_resource = null;
+        this.focus_current_resource(true);
         this.render_control();
         this.render_status();
         this.update_resource_access();
-        if (message.type === 'resync' && this.save_after_sync)
+        if (this.save_after_sync)
             this.cancel_shared_save('Vor dem Speichern musste der gemeinsame Stand neu geladen werden. Prüfe deine Änderung und speichere noch einmal.');
-        else
-            this.continue_shared_save();
     }
 
-    handle_lock_transition(state, previous_participants) {
+    // Operations carry the session revision. A gap means we missed something:
+    // then the next snapshot replaces everything and messages until then are
+    // ignored.
+    accept_revision(message) {
+        if (this.awaiting_snapshot) return false;
+        if (message.revision !== this.revision + 1) {
+            this.request_snapshot();
+            return false;
+        }
+        this.revision = message.revision;
+        return true;
+    }
+
+    request_snapshot() {
+        if (this.awaiting_snapshot) return;
+        this.awaiting_snapshot = true;
+        this.pending_update = null;
+        this.send({ type: 'request_snapshot' });
+        this.update_resource_access();
+    }
+
+    handle_presence(participants) {
+        const previous = this.participants;
+        this.participants = participants ?? [];
+        this.lock_request_pending = false;
+        this.handle_lock_transition(previous);
+        this.render_control();
+        this.render_status();
+        this.ensure_current_resource_lock();
+        this.update_resource_access();
+    }
+
+    handle_lock_transition(previous_participants) {
         const resource = this.focused_resource;
         if (!resource) return;
-        const old_holder = this.lock_holder(resource, previous_participants);
-        const new_holder = this.lock_holder(resource, this.participants);
-        const was_mine = old_holder?.id === this.participant_id;
-        const is_mine = new_holder?.id === this.participant_id;
-
-        if (!was_mine && is_mine) {
-            this.pending_resource_update = false;
-            this.apply_resource_from_state(state, resource, true);
-            this.set_resource_baseline(state, resource);
-        } else if (was_mine && !is_mine) {
-            this.pending_resource_update = false;
-            this.synced_resource_serialized = null;
-            this.last_observed_resource_serialized = null;
-        } else if (!is_mine && new_holder && state) {
-            this.apply_resource_from_state(state, resource, true);
-            this.set_resource_baseline(state, resource);
+        const was_mine = this.lock_holder(resource, previous_participants)?.id === this.participant_id;
+        const is_mine = this.owns_lock(resource);
+        // Everything others changed has already arrived (updates are applied
+        // in order), so the local copy is the server's copy when we get the lock.
+        if (is_mine && !was_mine) this.reset_baseline();
+        if (!is_mine && was_mine) {
+            this.synced_serialized = null;
+            this.last_observed_serialized = null;
         }
     }
 
-    apply_snapshot(message) {
-        if (!message.state || !window.game) return;
-        window.game.data = message.state;
-        window.game._load();
-
-        if (message.source_tag) {
-            $('#game_code_div').show();
-            $('#game_code').text(message.source_tag);
-            $('#game_link')
-                .attr('href', `https://2d.hackschule.de/play/${message.source_tag}`)
-                .text(`https://2d.hackschule.de/play/${message.source_tag}`);
-        }
-    }
-
-    apply_resource_update(state, resource) {
-        const holder = this.lock_holder(resource, this.participants);
-        const mine = holder?.id === this.participant_id;
-        if (mine) {
-            this.pending_resource_update = false;
-            this.set_resource_baseline(state, resource, false);
+    handle_update(message) {
+        if (!this.accept_revision(message)) return;
+        this.resource_revisions[message.resource] = message.resource_revision;
+        const own = message.participant_id === this.participant_id &&
+            this.pending_update?.resource === message.resource;
+        if (own) {
+            // Our own change came back: keep the local copy, which may already
+            // contain newer edits, and only move the baseline.
+            this.synced_serialized = this.pending_update.serialized;
+            this.pending_update = null;
+            this.continue_shared_save();
             return;
         }
-        this.apply_resource_from_state(state, resource, true);
-        if (resource === this.focused_resource)
-            this.set_resource_baseline(state, resource);
+        if (!this.apply_resource_value(message.resource, message.value)) {
+            this.request_snapshot();
+            return;
+        }
+        if (message.resource === this.focused_resource) this.reset_baseline();
     }
 
-    apply_resource_from_state(state, resource, refresh_ui) {
-        if (!window.game?.data) return;
-        const value = collaboration_resource_value(state, resource);
-        if (value === null) return;
+    handle_structure(message) {
+        if (!this.accept_revision(message)) return;
+        const key = COLLABORATION_COLLECTIONS[message.kind];
+        const list = window.game?.data?.[key];
+        const restore = this.current_resource() ?? this.focused_resource;
+        const mine = message.participant_id === this.participant_id;
+        let result;
+        if (mine && this.pending_structure > 0) {
+            // Our own change was already applied locally; only the final order
+            // can differ if somebody else changed the list at the same time.
+            this.pending_structure -= 1;
+            result = reorder_collaboration_list(list, message.order);
+        } else if (this.pending_structure > 0) {
+            // Somebody else changed the list while our own change is still on
+            // its way: the two cannot be merged reliably, so start over.
+            this.request_snapshot();
+            return;
+        } else {
+            result = apply_collaboration_structure(list, message);
+        }
+        if (!result.ok) {
+            this.request_snapshot();
+            return;
+        }
+
+        const resource = collaboration_resource(message.kind, message.id);
+        if (message.action === 'insert') this.resource_revisions[resource] = 0;
+        if (message.action === 'delete') delete this.resource_revisions[resource];
+        const previous = this.participants;
+        if (Array.isArray(message.participants)) this.participants = message.participants;
+        if (result.changed) this.rebuild_editor(restore);
+        this.handle_lock_transition(previous);
+        this.render_control();
+        this.render_status();
+        this.update_resource_access();
+    }
+
+    handle_rejected(message) {
+        const previous = this.participants;
+        if (Array.isArray(message.participants)) this.participants = message.participants;
+
+        if (message.request === 'lock' || message.request === 'unlock') {
+            this.lock_request_pending = false;
+            this.handle_lock_transition(previous);
+        } else if (message.request === 'update') {
+            this.pending_update = null;
+            if (message.value && typeof message.value === 'object' && Number.isInteger(message.resource_revision)) {
+                // Take the server's version of the resource.
+                this.resource_revisions[message.resource] = message.resource_revision;
+                this.apply_resource_value(message.resource, message.value);
+                if (message.resource === this.focused_resource) this.reset_baseline();
+            } else {
+                this.request_snapshot();
+            }
+            this.show_temporary_notice(collaboration_rejection_notice(message), 5000);
+            if (this.save_after_sync)
+                this.cancel_shared_save('Vor dem Speichern konnte deine letzte Änderung nicht übernommen werden. Prüfe sie und speichere noch einmal.');
+        } else {
+            // A structure change we already made locally was refused: undo it
+            // by loading the session state again.
+            this.pending_structure = Math.max(0, this.pending_structure - 1);
+            const holder = message.reason === 'locked'
+                ? this.lock_holder(collaboration_resource(message.kind, message.id))
+                : null;
+            this.show_temporary_notice(collaboration_rejection_notice(message, holder?.name), 5000);
+            this.request_snapshot();
+        }
+        this.render_control();
+        this.render_status();
+        this.update_resource_access();
+    }
+
+    handle_error(message) {
+        console.warn('Collaboration error', message.error);
+        const join_errors = ['session_not_found', 'name_required', 'invalid_name', 'name_too_long'];
+        // Other errors are either harmless or the server closes the socket,
+        // after which we reconnect.
+        if (!message.fatal || !join_errors.includes(message.error)) return;
+
+        this.intentional_close = true;
+        const session_not_found = message.error === 'session_not_found';
+        const text = session_not_found
+            ? 'Unter diesem Code gibt es keine gemeinsame Sitzung. Prüfe den Code.'
+            : 'Bitte gib einen gültigen Namen ein (höchstens 40 Zeichen).';
+        if (session_not_found) {
+            this.code = null;
+            this.participant_id = null;
+            const url = new URL(window.location.href);
+            url.searchParams.delete('collab');
+            history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+            this.render_control();
+            this.update_resource_access();
+        }
+        if (this.error_modal) {
+            this.error_modal.show();
+            this.error_modal.showError(text);
+        } else {
+            window.collaborationJoinModal?.show();
+            window.collaborationJoinModal?.showError(text);
+        }
+    }
+
+    // ------------------------------------------------------- local editor
+
+    show_game_code(tag) {
+        if (!tag || typeof $ === 'undefined') return;
+        $('#game_code_div').show();
+        $('#game_code').text(tag);
+        $('#game_link')
+            .attr('href', `https://2d.hackschule.de/play/${tag}`)
+            .text(`https://2d.hackschule.de/play/${tag}`);
+    }
+
+    // Rebuilds sprite and level lists after somebody else changed them. The
+    // local data (including our own unsent edits) stays as it is.
+    rebuild_editor(restore_resource) {
+        if (!window.game) return;
+        window.game._load();
+        this.restore_resource_selection(restore_resource);
+        this.focus_current_resource();
+    }
+
+    // Puts a value from the session into the local game. Returns false if the
+    // resource does not exist locally.
+    apply_resource_value(resource, value) {
+        const target = parse_collaboration_resource(resource);
+        const data = window.game?.data;
+        if (!target || !data || !value || typeof value !== 'object') return false;
         const copied = JSON.parse(JSON.stringify(value));
 
-        if (resource === 'settings') {
-            window.game.data.properties = copied;
-            if (refresh_ui)
-                window.game.refresh_game_settings_controls?.();
-            return;
+        if (target.kind === 'settings') {
+            data.properties = copied;
+            window.game.refresh_game_settings_controls?.();
+            return true;
         }
 
-        const match = /^(sprite|level):(\d+)$/.exec(resource);
-        if (!match) return;
-        const index = Number(match[2]);
-        if (match[1] === 'sprite') {
-            if (!window.game.data.sprites?.[index]) return;
+        const list = data[target.key];
+        const index = Array.isArray(list) ? list.findIndex(item => item?.id === target.id) : -1;
+        if (index < 0) return false;
 
+        if (target.kind === 'sprite') {
             // The sprite canvas stays attached even while another pane (for
             // example the level editor) is visible. Preserve that selection
-            // before replacing the authoritative sprite data so returning to
-            // the sprite pane never shows stale pixels or a detached canvas.
+            // before replacing the sprite so returning to the sprite pane never
+            // shows stale pixels or a detached canvas.
             const canvas = window.canvas;
             const was_attached = canvas?.sprite_index === index;
             const previous_state_index = was_attached ? canvas.state_index : 0;
             const previous_frame_index = was_attached ? canvas.frame_index : 0;
             if (was_attached) canvas.detachSprite();
 
-            window.game.data.sprites[index] = copied;
-            this.top_level_sprite_refs[index] = window.game.data.sprites[index];
+            list[index] = copied;
             window.game.create_geometry_and_material_for_sprite(index);
             window.game.update_material_for_sprite(index);
             window.game.refresh_frames_on_screen();
@@ -480,33 +612,44 @@ class CollaborationClient {
                     });
                 }
             }
-        } else {
-            if (!window.game.data.levels?.[index]) return;
-            window.game.data.levels[index] = copied;
-            this.top_level_level_refs[index] = window.game.data.levels[index];
-            if (refresh_ui && this.current_resource() === resource) {
-                const item = $('#menu_levels > ._dnd_item').eq(index).children().eq(0);
-                item.trigger('click');
-            }
+            return true;
         }
+
+        list[index] = copied;
+        if (this.current_resource() === resource && typeof $ !== 'undefined')
+            $('#menu_levels > ._dnd_item').eq(index).children().eq(0).trigger('click');
+        return true;
     }
 
     restore_resource_selection(resource) {
-        if (!resource || typeof $ === 'undefined') return;
-        if (resource.startsWith('sprite:') && current_pane === 'sprites') {
-            const index = Number(resource.split(':')[1]);
-            $('#menu_sprites > ._dnd_item').eq(index).children().eq(0).trigger('click');
-        } else if (resource.startsWith('level:') && current_pane === 'level') {
-            const index = Number(resource.split(':')[1]);
-            $('#menu_levels > ._dnd_item').eq(index).children().eq(0).trigger('click');
+        const target = parse_collaboration_resource(resource);
+        if (!target || typeof $ === 'undefined' || !window.game?.data) return;
+        if (target.kind === 'sprite' && current_pane === 'sprites') {
+            const index = window.game.data.sprites.findIndex(sprite => sprite?.id === target.id);
+            if (index >= 0) $('#menu_sprites > ._dnd_item').eq(index).children().eq(0).trigger('click');
+        } else if (target.kind === 'level' && current_pane === 'level') {
+            const index = window.game.data.levels.findIndex(level => level?.id === target.id);
+            if (index >= 0) $('#menu_levels > ._dnd_item').eq(index).children().eq(0).trigger('click');
         }
     }
+
+    current_resource() {
+        const data = window.game?.data;
+        if (!data || typeof current_pane === 'undefined') return null;
+        if (current_pane === 'sprites' && Number.isInteger(window.canvas?.sprite_index))
+            return collaboration_resource('sprite', data.sprites?.[window.canvas.sprite_index]?.id);
+        if (current_pane === 'level' && Number.isInteger(window.game.level_editor?.level_index))
+            return collaboration_resource('level', data.levels?.[window.game.level_editor.level_index]?.id);
+        if (current_pane === 'settings') return 'settings';
+        return null;
+    }
+
+    // ------------------------------------------------------- loops
 
     start_heartbeat() {
         this.stop_heartbeat();
         this.heartbeat_interval = setInterval(() => {
-            if (this.socket?.readyState === WebSocket.OPEN)
-                this.socket.send(JSON.stringify({ type: 'heartbeat' }));
+            this.send({ type: 'heartbeat' });
         }, 30_000);
     }
 
@@ -521,7 +664,6 @@ class CollaborationClient {
         if (this.resource_interval !== null) return;
         this.resource_interval = setInterval(() => {
             this.focus_current_resource();
-            this.detect_unsupported_structure_change();
             this.sync_current_resource();
             this.update_resource_access();
         }, 200);
@@ -536,18 +678,10 @@ class CollaborationClient {
         this.reconnect_delay = Math.min(this.reconnect_delay * 2, 10_000);
     }
 
-    current_resource() {
-        if (!window.game?.data || typeof current_pane === 'undefined') return null;
-        if (current_pane === 'sprites' && window.canvas?.sprite_index !== null)
-            return `sprite:${window.canvas.sprite_index}`;
-        if (current_pane === 'level' && window.game.level_editor?.level_index !== null)
-            return `level:${window.game.level_editor.level_index}`;
-        if (current_pane === 'settings') return 'settings';
-        return null;
-    }
+    // ------------------------------------------------------- locks
 
     focus_current_resource(force = false) {
-        if (!this.connected) return;
+        if (!this.connected || this.awaiting_snapshot) return;
         const resource = this.current_resource();
         if (!force && resource === this.focused_resource) {
             this.ensure_current_resource_lock();
@@ -555,16 +689,21 @@ class CollaborationClient {
         }
 
         const old_resource = this.focused_resource;
-        if (old_resource && this.owns_lock(old_resource))
-            this.send_command({ type: 'unlock', resource: old_resource });
+        if (old_resource && old_resource !== resource && this.owns_lock(old_resource)) {
+            // Send the last changes of the resource we are leaving before its
+            // lock goes; until then the new resource stays read-only.
+            if (!this.resource_synced(old_resource)) {
+                this.flush_resource(old_resource);
+                return;
+            }
+            this.send({ type: 'unlock', resource: old_resource });
+        }
 
         this.focused_resource = resource;
         this.lock_request_pending = false;
-        this.pending_resource_update = false;
-        this.synced_resource_serialized = null;
-        this.last_observed_resource_serialized = null;
+        this.synced_serialized = null;
+        this.last_observed_serialized = null;
         this.resource_changed_at = 0;
-
         if (resource) this.request_lock(resource);
         this.update_resource_access();
     }
@@ -572,126 +711,146 @@ class CollaborationClient {
     ensure_current_resource_lock() {
         const resource = this.focused_resource;
         if (!this.connected || !resource || this.lock_request_pending) return;
-        const holder = this.lock_holder(resource);
-        if (!holder) this.request_lock(resource);
+        if (!this.lock_holder(resource)) this.request_lock(resource);
     }
 
     request_lock(resource) {
         if (!this.connected || !resource || this.lock_request_pending) return;
-        this.lock_request_pending = true;
-        this.send_command({ type: 'lock', resource });
+        if (this.send({ type: 'lock', resource })) this.lock_request_pending = true;
         this.update_resource_access();
     }
 
-    send_command(command) {
-        if (this.socket?.readyState !== WebSocket.OPEN) return false;
-        this.socket.send(JSON.stringify({
-            type: 'replace_state',
-            base_revision: this.revision,
-            state: { [COLLABORATION_COMMAND_KEY]: command },
-        }));
-        return true;
-    }
-
     lock_holder(resource, participants = this.participants) {
+        if (!resource) return null;
         return (participants ?? []).find(participant => participant.lock?.resource === resource) ?? null;
     }
 
     owns_lock(resource) {
-        return this.lock_holder(resource)?.id === this.participant_id;
+        return !!resource && this.lock_holder(resource)?.id === this.participant_id;
     }
 
-    current_resource_revision(resource) {
-        const holder = this.lock_holder(resource);
-        return holder && Number.isInteger(holder.lock?.revision) ? holder.lock.revision : 0;
-    }
+    // ------------------------------------------------------- resource sync
 
     serialize_local_resource(resource) {
         const value = collaboration_resource_value(window.game?.data, resource);
         return value === null ? null : JSON.stringify(value);
     }
 
-    set_resource_baseline(state, resource, reset_observed = true) {
-        const value = collaboration_resource_value(state, resource);
-        if (value === null) return;
-        this.synced_resource_serialized = JSON.stringify(value);
-        if (reset_observed) {
-            this.last_observed_resource_serialized = this.serialize_local_resource(resource);
-            this.resource_changed_at = performance.now();
-        }
+    reset_baseline() {
+        const serialized = this.serialize_local_resource(this.focused_resource);
+        this.synced_serialized = serialized;
+        this.last_observed_serialized = serialized;
+        this.resource_changed_at = performance.now();
     }
 
+    resource_synced(resource) {
+        if (this.pending_update) return false;
+        const serialized = this.serialize_local_resource(resource);
+        return serialized === null || this.synced_serialized === null || serialized === this.synced_serialized;
+    }
+
+    send_update(resource, serialized) {
+        if (this.pending_update || serialized === null) return false;
+        const sent = this.send({
+            type: 'update',
+            resource,
+            resource_revision: this.resource_revisions[resource] ?? 0,
+            value: JSON.parse(serialized),
+        });
+        if (sent) this.pending_update = { resource, serialized };
+        return sent;
+    }
+
+    flush_resource(resource) {
+        if (!this.owns_lock(resource) || this.pending_update) return;
+        const serialized = this.serialize_local_resource(resource);
+        if (serialized !== null && this.synced_serialized !== null && serialized !== this.synced_serialized)
+            this.send_update(resource, serialized);
+    }
+
+    // Polled: sends the resource we hold once it has not changed for 300 ms.
     sync_current_resource() {
         const resource = this.focused_resource;
-        if (!this.connected || !resource || !this.owns_lock(resource) || this.pending_resource_update)
+        if (!this.connected || !resource || this.awaiting_snapshot || this.pending_update || !this.owns_lock(resource))
             return;
-        if (this.structure_resync_pending) return;
-
         const serialized = this.serialize_local_resource(resource);
         if (serialized === null) return;
+        if (this.synced_serialized === null) {
+            this.reset_baseline();
+            return;
+        }
         const now = performance.now();
-        if (serialized !== this.last_observed_resource_serialized) {
-            this.last_observed_resource_serialized = serialized;
+        if (serialized !== this.last_observed_serialized) {
+            this.last_observed_serialized = serialized;
             this.resource_changed_at = now;
             return;
         }
-        if (serialized === this.synced_resource_serialized || now - this.resource_changed_at < 300)
-            return;
-
-        this.pending_resource_update = true;
-        const sent = this.send_command({
-            type: 'replace_resource',
-            resource,
-            resource_revision: this.current_resource_revision(resource),
-            value: JSON.parse(serialized),
-        });
-        if (!sent) this.pending_resource_update = false;
+        if (serialized === this.synced_serialized || now - this.resource_changed_at < 300) return;
+        this.send_update(resource, serialized);
     }
 
-    capture_top_level_refs() {
-        if (!window.game?.data) return;
-        this.top_level_sprite_refs = [...(window.game.data.sprites ?? [])];
-        this.top_level_level_refs = [...(window.game.data.levels ?? [])];
+    // ------------------------------------------------------- structure
+
+    // Called by the sprite and level lists before an item is deleted.
+    can_delete(kind, id) {
+        if (!this.code) return true;
+        if (!this.connected || this.awaiting_snapshot) return false;
+        const holder = this.lock_holder(collaboration_resource(kind, id));
+        if (holder && holder.id !== this.participant_id) {
+            this.show_temporary_notice(collaboration_rejection_notice(
+                { request: 'delete', kind, reason: 'locked' }, holder.name), 3500);
+            return false;
+        }
+        return true;
     }
 
-    top_level_structure_changed() {
-        if (!window.game?.data) return false;
-        const sprites = window.game.data.sprites ?? [];
-        const levels = window.game.data.levels ?? [];
-        if (sprites.length !== this.top_level_sprite_refs.length || levels.length !== this.top_level_level_refs.length)
-            return true;
-        for (let i = 0; i < sprites.length; i++)
-            if (sprites[i] !== this.top_level_sprite_refs[i]) return true;
-        for (let i = 0; i < levels.length; i++)
-            if (levels[i] !== this.top_level_level_refs[i]) return true;
-        return false;
+    // Called by the sprite and level lists after an item was added, deleted
+    // or moved locally. The server confirms (or refuses) the change.
+    structure_changed(kind, action, id) {
+        if (!this.code) return;
+        const key = COLLABORATION_COLLECTIONS[kind];
+        const list = window.game?.data?.[key];
+        if (!key || !Array.isArray(list) || typeof id !== 'string') return;
+
+        const message = { type: action, kind, id };
+        if (action === 'insert') {
+            const item = list.find(entry => entry?.id === id);
+            if (!item) return;
+            message.value = JSON.parse(JSON.stringify(item));
+        }
+        if (action === 'insert' || action === 'move') message.after_id = collaboration_after_id(list, id);
+
+        if (this.connected && !this.awaiting_snapshot && this.send(message)) {
+            this.pending_structure += 1;
+            if (action === 'insert') this.resource_revisions[collaboration_resource(kind, id)] = 0;
+        } else {
+            // The change cannot be shared right now; the next snapshot (or the
+            // welcome after reconnecting) replaces it.
+            this.request_snapshot();
+        }
     }
 
-    detect_unsupported_structure_change() {
-        if (!this.connected || this.structure_resync_pending || !this.top_level_structure_changed()) return;
-        this.structure_resync_pending = true;
-        this.force_full_snapshot = true;
-        this.show_temporary_notice('Sprites und Level können in der gemeinsamen Sitzung noch nicht hinzugefügt, gelöscht oder umsortiert werden.', 4500);
-        if (this.socket?.readyState === WebSocket.OPEN)
-            this.socket.send(JSON.stringify({ type: 'request_snapshot' }));
-    }
-
+    // While the session is not usable, sprites and levels cannot be added,
+    // dragged or deleted (on touch devices dragging starts with touchstart).
     install_structure_guards() {
-        document.addEventListener('mousedown', (event) => {
-            if (!this.code) return;
-            const item = event.target.closest?.('#menu_sprites > ._dnd_item:not(.add), #menu_levels > ._dnd_item:not(.add)');
-            if (item) event.stopPropagation();
-        }, true);
+        const blocked = () => !!this.code && (!this.connected || this.awaiting_snapshot);
+        const items = '#menu_sprites > ._dnd_item:not(.add), #menu_levels > ._dnd_item:not(.add)';
+        const add = '#menu_sprites > ._dnd_item.add, #menu_levels > ._dnd_item.add';
+        for (const type of ['mousedown', 'touchstart']) {
+            document.addEventListener(type, (event) => {
+                if (blocked() && event.target.closest?.(items)) event.stopPropagation();
+            }, true);
+        }
         document.addEventListener('click', (event) => {
-            if (!this.code) return;
-            const add = event.target.closest?.('#menu_sprites > ._dnd_item.add, #menu_levels > ._dnd_item.add');
-            if (!add) return;
+            if (!blocked() || !event.target.closest?.(add)) return;
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();
-            this.show_temporary_notice('Sprites und Level können in der gemeinsamen Sitzung noch nicht hinzugefügt, gelöscht oder umsortiert werden.', 4500);
+            this.show_temporary_notice('Gerade besteht keine Verbindung zur gemeinsamen Sitzung. Warte kurz, bis sie wieder da ist.', 4000);
         }, true);
     }
+
+    // ------------------------------------------------------- shared save
 
     install_save_guard() {
         if (!window.game || this.original_game_save) return;
@@ -713,7 +872,7 @@ class CollaborationClient {
             this.show_temporary_notice('Das gemeinsame Spiel wird bereits gespeichert.', 3000);
             return;
         }
-        if (this.structure_resync_pending) {
+        if (this.awaiting_snapshot || this.pending_structure > 0) {
             this.show_temporary_notice('Warte kurz, bis der gemeinsame Stand wieder vollständig synchronisiert ist.', 4000);
             return;
         }
@@ -722,36 +881,22 @@ class CollaborationClient {
         this.continue_shared_save();
     }
 
+    // Saving waits until our own latest change has reached the server.
     continue_shared_save() {
-        if (!this.save_after_sync || this.save_pending || this.pending_resource_update) return;
+        if (!this.save_after_sync || this.save_pending || this.pending_update) return;
 
         const resource = this.focused_resource;
-        if (resource && this.owns_lock(resource)) {
-            const serialized = this.serialize_local_resource(resource);
-            if (serialized !== null && serialized !== this.synced_resource_serialized) {
-                this.pending_resource_update = true;
-                const sent = this.send_command({
-                    type: 'replace_resource',
-                    resource,
-                    resource_revision: this.current_resource_revision(resource),
-                    value: JSON.parse(serialized),
-                });
-                if (!sent) {
-                    this.pending_resource_update = false;
-                    this.cancel_shared_save('Die letzte Änderung konnte vor dem Speichern nicht synchronisiert werden.');
-                }
-                return;
-            }
+        if (resource && this.owns_lock(resource) && !this.resource_synced(resource)) {
+            if (!this.send_update(resource, this.serialize_local_resource(resource)))
+                this.cancel_shared_save('Die letzte Änderung konnte vor dem Speichern nicht synchronisiert werden.');
+            return;
         }
 
         this.save_after_sync = false;
         this.save_pending = true;
         if (window.game) window.game.currently_saving = true;
-        try {
-            this.socket.send(JSON.stringify({ type: 'save' }));
-        } catch (_error) {
+        if (!this.send({ type: 'save' }))
             this.cancel_shared_save('Das gemeinsame Spiel konnte nicht gespeichert werden.');
-        }
     }
 
     cancel_shared_save(message = null) {
@@ -764,16 +909,15 @@ class CollaborationClient {
     handle_saved(message) {
         if (typeof message.tag !== 'string' || !message.tag) return;
         const mine = message.saved_by_id === this.participant_id;
+        // Saving counts as an operation (it changes the parent); a gap is
+        // handled like for every other operation.
+        const in_order = this.accept_revision(message);
         this.source_tag = message.tag;
-        if (Number.isInteger(message.revision)) this.revision = message.revision;
-        if (Array.isArray(message.participants)) this.participants = message.participants;
-        if (window.game?.data) window.game.data.parent = message.tag;
-
-        $('#game_code_div').show();
-        $('#game_code').text(message.tag);
-        $('#game_link')
-            .attr('href', `https://2d.hackschule.de/play/${message.tag}`)
-            .text(`https://2d.hackschule.de/play/${message.tag}`);
+        if (in_order) {
+            if (Array.isArray(message.participants)) this.participants = message.participants;
+            if (window.game?.data) window.game.data.parent = message.tag;
+        }
+        this.show_game_code(message.tag);
 
         if (mine) {
             this.save_after_sync = false;
@@ -804,6 +948,9 @@ class CollaborationClient {
     }
 
     leave() {
+        // Send the last change of the resource we are editing before leaving.
+        if (this.connected && this.owns_lock(this.focused_resource))
+            this.flush_resource(this.focused_resource);
         this.intentional_close = true;
         this.stop_heartbeat();
         if (this.reconnect_timeout !== null) {
@@ -815,8 +962,7 @@ class CollaborationClient {
         this.connected = false;
         this.participants = [];
         this.focused_resource = null;
-        this.pending_resource_update = false;
-        this.lock_request_pending = false;
+        this.reset_sync_state();
         this.save_after_sync = false;
         this.save_pending = false;
         if (window.game) window.game.currently_saving = false;
@@ -845,8 +991,10 @@ class CollaborationClient {
         history.replaceState(history.state, '', url.pathname + url.search + url.hash);
     }
 
-    append_status_control(status_bar = $('#status-bar')) {
-        if (typeof $ === 'undefined' || !status_bar?.length) return;
+    append_status_control(status_bar = null) {
+        if (typeof $ === 'undefined') return;
+        status_bar ??= $('#status-bar');
+        if (!status_bar?.length) return;
         let control = status_bar.find('#collaboration-control');
         if (!control.length) {
             control = $('<div id="collaboration-control">')
@@ -917,7 +1065,7 @@ class CollaborationClient {
     }
 
     ensure_notice() {
-        if (typeof $ === 'undefined') return $();
+        if (typeof $ === 'undefined') return { text() { return this; }, show() { return this; }, hide() { return this; } };
         let notice = $('#collaboration-resource-notice');
         if (!notice.length) {
             notice = $('<div id="collaboration-resource-notice">').css({
@@ -997,7 +1145,7 @@ class CollaborationClient {
             this.set_controls_readonly(resource, false);
             return;
         }
-        const can_edit = this.connected && this.owns_lock(resource) && !this.structure_resync_pending;
+        const can_edit = this.connected && this.owns_lock(resource) && !this.awaiting_snapshot;
         this.set_controls_readonly(resource, !can_edit);
     }
 }
@@ -1256,6 +1404,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     });
 }
 
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         normalize_collaboration_name,
@@ -1265,9 +1414,13 @@ if (typeof module !== 'undefined' && module.exports) {
         collaboration_websocket_url,
         collaboration_connection_status,
         collaboration_status_label,
+        collaboration_resource,
+        parse_collaboration_resource,
         collaboration_resource_value,
-        collaboration_lock_revisions,
-        collaboration_changed_resources,
+        collaboration_after_id,
+        reorder_collaboration_list,
+        apply_collaboration_structure,
+        collaboration_rejection_notice,
         collaboration_resource_description,
         collaboration_saved_notice,
         collaboration_save_error_message,
