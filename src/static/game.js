@@ -221,6 +221,9 @@ class Game {
                 }
             }
         }
+        // Stable sprite/level identities (game_ids.js). Deterministic, so the
+        // same JSON always gets the same IDs; existing IDs are kept.
+        ensure_game_ids(this.data);
         // console.log(`Fixing game data / after:`, JSON.stringify(this.data));
     }
 
@@ -324,7 +327,9 @@ class Game {
                 return img;
             },
             gen_new_item: () => {
-                self.data.sprites.push({});
+                const sprite = {};
+                assign_new_game_id(self.data, 'sprites', sprite);
+                self.data.sprites.push(sprite);
                 self.fix_game_data();
                 self.create_geometry_and_material_for_sprite(self.data.sprites.length - 1);
                 return self.data.sprites[self.data.sprites.length - 1];

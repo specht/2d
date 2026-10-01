@@ -138,7 +138,7 @@ function fix_game_data(data, repo) {
     if (!fixer) {
         const ctx = { console, DEFAULT_WIDTH: TILE, DEFAULT_HEIGHT: TILE, createDataUrlForImageSize: () => undefined };
         vm.createContext(ctx);
-        for (const f of ['traits.js', 'baddie_ai.js', 'game.js'])
+        for (const f of ['traits.js', 'baddie_ai.js', 'game_ids.js', 'game.js'])
             vm.runInContext(fs.readFileSync(path.join(repo, 'src/static', f), 'utf8'), ctx, { filename: f });
         vm.runInContext('globalThis.__fix = (d) => { const g = { data: d }; Game.prototype.fix_game_data.call(g); return g.data; };', ctx);
         fixer = ctx.__fix;
