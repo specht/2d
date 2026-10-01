@@ -22,6 +22,14 @@ require "thread"
 # Every applied operation increases the session revision by one. Clients apply
 # broadcast operations in revision order and ask for a snapshot when they
 # notice a gap.
+#
+# Liveness: a participant that has not been heard from for STALE_AFTER seconds
+# (browsers send a heartbeat every 30 s) counts as gone and loses its lock. A
+# lock nobody has used for LOCK_LEASE seconds can be taken over by somebody
+# else, so a forgotten tab cannot block a sprite for a whole lesson. On joining,
+# every participant gets a secret reconnect token; with it, a browser whose
+# connection dropped takes over its own participant (and lock) again, even
+# before the server noticed that the old connection is gone.
 module Collaboration
     class Error < StandardError; end
     class SessionNotFound < Error; end
@@ -33,6 +41,9 @@ module Collaboration
     class Store
         DEFAULT_SESSION_TTL = 6 * 60 * 60
         DEFAULT_RECONNECT_GRACE = 60
+        # Background tabs may send their heartbeat only once a minute.
+        DEFAULT_STALE_AFTER = 120
+        DEFAULT_LOCK_LEASE = 3 * 60
         MAX_NAME_LENGTH = 40
         COLLABORATION_CODE_LENGTH = 6
         COLLABORATION_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".freeze
@@ -42,6 +53,8 @@ module Collaboration
         def initialize(clock: -> { Time.now.to_f },
                        session_ttl: DEFAULT_SESSION_TTL,
                        reconnect_grace: DEFAULT_RECONNECT_GRACE,
+                       stale_after: DEFAULT_STALE_AFTER,
+                       lock_lease: DEFAULT_LOCK_LEASE,
                        code_generator: -> {
                            Array.new(COLLABORATION_CODE_LENGTH) {
                                COLLABORATION_CODE_ALPHABET[
@@ -49,10 +62,14 @@ module Collaboration
                                ]
                            }.join
                        },
-                       id_generator: -> { SecureRandom.hex(8) })
+                       id_generator: -> { SecureRandom.hex(8) },
+                       token_generator: -> { SecureRandom.urlsafe_base64(24) })
             @clock = clock
             @session_ttl = session_ttl
             @reconnect_grace = reconnect_grace
+            @stale_after = stale_after
+            @lock_lease = lock_lease
+            @token_generator = token_generator
             @code_generator = code_generator
             @id_generator = id_generator
             @sessions = {}
@@ -81,39 +98,49 @@ module Collaboration
             end
         end
 
-        def join(code:, name:, participant_id: nil)
+        # Joins as a new participant, or takes over an existing one when its
+        # participant_id and secret reconnect_token are given. Taking over also
+        # works while the old connection still counts as connected (it simply
+        # stops being valid; replaced_connection_id names it) and keeps the lock.
+        def join(code:, name:, participant_id: nil, reconnect_token: nil)
             @mutex.synchronize do
                 now = @clock.call
                 cleanup_locked(now)
                 session = fetch_session_locked(code)
+                expire_stale_locked(session, now)
                 display_name = normalize_name(name)
 
                 participant = participant_id && session[:participants][participant_id]
-                participant = nil if participant && participant[:connected]
+                participant = nil unless participant && secure_equal?(participant[:reconnect_token], reconnect_token)
+                replaced_connection_id = nil
                 if participant.nil?
                     participant_id = unique_id(session[:participants], @id_generator)
                     participant = {
                         id: participant_id,
                         name: display_name,
+                        reconnect_token: @token_generator.call,
                         connected: false,
                         connection_id: nil,
                         lock: nil,
                         last_seen: now,
                     }
                     session[:participants][participant_id] = participant
+                elsif participant[:connected]
+                    replaced_connection_id = participant[:connection_id]
                 end
 
                 connection_id = @id_generator.call
                 participant[:name] = display_name
                 participant[:connected] = true
                 participant[:connection_id] = connection_id
-                participant[:lock] = nil
                 participant[:last_seen] = now
                 session[:last_seen] = now
 
                 {
                     participant_id: participant_id,
                     connection_id: connection_id,
+                    reconnect_token: participant[:reconnect_token],
+                    replaced_connection_id: replaced_connection_id,
                     snapshot: snapshot_locked(session),
                 }
             end
@@ -137,8 +164,12 @@ module Collaboration
             end
         end
 
+        # Heartbeat. Also notices participants that have gone silent; then
+        # expired is true and the others should get the new participant list.
         def touch(code:, participant_id:, connection_id:)
-            with_participant(code, participant_id, connection_id) { true }
+            with_participant(code, participant_id, connection_id) do |session, _participant, expired|
+                { expired: expired, participants: participants_locked(session) }
+            end
         end
 
         def snapshot(code:)
@@ -159,11 +190,21 @@ module Collaboration
 
         def lock(code:, participant_id:, connection_id:, resource:)
             with_participant(code, participant_id, connection_id) do |session, participant|
+                now = @clock.call
                 holder = lock_holder_locked(session, resource)
                 reason = nil
-                reason = "locked" if holder && holder[:id] != participant[:id]
+                if holder && holder[:id] != participant[:id]
+                    # A lock unused for longer than the lease can be taken over.
+                    if now - holder[:lock][:active_at] > @lock_lease
+                        holder[:lock] = nil
+                    else
+                        reason = "locked"
+                    end
+                end
                 reason = "unknown_resource" if resource_target_locked(session, resource).nil?
-                participant[:lock] = { resource: resource } if reason.nil?
+                if reason.nil? && !(participant[:lock] && participant[:lock][:resource] == resource)
+                    participant[:lock] = { resource: resource, active_at: now }
+                end
                 result = { applied: reason.nil?, participants: participants_locked(session) }
                 result[:reason] = reason unless reason.nil?
                 result
@@ -208,6 +249,7 @@ module Collaboration
                 next_revision = resource_revision + 1
                 session[:resource_revisions][resource] = next_revision
                 session[:revision] += 1
+                lock[:active_at] = @clock.call
                 {
                     applied: true,
                     revision: session[:revision],
@@ -353,11 +395,35 @@ module Collaboration
                 now = @clock.call
                 cleanup_locked(now)
                 session = fetch_session_locked(code)
+                expired = expire_stale_locked(session, now)
                 participant = current_participant_locked(session, participant_id, connection_id)
                 participant[:last_seen] = now
                 session[:last_seen] = now
-                yield session, participant
+                yield session, participant, expired
             end
+        end
+
+        # Connected participants that have not been heard from for too long
+        # count as gone: they lose their lock, and their reconnect grace starts
+        # now. Returns true if anybody expired.
+        def expire_stale_locked(session, now)
+            expired = false
+            session[:participants].each_value do |participant|
+                next unless participant[:connected] && now - participant[:last_seen] > @stale_after
+                participant[:connected] = false
+                participant[:connection_id] = nil
+                participant[:lock] = nil
+                participant[:last_seen] = now
+                expired = true
+            end
+            expired
+        end
+
+        def secure_equal?(expected, given)
+            return false unless expected.is_a?(String) && given.is_a?(String) && expected.bytesize == given.bytesize
+            result = 0
+            expected.bytes.zip(given.bytes) { |a, b| result |= a ^ b }
+            result.zero?
         end
 
         def deep_copy(value)
