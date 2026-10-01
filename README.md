@@ -129,6 +129,29 @@ An independent fork should:
 
 The current tags are content-derived. Simply clearing `parent` is therefore not sufficient to guarantee a distinct new root in every case: an unchanged root game, or repeated forks of the same version, could otherwise collapse to the same tag. The fork design needs a small independent lineage identity, for example an optional non-gameplay lineage identifier, while existing games without it keep their current tags and behaviour.
 
+#### Live collaboration
+
+A separate live-collaboration workflow is planned for groups who want to work on the **same game at the same time from different browsers**.
+
+Collaboration should stay compatible with the no-account model:
+
+- starting a session produces a separate, hard-to-guess collaboration link or code
+- the ordinary public game code does **not** grant access to an active collaboration session
+- everybody starting or joining a session enters a display name
+- the name is used only inside that live session and is not an account or ownership identity
+- no permanent membership is required
+- the collaboration session is temporary; the normal saved game remains the durable artefact
+
+Participant names should be visible in the session and in conflict messages, for example **„Mia bearbeitet gerade diese Ebene“**. Names do not have to be globally or even session-wide unique; if two children choose the same name, the UI can distinguish them visually without treating the name as authentication.
+
+A collaboration session starts from one saved game version and keeps one server-authoritative working state. Browsers send editing operations to the session, receive operations from the other participants and track a monotonically increasing session revision. A reconnecting browser can therefore request the current state and revision instead of trying to reconstruct missed edits.
+
+The first version should favour understandable conflict prevention over a fully general collaborative-editor algorithm. Different people should be able to work on different resources at the same time, for example one sprite and one level. A resource currently being edited elsewhere can use a short-lived lease/lock and be shown as temporarily occupied by the participant who holds it. Fine-grained simultaneous editing of the same pixel frame or level region can be considered later if real use shows that it is needed.
+
+Collaboration also needs stable temporary identities for editable objects. Saved games use arrays and some index-based references; concurrent insertions or deletions must not make an operation intended for one sprite or placed object accidentally target another. Session-only stable IDs can identify sprites, states, frames, levels, layers and placed objects while collaborating and disappear again when the normal game JSON is saved.
+
+Saving from a collaboration session should use the existing immutable version model. One serialized save creates the next normal game version, broadcasts its new tag to all participants and makes that version the parent for the following save. An independent fork remains a separate action: a group can first choose **Als eigenes Spiel weiterführen** and then start a collaboration session in that new lineage.
+
 Existing saved JSON is considered part of the compatibility contract of the project: new engine features should continue to load old games without requiring migrations.
 
 ## Project structure

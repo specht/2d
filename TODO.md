@@ -206,6 +206,102 @@ The version graph and an independent fork are different concepts. Do not delete 
 
 ---
 
+# Live Collaboration
+
+Facilitate working on one game from two or more browsers without introducing accounts.
+
+Collaboration is an explicit temporary session, not a property of every public game. The ordinary game code remains enough to open, edit and save an independent descendant as it is today, but it must not allow somebody to enter an active shared editing session. Starting **Gemeinsam bearbeiten** should create a separate hard-to-guess collaboration link or code that can be shared deliberately.
+
+## Joining and names
+
+Everybody who starts or joins a collaboration session enters a name before entering the shared editor.
+
+The name is a session-local display name, not an account, login or ownership identity. It should:
+
+- be shown in the participant list
+- be shown when somebody holds an editing lock, for example **„Mia bearbeitet gerade diese Ebene“**
+- travel with that participant's live presence and editing operations
+- disappear with the session rather than becoming permanent game metadata
+
+Do not require names to be globally unique. Two children may legitimately have the same first name; the session UI can disambiguate duplicates with a small suffix, icon or colour while still displaying the name they entered.
+
+## Session model
+
+A session starts from a particular saved game version and holds one server-authoritative working state.
+
+The server should:
+
+- assign the session a secret capability link/code
+- maintain a monotonically increasing revision
+- receive editing operations from connected browsers in a defined order
+- apply accepted operations to the shared state
+- broadcast them to the other participants together with the participant identity needed for presence/UI
+- let a reconnecting browser obtain the current state and revision
+- keep collaboration state temporary rather than turning it into another saved-game format
+
+Presence should show the names of the currently connected participants. Accounts, permanent identities and permanent membership are not required.
+
+## Conflict model
+
+Do not start with a general CRDT or Google-Docs-style merge system.
+
+The Studio already has useful natural editing boundaries. The first implementation should allow people to work simultaneously on different resources while using short-lived leases/locks for conflicting work.
+
+Useful lock scopes may include:
+
+- a sprite or animation state/frame
+- a level or layer
+- a game-settings section
+
+A browser should clearly show who is currently editing a conflicting resource. Locks must expire or be released when a browser disconnects so a crashed tab cannot block the project indefinitely.
+
+If classroom use later shows a real need for two people to draw on the same frame or manipulate the same level region simultaneously, make that a separate later design problem rather than complicating the first implementation.
+
+## Stable identities during a session
+
+Concurrent editing cannot safely address changing arrays only by numeric index.
+
+For example, one browser may be editing sprite 7 while another deletes sprite 3. The first browser's next operation must still refer to the original sprite, not whichever sprite has moved into array position 7.
+
+Use session-only stable IDs for collaborative operations where necessary, for example for:
+
+- sprites
+- states and frames
+- levels and layers
+- placed level objects
+
+These object IDs are separate from participant display names. Both are collaboration infrastructure, not a required migration of existing game JSON. Translate back to the established saved representation when saving unless a future feature independently justifies persistent IDs.
+
+## Saving and lineage
+
+A collaboration session should not create a permanent game version for every edit.
+
+A normal shared save should:
+
+- serialize saving so two browsers cannot create conflicting session bases
+- write one ordinary immutable game version through the existing save path
+- keep the existing parent/version relationship
+- broadcast the resulting game tag to all connected browsers
+- use that saved version as the parent of the next shared save
+
+Independent forks and live collaboration remain orthogonal. **Als eigenes Spiel weiterführen** starts a new lineage; **Gemeinsam bearbeiten** lets several named participants edit one working copy within whichever lineage they started from.
+
+## First useful milestone
+
+Keep the first version deliberately small:
+
+1. Start or join a collaboration session using a separate secret link/code.
+2. Require a display name on entry and show named participant presence.
+3. Maintain server-authoritative state with revision numbers.
+4. Synchronize structured Studio editing operations.
+5. Prevent conflicting edits with fine-grained temporary locks that identify who is editing.
+6. Save through the existing game/version mechanism.
+7. Reconnect safely after a temporary disconnect.
+
+Do not require accounts, chat, permissions administration, persistent participant identities, collaborative cursors or a CRDT for this milestone.
+
+---
+
 # Sprite and Animation Editor
 
 The sprite editor is already comparatively mature.
@@ -437,9 +533,10 @@ In particular:
 4. Improve layers and large-level navigation.
 5. Shorten the playtest loop.
 6. Make game lineage understandable and add an explicit independent-fork action.
-7. Polish sprite-animation workflows.
-8. Add generic triggers/actions.
-9. Build new gameplay systems on those foundations.
+7. Make deliberate, named multi-browser collaboration practical without introducing accounts.
+8. Polish sprite-animation workflows.
+9. Add generic triggers/actions.
+10. Build new gameplay systems on those foundations.
 
 The central question for new work should be:
 
