@@ -5,7 +5,6 @@ const {
     collaboration_code_from_url,
     collaboration_websocket_url,
     collaboration_connection_status,
-    collaboration_status_label,
     collaboration_resource,
     parse_collaboration_resource,
     collaboration_resource_value,
@@ -17,9 +16,14 @@ const {
     collaboration_lock_race_notice,
     collaboration_same_sprite_structure,
     collaboration_copy_frame_sources,
+    COLLABORATION_COLORS,
+    collaboration_color,
+    collaboration_initial,
+    collaboration_activity,
+    collaboration_occupied_text,
+    collaboration_people_title,
     collaboration_leave_text,
     collaboration_join_error_text,
-    collaboration_resource_description,
     collaboration_saved_notice,
     collaboration_save_error_message,
 } = require('../src/static/collaboration.js');
@@ -62,17 +66,8 @@ test('connection status distinguishes first connect from reconnect', () => {
     assert.equal(collaboration_connection_status(true, true), 'Verbunden');
 });
 
-test('status-bar label does not expose the session code', () => {
-    assert.equal(collaboration_status_label(true, 2), 'Gemeinsam · 2');
-    assert.equal(collaboration_status_label(false, 2), 'Gemeinsam …');
-});
 
 
-test('resource descriptions are student-facing German', () => {
-    assert.equal(collaboration_resource_description('sprite:s0'), 'dieses Sprite');
-    assert.equal(collaboration_resource_description('level:l0'), 'dieses Level');
-    assert.equal(collaboration_resource_description('settings'), 'die Einstellungen');
-});
 
 test('shared save messages name the saver without turning names into identities', () => {
     assert.equal(collaboration_saved_notice('Anna', false), 'Anna hat das Spiel gespeichert.');
@@ -740,4 +735,43 @@ test('pixel-only changes are recognised so the editor is not rebuilt', () => {
     const first_frame = target.states[0].frames[0];
     collaboration_copy_frame_sources(target, sprite('neu'));
     assert.equal(first_frame.src, 'neu', 'frames are updated in place');
+});
+
+// ------------------------------------------------------------ people in the UI
+
+test('participant colours come from the server index, with a stable fallback', () => {
+    assert.equal(collaboration_color({ id: 'a', color: 0 }), COLLABORATION_COLORS[0]);
+    assert.equal(collaboration_color({ id: 'a', color: 9 }), COLLABORATION_COLORS[1]);
+    const fallback = collaboration_color({ id: 'abc123' });
+    assert.ok(COLLABORATION_COLORS.includes(fallback));
+    assert.equal(collaboration_color({ id: 'abc123' }), fallback, 'same id, same colour');
+});
+
+test('tokens show the first letter of the name', () => {
+    assert.equal(collaboration_initial('anna'), 'A');
+    assert.equal(collaboration_initial('  ölaf'), 'Ö');
+    assert.equal(collaboration_initial('🐱 Kim'), '🐱');
+    assert.equal(collaboration_initial(''), '?');
+});
+
+test('the participant list says what everybody is doing, in German', () => {
+    const data = {
+        sprites: [{ id: 's0', states: [{ frames: [{ src: 'f0' }, { src: 'f1' }, { src: 'f2' }] }] }],
+        levels: [{ id: 'l0', properties: { name: 'Höhle' } }, { id: 'l1', properties: { name: '  ' } }],
+    };
+    assert.deepEqual(collaboration_activity({ lock: { resource: 'sprite:s0' } }, data), { text: 'zeichnet', picture: 'f1' });
+    assert.deepEqual(collaboration_activity({ lock: { resource: 'sprite:s0' } }, data, true), { text: 'zeichnest', picture: 'f1' });
+    assert.equal(collaboration_activity({ lock: { resource: 'level:l0' } }, data).text, 'baut an „Höhle“');
+    assert.equal(collaboration_activity({ lock: { resource: 'level:l1' } }, data, true).text, 'baust an „Level 2“');
+    assert.equal(collaboration_activity({ lock: { resource: 'settings' } }, data).text, 'ändert die Einstellungen');
+    assert.equal(collaboration_activity({}, data).text, 'schaut sich um');
+    assert.equal(collaboration_activity({}, data, true).text, 'schaust dich um');
+});
+
+test('the tag on something others work on names them and invites to watch', () => {
+    assert.equal(collaboration_occupied_text('Ben', 'sprite:s0'), 'Ben zeichnet gerade dieses Sprite. Du kannst zuschauen.');
+    assert.equal(collaboration_occupied_text('Mia', 'level:l0'), 'Mia baut gerade an diesem Level. Du kannst zuschauen.');
+    assert.equal(collaboration_occupied_text('Cem', 'settings'), 'Cem ändert gerade die Einstellungen. Du kannst zuschauen.');
+    assert.equal(collaboration_people_title(1), 'Du bist allein in der Sitzung');
+    assert.equal(collaboration_people_title(4), '4 Leute in der Sitzung');
 });
