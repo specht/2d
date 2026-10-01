@@ -172,20 +172,20 @@ test('an invincible player consumes the enemy shot without losing energy', () =>
 });
 
 test('projectile art references survive reorder and clear when a sprite is deleted', () => {
-    const fs = require('node:fs');
-    const path = require('node:path');
-    const source = fs.readFileSync(path.join(__dirname, '../src/static/game.js'), 'utf8');
-    const begin = source.indexOf('    remap_hit_sprite_references(translation, deletedIndex = null) {');
-    const end = source.indexOf('    add_sprite_trait(trait) {', begin);
-    assert.ok(begin >= 0 && end > begin);
-    const Editor = new Function(`return class Editor { ${source.slice(begin, end)} };`)();
-    const ranged = { visual: { projectile_sprite_index: 2, hit_sprite_index: 1 } };
-    const editor = new Editor();
-    editor.data = { sprites: [{ traits: { ranged_attack: { attack: ranged } } },
-        { traits: {} }, { traits: {} }] };
-    editor.remap_hit_sprite_references([1, 2, 0]);
-    assert.deepEqual(ranged.visual, { projectile_sprite_index: 0, hit_sprite_index: 2 });
-    editor.data.sprites = [editor.data.sprites[0], editor.data.sprites[2]];
-    editor.remap_hit_sprite_references([0, 0, 1], 0);
-    assert.deepEqual(ranged.visual, { hit_sprite_index: 1 });
+    const ids = require('../src/static/game_ids.js');
+    const ranged = { visual: { projectile_sprite_id: 'p', hit_sprite_id: 'h' } };
+    const owner = { id: 'o', traits: { ranged_attack: { attack: ranged } } };
+    const projectile = { id: 'p', traits: {} };
+    const hit = { id: 'h', traits: {} };
+    const data = { sprites: [owner, hit, projectile], levels: [] };
+    let played = ids.resolve_sprite_references_to_indices(JSON.parse(JSON.stringify(data)));
+    assert.deepEqual(played.sprites[0].traits.ranged_attack.attack.visual,
+        { projectile_sprite_index: 2, hit_sprite_index: 1 });
+    data.sprites = [owner, projectile, hit];
+    played = ids.resolve_sprite_references_to_indices(JSON.parse(JSON.stringify(data)));
+    assert.deepEqual(played.sprites[0].traits.ranged_attack.attack.visual,
+        { projectile_sprite_index: 1, hit_sprite_index: 2 });
+    data.sprites = [owner, hit];
+    ids.remove_sprite_references(data, 'p');
+    assert.deepEqual(ranged.visual, { hit_sprite_id: 'h' });
 });

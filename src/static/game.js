@@ -224,6 +224,9 @@ class Game {
         // Stable sprite/level identities (game_ids.js). Deterministic, so the
         // same JSON always gets the same IDs; existing IDs are kept.
         ensure_game_ids(this.data);
+        // References between sprites are stored as sprite IDs; old games
+        // still hold array indices, which become IDs here.
+        convert_sprite_references_to_ids(this.data);
         // console.log(`Fixing game data / after:`, JSON.stringify(this.data));
     }
 
@@ -262,6 +265,20 @@ class Game {
             for (const material of Object.values(this.blend_materials_for_sprite?.[si] ?? {}))
                 material.uniforms.texture1.value = texture;
         }
+    }
+
+    // Array index of a referenced sprite (placed sprites and attack visuals
+    // store sprite IDs), or null if the sprite does not exist (any more).
+    sprite_index_for_ref(ref) {
+        const sprites = this.data?.sprites ?? [];
+        if (Number.isInteger(ref)) return ref >= 0 && ref < sprites.length ? ref : null;
+        if (typeof ref !== 'string') return null;
+        let index = this.sprite_index_by_id_cache?.get(ref);
+        if (index === undefined || sprites[index]?.id !== ref) {
+            this.sprite_index_by_id_cache = sprite_index_by_id(this.data);
+            index = this.sprite_index_by_id_cache.get(ref);
+        }
+        return index ?? null;
     }
 
     // Level editor: the sprite's material with the Mischmodus of the layer
@@ -336,25 +353,11 @@ class Game {
             },
             delete_item: (index) => {
                 canvas.detachSprite();
-                let tr = delete_item_helper(self.data.sprites, index);
-                self.remap_hit_sprite_references(tr, index);
-                console.log(tr);
-                for (let levels of self.data.levels) {
-                    for (let layer of levels.layers) {
-                        if (layer.type === 'sprites') {
-                            let temp = [];
-                            // remove deleted sprite in all level layers
-                            for (let psi = 0; psi < layer.sprites.length; psi++)
-                                if (layer.sprites[psi][0] !== index)
-                                    temp.push(layer.sprites[psi]);
-                            // translaste remaining sprites
-                            for (let psi = 0; psi < temp.length; psi++)
-                                temp[psi][0] = tr[temp[psi][0]];
-                            // write fixed sprites back to layer
-                            layer.sprites = temp;
-                        }
-                    }
-                }
+                // References use sprite IDs, so only references to the deleted
+                // sprite itself need to go; nothing else is renumbered.
+                const [deleted] = self.data.sprites.splice(index, 1);
+                remove_sprite_references(self.data, deleted?.id);
+                self.refresh_sprite_reference_pickers();
                 this.refresh_frames_on_screen();
                 for (let si = 0; si < self.data.sprites.length; si++)
                     this.create_geometry_and_material_for_sprite(si);
@@ -365,17 +368,9 @@ class Game {
 
             },
             on_move_item: (from, to) => {
-                let tr = move_item_helper(self.data.sprites, from, to);
-                self.remap_hit_sprite_references(tr);
-                for (let levels of self.data.levels) {
-                    for (let layer of levels.layers) {
-                        if (layer.type === 'sprites') {
-                            for (let psi = 0; psi < layer.sprites.length; psi++) {
-                                layer.sprites[psi][0] = tr[layer.sprites[psi][0]];
-                            }
-                        }
-                    }
-                }
+                // Sprite IDs travel with their sprite: no references change.
+                move_item_helper(self.data.sprites, from, to);
+                self.refresh_sprite_reference_pickers();
                 this.refresh_frames_on_screen();
                 for (let si = 0; si < self.data.sprites.length; si++)
                     this.create_geometry_and_material_for_sprite(si);
@@ -732,38 +727,9 @@ class Game {
         window.addEventListener('keydown', handler, true);
     }
 
-    // Combat effect sprites use the same array indices as placed level sprites.
-    // Reordering/deleting an image must update both modern and legacy attacks.
-    remap_hit_sprite_references(translation, deletedIndex = null) {
-        for (const sprite of this.data.sprites) {
-            const attacks = [sprite.traits?.melee_attack?.attack,
-                sprite.traits?.ranged_attack?.attack];
-            for (const role of ['actor', 'baddie'])
-                if (Array.isArray(sprite.traits?.[role]?.attacks))
-                    attacks.push(...sprite.traits[role].attacks);
-            for (const attack of attacks) {
-                const visual = attack?.visual;
-                if (!visual || typeof visual !== 'object') continue;
-                for (const key of ['hit_sprite_index', 'attack_sprite_index', 'projectile_sprite_index']) {
-                    if (!Number.isInteger(visual[key])) continue;
-                    if (visual[key] === deletedIndex) {
-                        delete visual[key];
-                        continue;
-                    }
-                    const next = translation[visual[key]];
-                    if (Number.isInteger(next) && next >= 0) visual[key] = next;
-                    else delete visual[key];
-                }
-            }
-        }
-        // Beute of enemies
-        for (const sprite of this.data.sprites) {
-            const drop = sprite.traits?.baddie?.drop;
-            if (!drop || !Number.isInteger(drop.sprite_index)) continue;
-            const next = drop.sprite_index === deletedIndex ? null : translation[drop.sprite_index];
-            if (Number.isInteger(next) && next >= 0) drop.sprite_index = next;
-            else delete sprite.traits.baddie.drop;
-        }
+    // Pickers show sprite thumbnails by position; after sprites were reordered
+    // or deleted they need to look up their (ID-based) choice again.
+    refresh_sprite_reference_pickers() {
         this.drop_sprite_picker?.refresh();
         this.attack_sprite_picker?.refresh();
         this.hit_sprite_picker?.refresh();
@@ -999,17 +965,23 @@ class Game {
                 none_label: 'Keine Beute',
                 hint: 'Das lässt der Gegner zurück, wenn er besiegt ist – zum Beispiel einen Schlüssel, ein Extraleben oder Münzen. Das Sprite braucht die Eigenschaft „man kann es einsammeln“ oder „ist ein Schlüssel“.',
                 sprites: () => this.data.sprites,
-                get: () => Number.isInteger(baddie().drop?.sprite_index) &&
-                    this.data.sprites[baddie().drop.sprite_index] ? String(baddie().drop.sprite_index) : 'none',
+                get: () => {
+                    const id = baddie().drop?.sprite_id;
+                    const index = typeof id === 'string' ? this.data.sprites.findIndex(sprite => sprite.id === id) : -1;
+                    return index >= 0 ? String(index) : 'none';
+                },
                 set: (choice) => {
                     const index = Number(choice);
                     if (choice === 'none') delete baddie().drop;
-                    else if (Number.isInteger(index) && this.data.sprites[index])
-                        baddie().drop = { ...(baddie().drop ?? {}), sprite_index: index };
+                    else if (Number.isInteger(index) && this.data.sprites[index]) {
+                        const { sprite_index, ...drop } = baddie().drop ?? {};
+                        baddie().drop = { ...drop, sprite_id: this.data.sprites[index].id };
+                    }
                     render();
                 },
             });
-            const chosen = this.data.sprites[baddie().drop?.sprite_index];
+            const chosen_id = baddie().drop?.sprite_id;
+            const chosen = typeof chosen_id === 'string' ? this.data.sprites.find(sprite => sprite.id === chosen_id) : null;
             if (!chosen) return;
             new CheckboxWidget({
                 container: box, label: 'gibt die Beute ab, wenn man ihn berührt',
@@ -1119,16 +1091,19 @@ class Game {
             container: div, label: 'Angriffssprite:',
             hint: 'Zeichne einen eigenen Sprite (auch mehrere Frames möglich) und wähle ihn hier aus. Das Bild erscheint, sobald der Angriff startet – auch wenn niemand getroffen wird. Es ändert weder Schaden noch Reichweite.',
             sprites: () => this.data.sprites,
-            get: () => Number.isInteger(attack.visual?.attack_sprite_index) &&
-                this.data.sprites[attack.visual.attack_sprite_index] ?
-                String(attack.visual.attack_sprite_index) : 'none',
+            get: () => {
+                const id = attack.visual?.attack_sprite_id;
+                const index = typeof id === 'string' ? this.data.sprites.findIndex(sprite => sprite.id === id) : -1;
+                return index >= 0 ? String(index) : 'none';
+            },
             set: (choice) => {
                 const index = Number(choice);
                 if (choice !== 'none' && (!Number.isInteger(index) || index < 0 ||
                     !this.data.sprites[index])) return;
                 const visual = attack.visual && typeof attack.visual === 'object' ? attack.visual : {};
-                if (choice === 'none') delete visual.attack_sprite_index;
-                else visual.attack_sprite_index = index;
+                delete visual.attack_sprite_index;
+                if (choice === 'none') delete visual.attack_sprite_id;
+                else visual.attack_sprite_id = this.data.sprites[index].id;
                 attack.visual = visual;
             },
         });
@@ -1136,16 +1111,19 @@ class Game {
             container: div, label: 'Treffereffekt:',
             hint: 'Zeichne einen eigenen Sprite (auch mehrere Frames möglich) und wähle ihn hier aus. Das Bild erscheint nur bei einem Treffer und ändert weder Schaden noch Reichweite.',
             sprites: () => this.data.sprites,
-            get: () => Number.isInteger(attack.visual?.hit_sprite_index) &&
-                this.data.sprites[attack.visual.hit_sprite_index] ?
-                String(attack.visual.hit_sprite_index) : 'none',
+            get: () => {
+                const id = attack.visual?.hit_sprite_id;
+                const index = typeof id === 'string' ? this.data.sprites.findIndex(sprite => sprite.id === id) : -1;
+                return index >= 0 ? String(index) : 'none';
+            },
             set: (choice) => {
                 const index = Number(choice);
                 if (choice !== 'none' && (!Number.isInteger(index) || index < 0 ||
                     !this.data.sprites[index])) return;
                 const visual = attack.visual && typeof attack.visual === 'object' ? attack.visual : {};
-                if (choice === 'none') delete visual.hit_sprite_index;
-                else visual.hit_sprite_index = index;
+                delete visual.hit_sprite_index;
+                if (choice === 'none') delete visual.hit_sprite_id;
+                else visual.hit_sprite_id = this.data.sprites[index].id;
                 // No legacy star/POW option is retained on this development branch.
                 delete visual.hit_kind;
                 attack.visual = visual;
@@ -1346,20 +1324,24 @@ class Game {
         const picker = (field, key, hint) => new SpriteSelectWidget({
             container: div, label: field,
             hint, sprites: () => this.data.sprites,
-            get: () => Number.isInteger(attack.visual?.[key]) &&
-                this.data.sprites[attack.visual[key]] ? String(attack.visual[key]) : 'none',
+            get: () => {
+                const id = attack.visual?.[`${key}_id`];
+                const index = typeof id === 'string' ? this.data.sprites.findIndex(sprite => sprite.id === id) : -1;
+                return index >= 0 ? String(index) : 'none';
+            },
             set: choice => {
                 const index = Number(choice);
                 if (choice !== 'none' && (!Number.isInteger(index) || index < 0 ||
                     !this.data.sprites[index])) return;
                 attack.visual ??= {};
-                if (choice === 'none') delete attack.visual[key];
-                else attack.visual[key] = index;
+                delete attack.visual[`${key}_index`];
+                if (choice === 'none') delete attack.visual[`${key}_id`];
+                else attack.visual[`${key}_id`] = this.data.sprites[index].id;
             },
         });
-        this.ranged_projectile_picker = picker('Projektilsprite:', 'projectile_sprite_index',
+        this.ranged_projectile_picker = picker('Projektilsprite:', 'projectile_sprite',
             'Zeichne normale Projektile nach rechts.');
-        this.ranged_hit_picker = picker('Treffereffekt:', 'hit_sprite_index',
+        this.ranged_hit_picker = picker('Treffereffekt:', 'hit_sprite',
             'Dieses Bild erscheint nur bei einem Treffer, unabhängig vom Projektilsprite.');
     }
 

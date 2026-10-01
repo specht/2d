@@ -116,37 +116,28 @@ test('attack sprite is independent from hit effects and does not change damage',
     } finally { restore(); }
 });
 
-test('reordering or deleting sprites remaps both hit and attack effect references', () => {
-    const source = fs.readFileSync(require.resolve('../src/static/game.js'), 'utf8');
-    const start = source.indexOf('remap_hit_sprite_references(translation, deletedIndex = null) {');
-    const end = source.indexOf('\n    }\n\n    add_sprite_trait(trait) {', start);
-    assert.ok(start >= 0 && end > start);
-    const method = vm.runInNewContext(
-        `({${source.slice(start, end)}\n    }}).remap_hit_sprite_references`);
+test('hit and attack effect references follow their sprite through reordering and deletion', () => {
+    const ids = require('../src/static/game_ids.js');
+    const data = { sprites: [
+        { id: 'a', traits: { actor: { attacks: [{ visual: { attack_sprite_id: 'c', hit_sprite_id: 'b' } }] } } },
+        { id: 'b', traits: { melee_attack: { attack: { visual: { attack_sprite_id: 'a', hit_sprite_id: 'c' } } } } },
+        { id: 'c', traits: { baddie: { attacks: [{ visual: { attack_sprite_id: 'b' } }] } } },
+    ], levels: [] };
+    const [a, b, c] = data.sprites;
 
-    const game = {
-        attack_sprite_picker: { refresh() {} },
-        hit_sprite_picker: { refresh() {} },
-        data: { sprites: [
-            { traits: { actor: { attacks: [{ visual: { attack_sprite_index: 2, hit_sprite_index: 1 } }] } } },
-            { traits: { melee_attack: { attack: { visual: { attack_sprite_index: 0, hit_sprite_index: 2 } } } } },
-            { traits: { baddie: { attacks: [{ visual: { attack_sprite_index: 1 } }] } } },
-        ] },
-    };
-
-    method.call(game, { 0: 2, 1: 0, 2: 1 });
-    assert.deepEqual(game.data.sprites[0].traits.actor.attacks[0].visual,
+    // Reordering needs no reference changes; the engine sees the new indices.
+    data.sprites = [c, a, b];
+    const played = ids.resolve_sprite_references_to_indices(JSON.parse(JSON.stringify(data)));
+    assert.deepEqual(played.sprites[1].traits.actor.attacks[0].visual,
+        { attack_sprite_index: 0, hit_sprite_index: 2 });
+    assert.deepEqual(played.sprites[2].traits.melee_attack.attack.visual,
         { attack_sprite_index: 1, hit_sprite_index: 0 });
-    assert.deepEqual(game.data.sprites[1].traits.melee_attack.attack.visual,
-        { attack_sprite_index: 2, hit_sprite_index: 1 });
-    assert.deepEqual(game.data.sprites[2].traits.baddie.attacks[0].visual,
-        { attack_sprite_index: 0 });
+    assert.deepEqual(played.sprites[0].traits.baddie.attacks[0].visual,
+        { attack_sprite_index: 2 });
 
-    method.call(game, { 0: 0, 2: 1 }, 1);
-    assert.deepEqual(game.data.sprites[0].traits.actor.attacks[0].visual,
-        { hit_sprite_index: 0 });
-    assert.deepEqual(game.data.sprites[1].traits.melee_attack.attack.visual,
-        { attack_sprite_index: 1 });
-    assert.deepEqual(game.data.sprites[2].traits.baddie.attacks[0].visual,
-        { attack_sprite_index: 0 });
+    // Deleting b removes exactly the references to b.
+    data.sprites = [c, a];
+    ids.remove_sprite_references(data, 'b');
+    assert.deepEqual(a.traits.actor.attacks[0].visual, { attack_sprite_id: 'c' });
+    assert.deepEqual(c.traits.baddie.attacks[0].visual, {});
 });

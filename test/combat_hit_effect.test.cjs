@@ -186,8 +186,8 @@ test('sprite selector does not mutate saved attacks on opening and leaves the sw
     };
     const editor = new Editor();
     editor.data = { sprites: [
-        { traits: { actor: {}, melee_attack: { attack } }, states: [{ properties: { name: '' }, frames: [{ src: 'actor-art' }] }] },
-        { traits: {}, states: [{ properties: { name: 'Funken' }, frames: [{ src: 'spark-art' }] }] },
+        { id: 's0', traits: { actor: {}, melee_attack: { attack } }, states: [{ properties: { name: '' }, frames: [{ src: 'actor-art' }] }] },
+        { id: 's1', traits: {}, states: [{ properties: { name: 'Funken' }, frames: [{ src: 'spark-art' }] }] },
     ] };
     editor.add_trait_help = () => {};
     editor.build_sprite_traits_menu = () => {};
@@ -200,32 +200,38 @@ test('sprite selector does not mutate saved attacks on opening and leaves the sw
     assert.equal(hit.get(), 'none');
     hit.set('1');
     assert.equal(hit.get(), '1');
-    assert.equal(attack.visual.hit_sprite_index, 1);
+    assert.equal(attack.visual.hit_sprite_id, 's1');
+    assert.ok(!Object.hasOwn(attack.visual, 'hit_sprite_index'));
     assert.equal(attack.visual.kind, 'swoosh');
     assert.equal(attack.visual.sweep, 'down');
+    editor.data.sprites.reverse(); // the chosen sprite moves, the choice follows it
+    assert.equal(hit.get(), '0');
     hit.set('none');
     assert.equal(hit.get(), 'none');
-    assert.ok(!Object.hasOwn(attack.visual, 'hit_sprite_index'));
+    assert.ok(!Object.hasOwn(attack.visual, 'hit_sprite_id'));
 });
 
-test('sprite reordering and deletion update modern and existing attack references', () => {
-    const source = fs.readFileSync(path.join(__dirname, '../src/static/game.js'), 'utf8');
-    const start = source.indexOf('    remap_hit_sprite_references(translation, deletedIndex = null) {');
-    const end = source.indexOf('    add_sprite_trait(trait) {', start);
-    assert.ok(start >= 0 && end > start);
-    const Editor = new Function(`return class Editor { ${source.slice(start, end)} };`)();
-    const editor = new Editor();
+test('sprite reordering and deletion keep modern and existing attack references correct', () => {
+    const ids = require('../src/static/game_ids.js');
     const modern = { visual: { kind: 'swoosh', hit_sprite_index: 2 } };
     const legacy = { visual: { kind: 'none', hit_sprite_index: 1 } };
     const first = { traits: { melee_attack: { attack: modern } } };
     const second = { traits: { actor: { attacks: [legacy] } } };
     const third = { traits: {} };
-    editor.data = { sprites: [third, first, second] }; // old index 2 moved to 0
-    editor.remap_hit_sprite_references([1, 2, 0]);
-    assert.equal(modern.visual.hit_sprite_index, 0);
-    assert.equal(legacy.visual.hit_sprite_index, 2);
-    editor.data.sprites = [first, second]; // old index 0 was deleted
-    editor.remap_hit_sprite_references([0, 0, 1], 0);
-    assert.ok(!Object.hasOwn(modern.visual, 'hit_sprite_index'));
-    assert.equal(legacy.visual.hit_sprite_index, 1);
+    const data = { sprites: [first, second, third], levels: [] };
+    ids.ensure_game_ids(data);
+    ids.convert_sprite_references_to_ids(data); // old games hold indices
+    assert.deepEqual(modern.visual, { kind: 'swoosh', hit_sprite_id: 's2' });
+    assert.deepEqual(legacy.visual, { kind: 'none', hit_sprite_id: 's1' });
+
+    data.sprites = [third, first, second]; // old index 2 moved to 0
+    let played = ids.resolve_sprite_references_to_indices(JSON.parse(JSON.stringify(data)));
+    assert.equal(played.sprites[1].traits.melee_attack.attack.visual.hit_sprite_index, 0);
+    assert.equal(played.sprites[2].traits.actor.attacks[0].visual.hit_sprite_index, 2);
+
+    data.sprites = [first, second]; // the third sprite was deleted
+    ids.remove_sprite_references(data, 's2');
+    assert.ok(!Object.hasOwn(modern.visual, 'hit_sprite_id'));
+    played = ids.resolve_sprite_references_to_indices(JSON.parse(JSON.stringify(data)));
+    assert.equal(played.sprites[1].traits.actor.attacks[0].visual.hit_sprite_index, 1);
 });

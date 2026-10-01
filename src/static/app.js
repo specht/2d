@@ -1778,6 +1778,9 @@ class Game {
 		}
 
 		this.data = await (await fetch(`/gen/games/${tag}.json`)).json();
+		// Saved games refer to sprites by ID (game_ids.js); the engine keeps
+		// working with array indices. Old games already hold indices.
+		resolve_sprite_references_to_indices(this.data);
 		this.spritesheet_info = await (await fetch(`/gen/spritesheets/${tag}.json`)).json();
 		this.spritesheets = [];
 		for (let i = 0; i < this.spritesheet_info.spritesheets.length; i++) {

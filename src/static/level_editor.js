@@ -26,9 +26,17 @@ class LayerStruct {
         this.layer = layer;
         console.log(`apply_layer`, layer, this.layer_index);
         if (layer.type !== 'sprites') return;
+        const game = this.level_editor.game;
         for (let i = 0; i < layer.sprites.length; i++) {
             let sprite = layer.sprites[i];
-            this.add_sprite([sprite[1], sprite[2]], sprite[0], i);
+            // Placed sprites refer to their sprite by ID; one whose sprite no
+            // longer exists is dropped from the layer.
+            const sprite_index = game.sprite_index_for_ref(sprite[0]);
+            if (sprite_index === null) {
+                layer.sprites.splice(i--, 1);
+                continue;
+            }
+            this.add_sprite([sprite[1], sprite[2]], sprite_index, i);
         }
         if (this.el_sprite_count !== null)
             $(this.el_sprite_count).text(`${layer.sprites.length}`);
@@ -39,15 +47,15 @@ class LayerStruct {
     refresh_materials() {
         if (this.layer?.type !== 'sprites') return;
         for (const pos of Object.keys(this.mesh_for_pos)) {
-            const si = this.layer.sprites[this.placed_sprite_index_for_pos[pos]]?.[0];
-            if (si === undefined) continue;
+            const si = this.level_editor.game.sprite_index_for_ref(this.layer.sprites[this.placed_sprite_index_for_pos[pos]]?.[0]);
+            if (si === null) continue;
             this.mesh_for_pos[pos].material = this.level_editor.game.editor_sprite_material(si, this.layer.properties?.blend);
         }
     }
 
     remove_from_interval_trees(psi) {
         let placed = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[psi];
-        let sprite_index = placed[0];
+        let sprite_index = this.level_editor.game.sprite_index_for_ref(placed[0]);
         let p = [placed[1], placed[2]];
         let sw = this.level_editor.game.data.sprites[sprite_index].width;
         let sh = this.level_editor.game.data.sprites[sprite_index].height;
@@ -61,7 +69,7 @@ class LayerStruct {
 
     insert_into_interval_trees(psi) {
         let placed = this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites[psi];
-        let sprite_index = placed[0];
+        let sprite_index = this.level_editor.game.sprite_index_for_ref(placed[0]);
         let p = [placed[1], placed[2]];
         let sw = this.level_editor.game.data.sprites[sprite_index].width;
         let sh = this.level_editor.game.data.sprites[sprite_index].height;
@@ -111,7 +119,8 @@ class LayerStruct {
 
         let pos = `${p[0]}/${p[1]}`;
         // console.log('THIS', this.level_editor.layer_index, this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites);
-        if (((this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites ?? [])[this.placed_sprite_index_for_pos[pos]] ?? [])[0] !== sprite_index) {
+        const existing = (this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites ?? [])[this.placed_sprite_index_for_pos[pos]];
+        if (this.level_editor.game.sprite_index_for_ref(existing?.[0]) !== sprite_index) {
             let sw = this.level_editor.game.data.sprites[sprite_index].width;
             let sh = this.level_editor.game.data.sprites[sprite_index].height;
             let x0 = p[0] - sw * 0.5;
@@ -132,7 +141,7 @@ class LayerStruct {
             this.interval_tree_x.insert([x0, x1], use_placed_sprite_index);
             this.interval_tree_y.insert([y0, y1], use_placed_sprite_index);
             if (force_placed_sprite_index === null) {
-                (this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites ?? [])[use_placed_sprite_index] = [sprite_index, p[0], p[1]];
+                (this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites ?? [])[use_placed_sprite_index] = [this.level_editor.game.data.sprites[sprite_index].id, p[0], p[1]];
             }
             $(this.el_sprite_count).text(`${(this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites ?? []).length}`);
         }
@@ -155,7 +164,7 @@ class LayerStruct {
 
         for (let index of result) {
             let s = layer.sprites[index];
-            let sprite_index = s[0];
+            let sprite_index = this.level_editor.game.sprite_index_for_ref(s[0]);
 
             let sw = this.level_editor.game.data.sprites[sprite_index].width;
             let sh = this.level_editor.game.data.sprites[sprite_index].height;
@@ -1170,9 +1179,9 @@ class LevelEditor {
                 filter: (sprite) => {
                     return 'pickup' in sprite.traits;
                 },
-                get: () => self.game.data.levels[self.level_index].conditions[self.condition_index].properties.sprite_index,
+                get: () => self.game.data.levels[self.level_index].conditions[self.condition_index].properties.sprite_id,
                 set: (x) => {
-                    self.game.data.levels[self.level_index].conditions[self.condition_index].properties.sprite_index = x;
+                    self.game.data.levels[self.level_index].conditions[self.condition_index].properties.sprite_id = x;
                     // self.update_layer_label();
                 },
             });
@@ -1981,7 +1990,7 @@ class LevelEditor {
                 let entry_index = this.selection[0];
                 let entry = this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index];
                 console.log('entry', entry);
-                let sprite = this.game.data.sprites[entry[0]];
+                let sprite = this.game.data.sprites[this.game.sprite_index_for_ref(entry[0])];
                 console.log('sprite', sprite);
                 for (let trait in sprite.traits) {
                     console.log('trait', trait);

@@ -93,3 +93,128 @@ test('random IDs are valid and use the collection prefix', () => {
 test('unknown collections are rejected', () => {
     assert.throws(() => ids.assign_new_game_id({}, 'frames', {}), /unknown game id collection/);
 });
+
+// ------------------------------------------------------------ references
+
+function legacy_game_with_references() {
+    return {
+        sprites: [
+            { width: 24, traits: { actor: { attacks: [{ visual: { hit_sprite_index: 2 } }] } } },
+            { width: 16, traits: { melee_attack: { attack: { visual: { kind: 'swoosh', attack_sprite_index: 2 } } } } },
+            { width: 8, traits: { baddie: { drop: { sprite_index: 1, door_code: 3 },
+                attacks: [{ visual: { kind: 'none', projectile_sprite_index: 0 } }] },
+                ranged_attack: { attack: { visual: { projectile_sprite_index: 1, hit_sprite_index: 0 } } } } },
+        ],
+        levels: [{
+            layers: [
+                { type: 'sprites', sprites: [[0, 12, 0], [2, 36, 0, { door: { code: 3 } }], [1, 60, 24]] },
+                { type: 'backdrop', rects: [] },
+            ],
+            conditions: [{ type: 'touching_level_complete' }, { type: 'need_sprite', properties: { sprite_index: 2 } }],
+        }],
+    };
+}
+
+function normalized(data) {
+    ids.ensure_game_ids(data);
+    return ids.convert_sprite_references_to_ids(data);
+}
+
+test('old index references become sprite IDs', () => {
+    const data = normalized(legacy_game_with_references());
+    assert.deepEqual(data.levels[0].layers[0].sprites,
+        [['s0', 12, 0], ['s2', 36, 0, { door: { code: 3 } }], ['s1', 60, 24]]);
+    assert.deepEqual(data.sprites[0].traits.actor.attacks[0].visual, { hit_sprite_id: 's2' });
+    assert.deepEqual(data.sprites[1].traits.melee_attack.attack.visual, { kind: 'swoosh', attack_sprite_id: 's2' });
+    assert.deepEqual(data.sprites[2].traits.baddie.drop, { door_code: 3, sprite_id: 's1' });
+    assert.deepEqual(data.sprites[2].traits.baddie.attacks[0].visual, { kind: 'none', projectile_sprite_id: 's0' });
+    assert.deepEqual(data.sprites[2].traits.ranged_attack.attack.visual,
+        { projectile_sprite_id: 's1', hit_sprite_id: 's0' });
+    assert.deepEqual(data.levels[0].conditions[1].properties, { sprite_id: 's2' });
+});
+
+test('an old game played after conversion sees exactly its old indices', () => {
+    const original = legacy_game_with_references();
+    const played = ids.resolve_sprite_references_to_indices(normalized(legacy_game_with_references()));
+    for (const sprite of played.sprites) delete sprite.id;
+    for (const level of played.levels) delete level.id;
+    assert.deepEqual(played, original);
+});
+
+test('conversion is idempotent and keeps the placed-sprite array itself', () => {
+    const data = normalized(legacy_game_with_references());
+    const list = data.levels[0].layers[0].sprites;
+    const before = JSON.stringify(data);
+    ids.convert_sprite_references_to_ids(data);
+    assert.equal(JSON.stringify(data), before);
+    assert.equal(data.levels[0].layers[0].sprites, list);
+});
+
+test('references follow their sprite when sprites are reordered', () => {
+    const data = normalized(legacy_game_with_references());
+    data.sprites.reverse(); // s2, s1, s0
+    const played = ids.resolve_sprite_references_to_indices(data);
+    assert.deepEqual(played.levels[0].layers[0].sprites.map(p => p[0]), [2, 0, 1]);
+    assert.equal(played.sprites[2].traits.actor.attacks[0].visual.hit_sprite_index, 0);
+    assert.equal(played.sprites[0].traits.baddie.drop.sprite_index, 1);
+});
+
+test('invalid old indices are dropped, like a reference to a deleted sprite', () => {
+    const data = normalized({
+        sprites: [{ traits: { baddie: { drop: { sprite_index: 7 } },
+            melee_attack: { attack: { visual: { kind: 'swoosh', hit_sprite_index: -1 } } } } }],
+        levels: [{ layers: [{ type: 'sprites', sprites: [[0, 1, 2], [5, 3, 4], 'junk'] }] }],
+    });
+    assert.equal(data.sprites[0].traits.baddie.drop, undefined);
+    assert.deepEqual(data.sprites[0].traits.melee_attack.attack.visual, { kind: 'swoosh' });
+    assert.deepEqual(data.levels[0].layers[0].sprites, [['s0', 1, 2]]);
+});
+
+test('an ID reference wins over an index reference', () => {
+    const data = normalized({
+        sprites: [{}, { traits: { melee_attack: { attack: { visual: { hit_sprite_id: 's0', hit_sprite_index: 1 } } } } }],
+        levels: [],
+    });
+    assert.deepEqual(data.sprites[1].traits.melee_attack.attack.visual, { hit_sprite_id: 's0' });
+});
+
+test('the studio keeps unknown IDs; playing drops them', () => {
+    const data = normalized({
+        sprites: [{ traits: { baddie: { drop: { sprite_id: 'gone' } } } }],
+        levels: [{ layers: [{ type: 'sprites', sprites: [['gone', 1, 2], ['s0', 3, 4]] }],
+            conditions: [{ type: 'need_sprite', properties: { sprite_id: 'gone' } }] }],
+    });
+    assert.deepEqual(data.levels[0].layers[0].sprites, [['gone', 1, 2], ['s0', 3, 4]]);
+    assert.deepEqual(data.sprites[0].traits.baddie.drop, { sprite_id: 'gone' });
+    const played = ids.resolve_sprite_references_to_indices(data);
+    assert.deepEqual(played.levels[0].layers[0].sprites, [[0, 3, 4]]);
+    assert.equal(played.sprites[0].traits.baddie.drop, undefined);
+    assert.deepEqual(played.levels[0].conditions[0].properties, {});
+});
+
+test('resolving leaves old index games untouched', () => {
+    const data = legacy_game_with_references();
+    assert.deepEqual(ids.resolve_sprite_references_to_indices(data), legacy_game_with_references());
+});
+
+test('deleting a sprite removes exactly the references to it', () => {
+    const data = normalized(legacy_game_with_references());
+    data.sprites.splice(2, 1);
+    ids.remove_sprite_references(data, 's2');
+    assert.deepEqual(data.levels[0].layers[0].sprites, [['s0', 12, 0], ['s1', 60, 24]]);
+    assert.deepEqual(data.sprites[0].traits.actor.attacks[0].visual, {});
+    assert.deepEqual(data.sprites[1].traits.melee_attack.attack.visual, { kind: 'swoosh' });
+    assert.deepEqual(data.levels[0].conditions[1].properties, {});
+});
+
+test('deleting a dropped sprite removes the drop', () => {
+    const data = normalized(legacy_game_with_references());
+    ids.remove_sprite_references(data, 's1');
+    assert.equal(data.sprites[2].traits.baddie.drop, undefined);
+    assert.deepEqual(data.sprites[2].traits.ranged_attack.attack.visual, { hit_sprite_id: 's0' });
+});
+
+test('sprite_index_by_id maps IDs to positions', () => {
+    const map = ids.sprite_index_by_id({ sprites: [{ id: 'a' }, {}, { id: 'c' }] });
+    assert.deepEqual([...map], [['a', 0], ['c', 2]]);
+});
