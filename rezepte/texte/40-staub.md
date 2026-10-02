@@ -112,7 +112,7 @@ erwartet:
 - **Der Staub rast durchs Bild:** Stell die **Geschwindigkeit** kleiner.
 - **Die Blitze sind vor den Bäumen:** Die Gewitter-Ebene liegt in der Layer-Liste zu weit oben. Schieb sie ganz nach unten, direkt über den Himmel.
 - **Es blitzt, aber man sieht es kaum:** Die Abdunkeln-Ebene schluckt das Licht. Nimm für das Gewitter eine hellere Farbe oder stell **Himmel leuchtet** höher.
-- **Im Level-Editor bewegt sich nichts:** Setz bei den Level-Einstellungen das Häkchen bei **Effekte bewegen**.
+- **Im Level-Editor bewegt sich nichts:** Schalte unter Werkzeuge **Level animieren** ein (Taste A).
 
 ## Mach mehr draus
 

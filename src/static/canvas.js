@@ -39,7 +39,7 @@ class Canvas {
         this.selection_bitmap_outline = document.createElement('canvas');
         this.stamp_bitmap = document.createElement('canvas');
         this.overlay_grid = document.createElement('canvas');
-        // Zwiebelhaut: the frame before (and after) shines through (update_onion_skin)
+        // Onion Skinning: the frame before (and after) shines through (update_onion_skin)
         this.onion_bitmap = document.createElement('canvas');
         this.onion_skin = false;
         try { this.onion_skin = localStorage.getItem('onion_skin') === '1'; } catch { }
@@ -1474,7 +1474,7 @@ class Canvas {
         this.update_onion_skin();
     }
 
-    // Zwiebelhaut: under the frame being drawn, the frame before it (reddish)
+    // Onion Skinning: under the frame being drawn, the frame before it (reddish)
     // and the one after it (bluish) shine through, so a movement can be drawn
     // step by step. Animations loop: before the first frame comes the last.
     update_onion_skin() {

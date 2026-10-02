@@ -287,7 +287,7 @@ Useful additions include:
 - selecting several frames at once (for copying or moving a part of an animation)
 - an undo for structural changes (states and frames added, moved or deleted)
 
-Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste frames (also between sprites of the same size), move a frame to another state, swap two states' animations, copy a state into another sprite; Zwiebelhaut (O).
+Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste frames (also between sprites of the same size), move a frame to another state, swap two states' animations, copy a state into another sprite; Onion Skinning (O).
 
 ---
 

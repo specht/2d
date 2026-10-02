@@ -135,7 +135,7 @@ class Menu {
 
     handle_status_button_down(is, was_key) {
         let self = this;
-        // toggle: a setting that stays on until it is pressed again (Gitter, Zwiebelhaut …)
+        // toggle: a setting that stays on until it is pressed again (Gitter, Onion Skinning …)
         if (this.status_buttons[is].type === 'toggle') {
             const value = !this.status_buttons[is].get();
             this.status_buttons[is].callback(value);
@@ -196,15 +196,15 @@ class Menu {
             hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'level-history-redo',
                 callback: () => game.level_editor?.redo() });
             // the view settings of the level editor (also under Werkzeuge)
-            for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['V', 'show_signal_links', 'Verbindungen'], ['S', 'show_signal_overview', 'Signale'], ['B', 'animate_backdrops', 'Effekte bewegen']]) {
+            for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['S', 'show_signal_overview', 'Signale'], ['A', 'animate_level', 'Level animieren']]) {
                 hints.push({ key, type: 'toggle', label,
                     get: () => !!game.level_editor?.[option],
                     callback: (value) => game.level_editor?.set_view_option?.(option, value) });
             }
         }
-        // Sprite editor: Zwiebelhaut (canvas.js)
+        // Sprite editor: Onion Skinning (canvas.js)
         if (this.pane === 'sprites') {
-            hints.push({ key: 'O', type: 'toggle', label: 'Zwiebelhaut',
+            hints.push({ key: 'O', type: 'toggle', label: 'Onion Skinning',
                 get: () => !!canvas?.onion_skin,
                 callback: (value) => canvas?.set_onion_skin?.(value) });
         }
