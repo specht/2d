@@ -2751,6 +2751,9 @@ class LevelEditor {
                 console.log('entry', entry);
                 let sprite = this.game.data.sprites[this.game.sprite_index_for_ref(entry[0])];
                 console.log('sprite', sprite);
+                // which sprite this is (its Titel, else its number)
+                $('<div class="placed-sprite-title">')
+                    .text(sprite_label(sprite, this.game.sprite_index_for_ref(entry[0]))).appendTo(div);
                 // what is connected (signals.js): written right under each Code
                 this.signal_link_lines = [];
                 const level = this.game.data.levels[this.level_index];
@@ -2930,6 +2933,7 @@ class LevelEditor {
             sprite_button.css('background-size', 'contain');
             sprite_button.css('image-rendering', 'pixelated');
             sprite_button.data('sprite_index', si);
+            sprite_button.attr('title', sprite_label(this.game.data.sprites[si], si));
             // if (si === 0) sprite_button.addClass('active');
             sprite_button.mousedown(function(e) {
                 e.preventDefault();

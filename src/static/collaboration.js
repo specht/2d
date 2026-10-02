@@ -816,6 +816,8 @@ class CollaborationClient {
         window.game.create_geometry_and_material_for_sprite(index);
         window.game.update_material_for_sprite(index);
         window.game.refresh_frames_on_screen();
+        // a renamed sprite: hover titles and pickers (its Titel is not a pixel change)
+        window.game.refresh_sprite_titles?.();
         if (window.game.level_editor) {
             window.game.level_editor.refresh_blend_materials?.();
             window.game.level_editor.refresh?.();

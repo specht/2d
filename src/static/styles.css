@@ -2683,6 +2683,15 @@ details.trait-advanced[open] > summary {
     color: #fff;
 }
 
+/* the selected placed sprite: which sprite it is (level_editor.js) */
+.placed-sprite-title {
+    font-weight: bold;
+    margin: 4px 0 2px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Signale: what else in this level has the same Code (level_editor.js) */
 .signal-links {
     font-size: 85%;

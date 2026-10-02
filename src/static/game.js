@@ -371,6 +371,8 @@ class Game {
                 remove_sprite_references(self.data, deleted?.id);
                 window.collaboration?.structure_changed?.('sprite', 'delete', deleted?.id);
                 self.refresh_sprite_reference_pickers();
+                // unnamed sprites are called by their number, which has changed
+                setTimeout(() => self.refresh_sprite_titles(), 0);
                 this.refresh_frames_on_screen();
                 for (let si = 0; si < self.data.sprites.length; si++)
                     this.create_geometry_and_material_for_sprite(si);
@@ -385,6 +387,7 @@ class Game {
                 move_item_helper(self.data.sprites, from, to);
                 window.collaboration?.structure_changed?.('sprite', 'move', self.data.sprites[to]?.id);
                 self.refresh_sprite_reference_pickers();
+                setTimeout(() => self.refresh_sprite_titles(), 0);
                 this.refresh_frames_on_screen();
                 for (let si = 0; si < self.data.sprites.length; si++)
                     this.create_geometry_and_material_for_sprite(si);
@@ -392,6 +395,7 @@ class Game {
         });
 
         this.level_editor = new LevelEditor($('#level'), this);
+        this.refresh_sprite_titles();
 
         $('#game-settings-here').empty();
 
@@ -811,6 +815,37 @@ class Game {
         });
     }
 
+    // Titel of the sprite (game_ids.js: absent = none, the sprite is called by
+    // its number). Shown when hovering a sprite in the lists and in every
+    // sprite picker.
+    add_sprite_title_control(si) {
+        new LineEditWidget({
+            container: $('#menu_sprite_properties'),
+            label: 'Titel',
+            hint: 'Gib dem Sprite einen Titel, damit du es wiederfindest – zum Beispiel „Tür“, „Schlüssel“ oder „Glibber“. Du siehst ihn, wenn du mit der Maus auf ein Sprite zeigst, beim Platzieren im Level und überall, wo du ein Sprite auswählst.',
+            get: () => sprite_title(this.data.sprites[si]),
+            set: (x) => {
+                if (x === sprite_title(this.data.sprites[si])) return;
+                set_sprite_title(this.data.sprites[si], x);
+                this.refresh_sprite_titles();
+            },
+        });
+    }
+
+    // Hover titles of the sprite list and the level editor's sprite buttons
+    // (in list order, so they stay right after moving sprites around).
+    refresh_sprite_titles() {
+        $('#menu_sprites > ._dnd_item').not('.add, .placeholder').each((i, item) => {
+            const sprite = this.data.sprites[i];
+            if (sprite) $(item).attr('title', sprite_label(sprite, i));
+        });
+        $('#menu_level_sprites > .button').each((i, button) => {
+            const si = $(button).data('sprite_index');
+            if (this.data.sprites[si]) $(button).attr('title', sprite_label(this.data.sprites[si], si));
+        });
+        this.refresh_sprite_reference_pickers?.();
+    }
+
     build_sprite_traits_menu() {
         let self = this;
         let si = canvas.sprite_index;
@@ -821,6 +856,8 @@ class Game {
         this.ranged_hit_picker = null;
         $('#menu_sprite_properties').empty();
         $('#menu_sprite_properties_variable_part_following').nextAll().remove();
+        this.add_sprite_title_control?.(si);
+        this.refresh_sprite_titles?.();
         // Mischmodus first: the menu below unfolds downwards and must not cover it
         this.add_sprite_blend_control?.(si);
         // an unfolded menu scrolls inside its box instead of spilling over what follows
