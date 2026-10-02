@@ -1884,6 +1884,10 @@ input.clr-color {
     overflow-y: auto;
 }
 
+#main_div_settings {
+    scrollbar-width: none;
+}
+
 #main_div_settings::-webkit-scrollbar {
     display: none;
 }
@@ -1901,6 +1905,10 @@ input.clr-color {
     font-size: 120%;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
+}
+
+#main_div_help {
+    scrollbar-width: none;
 }
 
 #main_div_help::-webkit-scrollbar {
@@ -1966,6 +1974,10 @@ a, a:visited {
     font-size: 120%;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
+}
+
+#main_div_playtesting {
+    scrollbar-width: none;
 }
 
 #main_div_playtesting::-webkit-scrollbar {
@@ -2742,34 +2754,11 @@ details.trait-advanced[open] > summary {
 }
 
 /* "Eigenschaft hinzufügen" (game.js): tall enough for all groups on a usual
-   school screen; if it still has to scroll, a slim bar instead of the
-   system scroll bar with arrows. */
+   school screen; if it still has to scroll, the slim bar (see the end). */
 .traits-menu {
     max-height: max(260px, calc(100vh - 400px));
     overflow-y: auto;
     overscroll-behavior: contain;
-}
-.traits-menu::-webkit-scrollbar {
-    width: 6px;
-}
-.traits-menu::-webkit-scrollbar-track {
-    background: transparent;
-}
-.traits-menu::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.28);
-    border-radius: 3px;
-}
-.traits-menu::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.4);
-}
-.traits-menu::-webkit-scrollbar-button {
-    display: none;
-}
-@supports not selector(::-webkit-scrollbar) {
-    .traits-menu {
-        scrollbar-width: thin;
-        scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
-    }
 }
 
 /* Placed sprite properties (level editor): label and field side by side, the
@@ -3542,4 +3531,42 @@ select.dropdown-native {
     color: #ddd;
     font-size: 14px;
     cursor: pointer;
+}
+
+/* Scroll bars. Wherever something scrolls and its bar is not hidden on purpose
+   (undo stack, frames, status bar, Einstellungen, Hilfe …), a slim, rounded bar
+   in the colours of the studio instead of the system bar with its arrows and
+   grey track: modals, dialogs, dropdown lists, the Sprite-Korb, text fields,
+   the level properties … Chrome and Safari use the -webkit- rules (the
+   standard properties would switch those off, so they are only set where the
+   -webkit- ones don't exist, e.g. Firefox). */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.25);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 5px;
+    min-height: 24px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.42);
+}
+::-webkit-scrollbar-thumb:active {
+    background-color: rgba(255, 255, 255, 0.55);
+}
+::-webkit-scrollbar-button {
+    display: none;
+}
+@supports not selector(::-webkit-scrollbar) {
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+    }
 }
