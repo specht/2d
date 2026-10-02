@@ -114,7 +114,7 @@ studio.
 The recorder relies on these runtime entry points: `window.game`,
 `Game.load(tag)`, `reset()`, `setup()`, `render()`, `clock.getElapsedTime()`,
 `camera`, `renderer`, `handle_key_down/up`, `player_character`, `baddies`,
-`found_keys`, `signals.sent`, `active_level_sprites`. If one of them changes, adjust
+`found_keys`, `signals.sent`, `speech.log`, `speech_fonts_ready()`, `active_level_sprites`. If one of them changes, adjust
 `record.mjs`.
 
 ## Writing a recipe
@@ -238,6 +238,7 @@ erwartet:                      # outcome checks
   # gegner_besiegt: 1 · gegner_leben: 0 · schluessel: [7] · tuer_offen: true
   # punkte: 60 · energie_unter: 100 · energie_gleich: 100 · lebt: true · checkpoint_aktiv: true
   # signale: ['4 an', '4 aus'] – exactly these signals were sent, in this order (signals.js)
+  # gesagt: ['Hallo!', 'Tschüss!'] – exactly these sentences were said, in this order (speech.js)
   # Enemy behaviours (some enemy in the scene): gegner_modi: [chase, idle] (modes of
   # baddie_ai.js: chase/idle, wait/windup/charge/rest, shake/drop/bottom/rise/cool/done) ·
   # gegner_ausrufezeichen: true · gegner_weg: 96 (px sideways) · gegner_hub: 24 (px up/down)
@@ -259,7 +260,7 @@ erwartet:                      # outcome checks
 ```
 
 Keys: `rechts`, `links`, `hoch`, `runter`, `springen`, `aktion` (F),
-`nahkampf` (J), `fernkampf` (K) – or any browser key code (`ArrowUp`,
+`nahkampf` (J), `fernkampf` (K), `weiter` (., the next sentence of what somebody says) – or any browser key code (`ArrowUp`,
 `ControlLeft`, `KeyZ` …), useful together with `eigenschaften.controls`.
 
 Body conventions (German, "du"): **Kurz gesagt** (3-step outline) →

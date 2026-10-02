@@ -248,6 +248,11 @@ sprites:
     label: Münze
     traits: { pickup: { points: 10 } }
     states: [{ strip: welt/muenze, fps: 8 }]
+  # Hinweistext (speech.js): the figure reads it out with F
+  schild:
+    label: Schild
+    traits: { text: {} }
+    states: [{ strip: welt/schild }]
 
   haustuer:
     label: Haustür

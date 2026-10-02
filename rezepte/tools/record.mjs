@@ -17,6 +17,8 @@ export const STEP_MS = 1000 / 60;
 const KEYS = {
     rechts: 'ArrowRight', links: 'ArrowLeft', hoch: 'ArrowUp', runter: 'ArrowDown',
     springen: 'Space', aktion: 'KeyF', nahkampf: 'KeyJ', fernkampf: 'KeyK',
+    // ".": the next sentence of what somebody says (speech.js)
+    weiter: 'Period',
 };
 
 const MIME = {
@@ -40,7 +42,7 @@ export function key_events(script) {
         const duration = step.halten ? Number(step.dauer ?? 0.5) : Number(step.dauer ?? 0.1);
         for (const name of names) {
             // A name (rechts, springen …) or a key code such as ControlLeft.
-            const code = KEYS[name] ?? (/^(Key[A-Z]|Digit\d|Arrow\w+|Control\w+|Shift\w+|Alt\w+|Space|Enter|Tab)$/.test(name) ? name : null);
+            const code = KEYS[name] ?? (/^(Key[A-Z]|Digit\d|Arrow\w+|Control\w+|Shift\w+|Alt\w+|Space|Enter|Tab|Period)$/.test(name) ? name : null);
             if (!code) throw new Error(`Ablauf: unbekannte Taste "${name}" (erlaubt: ${Object.keys(KEYS).join(', ')} oder ein Tastencode)`);
             // Snap to whole simulation steps (60 per second): no float surprises.
             const s0 = Math.round(t * 60), s1 = Math.round((t + duration) * 60);
@@ -94,6 +96,8 @@ export async function record(browser, repo, game, recipe) {
         g.level_index = 0;
         g.reset();
         g.setup();
+        // the game's speech font, before the first frame (speech.js)
+        await g.speech_fonts_ready?.();
         let now = 0;
         g.clock = { getElapsedTime: () => now, start() { }, getSpeed: () => 1, setSpeed() { }, delta() { } };
         window.__set_time = t => { now = t; };
@@ -174,6 +178,8 @@ export async function record(browser, repo, game, recipe) {
             found_keys: Object.keys(g.found_keys ?? {}).map(Number),
             // every signal of the level in order (signals.js), e.g. '7 an'
             signals: (g.signals?.sent ?? []).map(([code, on]) => `${code} ${on ? 'an' : 'aus'}`),
+            // every sentence that was said, in order (speech.js)
+            spoken: [...(g.speech?.log ?? [])],
             doors_open: doors.map(d => d.door_closed === false),
             checkpoints_active: g.active_level_sprites.filter(e => {
                 const sp = g.data.sprites[e.sprite_index];
@@ -304,6 +310,11 @@ export function check(expect, state) {
     }
     for (const code of e.schluessel ?? [])
         if (!state.found_keys.includes(code)) fail.push(`Schlüssel ${code} nicht eingesammelt`);
+    if (e.gesagt !== undefined) {
+        const want = e.gesagt.map(String);
+        if (JSON.stringify(state.spoken) !== JSON.stringify(want))
+            fail.push(`gesagt: [${state.spoken.join(' | ')}] statt [${want.join(' | ')}]`);
+    }
     if (e.signale !== undefined) {
         const want = e.signale.map(String);
         if (JSON.stringify(state.signals) !== JSON.stringify(want))
