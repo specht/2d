@@ -901,3 +901,84 @@ test('unique_signal_name: the suggestion, or with a number when that name is tak
     assert.ok([...name].length <= SIGNAL_NAME_MAX_LENGTH);
     assert.equal(unique_signal_name(level, ''), '');
 });
+
+// --------------------------------- copying between levels: names travel
+
+test('signal_names_for_placed: the names of the Codes the copied sprites use', () => {
+    const { signal_names_for_placed } = signals;
+    const level = { properties: { signal_names: { 3: 'Brücke', 5: 'Tor', 8: 'Unbenutzt' } }, layers: [] };
+    const items = [
+        ['s', 0, 0, { switch: { signal_code: 3 } }],
+        ['b', 0, 0, { baddie: { signal_on_defeat: true, signal_code: 4, drop_code: 5 } }],
+        ['x', 0, 0],
+    ];
+    assert.deepEqual(signal_names_for_placed(level, items), { 3: 'Brücke', 5: 'Tor' });
+    assert.equal(signal_names_for_placed({ properties: {} }, items), null);
+});
+
+test('carry_signal_names: the name wins', () => {
+    const { carry_signal_names } = signals;
+    const target = () => ({ properties: { signal_names: { 2: 'Brücke', 3: 'Falle' } }, layers: [
+        { type: 'sprites', properties: {}, sprites: [['d', 0, 0, { door: { signal_code: 3 } }], ['k', 0, 0, { key: { signal_code: 7 } }]] },
+    ] });
+    // 1. the name exists here on another Code: the pasted sprites join it
+    let level = target();
+    let items = [['s', 0, 0, { switch: { signal_code: 4 } }]];
+    assert.deepEqual(carry_signal_names(level, items, { 4: 'Brücke' }), { 4: 2 });
+    assert.equal(items[0][3].switch.signal_code, 2);
+    assert.deepEqual(level.properties.signal_names, { 2: 'Brücke', 3: 'Falle' });
+    // 2. the same number is unnamed here: it gets the name, the number stays
+    level = target();
+    items = [['s', 0, 0, { switch: { signal_code: 7 } }]];
+    assert.deepEqual(carry_signal_names(level, items, { 7: 'Schatz' }), {});
+    assert.equal(items[0][3].switch.signal_code, 7);
+    assert.equal(level.properties.signal_names[7], 'Schatz');
+    // 3. the same number has another name here: a free Code with the name
+    level = target();
+    items = [['s', 0, 0, { switch: { signal_code: 3 } }], ['d', 0, 0, { door: { signal_code: 3 } }]];
+    assert.deepEqual(carry_signal_names(level, items, { 3: 'Tor' }), { 3: 1 });
+    assert.deepEqual(items.map(p => Object.values(p[3])[0].signal_code), [1, 1]);
+    assert.equal(level.properties.signal_names[1], 'Tor');
+    assert.equal(level.properties.signal_names[3], 'Falle');
+    // 4. unnamed Codes keep their number, exactly as before
+    level = target();
+    items = [['s', 0, 0, { switch: { signal_code: 3 } }]];
+    assert.deepEqual(carry_signal_names(level, items, null), {});
+    assert.equal(items[0][3].switch.signal_code, 3);
+    assert.deepEqual(level.properties.signal_names, { 2: 'Brücke', 3: 'Falle' });
+});
+
+test('carry_signal_names: pasted into its own level nothing changes', () => {
+    const { carry_signal_names } = signals;
+    const level = { properties: { signal_names: { 4: 'Brücke' } }, layers: [] };
+    const items = [['s', 0, 0, { switch: { signal_code: 4 } }]];
+    assert.deepEqual(carry_signal_names(level, items, { 4: 'Brücke' }), {});
+    assert.equal(items[0][3].switch.signal_code, 4);
+    assert.deepEqual(level.properties.signal_names, { 4: 'Brücke' });
+});
+
+test('carry_signal_names: new Codes are distinct and avoid the pasted unnamed numbers; drop_code moves too', () => {
+    const { carry_signal_names } = signals;
+    const level = { properties: { signal_names: { 1: 'A', 2: 'B' } }, layers: [] };
+    const items = [
+        ['s', 0, 0, { switch: { signal_code: 1 } }],
+        ['b', 0, 0, { baddie: { signal_on_defeat: true, signal_code: 3, drop_code: 2 } }],  // 3 is unnamed
+    ];
+    const changed = carry_signal_names(level, items, { 1: 'X', 2: 'Y' });
+    // 1 and 2 are named differently here; 3 is taken by the pasted enemy
+    assert.deepEqual(changed, { 1: 4, 2: 5 });
+    assert.equal(items[0][3].switch.signal_code, 4);
+    assert.equal(items[1][3].baddie.drop_code, 5);
+    assert.equal(items[1][3].baddie.signal_code, 3);
+    assert.deepEqual(level.properties.signal_names, { 1: 'A', 2: 'B', 4: 'X', 5: 'Y' });
+});
+
+test('carry_signal_names: no swapping chains (a Code moved onto another pasted Code is mapped once)', () => {
+    const { carry_signal_names } = signals;
+    // here: "Tor" is 1 and "Brücke" is 2; pasted: Brücke = 1, Tor = 2
+    const level = { properties: { signal_names: { 1: 'Tor', 2: 'Brücke' } }, layers: [] };
+    const items = [['s', 0, 0, { switch: { signal_code: 1 } }], ['p', 0, 0, { pressure_plate: { signal_code: 2 } }]];
+    assert.deepEqual(carry_signal_names(level, items, { 1: 'Brücke', 2: 'Tor' }), { 1: 2, 2: 1 });
+    assert.equal(items[0][3].switch.signal_code, 2);
+    assert.equal(items[1][3].pressure_plate.signal_code, 1);
+});
