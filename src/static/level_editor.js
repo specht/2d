@@ -141,7 +141,11 @@ class LayerStruct {
             this.interval_tree_x.insert([x0, x1], use_placed_sprite_index);
             this.interval_tree_y.insert([y0, y1], use_placed_sprite_index);
             if (force_placed_sprite_index === null) {
-                (this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites ?? [])[use_placed_sprite_index] = [this.level_editor.game.data.sprites[sprite_index].id, p[0], p[1]];
+                const placed = [this.level_editor.game.data.sprites[sprite_index].id, p[0], p[1]];
+                // a new Schalter or Druckplatte gets a free Code (signals.js)
+                const level = this.level_editor.game.data.levels[this.level_editor.level_index];
+                give_new_senders_codes(level, [placed], () => this.level_editor.game.data.sprites[sprite_index].traits);
+                (level.layers[this.level_editor.layer_index].sprites ?? [])[use_placed_sprite_index] = placed;
             }
             $(this.el_sprite_count).text(`${(this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites ?? []).length}`);
         }
@@ -926,6 +930,9 @@ class LevelEditor {
         if (!layer || !sprite || layer.properties.visible === false || this.read_only_level()) return;
         const filled = fill_placed(layer.sprites, sprite.id, x0, y0, x1, y1,
             { width: this.grid_width, height: this.grid_height });
+        // new Schalter and Druckplatten: each its own free Code (signals.js)
+        give_new_senders_codes(this.game.data.levels[this.level_index],
+            filled.selection.map(i => filled.sprites[i]), () => sprite.traits);
         this.set_layer_sprites(this.layer_index, filled.sprites, []);
     }
 
@@ -998,8 +1005,8 @@ class LevelEditor {
         const layer = level?.layers[this.layer_index];
         if (layer?.type === 'sprites' && this.selection.length === 1) {
             const placed = layer.sprites[this.selection[0]];
-            const found = placed && placed_signal_role(placed, traits_of(placed[0]));
-            if (found) codes.add(found.code);
+            if (placed)
+                for (const found of placed_signal_roles(placed, traits_of(placed[0]), traits_of)) codes.add(found.code);
         } else if (layer && (layer.type === 'signal_area' || layer_reacts_to_signals(layer.properties))) {
             codes.add(Number(layer.properties.signal_code ?? 0));
         }
@@ -1223,27 +1230,32 @@ class LevelEditor {
         this.render();
     }
 
-    // Under the Code of a key, door, Schalter or Druckplatte: what else in this
-    // level has the same Code (signals.js), so a child sees what is connected.
-    add_signal_links(container, sprite, entry_index) {
-        const role = SIGNAL_SPRITE_ROLES.find(role => role.trait in sprite.traits);
+    // Under the Code of a key, door, Schalter, Druckplatte or enemy: what else
+    // in this level has the same Code (signals.js), so a child sees what is
+    // connected. One line under each Code field (an enemy can have two: what it
+    // sends when defeated, and the key it leaves behind).
+    add_signal_link_line(container, trait, key, entry_index) {
+        const role = key === 'drop_code' ? SIGNAL_LOOT_ROLE : SIGNAL_SPRITE_ROLES.find(role => role.trait === trait);
         if (!role) return;
-        const line = $('<div class="signal-links">').appendTo(container);
+        this.signal_link_lines ??= [];
+        this.signal_link_lines.push({ line: $('<div class="signal-links">').appendTo(container), role, entry_index });
+    }
+
+    add_signal_links(sprite, entry_index) {
+        const lines = this.signal_link_lines ?? [];
+        if (!lines.length) return;
         const level_index = this.level_index, layer_index = this.layer_index;
         this.update_signal_links = () => {
             const level = this.game.data.levels[level_index];
             const placed = level?.layers[layer_index]?.sprites?.[entry_index];
             if (!placed) return;
-            // an enemy only takes part once "sendet, wenn besiegt" is on
-            if (role.active && !role.active(placed[3]?.[role.trait])) {
-                line.text('');
-                this.build_signal_links();
-                this.render();
-                return;
+            const { traits_of } = this.signal_context();
+            const roles = placed_signal_roles(placed, sprite.traits, traits_of);
+            for (const { line, role } of lines) {
+                // an enemy only takes part once "sendet, wenn besiegt" is on
+                const found = roles.find(found => found.role === role);
+                line.text(found ? describe_signal_partners(found.code, signal_partners(level, found.code, traits_of)) : '');
             }
-            const code = placed[3]?.[role.trait]?.signal_code ?? 0;
-            line.text(describe_signal_partners(code, signal_partners(level, code,
-                ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits)));
             this.build_signal_links();
             this.render();
         };
@@ -2704,15 +2716,38 @@ class LevelEditor {
                 console.log('entry', entry);
                 let sprite = this.game.data.sprites[this.game.sprite_index_for_ref(entry[0])];
                 console.log('sprite', sprite);
+                // what is connected (signals.js): written right under each Code
+                this.signal_link_lines = [];
+                const level = this.game.data.levels[this.level_index];
+                const { traits_of } = this.signal_context();
+                const placed_now = () => this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index];
+                const props_of = (trait) => (placed_now()[3] ?? {})[trait] ?? {};
+                const writable_props_of = (trait) => {
+                    const placed = placed_now();
+                    placed[3] ??= {};
+                    placed[3][trait] ??= {};
+                    return placed[3][trait];
+                };
+                const widgets = {};
                 for (let trait in sprite.traits) {
-                    console.log('trait', trait);
-                    // let title = $(`<h4>`).text(SPRITE_TRAITS[trait].label).appendTo(div);
                     for (let key in ((SPRITE_TRAITS[trait] ?? {}).placed_properties ?? {})) {
-                        console.log('key', key);
                         let property = SPRITE_TRAITS[trait].placed_properties[key];
-                        console.log('property', property);
-                        if (property.type === 'int') {
-                            new NumberWidget({
+                        if (property.visible && !property.visible(sprite.traits, traits_of)) continue;
+                        // absent: the default (some take it from the drawing)
+                        const get = () => props_of(trait)[key] ?? (property.default_for ? property.default_for(sprite.traits) : property.default);
+                        const set = (value) => {
+                            const props = writable_props_of(trait);
+                            props[key] = value;
+                            // "sendet, wenn besiegt": an enemy without a Code gets a free one
+                            if (trait === 'baddie' && key === 'signal_on_defeat') {
+                                give_defeat_sender_code(level, props);
+                                widgets['baddie/signal_code']?.refresh();
+                            }
+                            this.update_signal_links?.();
+                        };
+                        let widget = null;
+                        if (property.type === 'int' || property.type === 'float') {
+                            widget = new NumberWidget({
                                 container: div,
                                 label: property.label ?? key,
                                 hint: property.hint ?? null,
@@ -2727,81 +2762,59 @@ class LevelEditor {
                                 onfocus: property.onfocus ?? null,
                                 onblur: property.onblur ?? null,
                                 onchange: property.onchange ?? null,
-                                get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
-                                set: (x) => {
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Math.round(x);
-                                    this.update_signal_links?.();
-                                },
-                            });
-                        } else if (property.type === 'float') {
-                            new NumberWidget({
-                                container: div,
-                                label: property.label ?? key,
-                                hint: property.hint ?? null,
-                                min: property.min ?? null,
-                                max: property.max ?? null,
-                                step: property.step ?? null,
-                                decimalPlaces: property.decimalPlaces ?? null,
-                                width: property.width ?? null,
-                                suffix: property.suffix ?? null,
-                                count: property.count ?? null,
-                                connector: property.connector ?? null,
-                                onfocus: property.onfocus ?? null,
-                                onblur: property.onblur ?? null,
-                                onchange: property.onchange ?? null,
-                                get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
-                                set: (x) => {
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = x;
-                                },
+                                get,
+                                set: (x) => set(property.type === 'int' ? Math.round(x) : x),
                             });
                         } else if (property.type === 'bool') {
-                            new CheckboxWidget({
+                            widget = new CheckboxWidget({
                                 container: div,
                                 label: property.label ?? key,
                                 hint: property.hint ?? null,
-                                get: () => Boolean(((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default),
+                                get: () => Boolean(get()),
+                                set: (x) => set(Boolean(x)),
+                            });
+                        } else if (property.type === 'override') {
+                            // yes / no for this placed sprite, or as drawn (absent)
+                            const drawn = Boolean(sprite.traits[trait]?.[key]);
+                            widget = new SelectWidget({
+                                container: div,
+                                label: property.label ?? key,
+                                hint: property.hint ?? null,
+                                options: { drawn: `wie beim Sprite (${drawn ? 'ja' : 'nein'})`, yes: 'ja', no: 'nein' },
+                                get: () => {
+                                    const value = props_of(trait)[key];
+                                    return typeof value === 'boolean' ? (value ? 'yes' : 'no') : 'drawn';
+                                },
                                 set: (x) => {
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Boolean(x);
+                                    if (x !== 'drawn') return set(x === 'yes');
+                                    delete writable_props_of(trait)[key];
                                     this.update_signal_links?.();
                                 },
                             });
                         } else if (property.type === 'select') {
-                            new SelectWidget({
+                            widget = new SelectWidget({
                                 container: div,
                                 label: property.label ?? key,
                                 hint: property.hint ?? null,
                                 options: property.options ?? null,
-                                get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
-                                set: (x) => {
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = x;
-                                },
+                                get,
+                                set,
                             });
                         } else if (property.type === 'string') {
-                            new LineEditWidget({
+                            widget = new LineEditWidget({
                                 container: div,
                                 label: property.label ?? key,
                                 hint: property.hint ?? null,
                                 options: property.options ?? null,
-                                get: () => ((this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ?? {})[trait] ?? {})[key] ?? property.default,
-                                set: (x) => {
-                                    console.log('SETTING', x);
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
-                                    this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = x;
-                                },
+                                get,
+                                set,
                             });
                         }
+                        widgets[`${trait}/${key}`] = widget;
+                        if (key === 'signal_code' || key === 'drop_code') this.add_signal_link_line(div, trait, key, entry_index);
                     }
                 }
-                this.add_signal_links(div, sprite, entry_index);
+                this.add_signal_links(sprite, entry_index);
             }
         }
         /*

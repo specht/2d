@@ -52,7 +52,7 @@ erwartet:
 1. Zeichne die Druckplatte: **Eigenschaft hinzufügen → Schalter → ist eine Druckplatte**.
 2. Leg zwei Zustände an und gib ihnen **Druckplatte nicht gedrückt** und **Druckplatte gedrückt**.
 3. Bau im **Level** einen Graben mit Stacheln und leg die Druckplatte davor auf den Boden.
-4. Klicke auf die Druckplatte und trage bei **Code** eine Zahl ein, z. B. **4**.
+4. Klicke auf die Druckplatte. Sie hat schon einen eigenen **Code** bekommen; du kannst ihn ändern, z. B. in **4**.
 5. Leg eine **neue Ebene** an, nenne sie **Brücke** und lass **Kollisionen erkennen** an.
 6. Stell bei dieser Ebene **Bei Signal** auf **erscheint** und trag als **Code** auch **4** ein.
 7. Setz in der Ebene *Brücke* Bretter über den Graben.

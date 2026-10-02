@@ -6,8 +6,11 @@ skala: 4
 kurz: Die Maus hat den Schlüssel stibitzt! Kommt Pip zu nah, rennt sie davon – wer sie einholt, bekommt den Schlüssel zurück.
 szene:
   anpassen:
-    # Beute: the mouse carries a key (code 1) and hands it over when caught
-    maus: { baddie: { damage: 0, drop: { sprite_index: { sprite: schluessel }, signal_code: 1, on_touch: true } } }
+    # Beute: the mouse carries a key and hands it over when caught; the key's
+    # Code 1 belongs to this placed mouse (drop_code), not to the drawing
+    maus: { baddie: { damage: 0, drop: { sprite_index: { sprite: schluessel }, on_touch: true } } }
+  legende:
+    '@': { sprite: maus, platziert: { baddie: { drop_code: 1 } } }
   karte: |
     ..............
     ..............
@@ -45,8 +48,9 @@ erwartet:
 4. Setz das Häkchen bei **zeigt „!“**: Dann sieht man, wann er erschrickt.
 5. Leg einen Zustand mit **Gegner flieht nach rechts** an und nimm dafür das Bild mit den großen Augen. Nach links wird er automatisch gespiegelt.
 6. **Schaden: 0.** Die Maus tut niemandem etwas – sie will nur weg.
-7. **Beute:** Wähl beim Gegner unter **Beute** den Schlüssel aus, gib ihm einen **Schlüssel-Code** und setz das Häkchen bei **gibt die Beute ab, wenn man ihn berührt**.
-8. Probier es aus: Pip geht auf die Maus zu, sie erschrickt und flitzt davon, bis die Mauer sie aufhält. Pip holt sie ein – und hat den Schlüssel wieder.
+7. **Beute:** Wähl beim Gegner unter **Beute** den Schlüssel aus und setz das Häkchen bei **gibt die Beute ab, wenn man ihn berührt**.
+8. Klicke im **Level** auf die Maus und trag bei **Code der Beute** eine Zahl ein, z. B. **1**. Die Tür, die der Schlüssel öffnen soll, bekommt denselben **Code**.
+9. Probier es aus: Pip geht auf die Maus zu, sie erschrickt und flitzt davon, bis die Mauer sie aufhält. Pip holt sie ein – und hat den Schlüssel wieder.
 
 ## Mit Intelligenz
 
@@ -60,6 +64,7 @@ Mit der Eigenschaft **Intelligenz** (unter **Fallen und Gegner**) ist der Dieb s
 
 > **Tipp:** Ein Angsthase ist der perfekte Dieb: eine Figur, die man jagen muss, statt vor ihr wegzulaufen. Gib ihm etwas Wertvolles – einen Schlüssel für die nächste Tür oder ein Extraleben.
 
+- Mehrere Diebe, jeder mit einem anderen Schlüssel? Du brauchst nur eine Maus-Zeichnung: Jede Maus im Level bekommt ihren eigenen **Code der Beute**.
 - **Beute** kann jedes Sprite sein, das man einsammeln kann: ein Schlüssel, ein Herz mit **gibt Leben**, eine Münze mit **gibt Punkte**. Das geht bei jedem Gegner, nicht nur beim Angsthasen. Ohne das Häkchen **gibt die Beute ab, wenn man ihn berührt** bekommt man sie erst, wenn der Gegner besiegt ist.
 
 - Hat der Angsthase kein Bild für die Flucht, rennt er einfach mit seiner Lauf-Animation davon.

@@ -390,7 +390,15 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   (in `katalog.yaml`/`anpassen`: `drop: { sprite_index: { sprite: schluessel },
   signal_code: 1 }`). It must be a key or have "man kann es einsammeln".
   `on_touch: true` (*gibt die Beute ab, wenn man ihn berührt*): the player
-  gets it by touching the enemy, without defeating it (once).
+  gets it by touching the enemy, without defeating it (once). A key's Code
+  belongs to the placed enemy (*Code der Beute*: `platziert: { baddie:
+  { drop_code: 1 } }` in `legende`); the drawing's `signal_code` is only the
+  fallback for enemies without one (older games).
+* **Placed doors** can open differently from their drawing: `platziert:
+  { door: { lockable: true, automatic: true } }` (absent = as drawn).
+* **Free Codes:** in the studio a newly placed Schalter or Druckplatte, and an
+  enemy whose *sendet, wenn besiegt* is switched on, get a Code nothing else in
+  the level uses. Scenes in `legende` set their Codes themselves.
 * **Intelligenz** (`traits.smart`, a sprite trait of its own next to
   `baddie`): `walks_slopes`, `jumps_obstacles`, `jumps_gaps`, `drops_down`,
   `climbs_ladders`, all off by default. Wächter, Jäger and Angsthase use the
