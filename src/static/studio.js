@@ -680,115 +680,38 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     //     copyEvent.preventDefault();
     // }
 
-    async function getClipboardContents() {
-        // TODO: handle width and height correctly
-        // return;
-        try {
-            const clipboardItems = await navigator.clipboard.read();
-            for (const item of clipboardItems) {
-                for (const type of item.types) {
-                    const blob = await item.getType(type);
-                    console.log(type);
-                    if (type.indexOf("image") === 0) {
-                        var reader = new FileReader();
-                        reader.onload = (event) => {
-                            let image = new Image();
-                            image.src = event.target.result;
-                            image.decode().then(() => {
-                                let si = canvas.sprite_index;
-                                let sti = canvas.state_index;
-                                let fi = canvas.frame_index;
-                                if ((this.game.data.sprites[si].states.length === 1 &&
-                                    this.game.data.sprites[si].states[sti].frames.length === 1) ||
-                                    (this.game.data.sprites[si].width === image.width &&
-                                        this.game.data.sprites[si].height === image.height)) {
-                                    console.log(`got image: ${image.width}x${image.height}`);
-                                    let sw = image.width;
-                                    let sh = image.height;
-                                    let tw = sw;
-                                    let th = sh;
-                                    if (tw > MAX_DIMENSION) tw = MAX_DIMENSION;
-                                    if (th > MAX_DIMENSION) th = MAX_DIMENSION;
-                                    // while ((tw % 24) !== 0) tw += 1;
-                                    // while ((th % 24) !== 0) th += 1;
-                                    // console.log(tw, th);
-                                    let c = document.createElement('canvas');
-                                    c.width = tw;
-                                    c.height = th;
-                                    let ctx = c.getContext('2d');
-                                    let i = 0;
-                                    for (let y = 0; y < Math.floor(image.height / sh); y++) {
-                                        for (let x = 0; x < Math.floor(image.width / sw); x++) {
-                                            // if (i >= 40 && i < 50) {
-                                            ctx.clearRect(0, 0, tw, th);
-                                            ctx.drawImage(image, x * sw, y * sh, sw, sh, 0, 0, sw, sh);
-                                            let src = c.toDataURL('image/png');
-                                            if (i === 0) {
-                                                game.data.sprites[si].states[sti].frames[fi] = { src: src };
-                                                game.data.sprites[si].width = sw;
-                                                game.data.sprites[si].height = sh;
-                                            }
-                                            // }
-                                            i += 1;
-                                        }
-                                    }
-                                    canvas.detachSprite();
-                                    canvas.attachSprite(si, sti, fi, function () { });
-                                }
-                            });
-                        };
-                        reader.readAsDataURL(blob);
-                    }
-                }
-            }
-        } catch (err) {
-            console.error(err.name, err.message);
+    // Pictures from the clipboard (Strg+V) or dropped onto the sprite editor:
+    // image_import.js analyses them (pixel size, background, frames) and asks
+    // in a dialog how to bring them in.
+    const typing = (target) => $(target).is('input, textarea, select, [contenteditable]');
+    document.addEventListener('paste', async (e) => {
+        if (current_pane !== 'sprites' || typing(e.target)) return;
+        const item = [...(e.clipboardData?.items ?? [])].find(i => i.kind === 'file' && i.type.startsWith('image/'));
+        if (item) {
+            e.preventDefault();
+            open_image_import(item.getAsFile());
+            return;
         }
-    }
-
-    document.onpaste = function (pasteEvent) {
-        getClipboardContents();
-    };
+        // some browsers only offer pictures through the asynchronous clipboard
+        try {
+            for (const entry of await navigator.clipboard.read()) {
+                const type = entry.types.find(t => t.startsWith('image/'));
+                if (type) { open_image_import(await entry.getType(type)); return; }
+            }
+        } catch (err) { }
+    });
 
     $(document).on('dragover', function (e) {
         e.preventDefault();
         e.stopPropagation();
     });
     $(document).on('drop', function (e) {
-        return;
-        if (!$('#mi_sprites').hasClass('active')) return;
+        if (current_pane !== 'sprites') return;
+        const file = [...(e.originalEvent.dataTransfer?.files ?? [])].find(f => f.type.startsWith('image/'));
+        if (!file) return;
         e.preventDefault();
         e.stopPropagation();
-        let total = e.originalEvent.dataTransfer.files.length;
-        let index = 0;
-        let count = 0;
-        let temp = {};
-        let si = canvas.sprite_index;
-        let sti = canvas.state_index;
-        for (let file of e.originalEvent.dataTransfer.files) {
-            console.log(file);
-            (function (index) {
-                let reader = new FileReader();
-                reader.onload = function (event) {
-                    temp[index] = event.target.result;
-                    count += 1;
-                    if (count === total) {
-                        let src_list = [];
-                        for (let i = 0; i < total; i++)
-                            src_list.push(temp[i]);
-                        canvas.insertFrames(si, sti, src_list);
-                        // canvas.detachSprite();
-                        // for (let i = 0; i < total; i++)
-                        //     canvas.insertFrame(si, sti, temp[i], (i === total - 1) ? () => {
-                        //         console.log('heya');
-                        //         canvas.attachSprite(si, sti, game.data.sprites[si].states[sti].frames.length - 1);
-                        //     } : () => {});
-                    }
-                };
-                reader.readAsDataURL(file);
-            })(index);
-            index += 1;
-        }
+        open_image_import(file);
     });
 
     // setInterval(function() {

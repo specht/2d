@@ -277,29 +277,13 @@ Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste 
 
 # Image and Animation Import
 
-Improve generic image import rather than building around one external application.
+Implemented (`image_import.js`): clipboard paste and dropping one image file in the sprite editor go through an analysis (fake background, pixel size, frames of a strip or grid) and a dialog that shows the guess before importing, lets the child correct it and warns when the frames do not match the sprite's size; transparency is kept and nothing is silently scaled or cropped.
 
-Support:
+Still open:
 
-- clipboard paste
-- drag and drop
-- individual PNG frames
-- horizontal animation strips
-- vertical animation strips
-
-For animation strips:
-
-- estimate frame count and dimensions
-- show the estimate before importing
-- allow the user to correct it
-- preserve transparency
-- never silently scale or crop pixel art
-
-PNG should remain the main interchange format.
-
-This naturally allows working with Aseprite, LibreSprite, Krita, Pixelorama and other tools without making any one of them part of the expected workflow.
-
-Exporting animation states as PNG strips would make this workflow bidirectional.
+- dropping several PNG files at once as the frames of one animation
+- a hand-drawn grid in the dialog when the guess is wrong in a way the numbers cannot fix (frames of different widths)
+- remembering the last choice of "Einfügen" per sprite
 
 ---
 
