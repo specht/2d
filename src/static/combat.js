@@ -207,6 +207,9 @@ class CombatSystem {
         if (instance.team === 'actor' && target.character_trait !== 'baddie' &&
             !owner_self_hit) return false;
         if (instance.team === 'baddie' && target.character_trait !== 'actor') return false;
+        // "unverwundbar" (traits.baddie.invincible): no damage and no hit
+        // effects; a projectile still stops at it (combat_projectile.js)
+        if (target.character_trait === 'baddie' && target.traits?.invincible === true) return false;
 
         let amount = instance.definition.effect.amount;
         if (target.character_trait === 'actor') {

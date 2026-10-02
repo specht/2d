@@ -757,6 +757,13 @@ var SPRITE_TRAITS = {
                 max: 10000,
                 default: 100,
             },
+            // false: as always (app.js take_damage, combat.js apply_hit)
+            invincible: {
+                label: 'unverwundbar',
+                hint: 'Ist das an, kann man diesen Gegner nicht verletzen – zum Beispiel eine Katze, die kratzt, der man aber nichts tun soll. Schwert, Geschosse, Bomben und herabfallende Blöcke machen ihm nichts; ein Geschoss, das ihn trifft, ist weg. Er selbst kann trotzdem angreifen und bei Berührung Schaden machen. Für „alle Gegner besiegt“ zählt er nicht mit.',
+                type: 'bool',
+                default: false,
+            },
             damage: {
                 label: 'Schaden',
                 hint: 'Wie viel Schaden verursacht dieser Gegner bei Berührung?',
