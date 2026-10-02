@@ -1,6 +1,7 @@
 // Working with a selection of placed sprites in the level editor: moving,
-// copying, pasting, duplicating, deleting, moving to another layer and
-// filling a rectangle. Pure functions on a layer's `sprites` array (placed
+// copying, pasting, duplicating, deleting, moving to another layer, filling a
+// rectangle, selecting all copies of a sprite and replacing the selected
+// sprites with another one. Pure functions on a layer's `sprites` array (placed
 // sprites: [sprite id, x, y, placed properties?]); the editor shows the result.
 //
 // A layer holds at most one sprite per position (LayerStruct in
@@ -98,9 +99,48 @@ function fill_placed(sprites, sprite_id, x0, y0, x1, y1, grid, max_cells = 4096)
     return merge_placed(sprites, incoming);
 }
 
+// "Gleiche auswählen": every placed sprite of the layer that shows one of
+// the sprites already selected (placed[0]: its sprite id). Sorted indices.
+function same_sprite_indices(sprites, indices) {
+    const { selected } = split_selection(sprites, indices);
+    const wanted = new Set(selected.map(placed => String(placed[0])));
+    const result = [];
+    sprites.forEach((placed, i) => { if (wanted.has(String(placed[0]))) result.push(i); });
+    return result;
+}
+
+// "Ersetzen durch": the selected sprites show another sprite, each where it
+// was (the same anchor the pen uses: bottom centre on the grid point) and in
+// the same place of the layer's array, so the selection stays the same.
+// Placed settings stay for the traits the new sprite has too (a door that
+// becomes another door keeps its Code and how it reacts) and are dropped
+// for the others. keeps_trait(trait): does the new sprite have this trait?
+// Returns { sprites, selection, changed }: changed are the indices that now
+// show the new sprite and did not before.
+function replace_placed(sprites, indices, sprite_id, keeps_trait) {
+    const { selected } = split_selection(sprites, indices);
+    const selection = [...new Set(indices)].filter(i => Number.isInteger(i) && i >= 0 && i < sprites.length);
+    if (!selected.length || sprite_id === null || sprite_id === undefined) return { sprites, selection, changed: [] };
+    const changed = [];
+    const result = sprites.map((placed, i) => {
+        if (!selection.includes(i) || String(placed[0]) === String(sprite_id)) return placed;
+        changed.push(i);
+        const replaced = [sprite_id, placed[1], placed[2]];
+        const props = placed[3];
+        if (props && typeof props === 'object') {
+            const kept = {};
+            for (const trait of Object.keys(props))
+                if (typeof keeps_trait === 'function' && keeps_trait(trait)) kept[trait] = JSON.parse(JSON.stringify(props[trait]));
+            if (Object.keys(kept).length) replaced.push(kept);
+        }
+        return replaced;
+    });
+    return changed.length ? { sprites: result, selection, changed } : { sprites, selection, changed };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         placed_position_key, merge_placed, move_placed, remove_placed, copy_placed, paste_placed,
-        move_placed_to_layer, fill_placed,
+        move_placed_to_layer, fill_placed, same_sprite_indices, replace_placed,
     };
 }

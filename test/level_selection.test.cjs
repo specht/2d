@@ -52,3 +52,43 @@ test('filling a rectangle on the grid, corners included', () => {
     // far too big: nothing happens
     assert.equal(sel.fill_placed([], 's1', 0, 0, 24 * 1000, 24 * 1000, grid).sprites.length, 0);
 });
+
+test('"Gleiche auswählen": every copy of the selected sprites in the layer', () => {
+    const sprites = [['gras', 0, 0], ['erde', 24, 0], ['gras', 48, 0], ['tuer', 72, 0], ['gras', 96, 0]];
+    assert.deepEqual(sel.same_sprite_indices(sprites, [2]), [0, 2, 4]);
+    assert.deepEqual(sel.same_sprite_indices(sprites, [1, 3]), [1, 3]);
+    assert.deepEqual(sel.same_sprite_indices(sprites, []), []);
+    assert.deepEqual(sel.same_sprite_indices(sprites, [99]), []);
+});
+
+test('"Ersetzen": same place and order, settings stay for traits the new sprite has', () => {
+    const sprites = [
+        ['gras', 0, 0],
+        ['tuer_holz', 24, 0, { door: { signal_code: 4, door_reaction: 'follow' }, text: { text: 'alt' } }],
+        ['schalter', 48, 0, { switch: { signal_code: 2 } }],
+        ['erde', 72, 0],
+    ];
+    const before = JSON.stringify(sprites);
+    const door_traits = new Set(['door']);
+    const result = sel.replace_placed(sprites, [1, 2, 0], 'tuer_eisen', trait => door_traits.has(trait));
+    assert.deepEqual(result.sprites, [
+        ['tuer_eisen', 0, 0],
+        ['tuer_eisen', 24, 0, { door: { signal_code: 4, door_reaction: 'follow' } }],
+        ['tuer_eisen', 48, 0],                  // a Schalter's Code means nothing to a door
+        ['erde', 72, 0],
+    ]);
+    assert.deepEqual(result.selection, [1, 2, 0]);
+    assert.deepEqual(result.changed, [0, 1, 2]);
+    assert.equal(JSON.stringify(sprites), before); // the old array is untouched
+    // the kept settings are copies
+    result.sprites[1][3].door.signal_code = 9;
+    assert.equal(sprites[1][3].door.signal_code, 4);
+});
+
+test('"Ersetzen" with the sprite that is already there changes nothing', () => {
+    const sprites = [['gras', 0, 0], ['gras', 24, 0, { key: { signal_code: 1 } }]];
+    const result = sel.replace_placed(sprites, [0, 1], 'gras', () => false);
+    assert.equal(result.sprites, sprites);
+    assert.deepEqual(result.changed, []);
+    assert.deepEqual(sel.replace_placed(sprites, [], 'erde', () => false).changed, []);
+});
