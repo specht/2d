@@ -879,6 +879,8 @@ class SpriteSelectWidget {
         else this.previewEmpty.show();
         this.button.attr('aria-label', src ?
             `${this.data.label} ausgewähltes Bild ändern` : `${this.data.label} aus`);
+        // the chosen sprite's Titel (game_ids.js), else its number
+        this.button.attr('title', sprite ? sprite_label(sprite, index) : (this.data.none_label ?? ''));
         if (this.menu.is(':visible')) this.renderOptions();
     }
 
@@ -887,7 +889,7 @@ class SpriteSelectWidget {
         const selected = this.data.get();
         const add = (value, src, ariaLabel) => {
             const option = $('<button type="button">').addClass('sprite-select-option')
-                .attr('aria-label', ariaLabel)
+                .attr('aria-label', ariaLabel).attr('title', ariaLabel)
                 .attr('aria-pressed', String(value === selected)).appendTo(this.grid);
             if (value === selected) option.addClass('active');
             if (src) $('<img>').addClass('sprite-select-image')
@@ -903,7 +905,7 @@ class SpriteSelectWidget {
         };
         add('none', null, this.data.none_label ?? 'Kein Treffereffekt');
         this.data.sprites().forEach((sprite, index) =>
-            add(String(index), SpriteSelectWidget.preview(sprite), `Bild ${index + 1}`));
+            add(String(index), SpriteSelectWidget.preview(sprite), sprite_label(sprite, index)));
     }
 }
 
@@ -920,7 +922,8 @@ class SpriteWidget {
             if (this.data.filter(sprite) === true) {
                 let state = sprite.states[0];
                 let fi = Math.floor(state.frames.length / 2 - 0.5);
-                let img = $('<img>').addClass('sprite-sq-thumb').attr('src', state.frames[fi].src);
+                let img = $('<img>').addClass('sprite-sq-thumb').attr('src', state.frames[fi].src)
+                    .attr('title', sprite_label(sprite, si));
                 div.append(img);
             }
             // this.select.append($(`<option>`).val(si).text(`${si}`));

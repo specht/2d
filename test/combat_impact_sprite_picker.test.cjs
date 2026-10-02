@@ -64,7 +64,7 @@ test('picker shows thumbnail-only choices in a separate grid, updates selection 
     const $ = value => typeof value === 'string' ? new Element(value) : value;
     const Picker = vm.runInNewContext(`${source.slice(first, last)}
 SpriteSelectWidget;`,
-        { $, install_hint_handler() {} });
+        { $, install_hint_handler() {}, sprite_label: require('../src/static/game_ids.js').sprite_label });
     const actor = { states: [{ frames: [{ src: 'actor.png' }] }] };
     const impact = { states: [{ frames: [{ src: 'spark.png' }] }] };
     const sprites = [actor, impact];
@@ -79,6 +79,8 @@ SpriteSelectWidget;`,
     assert.equal(picker.grid.children[0].children[0].value, '∅');
     assert.equal(picker.grid.children[2].children.length, 1); // image, no text
     assert.equal(picker.grid.children[2].children[0].attributes.src, 'spark.png');
+    // hovering a choice tells which sprite it is: its Titel, else its number
+    assert.equal(picker.grid.children[2].attributes.title, 'Sprite 2');
     picker.grid.children[2].trigger('click');
     assert.equal(selected, '1');
     assert.equal(picker.previewImage.attributes.src, 'spark.png');
@@ -93,6 +95,9 @@ SpriteSelectWidget;`,
     picker.button.trigger('click');
     assert.equal(picker.grid.children[1].children[0].attributes.src, 'updated.png');
     assert.equal(picker.grid.children[1].attributes['aria-pressed'], 'true');
+    impact.properties = { name: 'Funken' };
+    picker.refresh();
+    assert.equal(picker.button.attributes.title, 'Funken');
     picker.grid.children[0].trigger('click');
     assert.equal(selected, 'none');
     assert.equal(picker.previewEmpty.visible, true);

@@ -253,11 +253,45 @@ function remove_sprite_references(data, id) {
     return data;
 }
 
+// ----------------------------------------------------------------- Titel
+// A sprite's Titel (properties.name, like states and levels have). Older games
+// and sprites nobody named have none, and nothing is stored for them: the
+// editor calls such a sprite by its number. A Titel is not a reference – two
+// sprites may have the same one, and renaming changes nothing else.
+const SPRITE_TITLE_MAX_LENGTH = 80;
+
+function sprite_title(sprite) {
+    const name = sprite?.properties?.name;
+    return typeof name === 'string' ? name.trim() : '';
+}
+
+// What lists and pickers show: the Titel, else "Sprite 3" (index from 0).
+function sprite_label(sprite, index) {
+    return sprite_title(sprite) || `Sprite ${index + 1}`;
+}
+
+// An empty Titel leaves no trace (no empty properties object), so a sprite
+// that is named and unnamed again saves exactly as before.
+function set_sprite_title(sprite, name) {
+    if (!sprite || typeof sprite !== 'object') return;
+    const title = String(name ?? '').trim().slice(0, SPRITE_TITLE_MAX_LENGTH);
+    if (title) {
+        if (!sprite.properties || typeof sprite.properties !== 'object' || Array.isArray(sprite.properties))
+            sprite.properties = {};
+        sprite.properties.name = title;
+        return;
+    }
+    if (!sprite.properties || typeof sprite.properties !== 'object') return;
+    delete sprite.properties.name;
+    if (Object.keys(sprite.properties).length === 0) delete sprite.properties;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         GAME_ID_PATTERN, GAME_ID_PREFIXES,
         valid_game_id, random_game_id, ensure_game_ids, assign_new_game_id,
         sprite_index_by_id, convert_sprite_references_to_ids,
         resolve_sprite_references_to_indices, remove_sprite_references,
+        SPRITE_TITLE_MAX_LENGTH, sprite_title, sprite_label, set_sprite_title,
     };
 }

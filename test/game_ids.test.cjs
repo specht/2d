@@ -218,3 +218,34 @@ test('sprite_index_by_id maps IDs to positions', () => {
     const map = ids.sprite_index_by_id({ sprites: [{ id: 'a' }, {}, { id: 'c' }] });
     assert.deepEqual([...map], [['a', 0], ['c', 2]]);
 });
+
+// ----------------------------------------------------------------- Titel
+
+test('a sprite without Titel is called by its number', () => {
+    const { sprite_title, sprite_label } = require('../src/static/game_ids.js');
+    assert.equal(sprite_title({}), '');
+    assert.equal(sprite_title({ properties: { name: 42 } }), '');
+    assert.equal(sprite_label({ states: [] }, 2), 'Sprite 3');
+    assert.equal(sprite_label({ properties: { name: '  ' } }, 0), 'Sprite 1');
+    assert.equal(sprite_label({ properties: { name: ' Tür ' } }, 0), 'Tür');
+});
+
+test('setting a Titel stores properties.name; clearing it leaves no trace', () => {
+    const { set_sprite_title, SPRITE_TITLE_MAX_LENGTH } = require('../src/static/game_ids.js');
+    const sprite = { id: 's0', states: [] };
+    const before = JSON.stringify(sprite);
+    set_sprite_title(sprite, '  Glibber ');
+    assert.deepEqual(sprite.properties, { name: 'Glibber' });
+    set_sprite_title(sprite, '');
+    assert.equal(JSON.stringify(sprite), before); // saves exactly as before
+    // other sprite properties (none today) would stay
+    const other = { properties: { future: 1, name: 'x' } };
+    set_sprite_title(other, '   ');
+    assert.deepEqual(other.properties, { future: 1 });
+    // too long: cut, not refused
+    const long = {};
+    set_sprite_title(long, 'a'.repeat(SPRITE_TITLE_MAX_LENGTH + 20));
+    assert.equal(long.properties.name.length, SPRITE_TITLE_MAX_LENGTH);
+    // nothing to do for something that is not a sprite
+    assert.doesNotThrow(() => set_sprite_title(null, 'x'));
+});
