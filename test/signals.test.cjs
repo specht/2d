@@ -758,3 +758,50 @@ test('"alle Gegner besiegt" does not wait for an enemy that cannot be defeated',
     slime.active = false; game.baddie_defeated(slime, 1);
     assert.deepEqual(game.signals.sent, [[9, true]]);
 });
+
+// ------------------------------------------------ Signale-Übersicht (rules)
+
+test('signal_rules: one card per Code, "Wenn … dann …", with warnings', () => {
+    const sprites = { sch: { switch: {} }, tor: { door: { lockable: true, automatic: true } }, tuer: { door: { lockable: false } },
+        gl: { baddie: {} }, pl: { pressure_plate: {} } };
+    const names = { sch: 'Schalter', tor: 'Gittertor', tuer: 'Tür', gl: 'Glibber', pl: 'Druckplatte' };
+    const level = { properties: { signal_all_defeated: 2 }, layers: [
+        { type: 'sprites', properties: { name: 'Welt' }, sprites: [
+            ['sch', 0, 0, { switch: { signal_code: 1 } }],
+            ['tor', 50, 0, { door: { signal_code: 2, door_reaction: 'open' } }],
+            ['tuer', 80, 0, {}],                                  // a plain door waits for nothing
+            ['gl', 90, 0, { baddie: {} }],                        // does not send
+            ['pl', 9, 0, { pressure_plate: { signal_code: 5, signal_delay: 1.5 } }],
+            ['pl', 19, 0, { pressure_plate: { signal_code: 5, signal_delay: 1.5 } }]] },
+        { type: 'sprites', properties: { name: 'Rot', signal_code: 1, signal_reaction: 'while_off' }, sprites: [] },
+        { type: 'signal_area', properties: { name: 'Arena', signal_code: 3 }, rects: [] },
+        { type: 'backdrop', properties: { name: 'Nebel', signal_code: 7, signal_reaction: 'appear' } },
+    ] };
+    const cards = signals.signal_rules(level, r => sprites[r], r => names[r]);
+    assert.deepEqual(cards.map(c => c.code), [1, 2, 3, 5, 7]);
+    const [one, two, three, five, seven] = cards;
+    assert.deepEqual(one.senders.map(l => l.text), ['»Schalter« umgelegt wird']);
+    assert.deepEqual(one.receivers.map(l => l.text), ['verschwindet die Ebene »Rot« (bei „aus“ wieder da)']);
+    assert.deepEqual(one.receivers[0].objects, [{ kind: 'layer', layer_index: 1 }]);
+    // "aus" is explained only where something reacts to it
+    assert.deepEqual(one.off, ['Zurücklegen schickt „aus“']);
+    assert.equal(one.problem, null);
+    assert.deepEqual(two.senders.map(l => l.text), ['alle Gegner besiegt sind']);
+    assert.deepEqual(two.receivers.map(l => l.text), ['öffnet sich »Gittertor«']);
+    assert.deepEqual(two.off, []);
+    assert.equal(three.problem, 'no_receiver');
+    // two equal senders are one line, counted, both selectable
+    assert.equal(five.senders.length, 1);
+    assert.equal(five.senders[0].text, 'die Spielfigur auf »Druckplatte« tritt (kommt nach 1,5 s an)');
+    assert.equal(five.senders[0].count, 2);
+    assert.equal(five.senders[0].objects.length, 2);
+    assert.deepEqual(seven.receivers.map(l => l.text), ['erscheint der Hintergrund »Nebel«']);
+    assert.equal(seven.problem, 'no_sender');
+    // no Code 0 card: the plain door is not a receiver
+    assert.ok(!cards.some(c => c.code === 0));
+});
+
+test('signal_rules: an empty level has no cards', () => {
+    assert.deepEqual(signals.signal_rules({ layers: [] }, () => ({}), () => ''), []);
+    assert.deepEqual(signals.signal_rules(null, () => ({}), () => ''), []);
+});

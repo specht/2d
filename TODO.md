@@ -126,29 +126,16 @@ Develop a small, understandable trigger/action system rather than implementing e
 
 **Signale exist (`src/static/signals.js`, see AGENTS.md):** senders send their Code with *an* or *aus*: a collected key, a Schalter, a Druckplatte (player only), a Bereich (the player enters / leaves rectangles), a defeated enemy and "alle Gegner besiegt". Every sender can send later (Verzögerung). Receivers: doors (`door_reaction`; a door can also close again by itself after some seconds) and sprite or backdrop layers that appear or disappear (with Überblendung; a layer that is away has no collisions, and its enemies wait). Sichtbarkeitsbereiche and door codes of older games are promoted to this on load. The level editor shows under every Code what else in the level has it.
 
-## Next: a Signale overview and names for signals
+## Next: names for signals (the Signale-Übersicht exists)
 
-Wanted next. Today a child sees the connections one at a time (the line under a Code, the dashed lines for the selection or "Verbindungen zeigen"); with five or six signals in a level, nothing shows the whole picture.
+Wanted next. With five or six signals in a level, "Code 4" says little; a name ("Brücke") makes the overview, the lines and the Code fields readable.
 
-**Overview of the level's signals** (read-only first): one card per Code that reads as a rule, built from what `signals.js` already knows (`signal_objects`, `signal_links`, reaction labels):
+**Done: the Signale-Übersicht** (S in the level editor; `signal_rules` in `signals.js`, `refresh_signal_overview` in `level_editor.js`): a panel at the right edge of the level view with one "Wenn … dann …" card per Code, warnings for Codes that nothing reacts to or nothing sends; hovering a card shows only its Code's lines, clicking a line selects the object in its layer, clicking the Code shows everything with it. The level pane's side columns are wider on wide screens, so the panel and the Eigenschaften both have room.
 
-```
-Brücke                                   Code 4
-  Wenn  die Spielfigur auf die Druckplatte tritt
-  dann  erscheint die Ebene »Brücke«
-        (geht sie herunter, verschwindet sie wieder)
+Still open for the overview:
 
-Ausgang                                  Code 2
-  Wenn  alle Gegner besiegt sind
-  dann  öffnet sich das Gittertor
-```
-
-- every sender and every receiver of the Code, in "Wenn … dann …" sentences; a Verzögerung reads "… dann, 1 s später, …"; *an* and *aus* only where they matter (Druckplatte, Bereich, "solange an")
-- warnings as their own cards: a Code that is sent but nothing reacts to, one that something waits for but nothing sends (the most common mistakes, today only found by clicking every object)
-- clicking a card selects its objects (in their layers) and scrolls the view to them; hovering shows only that Code's connection lines
-- later: during "Level testen" a card lights up when its signal arrives, so children watch the rules happen while they play (needs a small message from the game frame to the studio)
-
-**Where it goes.** At 1920 × 1080 the level pane's left column holds Werkzeuge and the sprite palette, which grows with every sprite of the game; the right column holds Level, Layer and Eigenschaften, which grow with the selection. Neither has room that stays free. The level view itself is about 1450 px wide: the overview is a panel docked at the right edge inside the level view (like the layer name in its corner, but a real panel, about 360 px, scrolling on its own), opened and closed from the status bar with a letter key, remembered per browser. While it is open the connection lines follow the hovered card. It shows the current level only, because Codes belong to one level.
+- during "Level testen" a card lights up when its signal arrives, so children watch the rules happen while they play (needs a small message from the game frame to the studio)
+- "+ Neue Regel" in the panel that starts the Verbinden tool
 
 **Names for signals instead of bare numbers.** The Code stays a number in the saved game and in the engine (`free_signal_code`, the Verbinden tool, recipe checks, `fix_game_data` all keep working); a level may give its Codes names: optional `level.properties.signal_names`, e.g. `{ "4": "Brücke" }` (absent = numbers only, exactly as today; editor-only, never read by the game; renaming changes one place). Not strings as Codes: "Brücke" and "brücke " would be two different signals, an invisible and frustrating mistake.
 
@@ -158,7 +145,7 @@ Ausgang                                  Code 2
 - copying, pasting or duplicating between levels: a Code that arrives with a name the target level does not have takes the name along; a clash of the same number with a different name gets a free number (decide and test before implementing)
 - the Signale recipes then use names ("Brücke") instead of "Code 4"
 
-Order: the overview (read-only, select, warnings) → names with the dropdown → cards lighting up in test runs.
+Order: names with the dropdown → cards lighting up in test runs.
 
 ## Further Signale extensions
 
@@ -526,7 +513,7 @@ In particular:
 6. Make game lineage understandable (the independent-fork action exists: Als eigenes Spiel weiterführen).
 7. Make deliberate, named multi-browser collaboration practical without introducing accounts.
 8. Polish sprite-animation workflows.
-9. Extend the Signale: next the overview and names (see Triggers and Actions), then "und"/counters and new receivers.
+9. Extend the Signale: next names for signals (the overview exists, see Triggers and Actions), then "und"/counters and new receivers.
 10. Build new gameplay systems on those foundations.
 
 The central question for new work should be:
