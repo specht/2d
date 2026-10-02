@@ -1510,12 +1510,11 @@ class LevelEditor {
             },
         });
         details = $('<div>').appendTo(container);
-        new NumberWidget({
+        new SignalCodeWidget({
+            editor: this,
             container: details,
             label: 'Code',
             hint: 'Alles mit demselben Code sendet dieser Ebene ein Signal.',
-            min: 0,
-            max: 1000,
             get: () => layer.properties.signal_code ?? 0,
             set: (value) => {
                 layer.properties.signal_code = Math.round(value);
@@ -1546,6 +1545,7 @@ class LevelEditor {
         const links = $('<div class="signal-links">');
         let details = null;
         let delay_widget = null;
+        let code_widget = null;
         const update = () => {
             const code = level.properties.signal_all_defeated;
             details?.toggle(Number.isInteger(code));
@@ -1564,16 +1564,15 @@ class LevelEditor {
                     delete level.properties.signal_all_defeated_delay;
                     delay_widget?.refresh();
                 }
-                details?.find('input').first().val(level.properties.signal_all_defeated ?? 0);
+                code_widget?.refresh();
                 update();
             },
         });
         details = $('<div>').appendTo(box);
-        new NumberWidget({
+        code_widget = new SignalCodeWidget({
+            editor: this,
             container: details,
             label: 'Code',
-            min: 0,
-            max: 1000,
             get: () => level.properties.signal_all_defeated ?? 0,
             set: (value) => {
                 level.properties.signal_all_defeated = Math.round(value);
@@ -1612,12 +1611,11 @@ class LevelEditor {
             this.build_signal_links();
             this.render();
         };
-        new NumberWidget({
+        new SignalCodeWidget({
+            editor: this,
             container,
             label: 'Code',
             hint: 'Kommt die Mitte der Spielfigur in eines der Rechtecke, sendet der Bereich diesen Code mit „an“, geht sie wieder hinaus, mit „aus“. Ebenen und Türen mit demselben Code reagieren darauf – zum Beispiel verschwindet das Dach, solange man im Haus ist („weg, solange an“).',
-            min: 0,
-            max: 1000,
             get: () => layer.properties.signal_code ?? 0,
             set: (value) => {
                 layer.properties.signal_code = Math.round(value);
@@ -3275,7 +3273,18 @@ class LevelEditor {
                             this.update_signal_links?.();
                         };
                         let widget = null;
-                        if (property.type === 'int' || property.type === 'float') {
+                        if (key === 'signal_code' || key === 'drop_code') {
+                            // a number and the level's signals with their names
+                            widget = new SignalCodeWidget({
+                                editor: this,
+                                container: div,
+                                label: property.label ?? key,
+                                hint: property.hint ?? null,
+                                max: property.max ?? 1000,
+                                get,
+                                set,
+                            });
+                        } else if (property.type === 'int' || property.type === 'float') {
                             widget = new NumberWidget({
                                 container: div,
                                 label: property.label ?? key,
@@ -3555,4 +3564,148 @@ const SIGNAL_LINK_COLORS = ['#ffcd75', '#73eff7', '#a7f070', '#ef7d57', '#41a6f6
 function signal_link_color(code) {
     const n = Number.isInteger(code) ? code : 0;
     return SIGNAL_LINK_COLORS[((n % SIGNAL_LINK_COLORS.length) + SIGNAL_LINK_COLORS.length) % SIGNAL_LINK_COLORS.length];
+}
+
+// ------------------------------------------------------ the Code field
+// "Code" of a key, door, Schalter, Druckplatte, enemy, layer, Bereich or
+// "alle Gegner besiegt": the number stays a field you can type into (the
+// recipes say "trag als Code 4 ein"), and next to it a button with the
+// Code's name opens the level's signals: every Code of this level (with its
+// name), "Neues Signal …" (a free Code, then its name) and "Namen geben …".
+// data: { editor, container, label, hint, get, set, max }.
+class SignalCodeWidget {
+    constructor(data) {
+        this.data = data;
+        this.editor = data.editor;
+        this.number = new NumberWidget({
+            container: data.container,
+            label: data.label ?? 'Code',
+            hint: data.hint ?? null,
+            min: 0,
+            max: data.max ?? 1000,
+            get: data.get,
+            set: (value) => { data.set(Math.round(value)); this.refresh_button(); },
+        });
+        this.row = this.number.input[0].parent();
+        this.row.addClass('signal-code-row');
+        this.button = $('<button type="button" class="dropdown-button signal-code-pick">')
+            .attr('title', 'Signale in diesem Level: einen auswählen, ein neues anlegen oder einen Namen geben')
+            .append($('<span class="dropdown-text">'))
+            .append($('<i class="fa fa-angle-down dropdown-arrow">'))
+            .on('mousedown', (e) => { if (this.button.hasClass('open')) e.stopPropagation(); })
+            .on('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if ($('.context-menu').length && this.button.hasClass('open')) { close_context_menu(); return; }
+                this.open_menu();
+            })
+            .appendTo(this.row);
+        this.refresh_button();
+    }
+
+    level() {
+        return this.editor.game.data.levels[this.editor.level_index];
+    }
+
+    code() {
+        const value = Number(this.data.get());
+        return Number.isInteger(value) ? value : 0;
+    }
+
+    refresh() {
+        this.number.refresh();
+        this.refresh_button();
+    }
+
+    refresh_button() {
+        const name = signal_name(this.level(), this.code());
+        this.button.find('.dropdown-text').text(name || 'ohne Namen');
+        this.button.toggleClass('signal-code-unnamed', !name);
+        this.button.css('--signal-color', signal_link_color(this.code()));
+    }
+
+    // every Code of the level, small first; the current one even if nothing
+    // else has it. 0 only where something uses it (keys and doors of older
+    // games meet there), so a Schalter is not put on it by accident.
+    codes() {
+        const level = this.level();
+        const codes = signal_codes_in_level(level);
+        const { traits_of } = this.editor.signal_context();
+        const zero = signal_partners(level, 0, traits_of);
+        if (!Object.keys(zero.counts).length && !zero.layers.length && !zero.areas.length && !zero.all_defeated)
+            codes.delete(0);
+        codes.add(this.code());
+        return [...codes].sort((a, b) => a - b);
+    }
+
+    may_edit() {
+        if (window.collaboration?.can_edit_current?.() !== false) return true;
+        this.editor.show_level_notice('Gerade bearbeitet jemand anderes dieses Level.');
+        return false;
+    }
+
+    open_menu() {
+        const level = this.level();
+        const current = this.code();
+        const { traits_of } = this.editor.signal_context();
+        const entries = this.codes().map(code => {
+            const name = signal_name(level, code);
+            return {
+                label: name ? `${name} · ${code}` : `Code ${code}`,
+                icon: code === current ? 'fa-check' : '',
+                hint: describe_signal_partners(code, signal_partners(level, code, traits_of), name),
+                callback: () => { if (code !== current && this.may_edit()) this.choose(code); },
+            };
+        });
+        entries.push('-');
+        entries.push({ label: 'Neues Signal …', icon: 'fa-plus',
+            hint: 'Ein Code, den in diesem Level noch nichts hat – danach kannst du ihm einen Namen geben.',
+            callback: () => {
+                if (!this.may_edit()) return;
+                this.choose(free_signal_code(level));
+                this.edit_name();
+            } });
+        const name = signal_name(level, current);
+        entries.push({ label: name ? `»${name}« umbenennen …` : 'Namen geben …', icon: 'fa-pencil',
+            hint: 'Der Name gilt für alles mit diesem Code in diesem Level.',
+            callback: () => { if (this.may_edit()) this.edit_name(); } });
+        const rect = this.button[0].getBoundingClientRect();
+        show_context_menu(rect.left, rect.bottom + 2, entries, { min_width: rect.width, dropdown: true });
+        this.button.addClass('open');
+        $('.context-menu').first().on('remove-menu', () => this.button.removeClass('open'));
+    }
+
+    choose(code) {
+        this.data.set(code);
+        this.number.refresh();
+        this.refresh_button();
+    }
+
+    // The button becomes a field for the name of the current Code. Enter or
+    // leaving it saves, Esc keeps the old name (rename_signal_code).
+    edit_name() {
+        const code = this.code();
+        const input = $('<input type="text" class="signal-code-name-input">')
+            .attr({ maxlength: SIGNAL_NAME_MAX_LENGTH, placeholder: 'Name, z. B. Brücke', spellcheck: 'false' })
+            .val(signal_name(this.level(), code)).css('--signal-color', signal_link_color(code));
+        this.button.hide().after(input);
+        let finished = false;
+        const finish = (save) => {
+            if (finished) return true;
+            if (save && !this.editor.rename_signal_code(code, input.val())) return false;
+            finished = true;
+            input.remove();
+            this.button.show();
+            this.refresh_button();
+            return true;
+        };
+        input.on('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+            else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+        });
+        // a name that is taken: keep the old one (the notice says why)
+        input.on('blur', () => { if (!finish(true)) finish(false); });
+        input.trigger('focus').trigger('select');
+    }
 }
