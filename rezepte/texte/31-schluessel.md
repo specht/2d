@@ -6,8 +6,8 @@ skala: 2
 kurz: Erst den Schlüssel holen – dann öffnet sich die Tür in der Mauer von selbst.
 szene:
   legende:
-    L: { sprite: schlosstuer, platziert: { door: { door_code: 7 } } }
-    k: { sprite: schluessel, platziert: { key: { door_code: 7 } } }
+    L: { sprite: schlosstuer, platziert: { door: { signal_code: 7 } } }
+    k: { sprite: schluessel, platziert: { key: { signal_code: 7 } } }
   karte: |
     .......M..
     .......M..

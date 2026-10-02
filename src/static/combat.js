@@ -106,7 +106,8 @@ class CombatSystem {
                 this.game.energy > 0 && !(owner.dead?.() ?? false);
         }
         if (owner.character_trait === 'baddie') {
-            return this.game.baddies.includes(owner) && owner.energy > 0;
+            // an enemy on a layer that is away (Signale) cannot fight or be hit
+            return this.game.baddies.includes(owner) && owner.energy > 0 && !owner.signal_hidden;
         }
         return false;
     }

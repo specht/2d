@@ -2745,3 +2745,25 @@ details.trait-advanced[open] > summary {
     width: 0;
     min-width: 5em;
 }
+
+/* A short message over the level editor (LevelEditor.show_level_notice) */
+.level-notice {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    max-width: min(520px, 80%);
+    padding: 8px 14px;
+    border-radius: 6px;
+    background: rgba(26, 28, 44, 0.92);
+    border: 1px solid rgba(255, 205, 117, 0.6);
+    color: #f4f4f4;
+    font-size: 13px;
+    line-height: 1.4;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 250ms;
+}
+.level-notice.showing {
+    opacity: 1;
+}

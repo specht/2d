@@ -7,7 +7,7 @@ kurz: Die Maus hat den Schl√ºssel stibitzt! Kommt Pip zu nah, rennt sie davon ‚Ä
 szene:
   anpassen:
     # Beute: the mouse carries a key (code 1) and hands it over when caught
-    maus: { baddie: { damage: 0, drop: { sprite_index: { sprite: schluessel }, door_code: 1, on_touch: true } } }
+    maus: { baddie: { damage: 0, drop: { sprite_index: { sprite: schluessel }, signal_code: 1, on_touch: true } } }
   karte: |
     ..............
     ..............
