@@ -324,7 +324,9 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   (4), `treffer_funke` (3), `schalter_aus` / `schalter_an` (lever),
   `druckplatte_oben` / `druckplatte_unten`, `gitter_zu`, `gitter_auf`,
   `gitter_uebergang` (3, a portcullis rising; catalogue `gittertor` is locked
-  and automatic, so only a signal opens it).
+  and automatic, so only a signal opens it), `block_rot` / `block_gruen` (solid
+  blocks in the colours of the Schalter's knob, for layers that swap) and
+  `umriss_rot` / `umriss_gruen` (their dashed outlines, decoration).
 * **Deko** (transparent, no traits, own layer without collisions): `moos`,
   `ranke`, `riss`, `fackel` (3), `burgfenster`, `grasbuesche`, `innenwand`,
   `bild`, `lampe`, `tisch`, `pflanze`, `fassade`, `fassade_fenster`, `zimmer`

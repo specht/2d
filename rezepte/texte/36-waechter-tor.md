@@ -54,8 +54,7 @@ Unter dem Code steht, was zusammengehört: *Code 5 in diesem Level – sendet: 1
 
 ## Tipps
 
-- Mehrere Wächter? Sollen sie **alle** besiegt sein? Bei den **Level-Eigenschaften** gibt es **sendet, wenn alle Gegner besiegt**. Dann reicht ein Code für alle.
-- Gegner in einer **Ebene**, die erst erscheint, warten, bis sie da ist. So baust du eine zweite Welle: Die Ebene mit den neuen Gegnern stellst du auf **Bei Signal: erscheint** – mit dem Code von *alle Gegner besiegt*.
+- Mehrere Wächter, die **alle** besiegt sein müssen? Dafür gibt es bei den **Level-Eigenschaften** **sendet, wenn alle Gegner besiegt** – siehe *Die Falle schnappt zu*, dort auch mit einer zweiten Welle.
 - Ein besiegter Gegner kann auch eine Brücke erscheinen oder eine Wand verschwinden lassen – alles, was auf seinen Code hört.
 
 ## Wenn's nicht klappt
