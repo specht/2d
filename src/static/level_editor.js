@@ -1332,6 +1332,7 @@ class LevelEditor {
         const level = this.game.data.levels[this.level_index];
         const links = $('<div class="signal-links">');
         let details = null;
+        let delay_widget = null;
         const update = () => {
             const code = level.properties.signal_all_defeated;
             details?.toggle(Number.isInteger(code));
@@ -1345,7 +1346,11 @@ class LevelEditor {
             get: () => Number.isInteger(level.properties.signal_all_defeated),
             set: (on) => {
                 if (on) level.properties.signal_all_defeated = free_signal_code(level);
-                else delete level.properties.signal_all_defeated;
+                else {
+                    delete level.properties.signal_all_defeated;
+                    delete level.properties.signal_all_defeated_delay;
+                    delay_widget?.refresh();
+                }
                 details?.find('input').first().val(level.properties.signal_all_defeated ?? 0);
                 update();
             },
@@ -1360,6 +1365,21 @@ class LevelEditor {
             set: (value) => {
                 level.properties.signal_all_defeated = Math.round(value);
                 update();
+            },
+        });
+        // absent = 0 = at once (signals.js)
+        delay_widget = new NumberWidget({
+            container: details,
+            label: 'Verzögerung',
+            hint: 'Das Level sendet den Code erst so viele Sekunden, nachdem der letzte Gegner besiegt ist – zum Beispiel eine kurze Pause vor der nächsten Welle. 0: sofort.',
+            min: 0,
+            max: SIGNAL_DELAY_MAX_SECONDS,
+            step: 0.5,
+            decimalPlaces: 1,
+            suffix: 's',
+            get: () => level.properties.signal_all_defeated_delay ?? 0,
+            set: (value) => {
+                level.properties.signal_all_defeated_delay = value;
             },
         });
         links.appendTo(box);
@@ -1393,6 +1413,21 @@ class LevelEditor {
         });
         links.appendTo(container);
         update_links();
+        // absent = 0 = at once (signals.js)
+        new NumberWidget({
+            container,
+            label: 'Verzögerung',
+            hint: '„an“ und „aus“ kommen erst so viele Sekunden später an – zum Beispiel fällt die Tür hinter der Spielfigur erst kurz nach dem Hineingehen zu. Beim Start des Levels und nach dem Verlieren eines Lebens zählt sofort, wo die Spielfigur ist. 0: sofort.',
+            min: 0,
+            max: SIGNAL_DELAY_MAX_SECONDS,
+            step: 0.5,
+            decimalPlaces: 1,
+            suffix: 's',
+            get: () => layer.properties.signal_delay ?? 0,
+            set: (value) => {
+                layer.properties.signal_delay = value;
+            },
+        });
     }
 
     setup_layer_properties() {

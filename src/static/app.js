@@ -1357,7 +1357,7 @@ void main() {
 				console.log(this.game.active_level_sprites[entry.entry_index]);
 				this.game.found_keys[entry.signal_code] = true;
 				// …and sends its Code: doors with "öffnen" and layers react, too.
-				this.game.signals?.emit(entry.signal_code, true, t);
+				this.game.signals?.send(entry.signal_code, true, t, { delay: entry.signal_delay });
 				this.game.update_stats();
 			}
 
@@ -2347,10 +2347,15 @@ class Game {
 		this.signals = new SignalBus();
 		this.signal_hidden_layers = new Set();
 		this.signal_layer_fades = new Map();
+		// doors that close again by themselves ("schließt wieder nach")
+		this.auto_closing_doors = [];
 		this.active_level_sprites.forEach((entry, entry_index) => {
 			const traits = this.data.sprites[entry.sprite_index].traits;
-			if ('door' in traits)
+			if ('door' in traits) {
 				this.signals.connect(entry.signal_code, (value, t) => this.door_signal(entry_index, value, t));
+				entry.close_at = null;
+				if (signal_delay_seconds(entry.close_after) > 0) this.auto_closing_doors.push(entry_index);
+			}
 			if ('switch' in traits)
 				this.show_trait_state(entry, 'switch', entry.switch_on ? 'on' : 'off');
 			if ('pressure_plate' in traits) {
@@ -2380,11 +2385,13 @@ class Game {
 		this.signal_areas = [];
 		level.layers.forEach((layer, li) => {
 			if (layer?.type !== 'signal_area' || !(layer.rects ?? []).some(valid_signal_rect)) return;
-			this.signal_areas.push({ li, code: layer.properties?.signal_code ?? 0, rects: layer.rects, inside: false });
+			this.signal_areas.push({ li, code: layer.properties?.signal_code ?? 0, rects: layer.rects, inside: false,
+				delay: layer.properties?.signal_delay });
 		});
 		// "alle Gegner besiegt" (level setting; absent = nothing is sent)
 		const all = level.properties?.signal_all_defeated;
 		this.signal_all_defeated = Number.isInteger(all) ? all : null;
+		this.signal_all_defeated_delay = level.properties?.signal_all_defeated_delay;
 		// A figure that starts inside a Bereich: the level looks right at once.
 		this.signals.immediate = true;
 		this.update_signal_areas(0);
@@ -2400,19 +2407,20 @@ class Game {
 			const inside = point_in_signal_rects(area.rects, x, y);
 			if (inside === area.inside) continue;
 			area.inside = inside;
-			this.signals?.emit(area.code, inside, t);
+			// deciding at once (start, respawn) also takes back what is still on its way
+			this.signals?.send(area.code, inside, t, { delay: area.delay, from: area });
 		}
 	}
 
 	// A defeated enemy sends its Code ("sendet, wenn besiegt"); once no enemy
 	// is left in the level (enemies on a layer that is away do not count yet),
-	// the level sends "alle Gegner besiegt".
+	// the level sends "alle Gegner besiegt". Either may send later (Verzögerung).
 	baddie_defeated(baddie, t) {
 		if (baddie.placed_signal?.signal_on_defeat === true)
-			this.signals?.emit(baddie.placed_signal.signal_code ?? 0, true, t);
+			this.signals?.send(baddie.placed_signal.signal_code ?? 0, true, t, { delay: baddie.placed_signal.signal_delay });
 		if (this.signal_all_defeated === null || this.signal_all_defeated === undefined) return;
 		if (this.baddies.some(other => other.active && !other.signal_hidden)) return;
-		this.signals?.emit(this.signal_all_defeated, true, t);
+		this.signals?.send(this.signal_all_defeated, true, t, { delay: this.signal_all_defeated_delay });
 	}
 
 	// A layer that is away is not drawn, its sprites do not collide
@@ -2452,7 +2460,7 @@ class Game {
 		const entry = this.active_level_sprites[entry_index];
 		entry.switch_on = !entry.switch_on;
 		this.show_trait_state(entry, 'switch', entry.switch_on ? 'on' : 'off');
-		this.signals?.emit(entry.signal_code, entry.switch_on, t);
+		this.signals?.send(entry.signal_code, entry.switch_on, t, { delay: entry.signal_delay });
 	}
 
 	// A Druckplatte is down while the middle of the figure is above it (not
@@ -2468,7 +2476,7 @@ class Game {
 			if (down === entry.plate_down) return;
 			entry.plate_down = down;
 			this.show_trait_state(entry, 'pressure_plate', down ? 'down' : 'up');
-			this.signals?.emit(entry.signal_code, down, t);
+			this.signals?.send(entry.signal_code, down, t, { delay: entry.signal_delay });
 		});
 	}
 
@@ -2493,6 +2501,37 @@ class Game {
 		entry.door_signal_pending = null;
 		if (action === 'open') this.open_door_intent(entry_index, t, { force: true });
 		else this.close_door_intent(entry_index, t, { force: true });
+	}
+
+	// "schließt wieder nach" (placed door.close_after): an open door closes
+	// by itself, also one that cannot be closed otherwise (signals.js
+	// door_auto_close_step). It waits while the figure or an enemy is in it.
+	update_auto_closing_doors(t) {
+		for (const entry_index of this.auto_closing_doors ?? []) {
+			const entry = this.active_level_sprites[entry_index];
+			const still = (entry.door_state ?? 'idle') === 'idle' && entry.door_closed === false && !entry.signal_hidden;
+			const step = door_auto_close_step(entry.close_after, entry.close_at, still,
+				() => this.door_occupied(entry_index), t);
+			entry.close_at = step.close_at;
+			if (step.close) this.move_door_by_signal(entry_index, 'close', t);
+		}
+	}
+
+	// Somebody in the door's rectangle: the figure, or an enemy that is there.
+	door_occupied(entry_index) {
+		const entry = this.active_level_sprites[entry_index];
+		const sprite = this.data.sprites[entry.sprite_index];
+		const x0 = entry.mesh.position.x - sprite.width / 2, x1 = entry.mesh.position.x + sprite.width / 2;
+		const y0 = entry.mesh.position.y, y1 = entry.mesh.position.y + sprite.height;
+		const inside = (character) => {
+			if (!character?.mesh) return false;
+			const cx = character.mesh.position.x, cy = character.mesh.position.y;
+			const w = character.sprite.width / 2, ex = character.traits ?? {};
+			return cx + w * (ex.ex_right ?? 1) > x0 && cx - w * (ex.ex_left ?? 1) < x1 &&
+				cy + character.sprite.height * (ex.ex_top ?? 1) > y0 && cy < y1;
+		};
+		if (inside(this.player_character)) return true;
+		return (this.baddies ?? []).some(baddie => baddie.active && !baddie.signal_hidden && inside(baddie));
 	}
 
 	render() {
@@ -3102,6 +3141,9 @@ class Game {
 		for (let baddie of this.baddies)
 			if (!baddie.signal_hidden) baddie.simulation_step(t);
 		this.update_signal_areas(t);
+		// signals with a Verzögerung that are due now, then doors that close again
+		this.signals?.deliver_due(t);
+		this.update_auto_closing_doors(t);
 		if (this.combat.game_allows_combat()) {
 			this.request_melee_attacks(t);
 			this.request_ranged_attacks(t);
@@ -3211,6 +3253,10 @@ class Game {
 	open_door_intent(entry_index, t, options = {}) {
 		let entry = this.active_level_sprites[entry_index];
 		let sprite = this.data.sprites[entry.sprite_index];
+		// already open: "schließt wieder nach" starts again (an automatic door
+		// stays open while the figure stands in front of it)
+		if (entry.door_closed === false && entry.close_at !== null && entry.close_at !== undefined)
+			entry.close_at = t + signal_delay_seconds(entry.close_after);
 		if (entry.door_state === 'opening' || entry.door_closed === false)
 			return;
 		let ok = false;
