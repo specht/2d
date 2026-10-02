@@ -7,6 +7,9 @@ import vm from 'node:vm';
 import crypto from 'node:crypto';
 import sharp from 'sharp';
 import YAML from 'yaml';
+import { createRequire } from 'node:module';
+// the studio's own conversion of level colours (Ganzes Spiel an Palette anpassen)
+const { palettize_level_colors } = createRequire(import.meta.url)('../../src/static/palette_apply.js');
 
 export const TILE = 24;
 // World x of the left edge of map column 0. The studio's level editor puts the
@@ -467,6 +470,8 @@ export async function build_game(catalog, recipe, repo) {
         if (i < 0) throw new Error(`${recipe.id}: Effekt ${e.effekt}: unbekannte Ebene "${e.hinter}" bei hinter`);
         level.layers.splice(i + 1, 0, effect_layer(e));
     }
+    // szene.palette: the backgrounds' and effects' colours, too (like the studio)
+    if (palette) palettize_level_colors(level, palette.rgb);
     let data = {
         properties: {
             title: recipe.titel, author: '2D Game Studio Rezepte',

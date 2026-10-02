@@ -13,7 +13,8 @@ class DropdownMenu {
         return children.map(entry => ({
             label: entry.label,
             icon: entry.icon,
-            disabled: !entry.callback && !entry.children?.length,
+            disabled: (typeof entry.enabled === 'function' && !entry.enabled()) || (!entry.callback && !entry.children?.length),
+            hint: entry.hint,
             callback: entry.callback,
             children: entry.children ? DropdownMenu.menu_entries(entry.children) : undefined,
         }));

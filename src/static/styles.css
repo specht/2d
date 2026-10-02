@@ -3532,3 +3532,14 @@ select.dropdown-native {
 .text-insert-button:hover {
     border-color: rgba(255, 255, 255, 0.5);
 }
+
+/* Palette wählen: also convert the whole game (palette_apply.js) */
+.palette-apply-all {
+    display: block;
+    padding: 10px 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.35);
+    color: #ddd;
+    font-size: 14px;
+    cursor: pointer;
+}
