@@ -2232,8 +2232,11 @@ class LevelEditor {
     // Double-click with the select tool: the sprite under the mouse is selected
     // in whichever layer it lies (level_selection.js placed_sprites_at), and that
     // layer becomes the current one. Again at the same spot: the sprite behind.
+    // With the hand tool, a double-click on a sprite says the same – the
+    // select tool takes over and selects it (on empty ground nothing changes).
     handle_double_click(e) {
-        if (menus.level.active_key !== 'tool/select') return;
+        const tool = menus.level.active_key;
+        if (tool !== 'tool/select' && tool !== 'tool/pan') return;
         const level = this.game.data.levels[this.level_index];
         const touch = this.get_touch_point(e);
         // the point in each layer's own coordinates (as ui_to_world, per Parallaxe)
@@ -2249,6 +2252,7 @@ class LevelEditor {
             Math.hypot(touch[0] - last.x, touch[1] - last.y) < 4;
         const pick = next_pick(hits, same_spot ? last.hit : null);
         if (!pick) return;
+        if (tool === 'tool/pan') menus.level.handle_click('tool/select');
         this.last_pick = { x: touch[0], y: touch[1], level_index: this.level_index, hit: pick };
         if (pick.layer_index !== this.layer_index) {
             // like clicking the layer in the list (properties, panel, undo)

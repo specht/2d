@@ -49,7 +49,7 @@ Possible improvements:
 
 - clearer layer management (grouping, naming conventions, what a layer is *for*)
 
-Reordering (drag in the layer list), moving a selection to another layer ("In Ebene"), show / hide (eye) and lock (padlock: nothing can be painted, moved or deleted in the layer, its settings still change) exist in the layer list. The current layer is named in a corner of the level view, and a double-click with the select tool picks a sprite in any layer and switches to it (again: the one behind).
+Reordering (drag in the layer list), moving a selection to another layer ("In Ebene"), show / hide (eye) and lock (padlock: nothing can be painted, moved or deleted in the layer, its settings still change) exist in the layer list. The current layer is named in a corner of the level view, and a double-click with the select tool (or the hand tool, which then switches to the select tool) picks a sprite in any layer and switches to it (again: the one behind).
 
 Layer management should remain simple enough for students and should not turn into a professional graphics-editor UI.
 
