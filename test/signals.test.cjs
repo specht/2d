@@ -119,11 +119,11 @@ const quiet = { log() {}, warn() {} };
 const GameSignals = new Function('SignalBus', 'door_signal_action', 'layer_reacts_to_signals',
     'layer_visible_at_start', 'layer_visible_after', 'signal_fade_alpha', 'layer_fade_seconds',
     'valid_signal_rect', 'point_in_signal_rects', 'door_setting', 'signal_delay_seconds',
-    'door_auto_close_step', 'LayerFade', 'console',
+    'door_auto_close_step', 'LayerFade', 'console', 'stored_signal_code',
     `return class { ${methods} };`)(SignalBus, door_signal_action, layer_reacts_to_signals,
     layer_visible_at_start, layer_visible_after, signals.signal_fade_alpha, signals.layer_fade_seconds,
     signals.valid_signal_rect, signals.point_in_signal_rects, signals.door_setting, signals.signal_delay_seconds,
-    signals.door_auto_close_step, LayerFade, quiet);
+    signals.door_auto_close_step, LayerFade, quiet, signals.stored_signal_code);
 
 const state = (trait, name, frames = 1) => ({ traits: { [trait]: { [name]: {} } }, properties: { fps: 8 }, frames: Array(frames).fill({}) });
 const SPRITES = [
@@ -353,7 +353,7 @@ test('the editor tells what else in the level has a Code', () => {
         { type: 'backdrop', properties: {} },
     ] };
     const of = (code) => signal_partners(level, code, ref => traits[ref]);
-    assert.deepEqual(of(3), { counts: { switch: 1, door: 2 }, layers: ['Brücke', 'Ebene 4'], areas: [], all_defeated: false });
+    assert.deepEqual(of(3), { counts: { switch: 1, door: 2 }, layers: ['Brücke', 'Ebene 4'], areas: [], all_defeated: false, level_complete: false });
     assert.equal(describe_signal_partners(3, of(3)),
         'Code 3 in diesem Level – sendet: 1 Schalter · reagiert: 2 Türen, Ebene »Brücke«, Ebene »Ebene 4«');
     assert.equal(describe_signal_partners(0, of(0)), 'Code 0 in diesem Level – sendet: 1 Schlüssel · reagiert: 1 Tür');
@@ -981,4 +981,130 @@ test('carry_signal_names: no swapping chains (a Code moved onto another pasted C
     assert.deepEqual(carry_signal_names(level, items, { 1: 'Brücke', 2: 'Tor' }), { 1: 2, 2: 1 });
     assert.equal(items[0][3].switch.signal_code, 2);
     assert.equal(items[1][3].pressure_plate.signal_code, 1);
+});
+
+// --------------------------------- a sign that speaks, the level that is done
+
+test('a sign takes part only with "spricht bei Signal"', () => {
+    const { placed_signal_role, signal_partners, describe_signal_partners } = signals;
+    const traits = { t: { text: {} }, s: { switch: {} } };
+    assert.equal(placed_signal_role(['t', 0, 0, { text: { text: 'Hallo', signal_code: 3 } }], traits.t), null);
+    const found = placed_signal_role(['t', 0, 0, { text: { text: 'Hallo', speaks_on_signal: true, signal_code: 3 } }], traits.t);
+    assert.equal(found.role.trait, 'text');
+    assert.equal(found.code, 3);
+    const level = { properties: {}, layers: [{ type: 'sprites', properties: {}, sprites: [
+        ['s', 0, 0, { switch: { signal_code: 3 } }],
+        ['t', 0, 0, { text: { speaks_on_signal: true, signal_code: 3 } }]] }] };
+    assert.equal(describe_signal_partners(3, signal_partners(level, 3, r => traits[r])),
+        'Code 3 in diesem Level – sendet: 1 Schalter · reagiert: 1 Hinweistext');
+});
+
+test('signal_rules: a speaking sign and "geschafft bei Signal" are receivers', () => {
+    const traits = { t: { text: {} }, a: { baddie: {} } };
+    const names = { t: 'Schild', a: 'Glibber' };
+    const level = { properties: { signal_all_defeated: 2, signal_level_complete: 2 }, layers: [
+        { type: 'sprites', properties: {}, sprites: [
+            ['t', 0, 0, { text: { speaks_on_signal: true, signal_code: 1 } }],
+            ['t', 30, 0, { text: { speaks_on_signal: true, signal_code: 1, speaker: 'self' } }],
+            ['t', 60, 0, { text: { signal_code: 1 } }]] },        // only with F: no receiver
+        { type: 'signal_area', properties: { name: 'Vorplatz', signal_code: 1 }, rects: [] },
+    ] };
+    const cards = signals.signal_rules(level, r => traits[r], r => names[r]);
+    assert.deepEqual(cards.map(c => c.code), [1, 2]);
+    assert.deepEqual(cards[0].receivers.map(l => l.text), ['liest die Spielfigur »Schild« vor', 'spricht »Schild«']);
+    assert.deepEqual(cards[0].receivers[0].objects, [{ kind: 'sprite', layer_index: 0, placed_index: 0, role: 'text' }]);
+    assert.deepEqual(cards[1].senders.map(l => l.text), ['alle Gegner besiegt sind']);
+    assert.deepEqual(cards[1].receivers.map(l => l.text), ['ist das Level geschafft']);
+    assert.equal(cards[1].problem, null);
+    // the level's Code counts as used, and its partners say so
+    assert.ok(signals.signal_codes_in_level({ properties: { signal_level_complete: 9 }, layers: [] }).has(9));
+    assert.equal(signals.describe_signal_partners(2, signals.signal_partners(level, 2, r => traits[r])),
+        'Code 2 in diesem Level – sendet: alle Gegner besiegt · reagiert: Level geschafft');
+});
+
+test('Verbinden: a sign it connects starts speaking on the Signal', () => {
+    const traits = { s: { switch: {} }, t: { text: {} } };
+    const size = { width: 16, height: 16 };
+    const level = { properties: {}, layers: [{ type: 'sprites', properties: {}, sprites: [
+        ['s', 0, 0, { switch: { signal_code: 4 } }],
+        ['t', 50, 0, { text: { text: 'Das Tor ist offen!' } }]] }] };
+    const of = r => traits[r], size_of = () => size;
+    const sw = signals.pick_signal_object(level, 0, 8, of, size_of, 0, 'sender');
+    const sign = signals.pick_signal_object(level, 50, 8, of, size_of, 0, 'receiver');
+    assert.equal(sign.trait, 'text');
+    assert.equal(sign.code, null);   // not a receiver yet
+    const code = signals.connect_signal_objects(level, sw, sign, of, size_of);
+    assert.equal(level.layers[0].sprites[1][3].text.speaks_on_signal, true);
+    assert.equal(level.layers[0].sprites[1][3].text.signal_code, code);
+    assert.equal(level.layers[0].sprites[1][3].text.text, 'Das Tor ist offen!');
+});
+
+// ------------------------------------------------- "kein Signal" (null)
+
+test('stored_signal_code: absent is 0 as always, null is "kein Signal"', () => {
+    const { stored_signal_code } = signals;
+    assert.equal(stored_signal_code(undefined), 0);
+    assert.equal(stored_signal_code(4), 4);
+    assert.equal(stored_signal_code('4'), 4);
+    assert.equal(stored_signal_code(null), null);
+});
+
+test('the bus ignores "kein Signal": nothing is sent, nothing listens', () => {
+    const bus = new SignalBus();
+    const got = [];
+    bus.connect(null, (value) => got.push(['null', value]));
+    bus.connect(0, (value) => got.push([0, value]));
+    assert.equal(bus.send(null, true), false);
+    assert.equal(bus.send(null, true, 0, { delay: 2 }), false);
+    bus.deliver_due(10);
+    assert.deepEqual(got, []);
+    assert.deepEqual(bus.sent, []);
+    bus.send(0, true);
+    assert.deepEqual(got, [[0, true]]);
+});
+
+test('"kein Signal" leaves the overview, the lines and the Code line', () => {
+    const traits = { s: { switch: {} }, d: { door: { lockable: true } }, k: { key: {} } };
+    const size_of = () => ({ width: 16, height: 16 });
+    const level = { properties: {}, layers: [
+        { type: 'sprites', properties: {}, sprites: [
+            ['s', 0, 0, { switch: { signal_code: null } }],
+            ['d', 40, 0, { door: { signal_code: null, door_reaction: 'open' } }],
+            ['k', 80, 0, { key: { signal_code: null } }],
+            ['k', 120, 0]] },                                     // absent: still 0
+        { type: 'signal_area', properties: { name: 'Leer', signal_code: null }, rects: [{ left: 0, bottom: 0, width: 10, height: 10 }] },
+    ] };
+    const of = r => traits[r];
+    assert.equal(signals.placed_signal_role(level.layers[0].sprites[0], traits.s), null);
+    const cards = signals.signal_rules(level, of, () => 'X');
+    // only the key without a stored Code is left, on 0
+    assert.deepEqual(cards.map(c => c.code), [0]);
+    assert.equal(cards[0].senders.length, 1);
+    assert.deepEqual(signals.signal_objects(level, of, size_of).map(o => [o.kind, o.code]), [['sprite', 0]]);
+    const zero = signals.signal_partners(level, 0, of);
+    assert.deepEqual(zero.counts, { key: 1 });
+    assert.deepEqual(zero.areas, []);
+    // Verbinden still finds them and connects them again
+    const sw = signals.pick_signal_object(level, 0, 8, of, size_of, 0, 'sender');
+    assert.equal(sw.trait, 'switch');
+    const door = signals.pick_signal_object(level, 40, 8, of, size_of, 0, 'receiver');
+    const code = signals.connect_signal_objects(level, sw, door, of, size_of);
+    assert.equal(level.layers[0].sprites[0][3].switch.signal_code, code);
+    assert.equal(level.layers[0].sprites[1][3].door.signal_code, code);
+    assert.ok(code > 0);
+});
+
+test('a door with "kein Signal" reacts to nothing in the game', () => {
+    const game = level_game([{ properties: {}, sprites: [[1, 0, 0, { signal_code: null, door_reaction: 'open', door_closed: true }]] }]);
+    game.setup_signals({ properties: {}, layers: [{ properties: {}, sprites: [] }] });
+    game.signals.send(0, true);
+    assert.equal(game.active_level_sprites[0].door_closed, true);
+    assert.equal(game.active_level_sprites[0].door_signal_pending ?? null, null);
+    // the same door on Code 0 does react
+    const zero = level_game([{ properties: {}, sprites: [[1, 0, 0, { signal_code: 0, door_reaction: 'open', door_closed: true }]] }]);
+    zero.setup_signals({ properties: {}, layers: [{ properties: {}, sprites: [] }] });
+    zero.signals.send(0, true);
+    const entry = zero.active_level_sprites[0];
+    assert.ok(entry.door_closed === false || entry.door_state === 'opening' || entry.door_signal_pending === 'open',
+        `door on 0 should start opening: ${JSON.stringify({ closed: entry.door_closed, state: entry.door_state })}`);
 });

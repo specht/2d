@@ -485,6 +485,23 @@ var SPRITE_TRAITS = {
                 // only when the sprite speaks itself (the level editor rebuilds the panel)
                 visible: (traits, traits_of, props) => props?.speaker === 'self',
             },
+            // Signale (signals.js): absent = only with the action key, as always
+            speaks_on_signal: {
+                label: 'spricht bei Signal',
+                hint: 'Ist das an, wird der Text auch gesprochen, sobald ein Signal mit diesem Code „an“ ankommt – ohne dass jemand F drückt. Mit einem Bereich davor sagt das Schild etwas, sobald die Spielfigur vorbeiläuft; mit einem Schalter, wenn er umgelegt wird. Mit F kann man den Text trotzdem noch einmal lesen.',
+                type: 'bool',
+                default: false,
+                rebuilds_panel: true,   // Code appears or goes
+            },
+            signal_code: {
+                label: 'Code',
+                hint: 'Kommt ein Signal mit diesem Code „an“, wird der Text gesprochen.',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 1000,
+                visible: (traits, traits_of, props) => props?.speaks_on_signal === true,
+            },
         },
     },
     falls_down: {
@@ -744,16 +761,19 @@ var SPRITE_TRAITS = {
                 hint: 'Ist das an, sendet dieser Gegner seinen Code, sobald er besiegt ist – zum Beispiel öffnet sich dann ein Tor oder eine Brücke erscheint.',
                 type: 'bool',
                 default: false,
+                rebuilds_panel: true,   // Code and Verzögerung appear or go
             },
             signal_code: {
                 label: 'Code',
-                hint: 'Diesen Code sendet der Gegner, wenn er besiegt ist (nur wenn „sendet, wenn besiegt“ an ist).',
+                hint: 'Diesen Code sendet der Gegner, wenn er besiegt ist.',
                 type: 'int',
                 default: 0,
                 min: 0,
                 max: 1000,
+                visible: (traits, traits_of, props) => props?.signal_on_defeat === true,
             },
-            signal_delay: signal_delay_placed_property('Der Gegner sendet seinen Code erst so viele Sekunden, nachdem er besiegt ist (nur wenn „sendet, wenn besiegt“ an ist).'),
+            signal_delay: { ...signal_delay_placed_property('Der Gegner sendet seinen Code erst so viele Sekunden, nachdem er besiegt ist.'),
+                visible: (traits, traits_of, props) => props?.signal_on_defeat === true },
             // Beute: absent = the Code set at the drawing (signals.js effective_loot_code)
             drop_code: {
                 label: 'Code der Beute',

@@ -1357,7 +1357,8 @@ void main() {
 				this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
 				console.log('picking up key!');
 				console.log(this.game.active_level_sprites[entry.entry_index]);
-				this.game.found_keys[entry.signal_code] = true;
+				// a key with "kein Signal" opens nothing
+				if (entry.signal_code !== null) this.game.found_keys[entry.signal_code] = true;
 				// …and sends its Code: doors with "öffnen" and layers react, too.
 				this.game.signals?.send(entry.signal_code, true, t, { delay: entry.signal_delay });
 				this.game.update_stats();
@@ -1450,27 +1451,7 @@ void main() {
 				entry = this.has_trait_at(['level_complete'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 					this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
 				if (entry) {
-					this.game.reached_flag = true;
-					this.game.ts_zoom_actor = this.game.clock.getElapsedTime();
-					let self = this;
-					let delta = entry.delta ?? 1;
-					let next_level_index = self.game.get_next_level_index(delta);
-					if (next_level_index >= 0 && next_level_index < self.game.data.levels.length) {
-						let next_level_title = self.game.data.levels[next_level_index].properties.name.trim();
-						if (next_level_title.length > 0) {
-							next_level_title = `<div><span style='color: #aaa;'>Next up:</span> ${next_level_title}</div>`;
-						}
-						this.game.curtain.show(`LEVEL COMPLETE!${next_level_title}`, 0.5, 1.0, function () {
-							self.game.level_index = self.game.get_next_level_index(delta);
-							self.game.setup();
-							self.game.run();
-						});
-					} else {
-						this.game.curtain.show('THE END', 0.5, 2.0, function () {
-							self.game.stop();
-							$('#screen').hide();
-						});
-					}
+					this.game.complete_level(entry.delta ?? 1);
 					// let sprite = this.game.data.sprites[entry.sprite_index];
 					// for (let sti = 0; sti < sprite.states.length; sti++) {
 					// 	if ('active' in sprite.states[sti].traits.checkpoint)
@@ -1883,6 +1864,35 @@ class Game {
 		}
 	}
 
+	// The level is done: by the exit (a sprite with level_complete, its placed
+	// delta) or by a Signal (level setting signal_level_complete, delta 1).
+	// Once per level (reached_flag); the camera zooms onto the figure, then the
+	// curtain leads to the next level in use – or THE END.
+	complete_level(delta = 1) {
+		if (this.reached_flag) return false;
+		this.reached_flag = true;
+		this.ts_zoom_actor = this.clock.getElapsedTime();
+		let self = this;
+		let next_level_index = self.get_next_level_index(delta);
+		if (next_level_index >= 0 && next_level_index < self.data.levels.length) {
+			let next_level_title = self.data.levels[next_level_index].properties.name.trim();
+			if (next_level_title.length > 0) {
+				next_level_title = `<div><span style='color: #aaa;'>Next up:</span> ${next_level_title}</div>`;
+			}
+			this.curtain.show(`LEVEL COMPLETE!${next_level_title}`, 0.5, 1.0, function () {
+				self.level_index = self.get_next_level_index(delta);
+				self.setup();
+				self.run();
+			});
+		} else {
+			this.curtain.show('THE END', 0.5, 2.0, function () {
+				self.stop();
+				$('#screen').hide();
+			});
+		}
+		return true;
+	}
+
 	get_next_level_index(delta) {
 		let li = this.level_index + delta;
 		while ((li >= 0) && (li < this.data.levels.length) && !this.data.levels[li].properties.use_level)
@@ -2127,7 +2137,9 @@ class Game {
 						for (let trait of Object.keys(sprite.traits)) {
 							for (let key of Object.keys(SPRITE_TRAITS[trait].placed_properties ?? {})) {
 								let data = SPRITE_TRAITS[trait].placed_properties[key];
-								let value = (placed_properties[trait] ?? {})[key] ?? data.default;
+								let stored = (placed_properties[trait] ?? {})[key];
+								// "kein Signal" (signals.js): an emptied Code stays null, it never becomes the default 0
+								let value = (stored === null && key === 'signal_code') ? null : (stored ?? data.default);
 								// Old games may store placed checkboxes as 0/1 instead of true/false.
 								if (data.type === 'bool') value = Boolean(value);
 								console.log(`setting placed prop: ${trait} / ${key}: ${value}`);
@@ -2342,7 +2354,8 @@ class Game {
 	// ------------------------------------------------------------ Signale
 	// Senders: keys (when collected), Schalter, Druckplatten, Bereiche,
 	// defeated enemies and "alle Gegner besiegt". Receivers: doors
-	// (door_reaction) and layers (signal_code / signal_reaction). See
+	// (door_reaction), layers (signal_code / signal_reaction), signs that
+	// speak (speaks_on_signal) and the level (signal_level_complete). See
 	// signals.js. Every level starts with a new bus; objects keep their state
 	// when the figure dies.
 	setup_signals(level) {
@@ -2364,7 +2377,14 @@ class Game {
 				entry.plate_down = false;
 				this.show_trait_state(entry, 'pressure_plate', 'up');
 			}
+			// a sign that speaks on "an" (absent = only with the action key, as always)
+			if ('text' in traits && entry.speaks_on_signal === true)
+				this.signals.connect(stored_signal_code(entry.signal_code), (value) => { if (value) this.signal_speech(entry_index); });
 		});
+		// "geschafft bei Signal" (level setting; absent = only the exit completes the level)
+		const complete = level.properties?.signal_level_complete;
+		if (Number.isInteger(complete))
+			this.signals.connect(complete, (value) => { if (value) this.complete_level(1); });
 		for (let li = 0; li < level.layers.length; li++) {
 			const layer = level.layers[li];
 			if (!layer_reacts_to_signals(layer.properties)) continue;
@@ -2378,7 +2398,7 @@ class Game {
 			for (const baddie of this.baddies) if (baddie.layer_index === li) baddie.mesh.userData.signal_layer = li;
 			let visible = layer_visible_at_start(reaction);
 			this.set_layer_signal_visible(li, visible, true);
-			this.signals.connect(layer.properties.signal_code ?? 0, (value) => {
+			this.signals.connect(stored_signal_code(layer.properties.signal_code), (value) => {
 				visible = layer_visible_after(reaction, value, visible);
 				this.set_layer_signal_visible(li, visible, this.signals.immediate === true);
 			});
@@ -2387,7 +2407,7 @@ class Game {
 		this.signal_areas = [];
 		level.layers.forEach((layer, li) => {
 			if (layer?.type !== 'signal_area' || !(layer.rects ?? []).some(valid_signal_rect)) return;
-			this.signal_areas.push({ li, code: layer.properties?.signal_code ?? 0, rects: layer.rects, inside: false,
+			this.signal_areas.push({ li, code: stored_signal_code(layer.properties?.signal_code), rects: layer.rects, inside: false,
 				delay: layer.properties?.signal_delay });
 		});
 		// "alle Gegner besiegt" (level setting; absent = nothing is sent)
@@ -2420,7 +2440,7 @@ class Game {
 	// do not count). Either may send later (Verzögerung).
 	baddie_defeated(baddie, t) {
 		if (baddie.placed_signal?.signal_on_defeat === true)
-			this.signals?.send(baddie.placed_signal.signal_code ?? 0, true, t, { delay: baddie.placed_signal.signal_delay });
+			this.signals?.send(stored_signal_code(baddie.placed_signal.signal_code), true, t, { delay: baddie.placed_signal.signal_delay });
 		if (this.signal_all_defeated === null || this.signal_all_defeated === undefined) return;
 		// an enemy that cannot be defeated ("unverwundbar") does not count either
 		if (this.baddies.some(other => other.active && !other.signal_hidden && other.traits?.invincible !== true)) return;
@@ -2473,6 +2493,14 @@ class Game {
 		}
 		const entry_index = (this.action_key_targets.text ?? [])[0];
 		if (entry_index !== undefined) this.start_speech(entry_index, t);
+	}
+
+	// A sign that speaks on a Signal: it starts at once, on the game clock
+	// (signals may arrive with time 0 when the level decides at once); a sign
+	// that is already speaking goes on.
+	signal_speech(entry_index) {
+		if (this.speech.active && this.speech.current?.source === entry_index) return false;
+		return this.start_speech(entry_index, this.clock.getElapsedTime());
 	}
 
 	start_speech(entry_index, t) {

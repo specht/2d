@@ -150,7 +150,7 @@ Done: during "Level testen" the Spielen pane shows the cards beside the game (wh
 Roughly in order of usefulness (each must stay an understandable choice in the editor, not scripting):
 
 - "und" and counters: a receiver that waits for two Codes, or a Code that has to arrive three times ("drei Schalter umlegen")
-- more receivers: "Level geschafft" (could answer the open level-completion question: "alle Gegner besiegt → Level geschafft"), a sign or figure that speaks on a Signal or when the figure walks past (speech.js is ready), a moving platform or lift that starts, spawn / remove a single sprite, a trap that switches on and off, set a simple game flag
+- more receivers (a sign that speaks on a Signal and "geschafft bei Signal" exist): a moving platform or lift that starts, spawn / remove a single sprite, a trap that switches on and off, set a simple game flag
 - more senders: sprite collected (any pickup with a Code), level starts; enemies pressing a Druckplatte
 - signals across levels only with an explicit design (flags), never implicitly: keys and Codes are per level
 
@@ -485,7 +485,7 @@ The Signale recipes have their own category, in this order: Schalter → Tor, Dr
 - **Eine Falle mit Verzögerung** – a Druckplatte lets spikes appear a second later, so Pip can still run. Left out for now: it is the Druckplatte recipe with one more number (Verzögerung is a tip in Tor mit Zeit and Falle). Worth it once something can drop stones on a Signal.
 - **Licht an** – a Schalter that switches a dark colour layer (abdunkeln) off and a Lichtschein on: a room that becomes light. Could also fit "Level gestalten".
 
-Would need new features: two senders that must both be active (AND), a counter ("drei Schalter umlegen"), a text that is spoken on a Signal, a level that is completed by a Signal (then: the recipe on completing a level, see Level completion).
+Now possible: a sign that speaks when the figure walks past (Bereich → Hinweistext "spricht bei Signal"), a level that is done when all enemies are defeated ("alle Gegner besiegt" → "geschafft bei Signal"; then the recipe on completing a level, see Level completion). Would need new features: two senders that must both be active (AND), a counter ("drei Schalter umlegen").
 
 ---
 
