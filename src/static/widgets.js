@@ -403,7 +403,7 @@ class DragAndDropWidget {
 }
 
 // A small right-click menu. entries: { label, icon?, callback, disabled?, hint?,
-// children? } or '-' for a line. It closes on a click elsewhere, Esc or scrolling.
+// children? } or '-' for a line. It closes on a press anywhere else, Esc or scrolling.
 function show_context_menu(x, y, entries, options = {}) {
     close_context_menu();
     const menu = $('<div>').addClass('context-menu').attr('role', 'menu');
@@ -448,9 +448,24 @@ function show_context_menu(x, y, entries, options = {}) {
     // a submenu opens to the left when there is no room on the right
     if (x + w * 2 > window.innerWidth) menu.addClass('subs-left');
     setTimeout(() => {
-        $(document).on('mousedown.contextmenu touchstart.contextmenu', (e) => {
-            if (!$(e.target).closest('.context-menu').length) close_context_menu();
-        });
+        // A press anywhere outside closes it – in the capture phase, so that
+        // nothing that stops the event on its way (the level view, the sprite
+        // canvas, the Signale panel, sprite buttons) can keep the menu open.
+        // On a drawing surface that press only closes the menu and does not
+        // paint as well. The open dropdown's own button is left alone: its
+        // click closes the menu itself instead of opening it again.
+        context_menu_outside_press = (e) => {
+            if (!$('.context-menu').length) return;
+            const target = $(e.target);
+            if (target.closest('.context-menu, .dropdown-button.open, .has_submenu.open').length) return;
+            close_context_menu();
+            if (target.closest('#level, #canvas').length) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+        };
+        for (const type of ['mousedown', 'touchstart'])
+            document.addEventListener(type, context_menu_outside_press, { capture: true, passive: false });
         $(document).on('keydown.contextmenu', (e) => { if (e.key === 'Escape') close_context_menu(); });
         $(window).on('blur.contextmenu resize.contextmenu', () => close_context_menu());
         // scrolling inside a long menu is fine, scrolling anything else closes it
@@ -458,7 +473,14 @@ function show_context_menu(x, y, entries, options = {}) {
     }, 0);
 }
 
+let context_menu_outside_press = null;
+
 function close_context_menu() {
+    if (context_menu_outside_press) {
+        for (const type of ['mousedown', 'touchstart'])
+            document.removeEventListener(type, context_menu_outside_press, { capture: true });
+        context_menu_outside_press = null;
+    }
     $('.context-menu').trigger('remove-menu').remove();
     $(document).off('.contextmenu');
     $(window).off('.contextmenu');
