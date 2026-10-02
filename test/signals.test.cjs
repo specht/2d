@@ -118,10 +118,10 @@ const LayerFade = require('../src/static/layer_fade.js');
 const quiet = { log() {}, warn() {} };
 const GameSignals = new Function('SignalBus', 'door_signal_action', 'layer_reacts_to_signals',
     'layer_visible_at_start', 'layer_visible_after', 'signal_fade_alpha', 'layer_fade_seconds',
-    'valid_signal_rect', 'point_in_signal_rects', 'LayerFade', 'console',
+    'valid_signal_rect', 'point_in_signal_rects', 'door_setting', 'LayerFade', 'console',
     `return class { ${methods} };`)(SignalBus, door_signal_action, layer_reacts_to_signals,
     layer_visible_at_start, layer_visible_after, signals.signal_fade_alpha, signals.layer_fade_seconds,
-    signals.valid_signal_rect, signals.point_in_signal_rects, LayerFade, quiet);
+    signals.valid_signal_rect, signals.point_in_signal_rects, signals.door_setting, LayerFade, quiet);
 
 const state = (trait, name, frames = 1) => ({ traits: { [trait]: { [name]: {} } }, properties: { fps: 8 }, frames: Array(frames).fill({}) });
 const SPRITES = [
@@ -494,4 +494,84 @@ test('picking looks for a sender first and for a receiver second', () => {
     assert.equal(pick_signal_object(level, 50, 10, t, editor_size, null, 'sender').kind, 'area');
     assert.equal(pick_signal_object(level, 50, 10, t, editor_size, null, 'receiver').kind, 'layer');
     assert.equal(pick_signal_object(level, 90, 90, t, editor_size, null, 'receiver').kind, 'area');
+});
+
+// ------------------------------- what belongs to the drawing, what to the copy
+
+test('Beute: the loot key Code belongs to the placed enemy, else the drawing', () => {
+    const { loot_key_code, effective_loot_code, placed_signal_roles, signal_partners, describe_signal_partners,
+        signal_objects, signal_codes_in_level } = signals;
+    const traits = {
+        k: { key: {} }, c: { pickup: {} }, d: { door: {} },
+        dieb: { baddie: { drop: { sprite_id: 'k', signal_code: 2 } } },
+        alt: { baddie: { drop: { sprite_id: 'k' } } }, // older games: no Code at all
+        muenze: { baddie: { drop: { sprite_id: 'c', signal_code: 2 } } },
+    };
+    const t = ref => traits[ref];
+    assert.equal(loot_key_code(undefined, traits.dieb.baddie, t), 2);
+    assert.equal(loot_key_code({ drop_code: 5 }, traits.dieb.baddie, t), 5);
+    assert.equal(loot_key_code({ drop_code: 0 }, traits.dieb.baddie, t), 0); // 0 typed in on purpose
+    assert.equal(loot_key_code(undefined, traits.alt.baddie, t), 0);
+    assert.equal(loot_key_code({ drop_code: 5 }, traits.muenze.baddie, t), null); // a coin is no key
+    assert.equal(effective_loot_code({ signal_on_defeat: true }, { signal_code: 4 }), 4);
+    // the runtime resolves sprite ids to indices
+    assert.equal(loot_key_code({ drop_code: 3 }, { drop: { sprite_index: 0 } }, i => [{ key: {} }][i]), 3);
+    // an enemy can send when defeated and leave a key behind
+    const both = ['dieb', 0, 0, { baddie: { signal_on_defeat: true, signal_code: 7, drop_code: 5 } }];
+    assert.deepEqual(placed_signal_roles(both, traits.dieb, t).map(r => [r.role.id ?? r.role.trait, r.code]),
+        [['baddie', 7], ['loot', 5]]);
+    const level = { layers: [{ type: 'sprites', properties: {}, sprites: [
+        both, ['dieb', 30, 0], ['d', 60, 0, { door: { signal_code: 5 } }],
+    ] }] };
+    assert.equal(describe_signal_partners(5, signal_partners(level, 5, t)),
+        'Code 5 in diesem Level – sendet: 1 Gegner mit Schlüssel · reagiert: 1 Tür');
+    assert.equal(describe_signal_partners(2, signal_partners(level, 2, t)),
+        'Code 2 in diesem Level – sendet: 1 Gegner mit Schlüssel · noch nichts reagiert darauf');
+    const objects = signal_objects(level, t, () => ({ width: 24, height: 24 }));
+    assert.deepEqual(objects.map(o => [o.placed_index, o.role, o.code, o.sends]),
+        [[0, 'baddie', 7, true], [0, 'loot', 5, true], [1, 'loot', 2, true], [2, 'door', 5, false]]);
+    assert.ok(signal_codes_in_level({ layers: [{ type: 'sprites', sprites: [['dieb', 0, 0, { baddie: { drop_code: 8 } }]] }] }).has(8));
+});
+
+test('new Schalter and Druckplatten get a free Code; keys and doors keep 0', () => {
+    const { give_new_senders_codes, give_defeat_sender_code } = signals;
+    const traits = { s: { switch: {} }, p: { pressure_plate: {} }, k: { key: {} }, d: { door: {} } };
+    const level = { properties: {}, layers: [{ type: 'sprites', properties: {}, sprites: [
+        ['s', 0, 0, { switch: { signal_code: 1 } }],
+    ] }] };
+    const fresh = [['s', 24, 0], ['p', 48, 0], ['k', 72, 0], ['d', 96, 0], ['s', 120, 0, { switch: { signal_code: 0 } }]];
+    give_new_senders_codes(level, fresh, ref => traits[ref]);
+    assert.deepEqual(fresh.map(p => p[3]), [
+        { switch: { signal_code: 2 } }, { pressure_plate: { signal_code: 3 } }, undefined, undefined,
+        { switch: { signal_code: 0 } }]); // a Code that is there stays
+    const enemy = { signal_on_defeat: true };
+    give_defeat_sender_code(level, enemy);
+    assert.equal(enemy.signal_code, 2); // nothing in the level uses 2 yet (fresh is not placed)
+    const chosen = { signal_on_defeat: true, signal_code: 0 };
+    give_defeat_sender_code(level, chosen);
+    assert.equal(chosen.signal_code, 0);
+    const silent = {};
+    give_defeat_sender_code(level, silent);
+    assert.deepEqual(silent, {});
+});
+
+test('a placed door may open differently from its drawing', () => {
+    const { door_setting } = signals;
+    assert.equal(door_setting(undefined, true), true);
+    assert.equal(door_setting(undefined, undefined), false);
+    assert.equal(door_setting(false, true), false);
+    assert.equal(door_setting(true, false), true);
+    assert.equal(door_setting('ja', false), false); // only true/false count
+    // in the game: the drawn door 4 is locked, door 1 is not
+    const game = level_game([{ properties: { collision_detection: true }, sprites: [
+        [4, 0, 0, { door_closed: true }],
+        [4, 48, 0, { door_closed: true, lockable: false }],
+        [1, 96, 0, { door_closed: true, lockable: true, signal_code: 2 }],
+    ] }]);
+    for (const i of [0, 1, 2]) game.open_door_intent(i, 0);
+    assert.deepEqual(game.active_level_sprites.map(e => e.door_state), ['idle', 'opening', 'idle']);
+    assert.equal(game.active_level_sprites[2].door_closed, true);
+    game.found_keys[2] = true;
+    game.open_door_intent(2, 0);
+    assert.equal(game.active_level_sprites[2].door_closed, false);
 });

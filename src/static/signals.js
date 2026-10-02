@@ -1,7 +1,8 @@
 // Signale: "wenn das passiert, mach das".
 //
 // A sender sends its Code together with "an" (true) or "aus" (false):
-// - a key, when it is collected: an
+// - a key, when it is collected: an (also a key an enemy leaves behind; its
+//   Code is the placed enemy's baddie.drop_code, see loot_key_code)
 // - a Schalter, when it is flipped with the action key: an or aus
 // - a Druckplatte, when the player steps on it (an) and off it again (aus)
 // - a Bereich (layer type signal_area), when the player's centre enters one
@@ -107,6 +108,14 @@ function door_signal_action(reaction, value, closed) {
     }
 }
 
+// How a door opens: set at the drawing (traits.door.lockable / automatic /
+// ...); a placed door may decide otherwise (placed door.lockable / automatic,
+// true or false; absent = as drawn). So one door drawing can be a plain door
+// in one place and a gate that only a Schalter opens in another.
+function door_setting(placed_value, drawn_value) {
+    return typeof placed_value === 'boolean' ? placed_value : Boolean(drawn_value);
+}
+
 function layer_reacts_to_signals(properties) {
     const reaction = properties?.signal_reaction;
     return typeof reaction === 'string' && reaction !== 'none' && reaction in LAYER_SIGNAL_REACTIONS;
@@ -146,9 +155,11 @@ function switch_flipped(pressed_now, pressed_before) {
     return Boolean(pressed_now) && !pressed_before;
 }
 
-// Which placed sprites send or receive a Code. Every Code is stored as
+// Which placed sprites send or receive a Code. Their Code is stored as
 // placed[3][trait].signal_code (absent = 0, the default). An enemy only sends
-// when signal_on_defeat is set.
+// when signal_on_defeat is set. What a sprite is (a key, a Schalter, a door)
+// belongs to its drawing; what it is connected to belongs to each placed copy,
+// so one drawing can be used for different connections.
 const SIGNAL_SPRITE_ROLES = [
     { trait: 'key', sends: true, one: 'Schlüssel', many: 'Schlüssel' },
     { trait: 'switch', sends: true, one: 'Schalter', many: 'Schalter' },
@@ -167,6 +178,71 @@ function placed_signal_role(placed, traits) {
         return { role, code: Number(props?.signal_code ?? 0) };
     }
     return null;
+}
+
+// Beute: an enemy that leaves a key behind sends that key's Code when the key
+// is collected. The Code belongs to the placed enemy (placed baddie.drop_code);
+// absent = the Code set at the drawing (traits.baddie.drop.signal_code, which is
+// all that older games have), and 0 without either.
+const SIGNAL_LOOT_ROLE = { trait: 'baddie', id: 'loot', sends: true, one: 'Gegner mit Schlüssel', many: 'Gegner mit Schlüssel' };
+
+// The loot key's Code of a placed enemy, or null if it does not leave a key.
+// traits_of(ref) gives the traits of a sprite (ref: its id, or its index in
+// the game runtime).
+function loot_key_code(placed_props, baddie_traits, traits_of) {
+    const drop = baddie_traits?.drop;
+    if (!drop || typeof drop !== 'object' || typeof traits_of !== 'function') return null;
+    const loot = traits_of(drop.sprite_id ?? drop.sprite_index);
+    if (!loot || !('key' in loot)) return null;
+    return effective_loot_code(placed_props, drop);
+}
+
+// The Code a dropped key gets: the placed enemy's own, else the drawing's.
+function effective_loot_code(placed_props, drop) {
+    const own = placed_props?.drop_code;
+    if (Number.isInteger(own)) return own;
+    return Number.isInteger(drop?.signal_code) ? drop.signal_code : 0;
+}
+
+// Every role of a placed sprite (an enemy may send when defeated and also
+// leave a key behind), each with its Code.
+function placed_signal_roles(placed, traits, traits_of = null) {
+    const roles = [];
+    const found = placed_signal_role(placed, traits);
+    if (found) roles.push(found);
+    if (traits && 'baddie' in traits) {
+        const code = loot_key_code(placed?.[3]?.baddie, traits.baddie, traits_of);
+        if (code !== null) roles.push({ role: SIGNAL_LOOT_ROLE, code });
+    }
+    return roles;
+}
+
+// Newly placed Schalter and Druckplatten get a free Code, so they never start
+// something by accident (0 stays with the key/door pairs of older games, where
+// it has always been the default). Keys and doors keep 0: a key and a door
+// placed without a Code still belong together. placed_list: placed sprites
+// that are already in the level (or about to be added: also_taken).
+const NEW_SENDER_TRAITS = ['switch', 'pressure_plate'];
+
+function give_new_senders_codes(level, placed_list, traits_of) {
+    const taken = new Set();
+    for (const placed of placed_list ?? []) {
+        const traits = traits_of(placed?.[0]) ?? {};
+        const trait = NEW_SENDER_TRAITS.find(trait => trait in traits);
+        if (!trait) continue;
+        if (!placed[3] || typeof placed[3] !== 'object') placed[3] = {};
+        const props = placed[3][trait] ??= {};
+        if ('signal_code' in props) continue;
+        props.signal_code = free_signal_code(level, taken);
+        taken.add(props.signal_code);
+    }
+}
+
+// "sendet, wenn besiegt" switched on: an enemy without a Code yet gets a free
+// one. A Code that is already there (also 0, typed in on purpose) stays.
+function give_defeat_sender_code(level, baddie_props) {
+    if (!baddie_props || baddie_props.signal_on_defeat !== true || 'signal_code' in baddie_props) return;
+    baddie_props.signal_code = free_signal_code(level);
 }
 
 function valid_signal_rect(rect) {
@@ -192,9 +268,10 @@ function signal_partners(level, code, traits_of) {
         const name = layer?.properties?.name || `Ebene ${li + 1}`;
         if (layer?.type === 'sprites') {
             for (const placed of layer.sprites ?? []) {
-                const found = placed_signal_role(placed, traits_of(placed[0]));
-                if (found && found.code === wanted)
-                    counts[found.role.trait] = (counts[found.role.trait] ?? 0) + 1;
+                for (const found of placed_signal_roles(placed, traits_of(placed[0]), traits_of)) {
+                    const id = found.role.id ?? found.role.trait;
+                    if (found.code === wanted) counts[id] = (counts[id] ?? 0) + 1;
+                }
             }
         }
         if (layer?.type === 'signal_area' && Number(layer.properties?.signal_code ?? 0) === wanted)
@@ -209,8 +286,12 @@ function signal_partners(level, code, traits_of) {
 
 // "Code 7 in diesem Level – sendet: 1 Schalter · reagiert: 2 Türen, Ebene »Brücke«"
 function describe_signal_partners(code, partners) {
-    const list = (sends) => SIGNAL_SPRITE_ROLES.filter(role => role.sends === sends && partners.counts[role.trait])
-        .map(role => `${partners.counts[role.trait]} ${partners.counts[role.trait] === 1 ? role.one : role.many}`);
+    const list = (sends) => [...SIGNAL_SPRITE_ROLES, SIGNAL_LOOT_ROLE]
+        .filter(role => role.sends === sends && partners.counts[role.id ?? role.trait])
+        .map(role => {
+            const count = partners.counts[role.id ?? role.trait];
+            return `${count} ${count === 1 ? role.one : role.many}`;
+        });
     const senders = [...list(true), ...(partners.areas ?? []).map(name => `Bereich »${name}«`),
         ...(partners.all_defeated ? ['alle Gegner besiegt'] : [])];
     const receivers = [...list(false), ...partners.layers.map(name => `Ebene »${name}«`)];
@@ -262,11 +343,14 @@ function signal_objects(level, traits_of, size_of) {
         if (layer?.type === 'sprites') {
             (layer.sprites ?? []).forEach((placed, pi) => {
                 const size = size_of(placed[0]);
-                const found = size && placed_signal_role(placed, traits_of(placed[0]));
-                if (!found) return;
-                const rect = placed_signal_rect(placed, size);
-                objects.push({ kind: 'sprite', layer_index: li, placed_index: pi, trait: found.role.trait,
-                    code: found.code, sends: found.role.sends, rect, anchor: signal_rect_centre(rect) });
+                if (!size) return;
+                // an enemy can be there twice: sends when defeated, and leaves a key
+                for (const found of placed_signal_roles(placed, traits_of(placed[0]), traits_of)) {
+                    const rect = placed_signal_rect(placed, size);
+                    objects.push({ kind: 'sprite', layer_index: li, placed_index: pi, trait: found.role.trait,
+                        role: found.role.id ?? found.role.trait,
+                        code: found.code, sends: found.role.sends, rect, anchor: signal_rect_centre(rect) });
+                }
             });
         }
         const is_area = layer?.type === 'signal_area';
@@ -405,6 +489,7 @@ function signal_codes_in_level(level) {
             for (const trait of Object.keys(props)) {
                 add(props[trait]?.signal_code);
                 add(props[trait]?.door_code);
+                add(props[trait]?.drop_code);
             }
         }
     }
@@ -492,6 +577,8 @@ if (typeof module !== 'undefined' && module.exports) {
         layer_fade_seconds, DOOR_SIGNAL_REACTIONS, LAYER_SIGNAL_REACTIONS, SignalBus,
         door_signal_action, layer_reacts_to_signals, layer_visible_at_start, layer_visible_after,
         switch_flipped, SIGNAL_SPRITE_ROLES, placed_signal_role, valid_signal_rect, point_in_signal_rects,
+        SIGNAL_LOOT_ROLE, loot_key_code, effective_loot_code, placed_signal_roles, NEW_SENDER_TRAITS,
+        give_new_senders_codes, give_defeat_sender_code, door_setting,
         signal_partners, describe_signal_partners, signal_codes_in_level, free_signal_code,
         signal_objects, signal_links, same_signal_object, pick_signal_object, connect_signal_objects,
         promote_legacy_signals,

@@ -1008,7 +1008,7 @@ class Game {
             if ('key' in chosen.traits) {
                 new NumberWidget({
                     container: box, label: 'Schlüssel-Code',
-                    hint: 'Der Schlüssel öffnet Türen mit demselben Code.',
+                    hint: 'Der Schlüssel öffnet Türen mit demselben Code. Das gilt für jeden Gegner dieser Art – im Level kannst du jedem einzelnen einen eigenen Code geben: Klick ihn an und stell „Code der Beute“ ein.',
                     min: 0, max: 1000, step: 1, decimalPlaces: 0,
                     get: () => baddie().drop?.signal_code ?? 0,
                     set: (x) => { baddie().drop.signal_code = Math.round(x); },

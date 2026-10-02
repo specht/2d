@@ -1378,7 +1378,8 @@ void main() {
 				// console.log(sprite);
 				// console.log(`door here - closed: ${entry.door_closed} - x/y sense: ${sprite.traits.door.xsense} / ${sprite.traits.door.ysense}`);
 
-				if (sprite.traits.door.automatic) {
+				// a placed door may open differently from its drawing (signals.js door_setting)
+				if (door_setting(this.game.active_level_sprites[entry.entry_index].automatic, sprite.traits.door.automatic)) {
 					this.game.open_door_intent(entry.entry_index, t);
 				} else {
 					let ok = true;
@@ -1753,7 +1754,8 @@ class Game {
 
 	// Beute (traits.baddie.drop = { sprite_index, signal_code }): a defeated enemy
 	// leaves a sprite behind that can be collected like a placed one – a key
-	// (with its door code) or anything "man kann es einsammeln". Absent = nothing.
+	// (with the placed enemy's baddie.drop_code, else the drawing's Code) or
+	// anything "man kann es einsammeln". Absent = nothing.
 	spawn_drop(owner) {
 		const drop = owner?.traits?.drop;
 		const si = drop?.sprite_index;
@@ -1775,7 +1777,8 @@ class Game {
 		for (const trait of Object.keys(sprite.traits))
 			for (const [key, data] of Object.entries(SPRITE_TRAITS[trait]?.placed_properties ?? {}))
 				entry[key] = data.type === 'bool' ? Boolean(data.default) : data.default;
-		if ('key' in sprite.traits) entry.signal_code = Number.isInteger(drop.signal_code) ? drop.signal_code : 0;
+		// the placed enemy's own Code, else the drawing's (signals.js effective_loot_code)
+		if ('key' in sprite.traits) entry.signal_code = effective_loot_code(owner.placed_signal, drop);
 		const index = this.active_level_sprites.length;
 		this.active_level_sprites.push(entry);
 		this.interval_tree_x.insert([x - sprite.width / 2, x + sprite.width / 2], index);
@@ -2155,7 +2158,8 @@ class Game {
 					else if ('baddie' in sprite.traits) {
 						const baddie = new Character(this, si, mesh);
 						baddie.layer_index = li;
-						// Signale: "sendet, wenn besiegt" and its Code (absent = sends nothing)
+						// Signale: "sendet, wenn besiegt" and its Code (absent = sends nothing),
+						// and the Code of a key it leaves behind (drop_code)
 						baddie.placed_signal = placed[3]?.baddie ?? null;
 						this.baddies.push(baddie);
 					}
@@ -2836,9 +2840,14 @@ class Game {
 		if (!panel.length || !this.data) return;
 		panel.empty();
 		const placed = new Set();
+		let manual_door = false; // a placed door that needs F (door_setting)
 		for (const level of this.data.levels ?? [])
 			for (const layer of level.layers ?? [])
-				if (layer.type === 'sprites') for (const p of layer.sprites ?? []) placed.add(p[0]);
+				if (layer.type === 'sprites') for (const p of layer.sprites ?? []) {
+					placed.add(p[0]);
+					const door = this.data.sprites[p[0]]?.traits?.door;
+					if (door && !door_setting(p[3]?.door?.automatic, door.automatic)) manual_door = true;
+				}
 		const sprites = [...placed].map(si => this.data.sprites[si]).filter(Boolean);
 		const has = (fn) => sprites.some(sp => fn(sp.traits ?? {}));
 		// the same attack list a Character gets (new melee/ranged traits or old swords)
@@ -2851,7 +2860,7 @@ class Game {
 		const uses = {
 			left: true, right: true, jump: true,
 			up: has(t => 'ladder' in t), down: has(t => 'ladder' in t),
-			action: has(t => ('door' in t && !t.door?.automatic) || 'text' in t || 'switch' in t),
+			action: manual_door || has(t => 'text' in t || 'switch' in t),
 			switch: has(t => 'switch' in t),
 			melee: actor_attack('nah', 'swing'),
 			ranged: actor_attack('fern', 'projectile'),
@@ -3205,7 +3214,7 @@ class Game {
 		if (entry.door_state === 'opening' || entry.door_closed === false)
 			return;
 		let ok = false;
-		if (sprite.traits.door.lockable && !options.force) {
+		if (door_setting(entry.lockable, sprite.traits.door.lockable) && !options.force) {
 			// check if we have correct key
 			console.log(`Checking door key: ${entry.signal_code}, have: `, this.found_keys)
 			if (this.found_keys[entry.signal_code] === true) {

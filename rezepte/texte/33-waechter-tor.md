@@ -47,7 +47,7 @@ erwartet:
 1. Gib deiner Figur einen Angriff wie im Rezept *Schwertkampf*.
 2. Zeichne das Tor wie im Rezept *Ein Schalter öffnet das Tor*: **ist eine Tür**, **ist verschließbar** und **automatische Tür** an.
 3. Setz das Tor ins **Level** in eine hohe Mauer und den Gegner davor.
-4. Klicke im Level auf den Gegner: Schalte **sendet, wenn besiegt** an und trag bei **Code** eine Zahl ein, z. B. **5**.
+4. Klicke im Level auf den Gegner und schalte **sendet, wenn besiegt** an. Er bekommt einen eigenen **Code**; du kannst ihn ändern, z. B. in **5**.
 5. Klicke auf das Tor: **Code** auch **5**, und unter **Bei Signal** wählst du **öffnen**.
 
 Unter dem Code steht, was zusammengehört: *Code 5 in diesem Level – sendet: 1 Gegner · reagiert: 1 Tür*.

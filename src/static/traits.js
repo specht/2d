@@ -351,6 +351,17 @@ var SPRITE_TRAITS = {
             },
         },
         placed_properties: {
+            // absent = as drawn (signals.js door_setting)
+            lockable: {
+                label: 'ist verschließbar',
+                hint: '„wie beim Sprite“: so, wie du die Tür gezeichnet hast. Hier kannst du es für diese eine Tür anders einstellen – dann reicht eine Zeichnung für eine normale Tür und für ein Tor, das nur ein Schlüssel oder Schalter öffnet.',
+                type: 'override',
+            },
+            automatic: {
+                label: 'automatische Tür',
+                hint: '„wie beim Sprite“: so, wie du die Tür gezeichnet hast. „ja“: Die Tür geht auf, sobald die Spielfigur davorsteht. „nein“: Man muss die Aktionstaste (F) drücken.',
+                type: 'override',
+            },
             // older games: door_code (signals.js promote_legacy_signals)
             signal_code: {
                 label: 'Code',
@@ -700,6 +711,18 @@ var SPRITE_TRAITS = {
                 default: 0,
                 min: 0,
                 max: 1000,
+            },
+            // Beute: absent = the Code set at the drawing (signals.js effective_loot_code)
+            drop_code: {
+                label: 'Code der Beute',
+                hint: 'Dieser Gegner lässt einen Schlüssel zurück. Der Schlüssel öffnet Türen mit diesem Code – so kann jeder Gegner im Level einen anderen Schlüssel tragen. Am Anfang steht hier der Code, den du beim Gegner unter „Beute“ eingestellt hast.',
+                type: 'int',
+                min: 0,
+                max: 1000,
+                // only for an enemy whose Beute is a key; until set, the drawing's Code
+                visible: (traits, traits_of) => typeof loot_key_code !== 'function' ||
+                    loot_key_code(null, traits?.baddie, traits_of) !== null,
+                default_for: (traits) => Number.isInteger(traits?.baddie?.drop?.signal_code) ? traits.baddie.drop.signal_code : 0,
             },
         },
         properties: {
