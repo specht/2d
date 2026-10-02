@@ -134,7 +134,6 @@ Wanted next. With five or six signals in a level, "Code 4" says little; a name (
 
 Still open for the overview:
 
-- during "Level testen" a card lights up when its signal arrives, so children watch the rules happen while they play (needs a small message from the game frame to the studio)
 - "+ Neue Regel" in the panel that starts the Verbinden tool
 
 **Names for signals instead of bare numbers.** The Code stays a number in the saved game and in the engine (`free_signal_code`, the Verbinden tool, recipe checks, `fix_game_data` all keep working); a level may give its Codes names: optional `level.properties.signal_names`, e.g. `{ "4": "Brücke" }` (absent = numbers only, exactly as today; editor-only, never read by the game; renaming changes one place). Not strings as Codes: "Brücke" and "brücke " would be two different signals, an invisible and frustrating mistake.
@@ -146,7 +145,7 @@ Still open for names:
 - the Signale recipes then use names ("Brücke") instead of "Code 4"
 - a name whose Code nothing uses any more is invisible (no card) and keeps its number taken; offer a way to see or remove such names if children run into it
 
-Order: names with the dropdown → cards lighting up in test runs.
+Done: during "Level testen" the Spielen pane shows the cards beside the game (while the Signale-Übersicht is on); a card flashes when its signal arrives and shows "an"/"aus".
 
 ## Further Signale extensions
 

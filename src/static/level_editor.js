@@ -2239,12 +2239,7 @@ class LevelEditor {
             this.signal_overview_key = null;
             return;
         }
-        const { traits_of } = this.signal_context();
-        const name_of = (ref) => {
-            const index = this.game.sprite_index_for_ref(ref);
-            return Number.isInteger(index) && this.game.data.sprites[index] ? sprite_label(this.game.data.sprites[index], index) : '';
-        };
-        const cards = signal_rules(level, traits_of, name_of);
+        const cards = this.signal_cards(level);
         const key = JSON.stringify([this.level_index, cards]);
         if (panel.length && key === this.signal_overview_key) return;
         this.signal_overview_key = key;
@@ -2263,42 +2258,137 @@ class LevelEditor {
         if (!cards.length) {
             $('<p class="signal-overview-empty">').text('Noch nichts in diesem Level sendet oder reagiert auf ein Signal. Setz zum Beispiel einen Schalter und ein Tor ins Level und verbinde sie mit dem Werkzeug Verbinden (R).').appendTo(body);
         }
-        for (const card of cards) {
-            const box = $('<div class="signal-rule">').toggleClass('signal-rule-problem', !!card.problem).appendTo(body);
-            box.css('--signal-color', signal_link_color(card.code));
+        for (const card of cards) this.build_signal_card(body, card, true);
+        body.scrollTop(scroll);
+    }
+
+    // Every Code of a level as rule cards (signal_rules), with sprite labels.
+    signal_cards(level) {
+        const { traits_of } = this.signal_context();
+        const name_of = (ref) => {
+            const index = this.game.sprite_index_for_ref(ref);
+            return Number.isInteger(index) && this.game.data.sprites[index] ? sprite_label(this.game.data.sprites[index], index) : '';
+        };
+        return signal_rules(level, traits_of, name_of);
+    }
+
+    // One "Wenn … dann …" card. interactive: in the level editor (hover shows
+    // its lines, lines select, the name can be changed); else only to read
+    // (the panel beside a test run).
+    build_signal_card(body, card, interactive) {
+        const box = $('<div class="signal-rule">').toggleClass('signal-rule-problem', !!card.problem).appendTo(body);
+        box.css('--signal-color', signal_link_color(card.code));
+        if (interactive) {
             box.on('mouseenter', () => { this.signal_focus_code = card.code; this.build_signal_links(); this.render(); });
             box.on('mouseleave', () => { this.signal_focus_code = null; this.build_signal_links(); this.render(); });
             $('<button class="signal-rule-code">').text(`Code ${card.code}`).attr('title', 'Alles mit diesem Code zeigen')
                 .on('click', () => this.focus_signal_code(card.code)).appendTo(box);
             // a named Code: its name on top, the number stays small on the right
             this.add_signal_rule_name(box, card);
-            const section = (word, lines, empty) => {
-                const row = $('<div class="signal-rule-row">').appendTo(box);
-                $('<span class="signal-rule-word">').text(word).appendTo(row);
-                const list = $('<div class="signal-rule-lines">').appendTo(row);
-                if (!lines.length) $('<div class="signal-rule-missing">').text(empty).appendTo(list);
-                lines.forEach((line, i) => {
-                    const entry = $('<div class="signal-rule-line">').appendTo(list);
-                    if (i > 0) $('<span class="signal-rule-or">').text(word === 'Wenn' ? 'oder ' : 'und ').appendTo(entry);
-                    $('<span>').text(line.text + (line.count > 1 ? ` (${line.count}×)` : '')).appendTo(entry);
-                    if (line.objects.length) {
-                        entry.addClass('signal-rule-pick').attr('title', 'Auswählen');
-                        let next = 0;
-                        entry.on('click', () => { this.pick_signal_overview_object(line.objects[next % line.objects.length]); next++; });
-                    }
-                });
-            };
-            section('Wenn', card.senders, 'nichts sendet diesen Code');
-            section('dann', card.receivers, 'nichts reagiert darauf');
-            if (card.off.length) $('<div class="signal-rule-off">').text(card.off.join(' · ')).appendTo(box);
-            if (card.problem === 'no_receiver')
-                $('<div class="signal-rule-warning">').append($('<i class="fa fa-exclamation-triangle">'))
-                    .append($('<span>').text(' Das wird gesendet – aber nichts reagiert darauf. Gib einer Tür oder Ebene denselben Code.')).appendTo(box);
-            if (card.problem === 'no_sender')
-                $('<div class="signal-rule-warning">').append($('<i class="fa fa-exclamation-triangle">'))
-                    .append($('<span>').text(' Hier wartet etwas – aber nichts sendet diesen Code. Gib einem Schalter, Schlüssel oder Bereich denselben Code.')).appendTo(box);
+        } else {
+            $('<span class="signal-rule-code">').text(`Code ${card.code}`).appendTo(box);
+            if (card.name) $('<div class="signal-rule-name signal-rule-name-text">').text(card.name).appendTo(box);
         }
-        body.scrollTop(scroll);
+        const section = (word, lines, empty) => {
+            const row = $('<div class="signal-rule-row">').appendTo(box);
+            $('<span class="signal-rule-word">').text(word).appendTo(row);
+            const list = $('<div class="signal-rule-lines">').appendTo(row);
+            if (!lines.length) $('<div class="signal-rule-missing">').text(empty).appendTo(list);
+            lines.forEach((line, i) => {
+                const entry = $('<div class="signal-rule-line">').appendTo(list);
+                if (i > 0) $('<span class="signal-rule-or">').text(word === 'Wenn' ? 'oder ' : 'und ').appendTo(entry);
+                $('<span>').text(line.text + (line.count > 1 ? ` (${line.count}×)` : '')).appendTo(entry);
+                if (interactive && line.objects.length) {
+                    entry.addClass('signal-rule-pick').attr('title', 'Auswählen');
+                    let next = 0;
+                    entry.on('click', () => { this.pick_signal_overview_object(line.objects[next % line.objects.length]); next++; });
+                }
+            });
+        };
+        section('Wenn', card.senders, 'nichts sendet diesen Code');
+        section('dann', card.receivers, 'nichts reagiert darauf');
+        if (card.off.length) $('<div class="signal-rule-off">').text(card.off.join(' · ')).appendTo(box);
+        if (card.problem === 'no_receiver')
+            $('<div class="signal-rule-warning">').append($('<i class="fa fa-exclamation-triangle">'))
+                .append($('<span>').text(' Das wird gesendet – aber nichts reagiert darauf. Gib einer Tür oder Ebene denselben Code.')).appendTo(box);
+        if (card.problem === 'no_sender')
+            $('<div class="signal-rule-warning">').append($('<i class="fa fa-exclamation-triangle">'))
+                .append($('<span>').text(' Hier wartet etwas – aber nichts sendet diesen Code. Gib einem Schalter, Schlüssel oder Bereich denselben Code.')).appendTo(box);
+        return box;
+    }
+
+    // ------------------------------- Signale beside a test run (B7)
+    // While "Level testen" runs, the Spielen pane shows the level's cards
+    // beside the game (only to read, and only while the Signale-Übersicht is
+    // switched on). A card flashes when its signal arrives in the game and
+    // shows "an" or "aus". Nothing in the game changes: the studio reads what
+    // the game's SignalBus has delivered (its list `sent`, in order of
+    // arrival, so a Verzögerung shows as such), once per animation frame. A
+    // new bus (R, a lost life does not make one) starts the cards afresh;
+    // in another level (the exit was reached) nothing flashes.
+    start_signal_watch(level_index) {
+        this.stop_signal_watch();
+        const level = this.game.data.levels[level_index];
+        if (!this.show_signal_overview || !level) return;
+        const cards = this.signal_cards(level);
+        if (!cards.length) return;
+        const panel = $('<div class="signal-overview signal-watch">').appendTo('#main_div_play');
+        const head = $('<div class="signal-overview-head">').appendTo(panel);
+        $('<span>').text('Signale in diesem Level').appendTo(head);
+        $('<button class="signal-overview-close" title="Ausblenden (im Level-Editor: S)">').append($('<i class="fa fa-times">'))
+            .on('click', () => {
+                this.set_view_option('show_signal_overview', false);
+                this.stop_signal_watch();
+                window.focus_play_frame?.();
+            }).appendTo(head);
+        const body = $('<div class="signal-overview-body">').appendTo(panel);
+        $('<p class="signal-watch-hint">').text('Spiel los: Eine Regel leuchtet auf, sobald ihr Signal ankommt.').appendTo(body);
+        const boxes = new Map();
+        for (const card of cards) boxes.set(card.code, this.build_signal_card(body, card, false));
+        // the game must keep the keys: clicks on the panel give them back
+        panel.on('mouseup', () => window.focus_play_frame?.());
+        $('#main_div_play').addClass('with-signal-watch');
+        const watch = this.signal_watch = { level_index, panel, boxes, bus: null, seen: 0, frame: null };
+        const tick = () => {
+            if (this.signal_watch !== watch) return;
+            let game = null;
+            try { game = $('#play_iframe')[0]?.contentWindow?.game ?? null; } catch { }
+            const bus = game?.signals ?? null;
+            const here = game?.level_index === level_index;
+            panel.toggleClass('signal-watch-elsewhere', !!game && !here);
+            if (bus !== watch.bus) {
+                watch.bus = bus;
+                watch.seen = 0;
+                for (const box of boxes.values()) box.removeClass('signal-rule-on signal-rule-off-state').find('.signal-rule-state').remove();
+            }
+            const sent = here && Array.isArray(bus?.sent) ? bus.sent : null;
+            while (sent && watch.seen < sent.length) {
+                const [code, value] = sent[watch.seen++];
+                this.signal_watch_arrived(boxes.get(code), value);
+            }
+            watch.frame = requestAnimationFrame(tick);
+        };
+        watch.frame = requestAnimationFrame(tick);
+    }
+
+    stop_signal_watch() {
+        const watch = this.signal_watch;
+        if (!watch) return;
+        this.signal_watch = null;
+        cancelAnimationFrame(watch.frame);
+        watch.panel.remove();
+        $('#main_div_play').removeClass('with-signal-watch');
+    }
+
+    // A signal arrived: the card flashes and says "an" or "aus".
+    signal_watch_arrived(box, value) {
+        if (!box) return;
+        box.removeClass('signal-rule-fired');
+        void box[0].offsetWidth; // the flash starts again for the next signal
+        box.addClass('signal-rule-fired').toggleClass('signal-rule-on', !!value).toggleClass('signal-rule-off-state', !value);
+        let state = box.children('.signal-rule-state');
+        if (!state.length) state = $('<span class="signal-rule-state">').insertAfter(box.children('.signal-rule-code'));
+        state.text(value ? 'an' : 'aus');
     }
 
     // The name of a card: on top in the Code's colour, a click (or the pencil)

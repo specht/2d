@@ -503,6 +503,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             // deleting a sprite elsewhere tidies the levels: not an edit to undo here
             game.level_editor.history_rebase?.();
         }
+        // the Signale beside a test run belong to that run only
+        game.level_editor?.stop_signal_watch?.();
         if (current_pane === 'play') {
             // "Level testen" (level editor): straight into that level
             const playtest = window.studio_pending_playtest ?? null;
@@ -518,6 +520,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                     const loaded = frame.game.load(data.tag);
                     Promise.resolve(loaded).then(() => {
                         if (playtest) frame.game.start_playtest?.(playtest);
+                        // the level's Signale beside the test run (level_editor.js)
+                        if (playtest && current_pane === 'play') game.level_editor?.start_signal_watch?.(playtest.level_index);
                         focus_game();
                     });
                     $('#play_iframe').fadeIn();
