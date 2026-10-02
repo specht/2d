@@ -7,3 +7,5 @@ docker/ruby/Gemfile
 rezepte/tools/node_modules/
 rezepte/tools/fehler-*.gif
 src/static/rezepte/spiele/
+src/ruby/credentials.rb
+src/ruby/hidden-root-tags.txt
