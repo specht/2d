@@ -177,7 +177,7 @@ function sprite_refs(value, out = []) {
 }
 
 // signal: { code: 3, reaktion: erscheint } – how a layer reacts to signals
-// (signals.js, Ebene "Bei einem Signal"): erscheint | verschwindet |
+// (signals.js, Ebene "Bei Signal"): erscheint | verschwindet |
 // solange_an | solange_aus | wechselt, or the engine's names.
 const LAYER_SIGNAL_REAKTIONEN = {
     erscheint: 'appear', verschwindet: 'disappear', solange_an: 'while_on',

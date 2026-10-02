@@ -721,7 +721,7 @@ class LevelEditor {
         let code_widget = null;
         new SelectWidget({
             container,
-            label: 'Bei einem Signal',
+            label: 'Bei Signal',
             hint: 'Die Ebene kann erscheinen oder verschwinden, wenn ein Schlüssel, Schalter oder eine Druckplatte mit ihrem Code ein Signal sendet. „erscheint“: am Anfang weg, beim ersten Signal „an“ da. „verschwindet“: am Anfang da, beim ersten Signal „an“ weg. „da, solange an“ und „weg, solange an“: folgt dem Signal – praktisch mit einer Druckplatte. „wechselt“: jedes Signal macht die Ebene da oder weg. Eine Ebene, die weg ist, wird nicht gezeichnet, und man kann auch nicht mehr auf ihr stehen – so baust du Brücken, die erst erscheinen, oder Wände, die verschwinden. Auf diese Ebene gehören weder die Spielfigur noch Gegner.',
             options: LAYER_SIGNAL_REACTIONS,
             get: () => layer.properties.signal_reaction ?? 'none',

@@ -366,10 +366,10 @@ var SPRITE_TRAITS = {
                 default: true,
             },
             door_reaction: {
-                label: 'Bei einem Signal',
-                hint: 'Was die Tür macht, wenn ein Schlüssel, Schalter oder eine Druckplatte mit ihrem Code ein Signal sendet. „Aufschließen“ ist wie ein Schlüssel: Danach geht die Tür auf wie sonst auch. Die anderen Möglichkeiten bewegen die Tür von selbst, auch wenn niemand davor steht.',
+                label: 'Bei Signal',
+                hint: 'Was die Tür macht, wenn ein Schlüssel, Schalter oder eine Druckplatte mit ihrem Code ein Signal sendet. „aufschließen“: wie ein Schlüssel – danach geht die Tür auf wie sonst auch. „öffnen“ und „schließen“: Die Tür bewegt sich von selbst, auch wenn niemand davorsteht und auch, wenn sie verschließbar ist. „offen, solange an“: auf bei „an“, zu bei „aus“ – passt zu einer Druckplatte. „wechseln“: Jedes Signal macht die Tür auf oder zu.',
                 type: 'select',
-                options: typeof DOOR_SIGNAL_REACTIONS !== 'undefined' ? DOOR_SIGNAL_REACTIONS : { unlock: 'aufschließen (wie ein Schlüssel)' },
+                options: typeof DOOR_SIGNAL_REACTIONS !== 'undefined' ? DOOR_SIGNAL_REACTIONS : { unlock: 'aufschließen' },
                 default: 'unlock',
             },
         },

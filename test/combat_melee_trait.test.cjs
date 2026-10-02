@@ -179,7 +179,7 @@ test('Old swords appear as a virtual sprite trait, without being added twice or 
     const end = source.indexOf('    add_sprite_trait_controls(trait, element) {', start);
     assert.ok(start >= 0 && end > start);
     const $ = () => ({ empty() { return this; }, nextAll() { return this; },
-        remove() { return this; }, css() { return this; },
+        remove() { return this; }, css() { return this; }, addClass() { return this; },
         appendTo() { return this; } });
     const canvas = { sprite_index: 0 };
     const Editor = new Function('$', 'canvas', 'SPRITE_TRAITS_ORDER',

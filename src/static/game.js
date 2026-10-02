@@ -814,8 +814,7 @@ class Game {
         // Mischmodus first: the menu below unfolds downwards and must not cover it
         this.add_sprite_blend_control?.(si);
         // an unfolded menu scrolls inside its box instead of spilling over what follows
-        let traits_menu = $('<div>').css({ 'max-height': 'calc(50vh - 90px)', 'overflow-y': 'auto' })
-            .appendTo($('#menu_sprite_properties'));
+        let traits_menu = $('<div>').addClass('traits-menu').appendTo($('#menu_sprite_properties'));
         let traits_menu_data = [];
         traits_menu_data.push({ label: 'Eigenschaft hinzufügen', children: this.build_sprite_traits_submenu(SPRITE_TRAITS_ORDER) });
         setupDropdownMenu(traits_menu, traits_menu_data);

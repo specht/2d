@@ -22,7 +22,7 @@ class DropdownMenu {
                     item.parent().find('.has_submenu').removeClass('open');
                     item.parent().find('.dropdown_submenu').slideUp({duration: 200});
                     if (!item.next().is(':visible')) {
-                        item.next().slideDown({duration: 200});
+                        item.next().slideDown({duration: 200, complete: () => reveal(item, item.next())});
                         item.addClass('open');
                     }
                 });
@@ -35,6 +35,20 @@ class DropdownMenu {
         }
         return div;
     }
+}
+
+// A menu in a box that scrolls (the trait menu): a group opened near the
+// bottom would unfold out of sight. Scroll just far enough to show it, but
+// never so far that its own label leaves the box.
+function reveal(item, submenu) {
+    const box = item.closest('.traits-menu')[0];
+    if (!box || box.scrollHeight <= box.clientHeight) return;
+    const view = box.getBoundingClientRect();
+    const label = item[0].getBoundingClientRect();
+    const below = submenu[0].getBoundingClientRect().bottom - view.bottom;
+    if (below <= 0) return;
+    const delta = Math.min(below, label.top - view.top);
+    if (delta > 0) box.scrollTo({ top: box.scrollTop + delta, behavior: 'smooth' });
 }
 
 function setupDropdownMenu(element, info) {
