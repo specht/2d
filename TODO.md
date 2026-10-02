@@ -130,13 +130,13 @@ Examples include:
 
 Develop a small, understandable trigger/action system rather than implementing each of these as a separate special case.
 
-**Signale exist (`src/static/signals.js`, see AGENTS.md):** senders send their Code with *an* or *aus*: a collected key, a Schalter, a Druckplatte (player only), a Bereich (the player enters / leaves rectangles), a defeated enemy and "alle Gegner besiegt". Receivers: doors (`door_reaction`) and sprite or backdrop layers that appear or disappear (with Überblendung; a layer that is away has no collisions, and its enemies wait). Sichtbarkeitsbereiche and door codes of older games are promoted to this on load. The level editor shows under every Code what else in the level has it.
+**Signale exist (`src/static/signals.js`, see AGENTS.md):** senders send their Code with *an* or *aus*: a collected key, a Schalter, a Druckplatte (player only), a Bereich (the player enters / leaves rectangles), a defeated enemy and "alle Gegner besiegt". Every sender can send later (Verzögerung). Receivers: doors (`door_reaction`; a door can also close again by itself after some seconds) and sprite or backdrop layers that appear or disappear (with Überblendung; a layer that is away has no collisions, and its enemies wait). Sichtbarkeitsbereiche and door codes of older games are promoted to this on load. The level editor shows under every Code what else in the level has it.
 
 Next steps, roughly in order of usefulness (each must stay an understandable choice in the editor, not scripting):
 
 - more senders: sprite collected (any pickup with a Code), level starts; enemies pressing a Druckplatte
 - more receivers: show text, spawn / remove a single sprite, a trap that switches on and off, a moving platform that starts, complete the level, set a simple game flag
-- delays (send *an* 2 s later; a door that closes again by itself) – one optional field on the sender, not a timeline
+- show a sender's Verzögerung on its connection line in the level editor, if children lose track of which signals are delayed
 - signals across levels only with an explicit design (flags), never implicitly: keys and Codes are per level
 
 Possible actions still open:
@@ -335,12 +335,11 @@ Basic doors, locks, keys and automatic behaviour already exist.
 
 Remaining useful extensions include:
 
-- delayed automatic closing
-- sensible behaviour when something occupies a closing door
+- sensible behaviour when something occupies a closing door: "schließt wieder nach" waits until the door is free, but a door closed by a signal or the action key still closes onto whoever stands in it
 - trapdoors (a layer that disappears under the player already works through Signale)
 - paired or teleporting doors
 
-Remote switches and remotely controlled passages exist (Signale). Build the rest on them where possible.
+Remote switches, remotely controlled passages and doors that close again by themselves exist (Signale). Build the rest on them where possible.
 
 ---
 

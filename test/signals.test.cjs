@@ -118,10 +118,12 @@ const LayerFade = require('../src/static/layer_fade.js');
 const quiet = { log() {}, warn() {} };
 const GameSignals = new Function('SignalBus', 'door_signal_action', 'layer_reacts_to_signals',
     'layer_visible_at_start', 'layer_visible_after', 'signal_fade_alpha', 'layer_fade_seconds',
-    'valid_signal_rect', 'point_in_signal_rects', 'door_setting', 'LayerFade', 'console',
+    'valid_signal_rect', 'point_in_signal_rects', 'door_setting', 'signal_delay_seconds',
+    'door_auto_close_step', 'LayerFade', 'console',
     `return class { ${methods} };`)(SignalBus, door_signal_action, layer_reacts_to_signals,
     layer_visible_at_start, layer_visible_after, signals.signal_fade_alpha, signals.layer_fade_seconds,
-    signals.valid_signal_rect, signals.point_in_signal_rects, signals.door_setting, LayerFade, quiet);
+    signals.valid_signal_rect, signals.point_in_signal_rects, signals.door_setting, signals.signal_delay_seconds,
+    signals.door_auto_close_step, LayerFade, quiet);
 
 const state = (trait, name, frames = 1) => ({ traits: { [trait]: { [name]: {} } }, properties: { fps: 8 }, frames: Array(frames).fill({}) });
 const SPRITES = [
@@ -574,4 +576,176 @@ test('a placed door may open differently from its drawing', () => {
     game.found_keys[2] = true;
     game.open_door_intent(2, 0);
     assert.equal(game.active_level_sprites[2].door_closed, false);
+});
+
+// ------------------------------------------- Verzögerung, "schließt wieder nach"
+
+test('a Verzögerung is a number of seconds from 0 to the maximum; anything else is 0', () => {
+    const { signal_delay_seconds, SIGNAL_DELAY_MAX_SECONDS } = signals;
+    for (const value of [undefined, null, 0, -1, '2', NaN, Infinity, true]) assert.equal(signal_delay_seconds(value), 0);
+    assert.equal(signal_delay_seconds(1.5), 1.5);
+    assert.equal(signal_delay_seconds(SIGNAL_DELAY_MAX_SECONDS + 5), SIGNAL_DELAY_MAX_SECONDS);
+});
+
+test('the bus delivers delayed signals when they are due, in time order, then in the order sent', () => {
+    const bus = new SignalBus();
+    const got = [];
+    for (const code of [1, 2, 3]) bus.connect(code, (value, time) => got.push([code, value, time]));
+    bus.send(1, true, 0, { delay: 2 });
+    bus.send(2, true, 0, { delay: 1 });
+    bus.send(3, false, 0, { delay: 1 });
+    bus.send(1, false, 0.5); // no delay: at once
+    assert.deepEqual(got, [[1, false, 0.5]]);
+    assert.equal(bus.deliver_due(0.99), 0);
+    assert.equal(bus.deliver_due(1), 2);
+    assert.equal(bus.deliver_due(5), 1);
+    // each one at its own moment
+    assert.deepEqual(got, [[1, false, 0.5], [2, true, 1], [3, false, 1], [1, true, 2]]);
+    assert.deepEqual(bus.sent, [[1, false], [2, true], [3, false], [1, true]]);
+    assert.equal(bus.send('kein Code', true, 0, { delay: 1 }), false);
+    assert.equal(bus.pending.length, 0);
+});
+
+test('deciding at once ignores the Verzögerung and takes back what that sender still has on its way', () => {
+    const bus = new SignalBus();
+    const got = [];
+    bus.connect(4, (value) => got.push(value));
+    const area = {}, other = {};
+    bus.send(4, true, 0, { delay: 2, from: area });
+    bus.send(4, true, 0, { delay: 2, from: other });
+    bus.immediate = true;
+    bus.send(4, false, 1, { delay: 2, from: area });
+    bus.immediate = false;
+    assert.deepEqual(got, [false]);
+    bus.deliver_due(10);
+    assert.deepEqual(got, [false, true]); // only the other sender's signal arrives
+});
+
+test('a Schalter with a Verzögerung shows "an" at once and opens the door later', () => {
+    const game = level_game([{ properties: {}, sprites: [
+        [1, 200, 0, { signal_code: 7, door_closed: true, door_reaction: 'follow' }],
+        [2, 100, 0, { signal_code: 7, switch_on: false, signal_delay: 1.5 }],
+    ] }]);
+    game.flip_switch(1, 1.0);
+    assert.equal(entry_state(game, 1), 1);
+    assert.equal(game.active_level_sprites[0].door_closed, true);
+    assert.deepEqual(game.signals.sent, []);
+    game.signals.deliver_due(2.4);
+    assert.equal(game.active_level_sprites[0].door_closed, true);
+    game.signals.deliver_due(2.5);
+    assert.equal(game.active_level_sprites[0].door_closed, false);
+    assert.deepEqual(game.signals.sent, [[7, true]]);
+});
+
+test('a Druckplatte with a Verzögerung: an and aus both arrive later, like an echo', () => {
+    const game = level_game([{ properties: {}, sprites: [
+        [3, 100, 0, { signal_code: 5, signal_delay: 1 }],
+        [1, 200, 0, { signal_code: 5, door_closed: true, door_reaction: 'follow' }],
+    ] }]);
+    const door = game.active_level_sprites[1];
+    game.update_pressure_plates(figure(100, 0), 0.2);
+    game.update_pressure_plates(figure(160, 0), 0.4);
+    assert.equal(entry_state(game, 0), 0); // the plate itself is up again at once
+    game.signals.deliver_due(1.2);
+    assert.equal(door.door_closed, false);
+    game.signals.deliver_due(1.4);
+    assert.equal(door.door_closed, true);
+    assert.deepEqual(game.signals.sent, [[5, true], [5, false]]);
+});
+
+test('a Bereich with a Verzögerung sends later, but decides at once at the start and after dying', () => {
+    const area = { type: 'signal_area', properties: { signal_code: 4, signal_delay: 2 }, sprites: [],
+        rects: [{ left: 100, bottom: 0, width: 100, height: 100 }] };
+    const roof = { properties: { signal_code: 4, signal_reaction: 'while_off', signal_fade: 0 }, sprites: [[0, 150, 48, {}]] };
+    // starting inside: the roof is away at once, Verzögerung or not
+    const inside = level_game([{ properties: {}, sprites: [[5, 150, 0, {}]] }, area, roof]);
+    assert.deepEqual(inside.signals.sent, [[4, true]]);
+    assert.equal(inside.signal_hidden_layers.has(2), true);
+
+    const game = level_game([{ properties: {}, sprites: [[5, 20, 0, {}]] }, area, roof]);
+    assert.deepEqual(game.signals.sent, []);
+    game.player_character.mesh.position.x = 150;
+    game.update_signal_areas(1);
+    game.signals.deliver_due(2.9);
+    assert.deepEqual(game.signals.sent, []);
+    game.signals.deliver_due(3);
+    assert.deepEqual(game.signals.sent, [[4, true]]);
+    // out again (aus is on its way), then dying brings the figure back inside:
+    // what is on its way is taken back, the level decides at once
+    game.player_character.mesh.position.x = 20;
+    game.update_signal_areas(4);
+    game.player_character.mesh.position.x = 150;
+    game.signals.immediate = true;
+    game.update_signal_areas(4.5);
+    game.signals.immediate = false;
+    game.signals.deliver_due(100);
+    assert.deepEqual(game.signals.sent, [[4, true], [4, true]]);
+    assert.equal(game.signal_hidden_layers.has(2), true);
+});
+
+test('a defeated enemy and "alle Gegner besiegt" may send later', () => {
+    const game = level_game([{ properties: {}, sprites: [[5, 0, 0, {}],
+        [6, 100, 0, { baddie: { signal_on_defeat: true, signal_code: 2, signal_delay: 1 } }]] }],
+    { signal_all_defeated: 9, signal_all_defeated_delay: 3 });
+    const [enemy] = game.baddies;
+    enemy.active = false; game.baddie_defeated(enemy, 1);
+    assert.deepEqual(game.signals.sent, []);
+    game.signals.deliver_due(2);
+    assert.deepEqual(game.signals.sent, [[2, true]]);
+    game.signals.deliver_due(3.9);
+    assert.deepEqual(game.signals.sent, [[2, true]]);
+    game.signals.deliver_due(4);
+    assert.deepEqual(game.signals.sent, [[2, true], [9, true]]);
+});
+
+test('"schließt wieder nach": an open door closes by itself and waits for whoever is in it', () => {
+    const game = level_game([{ properties: {}, sprites: [
+        [5, 0, 0, {}],
+        [1, 200, 0, { signal_code: 3, door_closed: true, door_reaction: 'open', close_after: 2 }],
+        [1, 300, 0, { signal_code: 3, door_closed: true, door_reaction: 'open' }],
+    ] }]);
+    const [door, plain] = game.active_level_sprites;
+    assert.deepEqual(game.auto_closing_doors, [0]);
+    game.signals.emit(3, true, 1);
+    assert.equal(door.door_closed, false);
+    game.update_auto_closing_doors(1); // fully open: the 2 s start now
+    assert.equal(door.close_at, 3);
+    game.update_auto_closing_doors(2.9);
+    assert.equal(door.door_closed, false);
+    // the figure stands in the door: it waits
+    game.player_character.mesh.position.x = 200;
+    game.update_auto_closing_doors(3);
+    assert.equal(door.door_closed, false);
+    game.player_character.mesh.position.x = 0;
+    game.update_auto_closing_doors(3.1);
+    assert.equal(door.door_closed, true); // although its drawing cannot be closed
+    assert.equal(door.close_at, null);
+    // opened again: the time starts again; asked to open while open (the
+    // figure in front of an automatic door), it starts again, too
+    game.signals.emit(3, true, 5);
+    game.update_auto_closing_doors(5);
+    assert.equal(door.close_at, 7);
+    game.open_door_intent(0, 6);
+    assert.equal(door.close_at, 8);
+    // without "schließt wieder nach" a door stays open, as always
+    game.update_auto_closing_doors(100);
+    assert.equal(plain.door_closed, false);
+    assert.equal(plain.close_at, null);
+});
+
+test('"schließt wieder nach" counts from when a door with Übergang is fully open', () => {
+    const game = level_game([{ properties: {}, sprites: [
+        [4, 200, 0, { signal_code: 1, door_closed: true, door_reaction: 'open', close_after: 1 }],
+    ] }]);
+    const door = game.active_level_sprites[0];
+    game.signals.emit(1, true, 0);
+    assert.equal(door.door_state, 'opening');
+    game.update_auto_closing_doors(0.3);
+    assert.equal(door.close_at, null);
+    game.transitioning_sprites.transition[0].done();
+    delete game.transitioning_sprites.transition[0];
+    game.update_auto_closing_doors(0.5);
+    assert.equal(door.close_at, 1.5);
+    game.update_auto_closing_doors(1.5);
+    assert.equal(door.door_state, 'closing');
 });

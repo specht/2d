@@ -23,10 +23,20 @@
 // normalizes a game and when the game runtime loads one.
 //
 // Signals exist within one level only: every level starts with a new
-// SignalBus. The bus remembers nothing; receivers keep their own state (an
-// opened door stays open, also when the player dies).
+// SignalBus. The bus remembers nothing but signals that are still on their
+// way; receivers keep their own state (an opened door stays open, also when
+// the player dies).
+//
+// Verzögerung: a sender may send later (placed signal_delay of a key,
+// Schalter, Druckplatte or enemy; properties.signal_delay of a Bereich;
+// level.properties.signal_all_defeated_delay; absent or 0 = at once). Every
+// signal arrives that much later, "an" and "aus" alike and in the order they
+// were sent – like an echo, not a timer that starts again.
+// A door can also close again by itself (placed door.close_after).
 
 const SIGNAL_MAX_DEPTH = 16;
+// Verzögerung and "schließt wieder nach": 0 … 60 s
+const SIGNAL_DELAY_MAX_SECONDS = 60;
 // A layer that appears or disappears fades in or out this long. Only the
 // drawing fades: it collides (or not) from the moment of the signal.
 const SIGNAL_LAYER_FADE_SECONDS = 0.3;
@@ -65,11 +75,53 @@ function signal_key(code) {
     return Number.isFinite(number) ? String(Math.trunc(number)) : null;
 }
 
+// Seconds of a Verzögerung (or of "schließt wieder nach"): anything that is
+// not a positive number is 0 (at once / never), more than the maximum is the
+// maximum.
+function signal_delay_seconds(value) {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ?
+        Math.min(value, SIGNAL_DELAY_MAX_SECONDS) : 0;
+}
+
 class SignalBus {
     constructor() {
         this.receivers = new Map();
         this.depth = 0;
-        this.sent = []; // [code, value] in order, for tests and the recipe checks
+        this.sent = []; // [code, value] in order of arrival, for tests and the recipe checks
+        // signals on their way: { code, value, at, seq, from }, sorted by at, then seq
+        this.pending = [];
+        this.seq = 0;
+        // set while the level decides "at once" (start, respawn): no delays, no fades
+        this.immediate = false;
+    }
+
+    // What senders call. delay: seconds (absent/0: at once). from: whoever
+    // sent it (any object), so that deciding at once (immediate) can take back
+    // what that sender still has on its way – otherwise a Bereich left by dying
+    // would say "an" again a moment after the respawn.
+    send(code, value, time = 0, { delay = 0, from = null } = {}) {
+        const seconds = signal_delay_seconds(delay);
+        if (this.immediate && from !== null)
+            this.pending = this.pending.filter(item => item.from !== from);
+        if (seconds === 0 || this.immediate) return this.emit(code, value, time);
+        if (signal_key(code) === null) return false;
+        const item = { code, value: Boolean(value), at: time + seconds, seq: this.seq++, from };
+        let i = this.pending.length;
+        while (i > 0 && this.pending[i - 1].at > item.at) i--;
+        this.pending.splice(i, 0, item);
+        return true;
+    }
+
+    // Delivers every signal that is due by this time (call once per step).
+    // A signal arrives at its own moment (at), as if it had just been sent.
+    deliver_due(time) {
+        let count = 0;
+        while (this.pending.length && this.pending[0].at <= time) {
+            const item = this.pending.shift();
+            this.emit(item.code, item.value, item.at);
+            count++;
+        }
+        return count;
     }
 
     connect(code, receiver) {
@@ -114,6 +166,22 @@ function door_signal_action(reaction, value, closed) {
 // in one place and a gate that only a Schalter opens in another.
 function door_setting(placed_value, drawn_value) {
     return typeof placed_value === 'boolean' ? placed_value : Boolean(drawn_value);
+}
+
+// "schließt wieder nach" (placed door.close_after, absent/0 = stays open): one
+// step for one door. The time starts when the door is fully open (open and
+// not moving); whatever opens it again while it is open (a signal, or the
+// figure in front of an automatic door) starts it again (open_door_intent).
+// When the time is up but somebody stands in the door, it waits.
+// occupied: a function, asked only when the time is up.
+// Returns { close_at, close }: the new time to close (or null) and whether
+// to close now.
+function door_auto_close_step(close_after, close_at, open_and_still, occupied, time) {
+    const seconds = signal_delay_seconds(close_after);
+    if (seconds === 0 || !open_and_still) return { close_at: null, close: false };
+    if (close_at === null || close_at === undefined) return { close_at: time + seconds, close: false };
+    if (time < close_at || (typeof occupied === 'function' && occupied())) return { close_at, close: false };
+    return { close_at: null, close: true };
 }
 
 function layer_reacts_to_signals(properties) {
@@ -574,6 +642,7 @@ function promote_legacy_signals(data) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         SIGNAL_MAX_DEPTH, SIGNAL_LAYER_FADE_SECONDS, SIGNAL_LAYER_FADE_MAX_SECONDS, signal_fade_alpha,
+        SIGNAL_DELAY_MAX_SECONDS, signal_delay_seconds, door_auto_close_step,
         layer_fade_seconds, DOOR_SIGNAL_REACTIONS, LAYER_SIGNAL_REACTIONS, SignalBus,
         door_signal_action, layer_reacts_to_signals, layer_visible_at_start, layer_visible_after,
         switch_flipped, SIGNAL_SPRITE_ROLES, placed_signal_role, valid_signal_rect, point_in_signal_rects,

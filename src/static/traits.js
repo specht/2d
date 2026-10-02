@@ -139,6 +139,23 @@ var STATE_TRAITS_ORDER = {
     bomb: ['fuse', 'explosion'],
 };
 
+// Signale: Verzögerung of a sender (placed signal_delay, absent = 0 = at
+// once; signals.js signal_delay_seconds). The maximum is
+// SIGNAL_DELAY_MAX_SECONDS there.
+function signal_delay_placed_property(hint) {
+    return {
+        label: 'Verzögerung',
+        hint: `${hint} 0: sofort.`,
+        type: 'float',
+        suffix: 's',
+        min: 0,
+        max: 60,
+        step: 0.5,
+        decimalPlaces: 1,
+        default: 0,
+    };
+}
+
 var SPRITE_TRAITS = {
     bomb: { label: 'Bombe' },
     ranged_attack: {
@@ -316,17 +333,7 @@ var SPRITE_TRAITS = {
                 type: 'bool',
                 default: false,
             },
-            // auto_close_timeout: {
-            //     label: 'schließt automatisch nach',
-            //     hint: 'Gibt an, nach welcher Zeit die Tür automatisch wieder schließt (0: nie).',
-            //     type: 'float',
-            //     suffix: 's',
-            //     min: 0.0,
-            //     max: 1000.0,
-            //     default: 0.0,
-            //     decimalPlaces: 1,
-            //     step: 0.1,
-            // },
+            // closing again by itself: placed door.close_after ("schließt wieder nach")
             xsense: {
                 label: 'Rand links/rechts',
                 hint: 'Gibt an, wie weit der Sensor der Tür in horizontaler Richtung reicht.',
@@ -384,6 +391,18 @@ var SPRITE_TRAITS = {
                 options: typeof DOOR_SIGNAL_REACTIONS !== 'undefined' ? DOOR_SIGNAL_REACTIONS : { unlock: 'aufschließen' },
                 default: 'unlock',
             },
+            // absent = 0 = stays open (signals.js door_auto_close_step)
+            close_after: {
+                label: 'schließt wieder nach',
+                hint: 'Ist die Tür ganz offen, geht sie nach so vielen Sekunden von selbst wieder zu – egal, wer oder was sie geöffnet hat, auch wenn sie sich sonst nicht schließen lässt. 0: Sie bleibt offen. Eine automatische Tür bleibt offen, solange die Spielfigur davorsteht. Steht jemand in der Tür, wartet sie, bis der Weg frei ist. So baust du ein Tor, das ein Schalter nur für ein paar Sekunden öffnet.',
+                type: 'float',
+                suffix: 's',
+                min: 0,
+                max: 60,
+                step: 0.5,
+                decimalPlaces: 1,
+                default: 0,
+            },
         },
     },
     key: {
@@ -398,6 +417,7 @@ var SPRITE_TRAITS = {
                 max: 1000,
                 default: 0,
             },
+            signal_delay: signal_delay_placed_property('Der Schlüssel sendet seinen Code erst so viele Sekunden nach dem Einsammeln. Aufschließen kann er sofort.'),
         },
     },
     switch: {
@@ -411,6 +431,7 @@ var SPRITE_TRAITS = {
                 min: 0,
                 max: 1000,
             },
+            signal_delay: signal_delay_placed_property('„an“ und „aus“ kommen erst so viele Sekunden nach dem Umlegen an – zum Beispiel stürzt eine Brücke ein, kurz nachdem man den Schalter umgelegt hat.'),
             switch_on: {
                 label: 'ist am Anfang an',
                 hint: 'Ein Schalter, der am Anfang an ist, sendet beim ersten Umlegen „aus“.',
@@ -430,6 +451,7 @@ var SPRITE_TRAITS = {
                 min: 0,
                 max: 1000,
             },
+            signal_delay: signal_delay_placed_property('„an“ und „aus“ kommen erst so viele Sekunden später an – zum Beispiel bleibt ein Tor noch kurz offen, nachdem man von der Platte gegangen ist.'),
         },
     },
     text: {
@@ -712,6 +734,7 @@ var SPRITE_TRAITS = {
                 min: 0,
                 max: 1000,
             },
+            signal_delay: signal_delay_placed_property('Der Gegner sendet seinen Code erst so viele Sekunden, nachdem er besiegt ist (nur wenn „sendet, wenn besiegt“ an ist).'),
             // Beute: absent = the Code set at the drawing (signals.js effective_loot_code)
             drop_code: {
                 label: 'Code der Beute',
