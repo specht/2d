@@ -14,15 +14,18 @@ A game consists of animated sprites, behaviours and one or more levels.
 
 The Studio lets you:
 
-- draw pixel-art sprites and animations
-- define animation states
+- draw pixel-art sprites and animations (with onion skinning), or paste and drop pictures: background, pixel size and the frames of a strip or a numbered series of files are detected
+- define animation states, and duplicate, copy and move sprites, states and frames by right-click
+- borrow sprites from other games or recipe scenes (Sprite-Korb)
+- convert a sprite or a whole game, backgrounds included, to a pixel-art palette
 - assign behaviours to sprites
 - create player characters and enemies
 - build layered levels
 - configure collision and movement
 - use slopes, ladders, conveyors and moving environments
 - create doors, keys and checkpoints
-- connect switches, pressure plates and keys to doors and layers by a shared Code (Signale)
+- connect switches, pressure plates, keys, Bereiche and defeated enemies to doors and layers by a shared Code (Signale)
+- let signs and characters speak in pixel-font speech bubbles
 - add collectibles and hazards
 - create melee and ranged combat
 - use projectiles and bombs
@@ -32,7 +35,7 @@ The Studio lets you:
 - playtest the game directly in the Studio
 - save and continue developing games through generated game codes
 
-The built-in **Rezepte** provide small German-language examples showing how individual mechanics can be assembled into games.
+The built-in **Rezepte** provide small German-language examples showing how individual mechanics can be assembled into games. Every recipe's scene can be opened in the Studio and saved as an own game.
 
 The project deliberately keeps the authoring environment visual and approachable. New mechanics should preferably be composed from reusable traits rather than requiring special-purpose character classes or scripting.
 
@@ -223,9 +226,20 @@ Shared combat systems.
 src/static/movement_regions.js
 src/static/signals.js
 src/static/layer_fade.js
+src/static/speech.js
 ```
 
-Movement regions, and Signale: keys, switches, pressure plates, Bereiche and defeated enemies send a Code; doors and layers react (a roof that disappears while the player is inside, a bridge that appears, an ambush).
+Movement regions, and Signale: keys, switches, pressure plates, Bereiche and defeated enemies send a Code; doors and layers react (a roof that disappears while the player is inside, a bridge that appears, an ambush). Speech bubbles for signs and characters.
+
+```text
+src/static/image_import.js
+src/static/palette_apply.js
+src/static/sprite_basket.js
+src/static/sprite_actions.js
+src/static/own_game.js
+```
+
+Authoring helpers: importing pictures, converting to a palette, borrowing sprites from other games, the sprite editor's right-click menus, and starting an own game from an existing one. `AGENTS.md` has the complete code map.
 
 The backend lives mainly in:
 
@@ -423,6 +437,12 @@ They cover systems such as:
 - movement regions
 - signals and layer fading
 - backdrop effects
+- speech bubbles and sentence splitting
+- picture import analysis and palette conversion
+- stable IDs, sprite copying between games and level undo/selection
+- the collaboration client and session store
+
+Run them with `node --test test/*.cjs` (and `ruby test/collaboration_store_test.rb` for the backend store).
 
 These tests are useful for protecting engine contracts, but they are not a substitute for actually trying changes in the Studio and playing affected games in a browser.
 

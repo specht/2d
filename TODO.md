@@ -47,12 +47,9 @@ Layers should become easier to work with as levels become more complex.
 
 Possible improvements:
 
-- clearer layer management
-- reorder layers
-- show / hide layers
-- move selections between layers
+- clearer layer management (grouping, naming conventions, what a layer is *for*)
 
-Show / hide (eye) and lock (padlock: nothing can be painted, moved or deleted in the layer, its settings still change) exist in the layer list. The current layer is named in a corner of the level view, and a double-click with the select tool picks a sprite in any layer and switches to it (again: the one behind).
+Reordering (drag in the layer list), moving a selection to another layer ("In Ebene"), show / hide (eye) and lock (padlock: nothing can be painted, moved or deleted in the layer, its settings still change) exist in the layer list. The current layer is named in a corner of the level view, and a double-click with the select tool picks a sprite in any layer and switches to it (again: the one behind).
 
 Layer management should remain simple enough for students and should not turn into a professional graphics-editor UI.
 
@@ -277,7 +274,7 @@ Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste 
 
 # Image and Animation Import
 
-Implemented (`image_import.js`): clipboard paste and dropping one image file in the sprite editor go through an analysis (fake background, pixel size, frames of a strip or grid) and a dialog that shows the guess before importing, lets the child correct it and warns when the frames do not match the sprite's size; transparency is kept and nothing is silently scaled or cropped.
+Implemented (`image_import.js`): clipboard paste and dropping an image file in the sprite editor go through an analysis (fake background, pixel size, frames of a strip or grid) and a dialog that shows the guess before importing, lets the child correct it and warns when the frames do not match the sprite's size; transparency is kept and nothing is silently scaled or cropped. Several files at once (or Funktionen → Sprite → Bilder öffnen …) become one animation, sorted by the number in their names.
 
 Still open:
 
@@ -393,7 +390,7 @@ Once triggers/actions exist, build higher-level systems on top of them.
 Possible progression:
 
 - NPC interaction
-- speech bubbles / dialogue (monologue exists: a sign or the figure says one line after the other, speech.js; a conversation between two speakers is still open)
+- speech bubbles / dialogue (monologue exists: a sign or the figure says one sentence or `|`-part after the other, speech.js; a conversation between two speakers is still open)
 - multi-line conversations
 - collect-and-return tasks
 - defeat-enemy tasks
