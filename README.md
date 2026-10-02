@@ -22,6 +22,7 @@ The Studio lets you:
 - configure collision and movement
 - use slopes, ladders, conveyors and moving environments
 - create doors, keys and checkpoints
+- connect switches, pressure plates and keys to doors and layers by a shared Code (Signale)
 - add collectibles and hazards
 - create melee and ranged combat
 - use projectiles and bombs

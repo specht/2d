@@ -172,6 +172,8 @@ export async function record(browser, repo, game, recipe) {
             player: pc ? { x: pc.mesh.position.x, y: pc.mesh.position.y, dead: pc.dead() } : null,
             energy: g.energy, points: g.points, lives: g.lives,
             found_keys: Object.keys(g.found_keys ?? {}).map(Number),
+            // every signal of the level in order (signals.js), e.g. '7 an'
+            signals: (g.signals?.sent ?? []).map(([code, on]) => `${code} ${on ? 'an' : 'aus'}`),
             doors_open: doors.map(d => d.door_closed === false),
             checkpoints_active: g.active_level_sprites.filter(e => {
                 const sp = g.data.sprites[e.sprite_index];
@@ -302,6 +304,11 @@ export function check(expect, state) {
     }
     for (const code of e.schluessel ?? [])
         if (!state.found_keys.includes(code)) fail.push(`Schlüssel ${code} nicht eingesammelt`);
+    if (e.signale !== undefined) {
+        const want = e.signale.map(String);
+        if (JSON.stringify(state.signals) !== JSON.stringify(want))
+            fail.push(`signale: [${state.signals.join(', ')}] statt [${want.join(', ')}]`);
+    }
     if (e.tuer_offen !== undefined) {
         const open = state.doors_open.some(Boolean);
         if (open !== e.tuer_offen) fail.push(`tuer_offen: ${open} statt ${e.tuer_offen}`);

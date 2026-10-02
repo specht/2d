@@ -47,6 +47,13 @@ var SPRITE_TRAITS_ORDER = [
         ],
     ],
     [
+        'Schalter',
+        [
+            'switch',
+            'pressure_plate',
+        ],
+    ],
+    [
         'Leitern',
         [
             'ladder',
@@ -127,6 +134,8 @@ var STATE_TRAITS_ORDER = {
         'open',
         'transition',
     ],
+    switch: ['off', 'on'],
+    pressure_plate: ['up', 'down'],
     bomb: ['fuse', 'explosion'],
 };
 
@@ -293,7 +302,7 @@ var SPRITE_TRAITS = {
         properties: {
             lockable: {
                 label: 'ist verschließbar',
-                hint: 'Gib hier an, ob man einen Schlüssel braucht oder einen Schalter umlegen muss, um diese Tür zu öffnen.',
+                hint: 'Gib hier an, ob man einen Schlüssel braucht (oder einen Schalter oder eine Druckplatte mit demselben Code), um diese Tür zu öffnen.',
                 type: 'bool',
                 default: true,
             },
@@ -344,7 +353,7 @@ var SPRITE_TRAITS = {
         placed_properties: {
             door_code: {
                 label: 'Code',
-                hint: 'Nur ein Schlüssel / Schalter mit demselben Code kann diese Tür öffnen.',
+                hint: 'Schlüssel, Schalter und Druckplatten mit demselben Code senden dieser Tür ein Signal. Was die Tür dann macht, stellst du darunter ein.',
                 type: 'int',
                 default: 0,
                 min: 0,
@@ -356,6 +365,13 @@ var SPRITE_TRAITS = {
                 type: 'bool',
                 default: true,
             },
+            door_reaction: {
+                label: 'Bei einem Signal',
+                hint: 'Was die Tür macht, wenn ein Schlüssel, Schalter oder eine Druckplatte mit ihrem Code ein Signal sendet. „Aufschließen“ ist wie ein Schlüssel: Danach geht die Tür auf wie sonst auch. Die anderen Möglichkeiten bewegen die Tür von selbst, auch wenn niemand davor steht.',
+                type: 'select',
+                options: typeof DOOR_SIGNAL_REACTIONS !== 'undefined' ? DOOR_SIGNAL_REACTIONS : { unlock: 'aufschließen (wie ein Schlüssel)' },
+                default: 'unlock',
+            },
         },
     },
     key: {
@@ -363,11 +379,43 @@ var SPRITE_TRAITS = {
         placed_properties: {
             door_code: {
                 label: 'Code',
-                hint: 'Der Schlüssel kann nur Türen mit demselben Code in diesem Level öffnen.',
+                hint: 'Wenn man den Schlüssel einsammelt, sendet er seinen Code. Er kann nur Türen mit demselben Code in diesem Level öffnen.',
                 type: 'int',
                 min: 0,
                 max: 1000,
                 default: 0,
+            },
+        },
+    },
+    switch: {
+        label: 'ist ein Schalter',
+        placed_properties: {
+            signal_code: {
+                label: 'Code',
+                hint: 'Legt man den Schalter mit der Aktionstaste (F) um, sendet er diesen Code: „an“ oder „aus“. Türen und Ebenen mit demselben Code reagieren darauf.',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 1000,
+            },
+            switch_on: {
+                label: 'ist am Anfang an',
+                hint: 'Ein Schalter, der am Anfang an ist, sendet beim ersten Umlegen „aus“.',
+                type: 'bool',
+                default: false,
+            },
+        },
+    },
+    pressure_plate: {
+        label: 'ist eine Druckplatte',
+        placed_properties: {
+            signal_code: {
+                label: 'Code',
+                hint: 'Tritt die Spielfigur auf die Druckplatte, sendet sie diesen Code mit „an“. Geht sie wieder herunter, sendet sie „aus“.',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 1000,
             },
         },
     },
@@ -1014,6 +1062,14 @@ var STATE_TRAITS = {
         closed: { label: 'geschlossen' },
         open: { label: 'geöffnet' },
         transition: { label: 'Übergang' },
+    },
+    switch: {
+        off: { label: 'Schalter ist aus' },
+        on: { label: 'Schalter ist an' },
+    },
+    pressure_plate: {
+        up: { label: 'Druckplatte nicht gedrückt' },
+        down: { label: 'Druckplatte gedrückt' },
     },
     bomb: {
         fuse: { label: 'Zündschnur' },

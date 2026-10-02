@@ -61,7 +61,8 @@ function register_projectile(combat) {
         for (const entry of game.active_level_sprites ?? []) {
             const sprite = game.data?.sprites?.[entry.sprite_index];
             const traits = sprite?.traits ?? {};
-            if (!sprite || !entry.mesh || !(traits.block_sides || traits.block_above ||
+            // a layer taken away by a signal (signals.js) does not stop shots
+            if (!sprite || !entry.mesh || entry.signal_hidden || !(traits.block_sides || traits.block_above ||
                 traits.block_below || (traits.door && entry.door_closed))) continue;
             const rect = {
                 x0: entry.mesh.position.x - sprite.width / 2,
@@ -84,7 +85,7 @@ function register_projectile(combat) {
         if (Math.abs(delta) < 1e-9) return null;
         for (const entry of game.active_level_sprites ?? []) {
             const sprite = game.data?.sprites?.[entry.sprite_index];
-            if (!sprite || !entry.mesh) continue;
+            if (!sprite || !entry.mesh || entry.signal_hidden) continue;
             const traits = sprite.traits ?? {};
             const closed_door = traits.door && entry.door_closed;
             const blocking = axis === 'x' ? traits.block_sides :

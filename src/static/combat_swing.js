@@ -20,6 +20,7 @@ function register_swing(combat) {
         for (let entry of game.active_level_sprites ?? []) {
             let sprite = game.data.sprites[entry.sprite_index];
             let traits = sprite?.traits ?? {};
+            if (entry.signal_hidden) continue; // taken away by a signal (signals.js)
             if (!(traits.block_sides || traits.block_above || traits.block_below ||
                 (traits.door && entry.door_closed))) continue;
             let x = entry.mesh.position.x;

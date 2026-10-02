@@ -223,6 +223,27 @@ sprites:
     label: Schlüssel
     traits: { key: {} }
     states: [{ strip: welt/schluessel, fps: 3 }]
+  # Signale (src/static/signals.js): a Schalter and a Druckplatte send their
+  # Code; a Gittertor is locked and automatic, so only a signal opens it.
+  schalter:
+    label: Schalter
+    traits: { switch: {} }
+    states:
+      - { strip: welt/schalter_aus, traits: { switch: [off] } }
+      - { strip: welt/schalter_an, traits: { switch: [on] } }
+  druckplatte:
+    label: Druckplatte
+    traits: { pressure_plate: {} }
+    states:
+      - { strip: welt/druckplatte_oben, traits: { pressure_plate: [up] } }
+      - { strip: welt/druckplatte_unten, traits: { pressure_plate: [down] } }
+  gittertor:
+    label: Gittertor
+    traits: { door: { lockable: true, automatic: true, closable: false } }
+    states:
+      - { strip: welt/gitter_zu, traits: { door: [closed] } }
+      - { strip: welt/gitter_auf, traits: { door: [open] } }
+      - { strip: welt/gitter_uebergang, fps: 10, traits: { door: [transition] } }
   muenze:
     label: Münze
     traits: { pickup: { points: 10 } }
