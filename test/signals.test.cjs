@@ -887,3 +887,17 @@ test('names are never read by the game: the bus still meets by the number', () =
     bus.send(4, true);
     assert.deepEqual(got, [true]);
 });
+
+test('unique_signal_name: the suggestion, or with a number when that name is taken', () => {
+    const { unique_signal_name, SIGNAL_NAME_MAX_LENGTH } = signals;
+    const level = { properties: { signal_names: { 1: 'Schalter → Tor', 2: 'Schalter → Tor 2' } }, layers: [] };
+    assert.equal(unique_signal_name({ properties: {} }, ' Schalter  →  Tor '), 'Schalter → Tor');
+    assert.equal(unique_signal_name(level, 'schalter → tor'), 'Schalter → Tor 3'.replace('Schalter → Tor', 'schalter → tor'));
+    // long suggestions are shortened before the number, so the number stays visible
+    const long = 'Druckplatte → Gittertor am Ausgang';
+    level.properties.signal_names[3] = signals.clean_signal_name(long);
+    const name = unique_signal_name(level, long);
+    assert.ok(name.endsWith(' 2'));
+    assert.ok([...name].length <= SIGNAL_NAME_MAX_LENGTH);
+    assert.equal(unique_signal_name(level, ''), '');
+});

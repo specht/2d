@@ -147,6 +147,18 @@ function set_signal_name(level, code, name) {
     return { ok: true, name: clean };
 }
 
+// A suggestion that no Code of the level has yet: "Schalter → Tor", else
+// "Schalter → Tor 2", "… 3" (cleaned and shortened like every name).
+function unique_signal_name(level, suggestion) {
+    const base = clean_signal_name(suggestion);
+    if (!base || signal_code_named(level, base) === null) return base;
+    for (let n = 2; ; n++) {
+        const suffix = ` ${n}`;
+        const name = clean_signal_name([...base].slice(0, SIGNAL_NAME_MAX_LENGTH - suffix.length).join('').trim() + suffix);
+        if (signal_code_named(level, name) === null) return name;
+    }
+}
+
 // »Brücke« (Code 4) or Code 4: how a Code is written in sentences.
 function signal_code_text(code, name = '') {
     return name ? `»${name}« (Code ${Number(code)})` : `Code ${Number(code)}`;
@@ -835,6 +847,6 @@ if (typeof module !== 'undefined' && module.exports) {
         signal_partners, describe_signal_partners, signal_codes_in_level, free_signal_code,
         signal_objects, signal_links, same_signal_object, pick_signal_object, connect_signal_objects,
         promote_legacy_signals, signal_rules,
-        SIGNAL_NAME_MAX_LENGTH, clean_signal_name, signal_name, signal_code_named, set_signal_name, signal_code_text,
+        SIGNAL_NAME_MAX_LENGTH, clean_signal_name, signal_name, signal_code_named, set_signal_name, signal_code_text, unique_signal_name,
     };
 }

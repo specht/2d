@@ -3047,6 +3047,48 @@ details.trait-advanced[open] > summary {
     opacity: 1;
 }
 
+/* Verbinden made a new Code: its name (level_editor.js ask_signal_name) */
+.signal-name-prompt {
+    position: absolute;
+    left: 50%;
+    top: 40px;
+    transform: translateX(-50%);
+    width: min(320px, 80%);
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(18, 20, 32, 0.96);
+    border: 1px solid var(--signal-color, #94b0c2);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    color: #eee;
+    font-size: 13px;
+    z-index: 4;
+}
+/* centred in the part of the view the Signale-Übersicht leaves free */
+.signal-name-prompt.beside-overview {
+    left: calc(50% - min(180px, 22.5%) - 8px);
+    width: min(320px, 45%);
+}
+.signal-name-prompt-label {
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+.signal-name-prompt input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px 7px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--signal-color, #94b0c2);
+    border-radius: 4px;
+    color: #fff;
+    font: inherit;
+    font-weight: bold;
+}
+.signal-name-prompt-hint {
+    margin-top: 5px;
+    font-size: 11px;
+    opacity: 0.6;
+}
+
 /* The selected sprites in the level editor: how many, and what to do with them */
 .selection-box {
     padding: 4px 5px 6px;

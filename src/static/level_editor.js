@@ -1297,8 +1297,16 @@ class LevelEditor {
                 this.show_level_notice('Das liegt auf derselben Ebene wie der Sender – die Ebene würde ihn mit verschwinden lassen. Leg das, was erscheinen oder verschwinden soll, in eine eigene Ebene.');
             } else if (picked && !same_signal_object(picked, this.connect_from) &&
                 window.collaboration?.can_edit_current?.() !== false) {
+                const used_before = signal_codes_in_level(level);
                 const code = connect_signal_objects(level, this.connect_from, picked, traits_of, size_of);
                 if (code !== null) this.signal_highlight = { code, until: performance.now() + 2500 };
+                // a Code that did not exist before: ask for its name (prefilled)
+                if (code !== null && !used_before.has(code)) {
+                    const sender = this.connect_from.sends ? this.connect_from : picked.sends ? picked : this.connect_from;
+                    const receiver = sender === picked ? this.connect_from : picked;
+                    setTimeout(() => this.ask_signal_name(code, unique_signal_name(level,
+                        `${this.signal_object_label(sender)} → ${this.signal_object_label(receiver)}`)), 0);
+                }
                 // the panels show the new Code
                 this.placed_properties_for = null;
                 if ($('#menu_layer_properties_container').is(':visible')) this.setup_layer_properties();
@@ -1308,6 +1316,50 @@ class LevelEditor {
         }
         this.refresh();
         this.render();
+    }
+
+    // What a sender or receiver is called in a suggested name: the sprite's
+    // label (Titel or "Sprite N"), a layer's or Bereich's name.
+    signal_object_label(object) {
+        const layer = this.game.data.levels[this.level_index]?.layers[object?.layer_index];
+        if (!layer) return '';
+        if (object.kind === 'sprite') {
+            const index = this.game.sprite_index_for_ref(layer.sprites?.[object.placed_index]?.[0]);
+            return Number.isInteger(index) && this.game.data.sprites[index] ? sprite_label(this.game.data.sprites[index], index) : 'Sprite';
+        }
+        return layer.properties?.name || (object.kind === 'area' ? 'Bereich' : 'Ebene');
+    }
+
+    // A small field over the level: "Name für das neue Signal". The
+    // suggestion is selected, so typing replaces it; Enter or leaving the field
+    // saves (rename_signal_code), Esc leaves the Code without a name.
+    ask_signal_name(code, suggestion) {
+        $(this.element).find('.signal-name-prompt').remove();
+        const box = $('<div class="signal-name-prompt">').css('--signal-color', signal_link_color(code))
+            .toggleClass('beside-overview', !!this.show_signal_overview).appendTo(this.element);
+        // the level view must not paint or zoom through it
+        box.on('mousedown touchstart dblclick wheel contextmenu', (e) => e.stopPropagation());
+        $('<div class="signal-name-prompt-label">').text(`Name für das neue Signal (Code ${code})`).appendTo(box);
+        const input = $('<input type="text">')
+            .attr({ maxlength: SIGNAL_NAME_MAX_LENGTH, placeholder: 'Name, z. B. Brücke', spellcheck: 'false' })
+            .val(suggestion).appendTo(box);
+        $('<div class="signal-name-prompt-hint">').text('Enter: übernehmen · Esc: ohne Namen').appendTo(box);
+        let finished = false;
+        const finish = (save) => {
+            if (finished) return true;
+            if (save && !this.rename_signal_code(code, input.val())) return false;
+            finished = true;
+            box.remove();
+            return true;
+        };
+        input.on('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+            else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+        });
+        // a name that is taken: no name (the notice says why)
+        input.on('blur', () => { if (!finish(true)) finish(false); });
+        input.trigger('focus').trigger('select');
     }
 
     handle_connect_move(e) {
