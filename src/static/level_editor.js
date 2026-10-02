@@ -736,6 +736,8 @@ class LevelEditor {
         $(this.element).on('mouseenter', (e) => self.handle_enter(e));
         $(this.element).on('mouseleave', (e) => self.handle_leave(e));
         $(this.element).on('mousedown touchstart', (e) => self.handle_down(e));
+        // select tool: double-click picks a sprite in whichever layer it is
+        $(this.element).on('dblclick', (e) => self.handle_double_click(e));
         $(window).on('mouseup touchend', (e) => self.handle_up(e));
         $(window).on('mousemove touchmove', (e) => self.handle_move(e));
         $(this.element).on('wheel', function (e) {
@@ -1544,6 +1546,7 @@ class LevelEditor {
                 layer.properties.name = name;
                 $('#menu_layers').children('._dnd_item').eq(self.layer_index)
                     .find('.layer-name').text(name || `Ebene ${self.layer_index + 1}`);
+                self.update_layer_label();
             },
         });
 
@@ -1997,6 +2000,53 @@ class LevelEditor {
         label.css('margin', '6px 5px');
         label.css('pointer-events', 'none');
         this.label_for_level[li].empty().append(label);
+    }
+
+    // Double-click with the select tool: the sprite under the mouse is selected
+    // in whichever layer it lies (level_selection.js placed_sprites_at), and that
+    // layer becomes the current one. Again at the same spot: the sprite behind.
+    handle_double_click(e) {
+        if (menus.level.active_key !== 'tool/select') return;
+        const level = this.game.data.levels[this.level_index];
+        const touch = this.get_touch_point(e);
+        // the point in each layer's own coordinates (as ui_to_world, per Parallaxe)
+        const point_of = (li) => {
+            const parallax = level.layers[li]?.properties?.parallax ?? 0;
+            return [this.camera_x + (touch[0] - this.width / 2) / this.scale - this.camera_x * parallax,
+                this.camera_y - (touch[1] - this.height / 2) / this.scale - this.camera_y * parallax];
+        };
+        const size_of = (ref) => this.game.data.sprites[this.game.sprite_index_for_ref(ref)] ?? null;
+        const hits = placed_sprites_at(level.layers, point_of, size_of);
+        const last = this.last_pick;
+        const same_spot = last && last.level_index === this.level_index &&
+            Math.hypot(touch[0] - last.x, touch[1] - last.y) < 4;
+        const pick = next_pick(hits, same_spot ? last.hit : null);
+        if (!pick) return;
+        this.last_pick = { x: touch[0], y: touch[1], level_index: this.level_index, hit: pick };
+        if (pick.layer_index !== this.layer_index) {
+            // like clicking the layer in the list (properties, panel, undo)
+            $('#menu_layers > ._dnd_item').eq(pick.layer_index).children().eq(0).trigger('click');
+            const layer = level.layers[pick.layer_index];
+            this.show_level_notice?.(`Ausgewählt in der Ebene »${layer.properties.name || `Ebene ${pick.layer_index + 1}`}«`);
+        }
+        this.selection = [pick.placed_index];
+        this.placed_properties_for = null;
+        this.show_selection();
+        this.refresh();
+        this.render();
+    }
+
+    // The current layer, always visible in a corner of the level view, with a
+    // padlock when it is locked.
+    update_layer_label() {
+        let label = $(this.element).find('.level-layer-label');
+        if (!label.length) label = $('<div class="level-layer-label">').appendTo(this.element);
+        const level = this.game.data.levels[this.level_index];
+        const layer = level?.layers?.[this.layer_index];
+        if (!layer) { label.hide(); return; }
+        label.empty().show();
+        if (layer.properties?.locked === true) $('<i class="fa fa-lock">').appendTo(label);
+        $('<span>').text(`Ebene: ${layer.properties?.name || `Ebene ${this.layer_index + 1}`}`).appendTo(label);
     }
 
     get_touch_point(e) {
@@ -2662,6 +2712,7 @@ class LevelEditor {
 
     refresh() {
         let self = this;
+        this.update_layer_label();
         this.scene.remove.apply(this.scene, this.scene.children);
         this.scene.background = new THREE.Color(parse_html_color(this.game.data.levels[this.level_index].properties.background_color));
 

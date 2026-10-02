@@ -92,3 +92,31 @@ test('"Ersetzen" with the sprite that is already there changes nothing', () => {
     assert.deepEqual(result.changed, []);
     assert.deepEqual(sel.replace_placed(sprites, [], 'erde', () => false).changed, []);
 });
+
+test('double-click: what is under the point in every visible sprite layer, front first', () => {
+    const size = { s: { width: 24, height: 24 }, haus: { width: 96, height: 72 } };
+    const layers = [
+        { type: 'sprites', properties: {}, sprites: [['s', 12, 0]] },                         // 0: in front
+        { type: 'backdrop', properties: {}, rects: [{ left: 0, bottom: 0, width: 999, height: 999 }] },
+        { type: 'sprites', properties: { visible: false }, sprites: [['s', 12, 0]] },        // hidden
+        { type: 'sprites', properties: { parallax: 0.5 }, sprites: [['haus', 48, 0], ['s', 60, 0]] }, // behind
+    ];
+    // no camera movement except in layer 3, which moves at half speed
+    const point_of = (li) => li === 3 ? [10 - 0, 5] : [10, 5];
+    const hits = sel.placed_sprites_at(layers, point_of, ref => size[ref] ?? null);
+    assert.deepEqual(hits, [{ layer_index: 0, placed_index: 0 }, { layer_index: 3, placed_index: 0 }]);
+    // within a layer the sprite drawn last comes first
+    const both = sel.placed_sprites_at(layers, li => li === 3 ? [55, 5] : [999, 999], ref => size[ref] ?? null);
+    assert.deepEqual(both, [{ layer_index: 3, placed_index: 1 }, { layer_index: 3, placed_index: 0 }]);
+    // a sprite whose drawing is gone is skipped
+    assert.deepEqual(sel.placed_sprites_at(layers, () => [10, 5], () => null), []);
+});
+
+test('double-click again at the same spot reaches the sprite behind, and round again', () => {
+    const hits = [{ layer_index: 0, placed_index: 2 }, { layer_index: 3, placed_index: 0 }];
+    assert.deepEqual(sel.next_pick(hits, null), hits[0]);
+    assert.deepEqual(sel.next_pick(hits, hits[0]), hits[1]);
+    assert.deepEqual(sel.next_pick(hits, hits[1]), hits[0]);
+    assert.deepEqual(sel.next_pick(hits, { layer_index: 9, placed_index: 9 }), hits[0]); // gone meanwhile
+    assert.equal(sel.next_pick([], hits[0]), null);
+});
