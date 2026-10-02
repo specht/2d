@@ -3478,7 +3478,7 @@ button.basket-tray-item:hover .fa {
     cursor: default;
 }
 
-/* A setting in the status bar that stays on (Gitter, Zwiebelhaut …: menu.js type toggle) */
+/* A setting in the status bar that stays on (Gitter, Onion Skinning …: menu.js type toggle) */
 .status-bar-toggle::before {
     content: '';
     display: inline-block;

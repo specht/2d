@@ -133,6 +133,8 @@ class LayerStruct {
             }
             let mesh = new THREE.Mesh(this.level_editor.game.geometry_for_sprite[sprite_index],
                 this.level_editor.game.editor_sprite_material(sprite_index, this.layer?.properties?.blend));
+            // "Level animieren" (LevelEditor.animate_sprites) picks its frame
+            mesh.userData.sprite_index = sprite_index;
             mesh.position.x = p[0];
             mesh.position.y = p[1];
             this.group.add(mesh);
@@ -257,8 +259,9 @@ class LevelEditor {
         this.backdrop_move_point_old_coordinates = null;
         this.backdrop_move_point_old_size = null;
         this.show_grid = true;
-        // live preview of effect backdrops (snow, rain, dust, …)
-        this.animate_backdrops = false;
+        // "Level animieren": sprites play their animation, effect backdrops
+        // (snow, rain, dust, …) move – a live preview, nothing is saved
+        this.animate_level = false;
         this.backdrop_time_meshes = [];
         this.backdrop_animation_frame = null;
         this.camera_mode = false;
@@ -266,7 +269,6 @@ class LevelEditor {
         this.signal_links_group = new THREE.Group();
         this.signal_link_curves = [];
         this.signal_link_frames = [];
-        this.show_signal_links = false;
         this.connect_from = null;
         this.connect_pointer = null;
         this.signal_highlight = null;
@@ -278,7 +280,7 @@ class LevelEditor {
         this.refresh_sprite_widget();
 
         $('#tool_menu_level_settings').empty();
-        // View settings: also in the status bar, with G / V / B (set_view_option)
+        // View settings: also in the status bar, with G / S / A (set_view_option)
         this.view_option_widgets = {};
         this.view_option_widgets.show_grid = new CheckboxWidget({
             container: $('#tool_menu_level_settings'),
@@ -287,29 +289,21 @@ class LevelEditor {
             get: () => self.show_grid,
             set: (x) => self.set_view_option('show_grid', x),
         });
-        this.view_option_widgets.show_signal_links = new CheckboxWidget({
-            container: $('#tool_menu_level_settings'),
-            label: 'Verbindungen zeigen',
-            key: 'V',
-            hint: 'Zeigt alle Signale im Level: Von allem, was sendet (Schalter, Schlüssel, Druckplatte, Bereich, Gegner), laufen Striche zu allem, was mit demselben Code reagiert (Türen, Ebenen). Sonst siehst du nur die Verbindungen von dem, was du gerade ausgewählt hast.',
-            get: () => self.show_signal_links,
-            set: (x) => self.set_view_option('show_signal_links', x),
-        });
         this.view_option_widgets.show_signal_overview = new CheckboxWidget({
             container: $('#tool_menu_level_settings'),
             label: 'Signale-Übersicht',
             key: 'S',
-            hint: 'Zeigt rechts im Level alle Signale als Regeln: Wenn das passiert – dann das. Fährst du mit der Maus über eine Regel, siehst du ihre Verbindungen. Ein Klick auf eine Zeile wählt aus, was dort steht.',
+            hint: 'Zeigt rechts im Level alle Signale als Regeln: Wenn das passiert – dann das. Fährst du mit der Maus über eine Regel, siehst du ihre Verbindungen. Ein Klick auf eine Zeile wählt aus, was dort steht, ein Klick auf den Code zeigt alles mit diesem Code. Was du im Level auswählst, zeigt seine Verbindungen auch ohne Übersicht.',
             get: () => self.show_signal_overview,
             set: (x) => self.set_view_option('show_signal_overview', x),
         });
-        this.view_option_widgets.animate_backdrops = new CheckboxWidget({
+        this.view_option_widgets.animate_level = new CheckboxWidget({
             container: $('#tool_menu_level_settings'),
-            label: 'Effekte bewegen',
-            key: 'B',
-            hint: 'Schnee, Regen, Schwebestaub und die anderen Effekte bewegen sich schon hier im Level-Editor – so wie später im Spiel.',
-            get: () => self.animate_backdrops,
-            set: (x) => self.set_view_option('animate_backdrops', x),
+            label: 'Level animieren',
+            key: 'A',
+            hint: 'Sprites zeigen ihre Animation, und Schnee, Regen, Schwebestaub und die anderen Effekte bewegen sich – schon hier im Level-Editor, so wie später im Spiel. Gezeigt wird bei jedem Sprite sein erster Zustand.',
+            get: () => self.animate_level,
+            set: (x) => self.set_view_option('animate_level', x),
         });
         this.grid_size_widget = new NumberWidget({
             count: 2,
@@ -1101,7 +1095,8 @@ class LevelEditor {
     // Animated dashes run from what sends to what reacts (signals.js), and
     // both get a pulsing frame. Shown for what is selected (a placed sprite,
     // the current layer, what "Verbinden" started from, a connection just
-    // made), or for everything with "Verbindungen zeigen".
+    // made) and for the Signale-Übersicht (the card under the mouse, a Code
+    // clicked there).
     signal_context() {
         const level = this.game.data.levels[this.level_index];
         const sprite_of = ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)];
@@ -1115,7 +1110,6 @@ class LevelEditor {
     signal_codes_to_show() {
         // a card of the Signale-Übersicht under the mouse: only its Code
         if (this.show_signal_overview && Number.isInteger(this.signal_focus_code)) return new Set([this.signal_focus_code]);
-        if (this.show_signal_links) return null;
         const { level, traits_of } = this.signal_context();
         const codes = new Set();
         if (Number.isInteger(this.connect_from?.code)) codes.add(this.connect_from.code);
@@ -1475,21 +1469,24 @@ class LevelEditor {
         this.render();
     }
 
-    // Gitter anzeigen / Verbindungen zeigen / Effekte bewegen: the checkboxes
-    // under Werkzeuge and the toggles in the status bar (G / V / B).
+    // Gitter anzeigen / Signale-Übersicht / Level animieren: the checkboxes
+    // under Werkzeuge and the toggles in the status bar (G / S / A).
     set_view_option(option, value) {
         value = !!value;
         this[option] = value;
         if (option === 'show_grid') this.refresh();
-        if (option === 'show_signal_links') this.build_signal_links();
         if (option === 'show_signal_overview') {
             try { localStorage.setItem('signal_overview', value ? '1' : '0'); } catch { }
             if (!value) this.signal_focus_code = null;
             this.build_signal_links();
         }
-        if (option === 'animate_backdrops') {
-            if (value) this.start_backdrop_animation();
-            else this.set_backdrop_time(0);
+        if (option === 'animate_level') {
+            if (value) this.start_level_animation();
+            else {
+                this.set_backdrop_time(0);
+                // every sprite shows its still picture again
+                this.refresh_blend_materials();
+            }
         }
         this.render();
         this.view_option_widgets?.[option]?.refresh();
@@ -3075,7 +3072,7 @@ class LevelEditor {
 
     // Effect time for the preview: 0 = still (as before), else the clock.
     backdrop_time() {
-        return this.animate_backdrops ? this.clock.getElapsedTime() : 0;
+        return this.animate_level ? this.clock.getElapsedTime() : 0;
     }
 
     set_backdrop_time(t) {
@@ -3085,21 +3082,87 @@ class LevelEditor {
         }
     }
 
-    start_backdrop_animation() {
+    start_level_animation() {
         if (this.backdrop_animation_frame !== null) return;
         const step = () => {
-            if (!this.animate_backdrops) {
+            if (!this.animate_level) {
                 this.backdrop_animation_frame = null;
                 return;
             }
-            // only while the level editor is on screen and there is something to move
-            if (this.backdrop_time_meshes.length && $(this.element).is(':visible')) {
-                this.set_backdrop_time(this.backdrop_time());
-                this.render();
+            // only while the level editor is on screen, and drawn only when something moved
+            if ($(this.element).is(':visible')) {
+                const time = this.backdrop_time();
+                let moved = this.backdrop_time_meshes.length > 0;
+                if (moved) this.set_backdrop_time(time);
+                if (this.animate_sprites(time)) moved = true;
+                if (moved) this.render();
             }
             this.backdrop_animation_frame = requestAnimationFrame(step);
         };
         this.backdrop_animation_frame = requestAnimationFrame(step);
+    }
+
+    // A material that shows one frame of a sprite's first state, with the
+    // Mischmodus of the layer (or else of the sprite) like
+    // Game.editor_sprite_material. Kept per frame picture and mode, so a frame
+    // drawn anew simply gets a new one; another game starts afresh. (Here and
+    // not in game.js: game.js is part of the recipe build's engine
+    // fingerprint, and a preview must not make every recipe record again.)
+    frame_material(si, fi, layer_blend) {
+        const game = this.game;
+        const frame = game.data.sprites[si]?.states?.[0]?.frames?.[fi];
+        const base = game.material_for_sprite[si];
+        if (!frame?.src || !base) return game.editor_sprite_material(si, layer_blend);
+        if (this.frame_materials_for !== game.data) {
+            this.frame_materials_for = game.data;
+            this.frame_materials = new Map();
+            this.frame_textures = new Map();
+        }
+        const mode = blend_mode_of(layer_blend) ?? blend_mode_of(game.data.sprites[si]?.blend);
+        const key = `${mode ?? ''}|${frame.src}`;
+        let material = this.frame_materials.get(key);
+        if (!material) {
+            let texture = this.frame_textures.get(frame.src);
+            if (!texture) {
+                texture = this.texture_loader.load(frame.src);
+                texture.magFilter = THREE.NearestFilter;
+                this.frame_textures.set(frame.src, texture);
+            }
+            material = base.clone();
+            material.uniforms.texture1.value = texture;
+            if (mode) material = blended_copy(material, mode);
+            this.frame_materials.set(key, material);
+        }
+        return material;
+    }
+
+    // Every placed copy of a sprite with more than one frame in its first
+    // state shows the frame the game would show now: the state's fps (default
+    // 8, like app.js) and the copy's offset (sprite_frame_offset). True if a
+    // copy changed its frame.
+    animate_sprites(time) {
+        const level = this.game.data.levels[this.level_index];
+        const sprites = this.game.data.sprites;
+        let changed = false;
+        (this.layer_structs ?? []).forEach((struct, li) => {
+            const layer = level?.layers[li];
+            if (layer?.type !== 'sprites' || layer.properties?.visible === false) return;
+            for (const mesh of Object.values(struct.mesh_for_pos)) {
+                const si = mesh.userData.sprite_index;
+                const state = sprites[si]?.states?.[0];
+                const count = state?.frames?.length ?? 0;
+                if (count < 2) continue;
+                const fps = Number.isFinite(state.properties?.fps) && state.properties.fps > 0 ? state.properties.fps : 8;
+                const step = Math.floor(time * fps + sprite_frame_offset(state.properties, sprites[si], mesh.position.x, mesh.position.y));
+                const fi = ((step % count) + count) % count;
+                const material = this.frame_material(si, fi, layer.properties?.blend);
+                if (mesh.material !== material) {
+                    mesh.material = material;
+                    changed = true;
+                }
+            }
+        });
+        return changed;
     }
 
     refresh_blend_materials() {
@@ -3629,6 +3692,18 @@ class LevelEditor {
         else level_editor.redo();
     }, true);
 })();
+
+// "Level animieren": the frame offset of a placed copy, like app.js gives
+// it (Phase x / y: a wave across the level; Phase Zufall: every copy on its
+// own). The game takes Math.random() for Zufall; the preview takes a number
+// from the position instead, so a copy does not jump while you look at it.
+function sprite_frame_offset(properties, sprite, x, y) {
+    const fx = Number(properties?.phase_x) || 0;
+    const fy = Number(properties?.phase_y) || 0;
+    const fr = Number(properties?.phase_r) || 0;
+    const random = Math.abs(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1;
+    return Math.floor((x / (sprite?.width || 1)) * fx + (y / (sprite?.height || 1)) * fy + random * 1024 * fr);
+}
 
 // Colours of the Codes in the level editor's connections (Sweetie 16, bright).
 const SIGNAL_LINK_COLORS = ['#ffcd75', '#73eff7', '#a7f070', '#ef7d57', '#41a6f6', '#f4f4f4', '#38b764', '#b13e53'];
