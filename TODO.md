@@ -132,9 +132,7 @@ Wanted next. With five or six signals in a level, "Code 4" says little; a name (
 
 **Done: the Signale-Übersicht** (S in the level editor; `signal_rules` in `signals.js`, `refresh_signal_overview` in `level_editor.js`): a panel at the right edge of the level view with one "Wenn … dann …" card per Code, warnings for Codes that nothing reacts to or nothing sends; hovering a card shows only its Code's lines, clicking a line selects the object in its layer, clicking the Code shows everything with it. The level pane's side columns are wider on wide screens, so the panel and the Eigenschaften both have room.
 
-Still open for the overview:
-
-- "+ Neue Regel" in the panel that starts the Verbinden tool
+The overview ends with "+ Neue Regel", which starts the Verbinden tool and says what to click.
 
 **Names for signals instead of bare numbers.** The Code stays a number in the saved game and in the engine (`free_signal_code`, the Verbinden tool, recipe checks, `fix_game_data` all keep working); a level may give its Codes names: optional `level.properties.signal_names`, e.g. `{ "4": "Brücke" }` (absent = numbers only, exactly as today; editor-only, never read by the game; renaming changes one place). Not strings as Codes: "Brücke" and "brücke " would be two different signals, an invisible and frustrating mistake.
 

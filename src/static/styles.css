@@ -2964,6 +2964,23 @@ details.trait-advanced[open] > summary {
     color: #ef7d57;
 }
 
+/* Signale-Übersicht: "+ Neue Regel" (starts the Verbinden tool) */
+.signal-overview-new {
+    width: 100%;
+    padding: 6px;
+    border: 1px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    background: none;
+    color: rgba(255, 255, 255, 0.75);
+    font: inherit;
+    cursor: pointer;
+}
+.signal-overview-new:hover {
+    border-color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+}
+
 /* A delayed connection: "⏱ 1,5 s" at the middle of its line (level_editor.js
    place_signal_link_labels) */
 .signal-link-labels {
