@@ -951,6 +951,8 @@ void main() {
 
 	take_damage(damage) {
 		if (this.character_trait === 'baddie') {
+			// "unverwundbar": nothing hurts it (combat, falling blocks, anything later)
+			if (this.traits?.invincible === true) return;
 			this.energy -= damage;
 			if (this.energy < 0.0) this.energy = 0.0;
 			// Optional "Pause nach Treffer": absent or 0 keeps the old behaviour.
@@ -2414,12 +2416,14 @@ class Game {
 
 	// A defeated enemy sends its Code ("sendet, wenn besiegt"); once no enemy
 	// is left in the level (enemies on a layer that is away do not count yet),
-	// the level sends "alle Gegner besiegt". Either may send later (Verzögerung).
+	// the level sends "alle Gegner besiegt" (enemies that are "unverwundbar"
+	// do not count). Either may send later (Verzögerung).
 	baddie_defeated(baddie, t) {
 		if (baddie.placed_signal?.signal_on_defeat === true)
 			this.signals?.send(baddie.placed_signal.signal_code ?? 0, true, t, { delay: baddie.placed_signal.signal_delay });
 		if (this.signal_all_defeated === null || this.signal_all_defeated === undefined) return;
-		if (this.baddies.some(other => other.active && !other.signal_hidden)) return;
+		// an enemy that cannot be defeated ("unverwundbar") does not count either
+		if (this.baddies.some(other => other.active && !other.signal_hidden && other.traits?.invincible !== true)) return;
 		this.signals?.send(this.signal_all_defeated, true, t, { delay: this.signal_all_defeated_delay });
 	}
 

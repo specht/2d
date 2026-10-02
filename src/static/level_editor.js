@@ -1442,7 +1442,7 @@ class LevelEditor {
         new CheckboxWidget({
             container: box,
             label: 'sendet, wenn alle Gegner besiegt',
-            hint: 'Sind alle Gegner in diesem Level besiegt, sendet das Level einen Code – zum Beispiel öffnet sich dann das Tor zum Ziel. Gegner auf einer Ebene, die noch nicht erschienen ist, zählen erst mit, wenn sie da sind: So kann die nächste Welle erscheinen, sobald die erste besiegt ist.',
+            hint: 'Sind alle Gegner in diesem Level besiegt, sendet das Level einen Code – zum Beispiel öffnet sich dann das Tor zum Ziel. Gegner auf einer Ebene, die noch nicht erschienen ist, zählen erst mit, wenn sie da sind: So kann die nächste Welle erscheinen, sobald die erste besiegt ist. Unverwundbare Gegner zählen nicht mit.',
             get: () => Number.isInteger(level.properties.signal_all_defeated),
             set: (on) => {
                 if (on) level.properties.signal_all_defeated = free_signal_code(level);

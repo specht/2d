@@ -167,3 +167,45 @@ test('Periodic hits require an explicit bounded interval', () => {
     actor.traits.attacks = [{ ...sword(), hit: { rehit_interval_s: 0 } }];
     assert.equal(combat.request_attack(actor, 'sword', 1), null);
 });
+
+test('"unverwundbar": an invincible enemy is not hurt, but still attacks', () => {
+    const { game, actor, baddie, combat } = fixture();
+    const cat = baddie();
+    cat.traits.invincible = true;
+    const swing = combat.request_attack(actor, 'sword', 0);
+    assert.equal(combat.apply_hit(swing, cat, 0.01), false);
+    assert.equal(cat.energy, 60);
+    assert.equal(cat.active, true);
+    // its own attacks work as before
+    const scratch = combat.request_attack(cat, 'sword', 0);
+    assert.equal(combat.apply_hit(scratch, actor, 0.01), true);
+    assert.equal(game.energy, 80);
+    // an ordinary enemy next to it is hurt as always
+    const slime = baddie();
+    assert.equal(combat.apply_hit(swing, slime, 0.02), true);
+    assert.equal(slime.energy, 40);
+});
+
+test('"unverwundbar" also holds for damage that does not go through combat (falling blocks)', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const app = fs.readFileSync(path.join(__dirname, '../src/static/app.js'), 'utf8');
+    const start = app.indexOf('\ttake_damage(damage) {');
+    const end = app.indexOf('\n\tsimulation_step(t) {', start);
+    assert.ok(start >= 0 && end > start);
+    const Enemy = new Function(`return class { ${app.slice(start, end)} };`)();
+    const make = (invincible) => Object.assign(new Enemy(), {
+        character_trait: 'baddie', energy: 50, active: true,
+        traits: invincible ? { invincible: true } : {},
+        game: { clock: { getElapsedTime: () => 0 }, spawn_drop() {}, baddie_defeated() {} },
+        update_state_and_direction() {},
+    });
+    const cat = make(true);
+    cat.take_damage(500);
+    assert.equal(cat.energy, 50);
+    assert.equal(cat.active, true);
+    const slime = make(false);
+    slime.take_damage(500);
+    assert.equal(slime.energy, 0);
+    assert.equal(slime.active, false);
+});

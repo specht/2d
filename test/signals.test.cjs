@@ -749,3 +749,12 @@ test('"schließt wieder nach" counts from when a door with Übergang is fully op
     game.update_auto_closing_doors(1.5);
     assert.equal(door.door_state, 'closing');
 });
+
+test('"alle Gegner besiegt" does not wait for an enemy that cannot be defeated', () => {
+    const game = level_game([{ properties: {}, sprites: [[5, 0, 0, {}], [6, 100, 0, {}], [6, 140, 0, {}]] }],
+        { signal_all_defeated: 9 });
+    const [slime, cat] = game.baddies;
+    cat.traits = { invincible: true };
+    slime.active = false; game.baddie_defeated(slime, 1);
+    assert.deepEqual(game.signals.sent, [[9, true]]);
+});

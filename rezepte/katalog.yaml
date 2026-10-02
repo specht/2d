@@ -822,6 +822,25 @@ sprites:
       - { strip: maus/laufen, fps: 10, traits: { baddie: [walk_right] } }
       - { strip: maus/fliehen, fps: 16, traits: { baddie: [flee_right] } }
       - { strip: maus/tot, fps: 8, traits: { baddie: [dead] } }
+  # unverwundbar: kratzt bei Berührung, aber Angriffe machen ihr nichts
+  katze:
+    label: Katze (unverwundbar)
+    traits:
+      baddie:
+        energy: 40
+        damage: 20
+        vrun: 0.5
+        patrols: false
+        start_dir: left
+        wait_until_seen: false
+        ex_left: 0.75
+        ex_right: 0.75
+        ex_top: 0.6
+        invincible: true
+        behavior: { type: still }
+    states:
+      - { strip: katze/stehen, fps: 3, traits: { baddie: [right] } }
+      - { strip: katze/laufen, fps: 10, traits: { baddie: [walk_right] } }
   keiler:
     label: Keiler (Lauerer)
     traits:
