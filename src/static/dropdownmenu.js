@@ -1,30 +1,39 @@
+// A list of entries in a panel (Funktionen, Eigenschaft hinzufügen): an entry
+// with children opens them as a menu in the style of the right-click menus
+// (show_context_menu in widgets.js), with submenus for deeper levels.
 class DropdownMenu {
     constructor(element, info) {
         this.element = element;
         this.element.addClass('dropdown_menu');
         this.element.empty();
-        this.element.append(this.parse_children(info, 0));
+        this.element.append(this.parse_children(info));
     }
-    parse_children(children, level) {
+
+    static menu_entries(children) {
+        return children.map(entry => ({
+            label: entry.label,
+            icon: entry.icon,
+            disabled: !entry.callback && !entry.children?.length,
+            callback: entry.callback,
+            children: entry.children ? DropdownMenu.menu_entries(entry.children) : undefined,
+        }));
+    }
+
+    parse_children(children) {
         let div = $(`<div>`);
         for (let entry of children) {
-            let label = $(`<div class='item'>`).text(entry.label);
+            let label = $(`<div class='item'>`).text(entry.label).css('padding-left', '5px');
             div.append(label);
-            label.css('padding-left', `${(level + 1) * 5}px`);
             if (entry.children) {
                 label.addClass('has_submenu');
-                let submenu = this.parse_children(entry.children, level + 1);
-                submenu.addClass('dropdown_submenu');
-                submenu.css('display', 'none');
-                div.append(submenu);
-                label.click(function(e) {
-                    let item = $(e.target).closest('.item');
-                    item.parent().find('.has_submenu').removeClass('open');
-                    item.parent().find('.dropdown_submenu').slideUp({duration: 200});
-                    if (!item.next().is(':visible')) {
-                        item.next().slideDown({duration: 200, complete: () => reveal(item, item.next())});
-                        item.addClass('open');
-                    }
+                label.on('mousedown', (e) => { if (label.hasClass('open')) e.stopPropagation(); });
+                label.on('click', (e) => {
+                    e.stopPropagation();
+                    if (label.hasClass('open')) { close_context_menu(); return; }
+                    const rect = label[0].getBoundingClientRect();
+                    show_context_menu(rect.left, rect.bottom + 2, DropdownMenu.menu_entries(entry.children), { min_width: rect.width });
+                    label.addClass('open');
+                    $('.context-menu').first().on('remove-menu', () => label.removeClass('open'));
                 });
             }
             if (entry.callback) {
