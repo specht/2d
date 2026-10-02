@@ -119,28 +119,32 @@ function attack_definitions(sprite) {
     return attacks.filter(attack => attack && typeof attack === 'object');
 }
 
+// The references a sprite's own traits hold (attack visuals, enemy drop).
+function for_each_sprite_reference_in_sprite(sprite, visit) {
+    for (const attack of attack_definitions(sprite)) {
+        const visual = attack.visual;
+        if (!visual || typeof visual !== 'object') continue;
+        for (const name of ATTACK_SPRITE_REFERENCES) {
+            const index_key = `${name}_sprite_index`;
+            const id_key = `${name}_sprite_id`;
+            visit(visual, index_key, id_key, () => {
+                delete visual[index_key];
+                delete visual[id_key];
+            });
+        }
+    }
+    const baddie = sprite?.traits?.baddie;
+    if (baddie?.drop && typeof baddie.drop === 'object') {
+        visit(baddie.drop, 'sprite_index', 'sprite_id', () => { delete baddie.drop; });
+    }
+}
+
 // Calls visit(container, index_key, id_key, clear) for every keyed sprite
 // reference. clear() removes the reference in the way the editor always has
 // (an enemy drop without a sprite is removed entirely).
 function for_each_keyed_sprite_reference(data, visit) {
-    for (const sprite of Array.isArray(data?.sprites) ? data.sprites : []) {
-        for (const attack of attack_definitions(sprite)) {
-            const visual = attack.visual;
-            if (!visual || typeof visual !== 'object') continue;
-            for (const name of ATTACK_SPRITE_REFERENCES) {
-                const index_key = `${name}_sprite_index`;
-                const id_key = `${name}_sprite_id`;
-                visit(visual, index_key, id_key, () => {
-                    delete visual[index_key];
-                    delete visual[id_key];
-                });
-            }
-        }
-        const baddie = sprite?.traits?.baddie;
-        if (baddie?.drop && typeof baddie.drop === 'object') {
-            visit(baddie.drop, 'sprite_index', 'sprite_id', () => { delete baddie.drop; });
-        }
-    }
+    for (const sprite of Array.isArray(data?.sprites) ? data.sprites : [])
+        for_each_sprite_reference_in_sprite(sprite, visit);
     for (const level of Array.isArray(data?.levels) ? data.levels : []) {
         for (const condition of Array.isArray(level?.conditions) ? level.conditions : []) {
             const properties = condition?.properties;
@@ -290,7 +294,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         GAME_ID_PATTERN, GAME_ID_PREFIXES,
         valid_game_id, random_game_id, ensure_game_ids, assign_new_game_id,
-        sprite_index_by_id, convert_sprite_references_to_ids,
+        sprite_index_by_id, convert_sprite_references_to_ids, for_each_sprite_reference_in_sprite,
         resolve_sprite_references_to_indices, remove_sprite_references,
         SPRITE_TITLE_MAX_LENGTH, sprite_title, sprite_label, set_sprite_title,
     };

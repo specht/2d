@@ -53,7 +53,7 @@ class DragAndDropWidget {
         $(options.container).empty();
         for (let i = 0; i < options.items.length; i++) {
             let item = options.items[i];
-            this._append_item(options.gen_item(item, i));
+            this._append_item(options.gen_item(item, i), i);
         }
         this.add_div = $(`<div>`).addClass('_dnd_item add');
         this.add_button = $('<div>').addClass(options.item_class).appendTo(this.add_div);
@@ -93,6 +93,18 @@ class DragAndDropWidget {
             }
         });
         $(options.container).append(this.add_div);
+        // more tiles next to + (extra_buttons: [{ icon, title, callback }])
+        if (options.extra_buttons?.length) {
+            this.extra_divs = $();
+            for (const extra of options.extra_buttons) {
+                const div = $('<div>').addClass('_dnd_item add extra');
+                const button = $('<div>').addClass(options.item_class).attr('title', extra.title ?? '').appendTo(div);
+                $('<div>').addClass('add').append($('<i>').addClass(`fa ${extra.icon}`)).appendTo(button);
+                button.on('click', (e) => { e.stopPropagation(); extra.callback(); });
+                this.extra_divs = this.extra_divs.add(div);
+            }
+            $(options.container).append(this.extra_divs);
+        }
         if (options.items.length > 0 && (!options.can_be_empty))
             this.options.onclick(this.options.container.children().eq(0).children().eq(0), 0);
         this.moving_index = null;
@@ -114,6 +126,20 @@ class DragAndDropWidget {
 
     _move_add_div_to_end() {
         $(this.options.container).append(this.add_div);
+        if (this.extra_divs) $(this.options.container).append(this.extra_divs);
+    }
+
+    // Items that were added to `items` from outside (Sprites aus einem anderen
+    // Spiel, Duplizieren): shown at the end, like the + button adds one.
+    append_items(first_index) {
+        for (let i = first_index; i < this.options.items.length; i++)
+            this._append_item(this.options.gen_item(this.options.items[i], i), i);
+        this._move_add_div_to_end();
+    }
+
+    select_index(index) {
+        const element = this.options.container.children().eq(index);
+        if (element.length) this.options.onclick(element.children().eq(0)[0], index);
     }
 
     handle_down(e) {
@@ -137,7 +163,7 @@ class DragAndDropWidget {
         self.container_scroll_position = [self.options.container.scrollLeft(), self.options.container.scrollTop()];
     }
 
-    _append_item(item) {
+    _append_item(item, index = this.options.items.length - 1) {
         let self = this;
         let item_div = $(`<div>`).addClass('_dnd_item');
         let item_subdiv = $(`<div>`).addClass(this.options.item_class).appendTo(item_div);
@@ -165,8 +191,8 @@ class DragAndDropWidget {
                 self.handle_down(e);
         });
         try {
-            if (self.options.items.length > 0) {
-                let hint = self.options.hint_with_heading_for_item(self.options.items[self.options.items.length - 1]);
+            if (self.options.items[index]) {
+                let hint = self.options.hint_with_heading_for_item(self.options.items[index]);
                 let hint2 = {label: hint[0], hint: hint[1]};
                 install_hint_handler(item, hint2);
                 // console.log('hint', hint);
@@ -181,7 +207,8 @@ class DragAndDropWidget {
         if (this.options.can_delete_index && Number.isInteger(this.moving_index) &&
             this.options.can_delete_index(this.moving_index) === false)
             return false;
-        return this.options.can_be_empty || (this.options.container.children().length > 2);
+        // (the item being dragged is out of the list; a placeholder stands in for it)
+        return this.options.can_be_empty || (this.options.container.children('._dnd_item').not('.add').length > 1);
     }
 
     _install_drag_and_drop_handler() {

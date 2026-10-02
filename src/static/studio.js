@@ -574,6 +574,10 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         window.resizeCanvasModal.show();
                     },
                 },
+                {
+                    label: 'Sprites aus anderem Spiel holen …',
+                    callback: () => show_sprite_basket(),
+                },
                 // {
                 //     label: 'Spritekatalog',
                 //     callback: () => {

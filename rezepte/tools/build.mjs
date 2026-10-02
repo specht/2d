@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { marked } from 'marked';
 import sharp from 'sharp';
-import { load_catalog, load_strip, build_game, TILE } from './game.mjs';
+import { load_catalog, load_strip, build_game, studio_game_file, TILE } from './game.mjs';
 import { launch, record, write_webp, write_gif, check, key_events } from './record.mjs';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
@@ -353,6 +353,7 @@ async function main() {
                 for (const m of (old.html ?? '').matchAll(/\/rezepte\/([^"?]+)\?/g)) written.add(m[1]);
                 if (old.bild) written.add(old.bild);
                 if (old.standbild) written.add(old.standbild);
+                if (old.spiel) written.add(old.spiel);
                 continue;
             }
             const t0 = Date.now();
@@ -363,6 +364,9 @@ async function main() {
             const plain_recipe = r.ohne ? { ...r, szene: { ...r.szene, ...(r.ohne.szene ?? {}) } } : null;
             const plain_game = plain_recipe ? await build_game(catalog, plain_recipe, repo) : null;
             const quelle = fingerprint(r, [game, ...variant_games, ...(plain_game ? [plain_game] : [])]);
+            // The scene as a game to open in the studio (Hilfe → "Im Studio
+            // ausprobieren"): cheap, so written for unchanged recipes, too.
+            const spiel = { spiel: `spiele/${r.id}.json`, spiel_version: write_output(`spiele/${r.id}.json`, studio_game_file(game)) };
             // Unchanged since the last build (and not asked for by name): keep the recording.
             const media_ok = f => f && fs.existsSync(path.join(out_dir, f));
             if (!force && !check_only && !only.includes(r.id) && old?.quelle === quelle &&
@@ -378,6 +382,7 @@ async function main() {
                     ...card_crop(r, old.hoehe),
                     ...(r.schleife ? { schleife: true } : {}),
                     ...(r.einzelbilder ? { einzelbilder: old.einzelbilder } : {}),
+                    ...spiel,
                     html: await render_body(r.body, r.id, old.einzelbilder), quelle,
                 });
                 console.log(`= ${r.id} (unverändert)`);
@@ -450,6 +455,7 @@ async function main() {
                 ...card_crop(r, size.height),
                 ...(r.schleife ? { schleife: true } : {}),
                 ...(r.einzelbilder ? { einzelbilder: scenes } : {}),
+                ...spiel,
                 html: await render_body(r.body, r.id, scenes), quelle,
             });
         }

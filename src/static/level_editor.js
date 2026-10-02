@@ -1316,12 +1316,12 @@ class LevelEditor {
     }
 
     // A short message over the level (a few seconds).
-    show_level_notice(text) {
+    show_level_notice(text, duration = 4500) {
         let notice = $(this.element).find('.level-notice');
         if (!notice.length) notice = $('<div class="level-notice">').appendTo(this.element);
         notice.text(text).addClass('showing');
         clearTimeout(this.level_notice_timer);
-        this.level_notice_timer = setTimeout(() => notice.removeClass('showing'), 4500);
+        this.level_notice_timer = setTimeout(() => notice.removeClass('showing'), duration);
     }
 
     cancel_connect() {

@@ -269,6 +269,12 @@ Useful additions include:
 
 ---
 
+# Sprites from Other Games
+
+"Sprites aus einem anderen Spiel holen" exists (sprite list: the basket tile next to +): a game code or a recipe scene, a basket across several games, and one import with states, animations, traits and everything a sprite refers to. A global sprite catalogue was tried before and is intentionally not the plan: there are too many similar versions; children pick a known good game instead. Ideas: remembering recently opened source games; a small list of recommended source games for a class.
+
+---
+
 # Image and Animation Import
 
 Improve generic image import rather than building around one external application.
@@ -466,6 +472,15 @@ Keep these outside the core roadmap unless a concrete project requires them:
 - full inventory system
 
 They can easily dominate the architecture while benefiting relatively few games.
+
+---
+
+# Recipe Scenes in the Studio
+
+Every recipe's scene can be opened in the studio (Hilfe → Selbst ausprobieren → Szene öffnen); saving it makes an own game. Ideas for later:
+
+- give a scene room outside the recorded frame (an optional extra map in the recipe that only the studio scene contains), so children have more space to explore and sprites to borrow for their own games
+- a short "look here" hint per recipe (which layer, which sprite, which setting matters)
 
 ---
 
