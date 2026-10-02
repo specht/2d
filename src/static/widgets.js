@@ -404,9 +404,11 @@ class DragAndDropWidget {
 
 // A small right-click menu. entries: { label, icon?, callback, disabled?, hint?,
 // children? } or '-' for a line. It closes on a click elsewhere, Esc or scrolling.
-function show_context_menu(x, y, entries) {
+function show_context_menu(x, y, entries, options = {}) {
     close_context_menu();
     const menu = $('<div>').addClass('context-menu').attr('role', 'menu');
+    if (options.dropdown) menu.addClass('context-menu-dropdown');
+    if (options.min_width) menu.css('min-width', `${Math.ceil(options.min_width)}px`);
     const build = (container, list) => {
         for (const entry of list) {
             if (entry === '-') { $('<div>').addClass('context-menu-line').appendTo(container); continue; }
@@ -450,12 +452,14 @@ function show_context_menu(x, y, entries) {
             if (!$(e.target).closest('.context-menu').length) close_context_menu();
         });
         $(document).on('keydown.contextmenu', (e) => { if (e.key === 'Escape') close_context_menu(); });
-        $(window).on('blur.contextmenu resize.contextmenu wheel.contextmenu', () => close_context_menu());
+        $(window).on('blur.contextmenu resize.contextmenu', () => close_context_menu());
+        // scrolling inside a long menu is fine, scrolling anything else closes it
+        $(window).on('wheel.contextmenu', (e) => { if (!$(e.target).closest('.context-menu').length) close_context_menu(); });
     }, 0);
 }
 
 function close_context_menu() {
-    $('.context-menu').remove();
+    $('.context-menu').trigger('remove-menu').remove();
     $(document).off('.contextmenu');
     $(window).off('.contextmenu');
 }
@@ -1046,5 +1050,109 @@ class SpriteWidget {
     update() {
         if (this.data.get() !== this.select.val())
             this.data.set(this.select.val());
+    }
+}
+
+// ------------------------------------------------------------ dropdowns
+// Every <select> in the studio is shown as a button that opens a menu in the
+// style of the right-click menus (show_context_menu). The <select> itself
+// stays in the page, hidden: its value, its options, `disabled` and its change
+// event work as always, so no code that uses it has to change. A select with
+// data-native keeps the browser's look.
+function dropdown_label(select) {
+    const option = select.options[select.selectedIndex];
+    return option ? option.textContent : '';
+}
+
+function sync_dropdown(select) {
+    const button = select.__dropdown_button;
+    if (!button) return;
+    button.find('.dropdown-text').text(dropdown_label(select));
+    button.prop('disabled', select.disabled);
+    button.toggle(select.style.display !== 'none' && !select.hidden);
+}
+
+function open_dropdown(select, button) {
+    const rect = button[0].getBoundingClientRect();
+    const entries = [...select.options].map(option => ({
+        label: option.textContent,
+        icon: option.selected ? 'fa-check' : '',
+        disabled: option.disabled,
+        callback: () => {
+            if (select.value === option.value) return;
+            select.value = option.value;
+            $(select).trigger('change');
+            select.dispatchEvent(new Event('input', { bubbles: true }));
+        },
+    }));
+    if (!entries.length) return;
+    show_context_menu(rect.left, rect.bottom + 2, entries, { min_width: rect.width, dropdown: true });
+    button.addClass('open');
+    const close = () => { button.removeClass('open'); button.trigger('focus'); };
+    $('.context-menu').first().on('remove-menu', close);
+}
+
+function enhance_select(select) {
+    if (select.__dropdown_button || select.dataset.native !== undefined) return;
+    const button = $('<button type="button">').addClass('dropdown-button')
+        .append($('<span>').addClass('dropdown-text'))
+        .append($('<i>').addClass('fa fa-angle-down dropdown-arrow'));
+    select.__dropdown_button = button;
+    button.insertAfter(select);
+    $(select).addClass('dropdown-native');
+    // the same place in a layout (flex rules for the select apply to the button, too)
+    if (select.id) button.attr('data-for', select.id);
+    // a click on the open dropdown's button closes it (and does not open it again)
+    button.on('mousedown', (e) => { if (button.hasClass('open')) e.stopPropagation(); });
+    button.on('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if ($('.context-menu').length && button.hasClass('open')) { close_context_menu(); return; }
+        open_dropdown(select, button);
+    });
+    // arrows change the value without opening the menu
+    button.on('keydown', (e) => {
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        e.preventDefault();
+        e.stopPropagation();
+        const options = [...select.options];
+        let i = select.selectedIndex;
+        do { i += e.key === 'ArrowDown' ? 1 : -1; } while (options[i]?.disabled);
+        if (!options[i]) return;
+        select.selectedIndex = i;
+        $(select).trigger('change');
+    });
+    $(select).on('change', () => sync_dropdown(select));
+    // options added or removed later
+    new MutationObserver(() => sync_dropdown(select)).observe(select, { childList: true, subtree: true, characterData: true, attributes: true });
+    sync_dropdown(select);
+}
+
+// Values set from code (select.val(…)) update the button, too.
+if (typeof HTMLSelectElement !== 'undefined' && !HTMLSelectElement.__dropdown_patched) {
+    HTMLSelectElement.__dropdown_patched = true;
+    const later = (select) => { if (select?.__dropdown_button) queueMicrotask(() => sync_dropdown(select)); };
+    for (const [proto, key, owner] of [[HTMLSelectElement.prototype, 'value', s => s], [HTMLSelectElement.prototype, 'selectedIndex', s => s],
+        [HTMLOptionElement.prototype, 'selected', o => o.parentElement?.closest?.('select')]]) {
+        const descriptor = Object.getOwnPropertyDescriptor(proto, key);
+        if (!descriptor?.set) continue;
+        Object.defineProperty(proto, key, {
+            ...descriptor,
+            set(value) { descriptor.set.call(this, value); later(owner(this)); },
+        });
+    }
+    const enhance_all = (root) => {
+        if (root.tagName === 'SELECT') enhance_select(root);
+        root.querySelectorAll?.('select').forEach(enhance_select);
+    };
+    const start = () => {
+        enhance_all(document.body);
+        new MutationObserver((mutations) => {
+            for (const m of mutations) for (const node of m.addedNodes) if (node.nodeType === 1) enhance_all(node);
+        }).observe(document.body, { childList: true, subtree: true });
+    };
+    if (typeof document !== 'undefined') {
+        if (document.body) start();
+        else document.addEventListener('DOMContentLoaded', start);
     }
 }
