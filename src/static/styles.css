@@ -2880,6 +2880,10 @@ details.trait-advanced[open] > summary {
 
 /* Einstellungen → Texte: what speech looks like in the game (game.js, speech.js) */
 .speech-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 64px;
     margin: 6px 0 10px 0;
     padding: 10px;
     border-radius: 6px;
@@ -3508,4 +3512,23 @@ select.dropdown-native {
     box-sizing: border-box;
     flex: 1 1 0;
     width: 0;
+}
+
+/* under a text field: "Neue Sprechblase" (level_editor.js insert_button) */
+.text-insert-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    margin: 4px 0 6px 0;
+    padding: 0.25em 0.7em;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #ddd;
+    font: inherit;
+    font-size: 12px;
+}
+
+.text-insert-button:hover {
+    border-color: rgba(255, 255, 255, 0.5);
 }

@@ -460,10 +460,12 @@ var SPRITE_TRAITS = {
         placed_properties: {
             text: {
                 label: 'Text',
-                hint: 'Steht die Spielfigur davor und man drückt die Aktionstaste (F), wird dieser Text gesprochen. Jede Zeile ist ein Satz: Die Sätze erscheinen nacheinander. Mit der Punkt-Taste (.) oder F geht es gleich zum nächsten Satz.',
+                hint: 'Steht die Spielfigur davor und man drückt die Aktionstaste (F), wird dieser Text gesprochen – Satz für Satz, jeder Satz in einer eigenen Sprechblase. Willst du selbst bestimmen, wo eine neue Sprechblase beginnt, setze dort ein | (Knopf „Neue Sprechblase“ oder AltGr + <). Mit der Punkt-Taste (.) oder F geht es gleich zur nächsten Sprechblase.',
                 type: 'string',
                 options: {
                     multiline: true,
+                    // level_editor.js: a button that puts the separator at the cursor
+                    insert_button: { text: ' | ', label: 'Neue Sprechblase', icon: 'fa-comment-o' },
                 },
                 default: '',
             },

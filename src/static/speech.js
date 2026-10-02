@@ -62,9 +62,38 @@ function speech_settings(properties) {
 }
 
 // Every line is one sentence; empty lines are left out.
+// The speech bubbles of a text. With a | anywhere in it, the child decides:
+// every part between two | is one bubble (line breaks in it are just spaces).
+// Without one, every sentence is a bubble of its own: the text is split at
+// line breaks and after . ! ? … when the next sentence begins (not after
+// "z. B.", "Nr." or "3.", and not before a word in small letters).
+const SPEECH_SEPARATOR = '|';
+const SPEECH_ABBREVIATIONS = new Set(['z', 'b', 'd', 'h', 'u', 'a', 'o', 's', 'v', 'nr', 'dr', 'bzw', 'usw', 'ca', 'evtl', 'ggf', 'hr', 'fr', 'st', 'str', 'vgl', 'bspw', 'inkl', 'zb', 'etc', 'max', 'min']);
+
+function split_sentences(line) {
+    const parts = [];
+    let start = 0;
+    const end_mark = /[.!?…]+["“”„»«'’)\]]*(?=\s+\S)/g;
+    let m;
+    while ((m = end_mark.exec(line))) {
+        const before = line.slice(start, m.index);
+        const word = (before.match(/(\S+)$/)?.[1] ?? '').replace(/^["“„»«'(\[]+/, '');
+        const next = line.slice(end_mark.lastIndex).trimStart()[0] ?? '';
+        const full_stop_only = m[0][0] === '.' && !/[!?…]/.test(m[0]) && m[0].replace(/[^.]/g, '').length === 1;
+        if (full_stop_only && (/^\d+$/.test(word) || /^\p{L}$/u.test(word) || SPEECH_ABBREVIATIONS.has(word.toLowerCase()))) continue;
+        if (/\p{Ll}/u.test(next)) continue;
+        parts.push(line.slice(start, end_mark.lastIndex));
+        start = end_mark.lastIndex;
+    }
+    parts.push(line.slice(start));
+    return parts.map(p => p.trim()).filter(p => p.length > 0);
+}
+
 function speech_parts(text) {
     if (typeof text !== 'string') return [];
-    return text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+    if (text.includes(SPEECH_SEPARATOR))
+        return text.split(SPEECH_SEPARATOR).map(part => part.replace(/\s+/g, ' ').trim()).filter(part => part.length > 0);
+    return text.split(/\r?\n/).flatMap(split_sentences);
 }
 
 // Seconds a sentence stays: long enough to read it, at least 1.5 s.
@@ -219,7 +248,7 @@ function render_speech_bitmap(lines, font_id, k, color, make_canvas) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         SPEECH_FONTS, SPEECH_DEFAULT_FONT, SPEECH_SIZES, SPEECH_SPEEDS, SPEECH_PLAYER_COLOR, SPEECH_SELF_COLOR,
-        SPEECH_SPEAKERS, speech_color, speech_settings, speech_parts, speech_seconds, speech_scale, wrap_speech,
+        SPEECH_SPEAKERS, SPEECH_SEPARATOR, speech_color, speech_settings, speech_parts, speech_seconds, speech_scale, wrap_speech,
         Speech, render_speech_bitmap,
     };
 }
