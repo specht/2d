@@ -583,6 +583,12 @@ body {
     transition: none;
 }
 
+/* Rückgängig / Wiederholen in the level editor with nothing to undo or redo */
+.status-bar-button.disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
 /* ------------------------------------------------------------------
    Live collaboration (collaboration.js)
 

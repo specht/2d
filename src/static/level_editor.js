@@ -362,6 +362,8 @@ class LevelEditor {
                 return level_div;
             },
             onclick: (e, index) => {
+                // edits of the level shown so far become an undo step first
+                self.history_observe();
                 self.clear_selection();
                 self.level_index = index;
                 self.layer_index = 0;
@@ -489,6 +491,7 @@ class LevelEditor {
                         return layer_div;
                     },
                     onclick: (e, index) => {
+                        self.history_observe();
                         self.clear_selection();
                         self.layer_index = index;
                         self.rect_index = 0;
@@ -503,6 +506,8 @@ class LevelEditor {
                         $('#menu_layer_properties_container').show();
                         self.refresh();
                         self.render();
+                        // the layer panel fills in missing settings (Bewegung)
+                        self.history_rebase();
                     },
                     gen_new_item: (type) => {
                         let layer_struct = new LayerStruct(self);
@@ -636,6 +641,9 @@ class LevelEditor {
 
                 self.refresh();
                 self.render();
+                // showing a level may tidy it up (sprites that no longer exist):
+                // that is not an edit to undo
+                self.history_rebase();
             },
             gen_new_item: () => {
                 const level = {};
@@ -686,6 +694,77 @@ class LevelEditor {
             self.render();
         });
         this.handleResize();
+    }
+
+    // ---------------------------------------- Rückgängig / Wiederholen
+    // level_history.js keeps the versions; here: when to look, and how to
+    // show an older version.
+    current_history_level() {
+        return this.game.data?.levels?.[this.level_index] ?? null;
+    }
+
+    history_observe() {
+        const level = this.current_history_level();
+        if (!level?.id || !this.game.level_history) return;
+        this.game.level_history.observe(level.id, JSON.stringify(level));
+        this.update_history_buttons();
+    }
+
+    history_rebase() {
+        const level = this.current_history_level();
+        if (!level?.id || !this.game.level_history) return;
+        this.game.level_history.rebase(level.id, JSON.stringify(level));
+        this.update_history_buttons();
+    }
+
+    undo() {
+        this.step_history('undo');
+    }
+
+    redo() {
+        this.step_history('redo');
+    }
+
+    step_history(direction) {
+        const level = this.current_history_level();
+        const history = this.game.level_history;
+        // not in the middle of a drag, and not while somebody else edits this level
+        if (!level?.id || !history || this.mouse_down) return;
+        if (window.collaboration?.can_edit_current?.() === false) return;
+        const serialized = history[direction](level.id, JSON.stringify(level));
+        if (serialized !== null) {
+            this.game.data.levels[this.level_index] = JSON.parse(serialized);
+            this.reload_level_keeping_view(this.level_index);
+        }
+        this.update_history_buttons();
+    }
+
+    update_history_buttons() {
+        if (typeof $ === 'undefined') return;
+        const id = this.current_history_level()?.id;
+        const history = this.game.level_history;
+        $('#status-bar .level-history-undo').toggleClass('disabled', !history?.can_undo(id));
+        $('#status-bar .level-history-redo').toggleClass('disabled', !history?.can_redo(id));
+    }
+
+    // Shows the level again after its data was replaced (undo, or a change
+    // from a collaboration session), keeping the camera and the selected layer.
+    reload_level_keeping_view(index) {
+        const view = {
+            camera_x: this.camera_x, camera_y: this.camera_y,
+            visible_pixels: this.visible_pixels, layer_index: this.layer_index,
+        };
+        $('#menu_levels > ._dnd_item').eq(index).children().eq(0).trigger('click');
+        if (this.level_index !== index) return;
+        this.auto_adjust_camera = false;
+        this.camera_x = view.camera_x;
+        this.camera_y = view.camera_y;
+        this.visible_pixels = view.visible_pixels;
+        this.fix_scale?.();
+        const layers = this.game.data.levels[index]?.layers ?? [];
+        if (view.layer_index > 0 && view.layer_index < layers.length)
+            $('#menu_layers > ._dnd_item').eq(view.layer_index).children().eq(0).trigger('click');
+        this.render();
     }
 
     // Under the Code of a key, door, Schalter or Druckplatte: what else in this
@@ -1309,6 +1388,9 @@ class LevelEditor {
     handle_down(e) {
         e.preventDefault();
         e.stopPropagation();
+        // preventDefault keeps the focus where it was: leave a text field, so
+        // that keys (Strg+Z, tool shortcuts) work on the level again
+        if (document.activeElement?.matches?.('input, textarea, select')) document.activeElement.blur();
         this.last_touch_distance = null;
         if ((e.touches || []).length === 2) {
             this.is_double_touch = true;
@@ -2266,3 +2348,47 @@ class LevelEditor {
     }
 }
 
+// When an edit in the level editor may just have been completed, the level
+// is compared with its last version (LevelEditor.history_observe). Typing in
+// a field is one step once it pauses; pressing a mouse button or a key first
+// takes what was typed, so it does not merge with the next edit.
+(function install_level_history_listeners() {
+    if (typeof document === 'undefined') return;
+    const TYPING_PAUSE_MS = 600;
+    let timer = null;
+    const editor = () => (typeof current_pane !== 'undefined' && current_pane === 'level') ?
+        window.game?.level_editor ?? null : null;
+    const is_field = (target) => !!target?.closest?.('input, textarea, select, [contenteditable]');
+    const observe_now = () => {
+        clearTimeout(timer);
+        timer = null;
+        editor()?.history_observe();
+    };
+    const observe_soon = (delay) => {
+        clearTimeout(timer);
+        timer = setTimeout(observe_now, delay);
+    };
+    const flush = () => { if (timer !== null) observe_now(); };
+    document.addEventListener('mousedown', flush, true);
+    document.addEventListener('touchstart', flush, true);
+    // typing goes on in the same field: only other keys end the pause
+    document.addEventListener('keydown', (e) => { if (!is_field(e.target)) flush(); }, true);
+    document.addEventListener('mouseup', () => observe_soon(0), true);
+    document.addEventListener('touchend', () => observe_soon(0), true);
+    document.addEventListener('keyup', (e) => observe_soon(is_field(e.target) ? TYPING_PAUSE_MS : 0), true);
+    document.addEventListener('input', () => observe_soon(TYPING_PAUSE_MS), true);
+    document.addEventListener('change', (e) => observe_soon(is_field(e.target) ? TYPING_PAUSE_MS : 0), true);
+
+    // Strg+Z / Strg+Y (or Strg+Umschalt+Z) by the printed letter: on a German
+    // keyboard Z and Y swap places, so the key's position (e.code) would be wrong.
+    window.addEventListener('keydown', (e) => {
+        const level_editor = editor();
+        if (!level_editor || !(e.ctrlKey || e.metaKey) || e.altKey || is_field(e.target)) return;
+        const key = (e.key ?? '').toLowerCase();
+        if (key !== 'z' && key !== 'y') return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (key === 'z' && !e.shiftKey) level_editor.undo();
+        else level_editor.redo();
+    }, true);
+})();

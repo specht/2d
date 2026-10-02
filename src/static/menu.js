@@ -174,6 +174,13 @@ class Menu {
         statusBar.empty();
         let hints = (active_command.hints || []).slice(0);
         if (active_command.label) hints.unshift(`<b>${active_command.label}</b>`);
+        // Level editor (level_editor.js): right after the tool, before the general keys
+        if (this.pane === 'level') {
+            hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'level-history-undo',
+                callback: () => game.level_editor?.undo() });
+            hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'level-history-redo',
+                callback: () => game.level_editor?.redo() });
+        }
         // hints.unshift({
         //     label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () {
         //         window.loginModal.show();
@@ -306,8 +313,12 @@ class Menu {
                         statusBar.append(button);
                 } else {
                     let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
-                    if (hint.key) {
-                        let key_parts = hint.key.split('+');
+                    if (hint.class) button.addClass(hint.class);
+                    // key_label: shown like a key, but handled elsewhere (e.g. by the
+                    // printed letter instead of the key's position, see level_editor.js)
+                    const shown_key = hint.key ?? hint.key_label;
+                    if (shown_key) {
+                        let key_parts = shown_key.split('+');
                         for (let i = 0; i < key_parts.length; i++) {
                             let part = key_parts[i];
                             let style = '';
@@ -332,6 +343,7 @@ class Menu {
             }
         }
         window.collaboration?.append_status_control?.(statusBar);
+        if (this.pane === 'level') game?.level_editor?.update_history_buttons?.();
     }
 
     handle_click(key) {

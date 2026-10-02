@@ -24,7 +24,8 @@ Important areas:
 - keyboard nudging
 - predictable drag behaviour
 - rectangular fill and other bulk-placement operations
-- undo and redo
+
+Undo and redo exist (Strg+Z / Strg+Y, per level, `level_history.js`); levels themselves (adding, deleting, reordering) and sprites in the sprite editor's lists are not part of it yet.
 
 The goal is that constructing and restructuring a level should remain comfortable even after the level has become fairly large.
 
@@ -527,7 +528,7 @@ In particular:
 
 1. Turn the level editor into a comfortable scene editor.
 2. Make editing existing level content as easy as placing new content.
-3. Add undo/redo and strong selection manipulation.
+3. Add strong selection manipulation (level undo/redo exists).
 4. Improve layers and large-level navigation.
 5. Shorten the playtest loop.
 6. Make game lineage understandable and add an explicit independent-fork action.

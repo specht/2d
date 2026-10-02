@@ -297,6 +297,13 @@ class Game {
     _load() {
         canvas.setGame(this);
         let self = this;
+        // Another game (or a session's copy of it): the undo steps of the
+        // levels before do not belong to it. Rebuilding the lists keeps them.
+        if (this.level_history_data !== this.data || this.level_history_levels !== this.data.levels) {
+            this.level_history = typeof LevelHistory !== 'undefined' ? new LevelHistory() : null;
+            this.level_history_data = this.data;
+            this.level_history_levels = this.data.levels;
+        }
         this.fix_game_data();
         for (let si = 0; si < this.data.sprites.length; si++) {
             let sprite_info = this.data.sprites[si];
