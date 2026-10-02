@@ -2692,6 +2692,27 @@ details.trait-advanced[open] > summary {
     color: #fff;
 }
 
+/* the current layer in a corner of the level view (level_editor.js) */
+.level-layer-label {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.55);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 85%;
+    pointer-events: none;
+    max-width: 60%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    z-index: 2;
+}
+.level-layer-label .fa-lock {
+    margin-right: 0.4em;
+}
+
 /* the selected placed sprite: which sprite it is (level_editor.js) */
 .placed-sprite-title {
     font-weight: bold;

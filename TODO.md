@@ -51,10 +51,8 @@ Possible improvements:
 - reorder layers
 - show / hide layers
 - move selections between layers
-- make the active layer obvious
-- make it easy to understand which layer a selected object belongs to
 
-Show / hide (eye) and lock (padlock: nothing can be painted, moved or deleted in the layer, its settings still change) exist in the layer list.
+Show / hide (eye) and lock (padlock: nothing can be painted, moved or deleted in the layer, its settings still change) exist in the layer list. The current layer is named in a corner of the level view, and a double-click with the select tool picks a sprite in any layer and switches to it (again: the one behind).
 
 Layer management should remain simple enough for students and should not turn into a professional graphics-editor UI.
 
@@ -70,7 +68,7 @@ Areas to improve:
 - zooming and panning
 - finding existing objects
 - maintaining spatial orientation
-- selecting objects in dense areas
+- selecting objects in dense areas (a repeated double-click reaches what lies behind; more may be needed)
 - working comfortably at different zoom levels
 
 Consider whether an overview/minimap or similar orientation aid becomes useful once genuinely large levels are common.

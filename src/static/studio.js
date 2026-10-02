@@ -415,6 +415,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 { key_label: 'Control+C', label: 'Kopieren', callback: function () { game.level_editor.copy_selection(); } },
                 { key_label: 'Control+V', label: 'Einfügen', callback: function () { game.level_editor.paste_clipboard(); } },
                 { key_label: 'Control+D', label: 'Duplizieren', callback: function () { game.level_editor.duplicate_selection(); } },
+                // level_editor.js handle_double_click: picks from any layer, again: the one behind
+                'Doppelklick: in jeder Ebene auswählen',
                 'Ziehen oder Pfeiltasten verschieben die Auswahl, mit <span class=\'key longkey\'>Shift</span> pixelgenau',
             ]
         },

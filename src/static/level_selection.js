@@ -1,7 +1,8 @@
 // Working with a selection of placed sprites in the level editor: moving,
 // copying, pasting, duplicating, deleting, moving to another layer, filling a
-// rectangle, selecting all copies of a sprite and replacing the selected
-// sprites with another one. Pure functions on a layer's `sprites` array (placed
+// rectangle, selecting all copies of a sprite, replacing the selected
+// sprites with another one and finding what is under a point in any layer.
+// Pure functions on a layer's `sprites` array (placed
 // sprites: [sprite id, x, y, placed properties?]); the editor shows the result.
 //
 // A layer holds at most one sprite per position (LayerStruct in
@@ -138,9 +139,41 @@ function replace_placed(sprites, indices, sprite_id, keeps_trait) {
     return changed.length ? { sprites: result, selection, changed } : { sprites, selection, changed };
 }
 
+// Double-click with the select tool: every placed sprite under a point, in
+// every visible sprite layer, front to back – layer 0 is drawn in front, and
+// within a layer the sprite drawn last comes first. point_of(li) gives the
+// point in that layer's coordinates (each layer moves with its own Parallaxe);
+// size_of(ref) gives { width, height } of a placed sprite's sprite, or null.
+// Returns [{ layer_index, placed_index }].
+function placed_sprites_at(layers, point_of, size_of) {
+    const hits = [];
+    (layers ?? []).forEach((layer, li) => {
+        if (layer?.type !== 'sprites' || layer.properties?.visible === false) return;
+        const [x, y] = point_of(li);
+        for (let pi = (layer.sprites ?? []).length - 1; pi >= 0; pi--) {
+            const placed = layer.sprites[pi];
+            const size = size_of(placed[0]);
+            if (size && x >= placed[1] - size.width / 2 && x <= placed[1] + size.width / 2 &&
+                y >= placed[2] && y <= placed[2] + size.height)
+                hits.push({ layer_index: li, placed_index: pi });
+        }
+    });
+    return hits;
+}
+
+// Which of those hits a double-click picks: the front one, or – double-clicked
+// again at the same spot – the one behind the last pick (and round again), so
+// that something hidden behind a big picture can be reached too.
+function next_pick(hits, last) {
+    if (!hits.length) return null;
+    const at = last ? hits.findIndex(h => h.layer_index === last.layer_index && h.placed_index === last.placed_index) : -1;
+    return hits[at < 0 ? 0 : (at + 1) % hits.length];
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         placed_position_key, merge_placed, move_placed, remove_placed, copy_placed, paste_placed,
         move_placed_to_layer, fill_placed, same_sprite_indices, replace_placed,
+        placed_sprites_at, next_pick,
     };
 }
