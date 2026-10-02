@@ -2964,6 +2964,61 @@ details.trait-advanced[open] > summary {
     color: #ef7d57;
 }
 
+/* The Signale beside a test run (level_editor.js start_signal_watch): the
+   overview's cards, only to read, flashing when their signal arrives */
+.signal-overview.signal-watch {
+    position: fixed;
+    top: 60px;
+    right: 12px;
+    max-height: calc(100vh - 120px);
+    width: min(340px, 30vw);
+}
+#main_div_play.with-signal-watch .play_container {
+    padding-right: calc(min(340px, 30vw) + 22px);
+}
+.signal-watch-hint {
+    margin: 2px 4px 8px;
+    font-size: 12px;
+    opacity: 0.65;
+}
+.signal-watch .signal-rule-name {
+    margin-bottom: 4px;
+    color: var(--signal-color, #fff);
+    font-weight: bold;
+}
+.signal-watch .signal-rule-code {
+    cursor: default;
+}
+.signal-watch .signal-rule:hover {
+    border-color: transparent;
+    background: rgba(255, 255, 255, 0.05);
+}
+/* in another level (the exit was reached): these rules do not apply */
+.signal-watch-elsewhere .signal-overview-body {
+    opacity: 0.4;
+}
+.signal-rule-state {
+    float: right;
+    margin-right: 6px;
+    padding: 1px 7px;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.7);
+}
+.signal-rule-on .signal-rule-state {
+    background: var(--signal-color, #a7f070);
+    color: #1a1c2c;
+}
+.signal-rule-fired {
+    animation: signal-rule-flash 0.9s ease-out;
+}
+@keyframes signal-rule-flash {
+    0% { background: color-mix(in srgb, var(--signal-color, #ffcd75) 45%, rgba(18, 20, 32, 0.9)); box-shadow: 0 0 0 2px var(--signal-color, #ffcd75), 0 0 16px var(--signal-color, #ffcd75); }
+    100% { background: rgba(255, 255, 255, 0.05); box-shadow: 0 0 0 0 transparent; }
+}
+
 /* The Code field (level_editor.js SignalCodeWidget): the number, then a
    button with the Code's name that lists the level's signals */
 .signal-code-row {
