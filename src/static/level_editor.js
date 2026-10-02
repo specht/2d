@@ -3524,6 +3524,12 @@ class LevelEditor {
                 } else if (this.game.data.levels[this.level_index].layers[li].type === 'backdrop') {
                     let backdrop = this.game.data.levels[this.level_index].layers[li];
                     let rect0 = backdrop.rects[0];
+                    // Parallaxe, as in the game (app.js moves every layer by camera × parallax)
+                    // and as ui_to_world already assumes when its rectangles are edited
+                    const parallax = backdrop.properties?.parallax ?? 0;
+                    const backdrop_group = new THREE.Group();
+                    backdrop_group.position.set(this.camera_x * parallax, this.camera_y * parallax, 0);
+                    this.scene.add(backdrop_group);
                     for (let ri = 0; ri < backdrop.rects.length; ri++) {
                         let rect = backdrop.rects[ri];
                         let geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
@@ -3542,7 +3548,7 @@ class LevelEditor {
                             this.backdrop_time_meshes.push(entry);
                             material.uniforms.time.value = this.backdrop_time() * entry.speed;
                         }
-                        this.scene.add(mesh);
+                        backdrop_group.add(mesh);
                     }
                 }
             }
@@ -3560,6 +3566,9 @@ class LevelEditor {
             this.game.data.levels[this.level_index].layers[this.backdrop_index].rects?.[this.rect_index]) {
             let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
             this.backdrop_cursor.remove.apply(this.backdrop_cursor, this.backdrop_cursor.children);
+            // the rectangle and its handles sit where the layer is drawn (Parallaxe)
+            const cursor_parallax = backdrop.properties?.parallax ?? 0;
+            this.backdrop_cursor.position.set(this.camera_x * cursor_parallax, this.camera_y * cursor_parallax, 0);
             if (backdrop.type === 'signal_area' || backdrop.type === 'movement_region') {
                 // all rectangles of the region, so one can see where it applies
                 const outline = new THREE.LineBasicMaterial({ color: backdrop.type === 'movement_region' ? 0x38b764 : 0xffcd75,
