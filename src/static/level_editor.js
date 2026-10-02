@@ -467,6 +467,8 @@ class LevelEditor {
                     trash: $('#trash'),
                     items: self.game.data.levels[self.level_index].layers,
                     item_class: 'menu_layer_item',
+                    // a locked layer cannot be thrown away (the trash does not appear)
+                    can_delete_index: (index) => !self.layer_locked(index),
                     step_aside_css: { top: '35px' },
                     gen_new_item_options: [
                         ['Sprites', 'sprites'],
@@ -500,6 +502,32 @@ class LevelEditor {
                             self.render();
                         });
                         layer_div.append(button_show);
+                        // Ebene sperren: nothing can be painted, moved or deleted in it by accident
+                        const locked = layer.properties.locked === true;
+                        const button_lock = $(`<div class='toggle layer-lock' style='margin-left: 3px; position: relative; top: -2px;'>`)
+                            .toggleClass('locked', locked)
+                            .attr('title', locked ? 'Ebene ist gesperrt – klicken zum Entsperren' :
+                                'Ebene sperren: Dann kannst du darin nichts mehr aus Versehen malen, löschen oder verschieben.')
+                            .append($(`<i class='fa ${locked ? 'fa-lock' : 'fa-unlock'}'>`));
+                        button_lock.click(function(e) {
+                            e.stopPropagation();
+                            const layer_index = $(e.target).closest('.menu_layer_item').parent().index();
+                            const properties = self.game.data.levels[self.level_index].layers[layer_index].properties;
+                            // absent = not locked: unlocking leaves no trace
+                            if (properties.locked === true) delete properties.locked; else properties.locked = true;
+                            const now = properties.locked === true;
+                            const button = $(e.target).closest('.toggle');
+                            button.toggleClass('locked', now).attr('title', now ? 'Ebene ist gesperrt – klicken zum Entsperren' :
+                                'Ebene sperren: Dann kannst du darin nichts mehr aus Versehen malen, löschen oder verschieben.');
+                            button.find('i').toggleClass('fa-lock', now).toggleClass('fa-unlock', !now);
+                            // unlocked: an old "ist gesperrt" notice is no longer true
+                            if (!now) $(self.element).find('.level-notice').removeClass('showing');
+                            self.backdrop_controls_setup_for = null;   // rectangle handles appear or go
+                            self.placed_properties_for = null;
+                            self.refresh();
+                            self.render();
+                        });
+                        layer_div.append(button_lock);
                         if (type === 'sprites') {
                             let sprite_count = $(`<span>`).text(`${layer.sprites.length}`);
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).append($('<span>').text('Sprites (')).append(sprite_count).append($('<span>').text(') · ')));
@@ -865,7 +893,7 @@ class LevelEditor {
 
     nudge_selection(dx, dy) {
         const layer = this.current_sprite_layer();
-        if (!layer || !this.selection.length || this.read_only_level()) return;
+        if (!layer || !this.selection.length || this.read_only_level() || this.refuse_locked_layer()) return;
         const moved = move_placed(layer.sprites, this.selection, dx, dy);
         this.set_layer_sprites(this.layer_index, moved.sprites, moved.selection);
     }
@@ -879,7 +907,7 @@ class LevelEditor {
     }
 
     cut_selection() {
-        if (this.read_only_level() || !this.copy_selection()) return;
+        if (this.read_only_level() || this.refuse_locked_layer() || !this.copy_selection()) return;
         this.delete_selection();
     }
 
@@ -888,7 +916,7 @@ class LevelEditor {
     paste_clipboard() {
         const clipboard = window.level_clipboard;
         const layer = this.current_sprite_layer();
-        if (!clipboard || !layer || this.read_only_level()) return;
+        if (!clipboard || !layer || this.read_only_level() || this.refuse_locked_layer()) return;
         let x = clipboard.x + this.grid_width, y = clipboard.y;
         if (this.pointer_inside && this.pointer_world_raw)
             [x, y] = this.ui_to_world(this.pointer_world_raw, true);
@@ -899,7 +927,7 @@ class LevelEditor {
 
     duplicate_selection() {
         const layer = this.current_sprite_layer();
-        if (!layer || !this.selection.length || this.read_only_level()) return;
+        if (!layer || !this.selection.length || this.read_only_level() || this.refuse_locked_layer()) return;
         const clipboard = copy_placed(layer.sprites, this.selection);
         const pasted = paste_placed(layer.sprites, clipboard, clipboard.x + this.grid_width, clipboard.y);
         this.set_layer_sprites(this.layer_index, pasted.sprites, pasted.selection);
@@ -910,6 +938,12 @@ class LevelEditor {
         const from = this.current_sprite_layer();
         const to = level.layers[target];
         if (!from || to?.type !== 'sprites' || target === this.layer_index || !this.selection.length || this.read_only_level()) return;
+        // out of a locked layer or into one: neither
+        if (this.refuse_locked_layer() || this.refuse_locked_layer(target)) {
+            this.placed_properties_for = null;   // the "In Ebene" field shows the current layer again
+            this.refresh();
+            return;
+        }
         const moved = move_placed_to_layer(from.sprites, this.selection, to.sprites);
         from.sprites = moved.from;
         this.layer_structs[this.layer_index]?.apply_layer(from);
@@ -927,7 +961,7 @@ class LevelEditor {
     fill_rectangle(x0, y0, x1, y1) {
         const layer = this.current_sprite_layer();
         const sprite = this.game.data.sprites[this.sprite_index];
-        if (!layer || !sprite || layer.properties.visible === false || this.read_only_level()) return;
+        if (!layer || !sprite || layer.properties.visible === false || this.read_only_level() || this.refuse_locked_layer()) return;
         const filled = fill_placed(layer.sprites, sprite.id, x0, y0, x1, y1,
             { width: this.grid_width, height: this.grid_height });
         // new Schalter and Druckplatten: each its own free Code (signals.js)
@@ -953,7 +987,7 @@ class LevelEditor {
     replace_selection(sprite_index) {
         const layer = this.current_sprite_layer();
         const sprite = this.game.data.sprites[sprite_index];
-        if (!layer || !sprite || !this.selection.length || this.read_only_level()) return;
+        if (!layer || !sprite || !this.selection.length || this.read_only_level() || this.refuse_locked_layer()) return;
         const result = replace_placed(layer.sprites, this.selection, sprite.id, trait => trait in (sprite.traits ?? {}));
         if (!result.changed.length) return;
         give_new_senders_codes(this.game.data.levels[this.level_index],
@@ -966,6 +1000,22 @@ class LevelEditor {
 
     read_only_level() {
         return window.collaboration?.can_edit_current?.() === false;
+    }
+
+    // Ebene sperren (layer.properties.locked, absent = not locked; only the
+    // editor reads it, the game ignores it): nothing in a locked layer can be
+    // painted, erased, moved, pasted, filled, replaced or deleted in the
+    // level view. Selecting it, its settings, Verbinden and undo still work.
+    layer_locked(li = this.layer_index) {
+        return this.game.data.levels[this.level_index]?.layers?.[li]?.properties?.locked === true;
+    }
+
+    // true (and a notice) if this layer is locked
+    refuse_locked_layer(li = this.layer_index) {
+        if (!this.layer_locked(li)) return false;
+        const layer = this.game.data.levels[this.level_index].layers[li];
+        this.show_level_notice?.(`Die Ebene »${layer.properties.name || `Ebene ${li + 1}`}« ist gesperrt. Entsperre sie mit dem Schloss in der Liste der Ebenen.`);
+        return true;
     }
 
     // The box above the placed properties: how many are selected, and what
@@ -1520,6 +1570,8 @@ class LevelEditor {
                 trash: $('#trash'),
                 items: self.game.data.levels[self.level_index].layers[self.layer_index].rects,
                 item_class: 'menu_layer_item',
+                // a rectangle of a locked layer stays
+                can_delete_index: () => !self.layer_locked(),
                 step_aside_css: { top: '35px' },
                 gen_item: (layer, index) => {
                     let rect_div = $(`<div>`).css('padding-top', '5px');
@@ -2014,7 +2066,9 @@ class LevelEditor {
         if (menus.level.active_key === 'tool/connect') {
             this.handle_connect_down(e);
         } else if (menus.level.active_key === 'tool/pen' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
-            if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
+            if (this.refuse_locked_layer()) {
+                // locked: neither paint, erase nor fill (the notice says why)
+            } else if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
                 // Strg + ziehen: fill a rectangle with the chosen sprite
                 this.filling_rectangle = true;
                 this.prepare_rect_group(this.mouse_down_position[0], this.mouse_down_position[1],
@@ -2038,8 +2092,8 @@ class LevelEditor {
         } else if (menus.level.active_key === 'tool/select' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
             const [px, py] = this.mouse_down_position_no_snap;
             if (e.button === 0 && !e.shiftKey && this.selection.length && this.selection_point_inside(px, py)) {
-                // on the selection: drag it
-                this.moving_selection = { dx: 0, dy: 0 };
+                // on the selection: drag it (not in a locked layer)
+                if (!this.refuse_locked_layer()) this.moving_selection = { dx: 0, dy: 0 };
             } else {
                 // Shift: add to what is selected
                 this.selection_before = e.shiftKey ? [...this.selection] : [];
@@ -2324,6 +2378,7 @@ class LevelEditor {
     }
 
     remove_sprite_from_level(p) {
+        if (this.layer_locked()) return;
         if (this.game.data.levels[this.level_index].layers[this.layer_index].properties.visible) {
             this.layer_structs[this.layer_index].remove_sprite(p, false);
             this.render();
@@ -2331,6 +2386,7 @@ class LevelEditor {
     }
 
     add_sprite_to_level(p) {
+        if (this.layer_locked()) return;
         if (this.game.data.levels[this.level_index].layers[this.layer_index].properties.visible) {
             this.layer_structs[this.layer_index].add_sprite(p, this.sprite_index, null);
             this.render();
@@ -2353,6 +2409,7 @@ class LevelEditor {
     }
 
     delete_selection() {
+        if (this.selection.length && this.refuse_locked_layer()) return;
         let delete_these = new Set();
         for (let i of this.selection)
             delete_these.add(i);
@@ -2707,7 +2764,7 @@ class LevelEditor {
             for (let x of this.backdrop_controls)
                 $(x).remove();
             this.backdrop_controls = [];
-            if (this.backdrop_index !== null && menus.level.active_key === null &&
+            if (this.backdrop_index !== null && menus.level.active_key === null && !this.layer_locked(this.backdrop_index) &&
                 this.game.data.levels[this.level_index].layers[this.backdrop_index].rects?.[this.rect_index]) {
                 let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
                 let rect = backdrop.rects[this.rect_index];

@@ -50,10 +50,11 @@ Possible improvements:
 - clearer layer management
 - reorder layers
 - show / hide layers
-- lock layers against accidental editing
 - move selections between layers
 - make the active layer obvious
 - make it easy to understand which layer a selected object belongs to
+
+Show / hide (eye) and lock (padlock: nothing can be painted, moved or deleted in the layer, its settings still change) exist in the layer list.
 
 Layer management should remain simple enough for students and should not turn into a professional graphics-editor UI.
 
