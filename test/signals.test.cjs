@@ -805,3 +805,85 @@ test('signal_rules: an empty level has no cards', () => {
     assert.deepEqual(signals.signal_rules({ layers: [] }, () => ({}), () => ''), []);
     assert.deepEqual(signals.signal_rules(null, () => ({}), () => ''), []);
 });
+
+// ------------------------------------------------------------- Namen
+
+test('names: cleaned, at most SIGNAL_NAME_MAX_LENGTH characters, anything else is no name', () => {
+    const { clean_signal_name, SIGNAL_NAME_MAX_LENGTH } = signals;
+    assert.equal(clean_signal_name('  Große \n  Brücke  '), 'Große Brücke');
+    assert.equal(clean_signal_name('x'.repeat(40)).length, SIGNAL_NAME_MAX_LENGTH);
+    // characters, not UTF-16 units: an emoji is not cut in half
+    assert.equal([...clean_signal_name('🌉'.repeat(30))].length, SIGNAL_NAME_MAX_LENGTH);
+    for (const value of [undefined, null, 4, {}, [], '   ']) assert.equal(clean_signal_name(value), '');
+});
+
+test('names: a level without signal_names has numbers only, as before', () => {
+    const { signal_name, signal_code_text } = signals;
+    assert.equal(signal_name({ properties: {} }, 4), '');
+    assert.equal(signal_name({}, 4), '');
+    assert.equal(signal_name(null, 4), '');
+    // nonsense in the JSON is no name
+    assert.equal(signal_name({ properties: { signal_names: ['Brücke'] } }, 0), '');
+    assert.equal(signal_name({ properties: { signal_names: { 4: 7 } } }, 4), '');
+    assert.equal(signal_name({ properties: { signal_names: { 4: ' Brücke ' } } }, 4), 'Brücke');
+    assert.equal(signal_code_text(4), 'Code 4');
+    assert.equal(signal_code_text(4, 'Brücke'), '»Brücke« (Code 4)');
+});
+
+test('names: set, rename, remove; two Codes never share a name', () => {
+    const { set_signal_name, signal_name, signal_code_named } = signals;
+    const level = { properties: {}, layers: [] };
+    assert.deepEqual(set_signal_name(level, 4, ' Brücke '), { ok: true, name: 'Brücke' });
+    assert.deepEqual(level.properties.signal_names, { 4: 'Brücke' });
+    assert.equal(signal_code_named(level, 'BRÜCKE'), 4);
+    // the same name for another Code is refused, whatever its case
+    assert.deepEqual(set_signal_name(level, 5, 'brücke'), { ok: false, taken_by: 4 });
+    assert.equal(signal_name(level, 5), '');
+    // renaming a Code to its own name (another case) is fine
+    assert.deepEqual(set_signal_name(level, 4, 'BRÜCKE'), { ok: true, name: 'BRÜCKE' });
+    assert.deepEqual(set_signal_name(level, 5, 'Tor'), { ok: true, name: 'Tor' });
+    // removing the last name leaves the level as it was before names
+    set_signal_name(level, 4, '');
+    set_signal_name(level, 5, '   ');
+    assert.deepEqual(level, { properties: {}, layers: [] });
+    // a level that had no properties gets them only when a name is set
+    const bare = { layers: [] };
+    set_signal_name(bare, 0, '');
+    assert.deepEqual(bare, { layers: [], properties: {} });
+});
+
+test('names: a named Code stays taken, so a new sender never inherits an old name', () => {
+    const { free_signal_code, signal_codes_in_level } = signals;
+    const level = { properties: { signal_names: { 1: 'Brücke', 2: 'Tor', x: 'Unsinn' } }, layers: [] };
+    assert.equal(free_signal_code(level), 3);
+    assert.ok(!signal_codes_in_level(level).has(NaN));
+    // without names: exactly as before
+    assert.equal(free_signal_code({ properties: {}, layers: [] }), 1);
+});
+
+test('names appear on the overview cards and in the editor\'s code line', () => {
+    const { signal_rules, signal_partners, describe_signal_partners, signal_name } = signals;
+    const traits = { s: { switch: {} }, d: { door: { lockable: true } } };
+    const level = { properties: { signal_names: { 3: 'Brücke' } }, layers: [
+        { type: 'sprites', properties: {}, sprites: [
+            ['s', 0, 0, { switch: { signal_code: 3 } }],
+            ['d', 0, 0, { door: { signal_code: 3, door_reaction: 'open' } }],
+            ['s', 0, 0, { switch: { signal_code: 4 } }]] },
+    ] };
+    const cards = signal_rules(level, r => traits[r], () => 'Schalter');
+    assert.deepEqual(cards.map(c => [c.code, c.name]), [[3, 'Brücke'], [4, '']]);
+    const partners = signal_partners(level, 3, r => traits[r]);
+    assert.equal(describe_signal_partners(3, partners, signal_name(level, 3)),
+        '»Brücke« (Code 3) in diesem Level – sendet: 1 Schalter · reagiert: 1 Tür');
+    // without a name: unchanged
+    assert.equal(describe_signal_partners(3, partners), 'Code 3 in diesem Level – sendet: 1 Schalter · reagiert: 1 Tür');
+});
+
+test('names are never read by the game: the bus still meets by the number', () => {
+    const bus = new SignalBus();
+    const got = [];
+    bus.connect(4, (value) => got.push(value));
+    bus.send('Brücke', true);
+    bus.send(4, true);
+    assert.deepEqual(got, [true]);
+});
