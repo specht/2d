@@ -233,7 +233,10 @@ function detect_pixel_scale(img) {
     if (!scored.length || scored[0].none) return { scale: 1, offset_x: 0, offset_y: 0 };
     const best = Math.max(...scored.map(c => c.score));
     const good = scored.filter(c => c.score >= Math.max(0.45, best - 0.12)).sort((a, b) => b.s - a.s);
+    const good_sizes = new Set(good.map(c => c.s));
     for (const c of good) {
+        // a whole number next to it is as good: pixel art is mostly enlarged by whole numbers
+        if (c.s % 1 && (good_sizes.has(Math.floor(c.s)) || good_sizes.has(Math.ceil(c.s)))) continue;
         if (Math.ceil(img.width / c.s) < 2 || Math.ceil(img.height / c.s) < 2) continue;
         const { image: small, bx, by } = downsample(img, c.s, c.s, c.gx.offset, c.gy.offset);
         if (small.width < 1 || small.height < 1) continue;
@@ -368,7 +371,14 @@ function repeating_period(filled, first, last, sprite_size) {
         if (c < cut || (c === cut && centred < start_centred)) { cut = c; start = o; var start_centred = centred; }
     }
     const count = Math.ceil((last - start) / p);
-    return count >= 2 ? { count, start, size: p } : null;
+    if (count < 2) return null;
+    // between frames there is (almost) nothing: a figure whose upper and lower
+    // half look alike is one frame, not two
+    let total = 0;
+    for (let x = first; x < last; x++) total += filled[x];
+    const cuts = Math.max(1, count - 1);
+    if (cut / cuts > 0.1 * total / Math.max(1, last - first)) return null;
+    return { count, start, size: p };
 }
 
 // How many filled pixels each column (axis 'x') or row ('y') has.
@@ -520,6 +530,72 @@ function process_pasted_image(img, settings, background, sprite_width = null, sp
     return { art, layout, frames };
 }
 
+// ------------------------------------------------------------ several pictures
+
+// Several pictures at once are the frames of one animation, in the order of
+// the number in their names ("monster_2.png" before "monster_10.png"; names
+// without a number in alphabetical order after them).
+function frame_number(name) {
+    const m = String(name ?? '').replace(/\.[a-z0-9]+$/i, '').match(/(\d+)\D*$/);
+    return m ? Number(m[1]) : null;
+}
+
+function sort_by_frame_number(items) {
+    return [...items].sort((a, b) => {
+        const na = frame_number(a.name), nb = frame_number(b.name);
+        if (na !== null && nb !== null && na !== nb) return na - nb;
+        if ((na === null) !== (nb === null)) return na === null ? 1 : -1;
+        return String(a.name ?? '').localeCompare(String(b.name ?? ''), 'de', { numeric: true });
+    });
+}
+
+// The guess for a series: each picture's own background, and the pixel size
+// most of them have.
+function analyze_image_series(images) {
+    const backgrounds = images.map(img => detect_background(img));
+    const scales = images.map((img, i) => detect_pixel_scale(backgrounds[i] ? remove_background(img, backgrounds[i].colors).image : img).scale);
+    const count = new Map();
+    for (const sc of scales) count.set(sc, (count.get(sc) ?? 0) + 1);
+    const scale = [...count.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
+    return {
+        backgrounds,
+        settings: { remove_background: backgrounds.some(Boolean), scale, offset_x: 0, offset_y: 0, merge_colors: scale > 1, skip_empty: false, cols: images.length, rows: 1 },
+    };
+}
+
+// The frames of a series: every picture prepared like a single one, all in
+// one size (bottom-centred), then cut to what all of them together show – one
+// box for all, so the animation keeps its alignment. Smaller than the sprite:
+// the sprite's size, standing at the bottom.
+function process_image_series(images, settings, backgrounds, sprite_width = null, sprite_height = null) {
+    const arts = images.map((img, i) => {
+        let work = img;
+        if (settings.remove_background && backgrounds[i]) work = remove_background(work, backgrounds[i].colors).image;
+        if (settings.scale > 1) {
+            const { px, py } = edge_profiles(work);
+            work = downsample(work, settings.scale, settings.scale, grid_capture(px, settings.scale).offset, grid_capture(py, settings.scale).offset).image;
+        }
+        if (settings.merge_colors) work = merge_similar_colors(work);
+        return work;
+    });
+    const W = Math.max(...arts.map(a => a.width)), H = Math.max(...arts.map(a => a.height));
+    const placed = arts.map(a => a.width === W && a.height === H ? a : place_frame(a, W, H));
+    let x0 = W, y0 = H, x1 = 0, y1 = 0;
+    for (const a of placed) {
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+            if (a.data[(y * W + x) * 4 + 3] < 16) continue;
+            x0 = Math.min(x0, x); x1 = Math.max(x1, x + 1); y0 = Math.min(y0, y); y1 = Math.max(y1, y + 1);
+        }
+    }
+    if (x1 <= x0) { x0 = 0; y0 = 0; x1 = W; y1 = H; }
+    let width = x1 - x0, height = y1 - y0;
+    if (sprite_width && width < sprite_width) { x0 -= Math.floor((sprite_width - width) / 2); width = sprite_width; }
+    if (sprite_height && height < sprite_height) { y0 -= sprite_height - height; height = sprite_height; }
+    const layout = { cols: images.length, rows: 1, x0, y0, width, height, why: 'files' };
+    const frames = placed.map(a => split_frames(a, { cols: 1, rows: 1, x0, y0, width, height }, { skip_empty: false })[0]);
+    return { art: null, layout, frames };
+}
+
 // ------------------------------------------------------------ the dialog
 
 function rgba_to_data_url(img) {
@@ -561,7 +637,7 @@ class ImageImportDialog {
             body: `
                 <div class="image-import">
                     <div class="image-import-previews">
-                        <figure><div class="image-import-original"><img id="image_import_original" alt=""></div><figcaption>Eingefügtes Bild</figcaption></figure>
+                        <figure><div class="image-import-original"><img id="image_import_original" alt=""></div><figcaption id="image_import_original_caption">Eingefügtes Bild</figcaption></figure>
                         <figure><div class="image-import-result"><canvas id="image_import_preview"></canvas></div><figcaption id="image_import_result_caption">So wird es</figcaption></figure>
                     </div>
                     <div class="image-import-strip" id="image_import_strip"></div>
@@ -569,7 +645,7 @@ class ImageImportDialog {
                     <div class="image-import-settings">
                         <label class="image-import-field"><input type="checkbox" id="image_import_background"> Hintergrund entfernen <span id="image_import_bg_colors"></span></label>
                         <label class="image-import-field">Pixelgröße <input type="number" id="image_import_scale" min="1" max="64" step="0.25"> <span class="image-import-hint">so viele Bildpunkte sind ein Pixel deiner Grafik</span></label>
-                        <label class="image-import-field">Frames <input type="number" id="image_import_cols" min="1" max="64" step="1"> nebeneinander × <input type="number" id="image_import_rows" min="1" max="64" step="1"> untereinander</label>
+                        <label class="image-import-field" id="image_import_layout">Frames <input type="number" id="image_import_cols" min="1" max="64" step="1"> nebeneinander × <input type="number" id="image_import_rows" min="1" max="64" step="1"> untereinander</label>
                         <label class="image-import-field"><input type="checkbox" id="image_import_merge"> ähnliche Farben vereinheitlichen</label>
                         <label class="image-import-field">Einfügen <select id="image_import_target"></select></label>
                     </div>
@@ -588,12 +664,12 @@ class ImageImportDialog {
             this.settings.scale = Math.max(1, Math.min(64, Number($('#image_import_scale').val()) || 1));
             // a new pixel size: find the grid's offset again and the frames anew
             const work = this.settings.remove_background && this.background ? remove_background(this.image, this.background.colors).image : this.image;
-            if (this.settings.scale > 1) {
+            if (this.settings.scale > 1 && !this.series) {
                 const { px, py } = edge_profiles(work);
                 this.settings.offset_x = grid_capture(px, this.settings.scale).offset;
                 this.settings.offset_y = grid_capture(py, this.settings.scale).offset;
             }
-            this.settings.cols = this.settings.rows = null;
+            if (!this.series) this.settings.cols = this.settings.rows = null;
             this.recompute();
         });
         $('#image_import_cols, #image_import_rows').on('change', recompute);
@@ -601,7 +677,11 @@ class ImageImportDialog {
         this.modal.dialog.on('change', 'input[name=image_import_fit]', () => { this.fit = $('input[name=image_import_fit]:checked').val(); });
     }
 
-    async open(image) {
+    // images: one picture, or several (the frames of one animation, sorted)
+    async open(images) {
+        images = Array.isArray(images) ? images : [images];
+        this.series = images.length > 1 ? images : null;
+        const image = images[0];
         this.image = image;
         const si = canvas.sprite_index, sti = canvas.state_index;
         const sprite = game.data.sprites[si];
@@ -611,18 +691,30 @@ class ImageImportDialog {
             rgba_is_empty(await rgba_from_data_url(sprite.states[0].frames[0].src));
         this.state_empty = sprite.states[sti].frames.length === 1 &&
             rgba_is_empty(await rgba_from_data_url(sprite.states[sti].frames[0].src));
-        const analysis = analyze_pasted_image(image, sprite.width, sprite.height);
-        this.background = analysis.background;
+        const analysis = this.series ? analyze_image_series(this.series) : analyze_pasted_image(image, sprite.width, sprite.height);
+        this.backgrounds = analysis.backgrounds ?? null;
+        this.background = analysis.background ?? this.backgrounds?.find(Boolean) ?? null;
         this.settings = analysis.settings;
-        this.detected = { scale: analysis.settings.scale, background: !!analysis.background };
+        this.detected = { scale: analysis.settings.scale, background: !!this.background };
         this.target = null;
         this.fit = null;
+        // what was pasted: the pictures side by side
         const original = document.createElement('canvas');
-        original.width = image.width;
-        original.height = image.height;
-        original.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(image.data), image.width, image.height), 0, 0);
+        original.width = images.reduce((w, img) => w + img.width, 0) + 2 * (images.length - 1);
+        original.height = Math.max(...images.map(img => img.height));
+        let left = 0;
+        for (const img of images) {
+            original.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(img.data), img.width, img.height), left, original.height - img.height);
+            left += img.width + 2;
+        }
+        // small pictures: enlarged by a whole number, so their pixels stay sharp
+        const zoom = Math.max(1, Math.floor(Math.min(300 / original.width, 200 / original.height)));
         $('#image_import_original').attr('src', original.toDataURL('image/png'))
-            .toggleClass('pixelated', image.width <= 256 && image.height <= 256);
+            .css({ width: zoom > 1 ? `${original.width * zoom}px` : '', height: zoom > 1 ? `${original.height * zoom}px` : '' })
+            .toggleClass('pixelated', original.width <= 256 && original.height <= 256);
+        $('#image_import_original_caption').text(this.series ? `${images.length} Bilder, nach der Nummer im Namen sortiert` : 'Eingefügtes Bild');
+        // a series: the pictures are the frames
+        $('#image_import_layout').toggle(!this.series);
         $('#image_import_background').prop('checked', this.settings.remove_background).prop('disabled', !this.background);
         $('#image_import_bg_colors').empty();
         for (const c of this.background?.colors ?? [])
@@ -643,7 +735,9 @@ class ImageImportDialog {
             s.cols = Math.max(1, Math.min(64, Math.round(Number($('#image_import_cols').val()) || 1)));
             s.rows = Math.max(1, Math.min(64, Math.round(Number($('#image_import_rows').val()) || 1)));
         }
-        this.result = process_pasted_image(this.image, s, this.background, this.sprite.width, this.sprite.height);
+        this.result = this.series
+            ? process_image_series(this.series, s, this.backgrounds, this.sprite.width, this.sprite.height)
+            : process_pasted_image(this.image, s, this.background, this.sprite.width, this.sprite.height);
         if (s.cols === null) { s.cols = this.result.layout.cols; s.rows = this.result.layout.rows; }
         $('#image_import_cols').val(s.cols);
         $('#image_import_rows').val(s.rows);
@@ -808,30 +902,49 @@ class ImageImportDialog {
     }
 }
 
-// From the clipboard or a dropped file: a Blob with a picture.
-async function open_image_import(blob) {
-    let bitmap;
-    try {
-        bitmap = await createImageBitmap(blob);
-    } catch (e) {
-        return;   // not a picture the browser can read
+// From the clipboard, a dropped file or the file picker: one Blob, or several
+// files (File objects have a name), which become one animation in the order
+// of the numbers in their names.
+async function open_image_import(blobs) {
+    const list = sort_by_frame_number(Array.isArray(blobs) ? blobs : [blobs]);
+    const images = [];
+    for (const blob of list.slice(0, 64)) {
+        let bitmap;
+        try {
+            bitmap = await createImageBitmap(blob);
+        } catch (e) {
+            continue;   // not a picture the browser can read
+        }
+        if (bitmap.width * bitmap.height > IMAGE_IMPORT_MAX_PIXELS) {
+            window.alert('Das Bild ist zu groß zum Einfügen.');
+            return;
+        }
+        const c = document.createElement('canvas');
+        c.width = bitmap.width;
+        c.height = bitmap.height;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(bitmap, 0, 0);
+        images.push(rgba_image(c.width, c.height, ctx.getImageData(0, 0, c.width, c.height).data));
     }
-    if (bitmap.width * bitmap.height > IMAGE_IMPORT_MAX_PIXELS) {
-        window.alert('Das Bild ist zu groß zum Einfügen.');
-        return;
-    }
-    const c = document.createElement('canvas');
-    c.width = bitmap.width;
-    c.height = bitmap.height;
-    const ctx = c.getContext('2d');
-    ctx.drawImage(bitmap, 0, 0);
-    const image = rgba_image(c.width, c.height, ctx.getImageData(0, 0, c.width, c.height).data);
+    if (!images.length) return;
     window.image_import_dialog ??= new ImageImportDialog();
-    await window.image_import_dialog.open(image);
+    await window.image_import_dialog.open(images.length === 1 ? images[0] : images);
+}
+
+// Funktionen → Sprite → Bilder öffnen …: one or several picture files.
+function choose_image_files() {
+    const input = $('<input type="file" accept="image/*" multiple>').css('display', 'none').appendTo(document.body);
+    input.on('change', () => {
+        const files = [...(input[0].files ?? [])];
+        input.remove();
+        if (files.length) open_image_import(files);
+    });
+    input.trigger('click');
 }
 
 if (typeof module !== 'undefined') module.exports = {
     rgba_image, detect_background, remove_background, edge_profiles, grid_capture, downsample,
     detect_pixel_scale, merge_similar_colors, detect_frames, layout_for, split_frames, trim_transparent, place_frame,
     analyze_pasted_image, pasted_art, process_pasted_image, IMAGE_IMPORT_MAX_PIXELS,
+    frame_number, sort_by_frame_number, analyze_image_series, process_image_series,
 };

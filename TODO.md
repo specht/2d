@@ -281,7 +281,6 @@ Implemented (`image_import.js`): clipboard paste and dropping one image file in 
 
 Still open:
 
-- dropping several PNG files at once as the frames of one animation
 - a hand-drawn grid in the dialog when the guess is wrong in a way the numbers cannot fix (frames of different widths)
 - remembering the last choice of "Einfügen" per sprite
 

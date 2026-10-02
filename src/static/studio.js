@@ -613,6 +613,10 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                     label: 'Sprites aus anderem Spiel holen …',
                     callback: () => show_sprite_basket(),
                 },
+                {
+                    label: 'Bilder öffnen …',
+                    callback: () => choose_image_files(),
+                },
                 // {
                 //     label: 'Spritekatalog',
                 //     callback: () => {
@@ -721,10 +725,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     const typing = (target) => $(target).is('input, textarea, select, [contenteditable]');
     document.addEventListener('paste', async (e) => {
         if (current_pane !== 'sprites' || typing(e.target)) return;
-        const item = [...(e.clipboardData?.items ?? [])].find(i => i.kind === 'file' && i.type.startsWith('image/'));
-        if (item) {
+        // several copied picture files become one animation
+        const files = [...(e.clipboardData?.items ?? [])].filter(i => i.kind === 'file' && i.type.startsWith('image/')).map(i => i.getAsFile()).filter(Boolean);
+        if (files.length) {
             e.preventDefault();
-            open_image_import(item.getAsFile());
+            open_image_import(files.length === 1 ? files[0] : files);
             return;
         }
         // some browsers only offer pictures through the asynchronous clipboard
@@ -742,11 +747,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     });
     $(document).on('drop', function (e) {
         if (current_pane !== 'sprites') return;
-        const file = [...(e.originalEvent.dataTransfer?.files ?? [])].find(f => f.type.startsWith('image/'));
-        if (!file) return;
+        const files = [...(e.originalEvent.dataTransfer?.files ?? [])].filter(f => f.type.startsWith('image/'));
+        if (!files.length) return;
         e.preventDefault();
         e.stopPropagation();
-        open_image_import(file);
+        open_image_import(files.length === 1 ? files[0] : files);
     });
 
     // setInterval(function() {

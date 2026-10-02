@@ -79,3 +79,27 @@ test('a frame in another size stands bottom-centred; what does not fit is cut of
     const small = ii.place_frame(f, 1, 1);
     assert.deepEqual([...small.data], [4, 4, 4, 255]);   // like Größe ändern: Math.floor((new - old) / 2)
 });
+
+test('several pictures: sorted by the number in their names', () => {
+    const names = ['monster_10.png', 'monster_2.png', 'titel.png', 'monster_1.png', 'Monster 3.PNG', 'lauf-frame-4-final.png'];
+    assert.deepEqual(ii.sort_by_frame_number(names.map(name => ({ name }))).map(x => x.name),
+        ['monster_1.png', 'monster_2.png', 'Monster 3.PNG', 'lauf-frame-4-final.png', 'monster_10.png', 'titel.png']);
+});
+
+test('several pictures become the frames of one animation, aligned like the pictures', () => {
+    const art = art_strip();
+    const frames = ii.split_frames(art, { cols: 3, rows: 1, x0: 0, y0: 0, width: 12, height: 10 });
+    const pictures = frames.map(f => web_picture(f, 6));
+    const analysis = ii.analyze_image_series(pictures);
+    assert.equal(analysis.settings.scale, 6);
+    const result = ii.process_image_series(pictures, analysis.settings, analysis.backgrounds, 12, 10);
+    assert.equal(result.frames.length, 3);
+    assert.deepEqual([result.layout.width, result.layout.height], [12, 10]);
+    result.frames.forEach((f, i) => {
+        for (let p = 0; p < f.data.length; p += 4) {
+            const b = frames[i].data;
+            if (b[p + 3] === 0) assert.equal(f.data[p + 3], 0, `frame ${i}: pixel ${p / 4}`);
+            else assert.ok(Math.abs(f.data[p] - b[p]) + Math.abs(f.data[p + 1] - b[p + 1]) + Math.abs(f.data[p + 2] - b[p + 2]) <= 24, `frame ${i}: pixel ${p / 4}`);
+        }
+    });
+});
