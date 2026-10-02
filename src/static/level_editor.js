@@ -1141,6 +1141,7 @@ class LevelEditor {
         this.signal_link_curves = [];
         this.signal_link_frames = [];
         this.refresh_signal_overview();
+        this.refresh_signal_code_widgets();
         if (!this.game.data.levels?.[this.level_index]) return;
         const { level, traits_of, size_of } = this.signal_context();
         const codes = this.signal_codes_to_show();
@@ -1327,6 +1328,13 @@ class LevelEditor {
         }
         this.refresh();
         this.render();
+    }
+
+    // The name buttons of every Code field on the page (SignalCodeWidget):
+    // a name given or changed elsewhere shows at once. Runs with
+    // build_signal_links, i.e. after every change that could matter.
+    refresh_signal_code_widgets() {
+        $('.signal-code-pick').each((_, el) => $(el).data('signal-code-widget')?.refresh_button());
     }
 
     // What a sender or receiver is called in a suggested name: the sprite's
@@ -3663,6 +3671,8 @@ class SignalCodeWidget {
                 this.open_menu();
             })
             .appendTo(this.row);
+        // so that a rename elsewhere (overview, another field) reaches this button
+        this.button.data('signal-code-widget', this);
         this.refresh_button();
     }
 
