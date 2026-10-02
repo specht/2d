@@ -456,15 +456,32 @@ var SPRITE_TRAITS = {
     },
     text: {
         label: 'Hinweistext',
+        // speech.js: shown above the speaker, one line after the other
         placed_properties: {
             text: {
                 label: 'Text',
-                hint: 'Gib hier den Text ein, der angezeigt werden soll.',
+                hint: 'Steht die Spielfigur davor und man drückt die Aktionstaste (F), wird dieser Text gesprochen. Jede Zeile ist ein Satz: Die Sätze erscheinen nacheinander. Mit der Punkt-Taste (.) oder F geht es gleich zum nächsten Satz.',
                 type: 'string',
                 options: {
                     multiline: true,
                 },
                 default: '',
+            },
+            speaker: {
+                label: 'Wer spricht',
+                hint: '„die Spielfigur liest vor“: Der Text erscheint über der Spielfigur, in ihrer Farbe (unter Einstellungen → Texte) – gut für Schilder. „das Sprite spricht selbst“: Der Text erscheint über diesem Sprite, in der Farbe darunter – gut für eine Figur, die etwas sagt.',
+                type: 'select',
+                options: typeof SPEECH_SPEAKERS !== 'undefined' ? SPEECH_SPEAKERS : { player: 'die Spielfigur liest vor' },
+                default: 'player',
+                rebuilds_panel: true,   // Textfarbe appears or goes
+            },
+            color: {
+                label: 'Textfarbe',
+                hint: 'In dieser Farbe spricht das Sprite. Gib jeder Figur ihre eigene Farbe – dann sieht man sofort, wer redet.',
+                type: 'color',
+                default: typeof SPEECH_SELF_COLOR !== 'undefined' ? SPEECH_SELF_COLOR : '#73eff7',
+                // only when the sprite speaks itself (the level editor rebuilds the panel)
+                visible: (traits, traits_of, props) => props?.speaker === 'self',
             },
         },
     },

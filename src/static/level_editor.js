@@ -2928,7 +2928,8 @@ class LevelEditor {
                 for (let trait in sprite.traits) {
                     for (let key in ((SPRITE_TRAITS[trait] ?? {}).placed_properties ?? {})) {
                         let property = SPRITE_TRAITS[trait].placed_properties[key];
-                        if (property.visible && !property.visible(sprite.traits, traits_of)) continue;
+                        // visible(traits of the drawing, traits_of, this copy's settings)
+                        if (property.visible && !property.visible(sprite.traits, traits_of, props_of(trait))) continue;
                         // absent: the default (some take it from the drawing)
                         const get = () => props_of(trait)[key] ?? (property.default_for ? property.default_for(sprite.traits) : property.default);
                         const set = (value) => {
@@ -2938,6 +2939,11 @@ class LevelEditor {
                             if (trait === 'baddie' && key === 'signal_on_defeat') {
                                 give_defeat_sender_code(level, props);
                                 widgets['baddie/signal_code']?.refresh();
+                            }
+                            // a setting that shows or hides others ("Wer spricht" → Textfarbe)
+                            if (property.rebuilds_panel) {
+                                this.placed_properties_for = null;
+                                setTimeout(() => this.refresh(), 0);
                             }
                             this.update_signal_links?.();
                         };
@@ -3002,6 +3008,14 @@ class LevelEditor {
                                 label: property.label ?? key,
                                 hint: property.hint ?? null,
                                 options: property.options ?? null,
+                                get,
+                                set,
+                            });
+                        } else if (property.type === 'color') {
+                            widget = new ColorWidget({
+                                container: div,
+                                label: property.label ?? key,
+                                hint: property.hint ?? null,
                                 get,
                                 set,
                             });

@@ -577,6 +577,7 @@ class Game {
             },
         });
         this.add_controls_settings($('#game-settings-here'));
+        this.add_speech_settings($('#game-settings-here'));
         new SeparatorWidget({
             container: $('#game-settings-here'),
             label: 'Musik',
@@ -674,6 +675,63 @@ class Game {
 
     // Einstellungen → Steuerung. Without custom keys the game JSON stays unchanged;
     // only actions a child actually changes are stored in properties.controls.
+    // Einstellungen → Texte (speech.js): one font, size and reading speed for
+    // the whole game, and the colour the figure speaks in. Absent = the
+    // default; a choice equal to the default is not stored.
+    add_speech_settings(container) {
+        const self = this;
+        new SeparatorWidget({ container, label: 'Texte' });
+        const preview = $('<div class="speech-preview">');
+        const store = (key, value, fallback) => {
+            if (value === fallback) delete self.data.properties[key]; else self.data.properties[key] = value;
+            draw_preview();
+        };
+        const option_labels = (table) => Object.fromEntries(Object.entries(table).map(([id, v]) => [id, v.label]));
+        new SelectWidget({
+            container, label: 'Schrift',
+            hint: 'In dieser Pixelschrift sprechen alle Figuren und Schilder in deinem Spiel.',
+            options: option_labels(SPEECH_FONTS),
+            get: () => speech_settings(self.data.properties).font,
+            set: (x) => store('text_font', x, SPEECH_DEFAULT_FONT),
+        });
+        new SelectWidget({
+            container, label: 'Textgröße',
+            hint: 'Wie groß die Buchstaben im Spiel sind – immer gleich groß, egal wie groß das Spielfenster ist.',
+            options: option_labels(SPEECH_SIZES),
+            get: () => speech_settings(self.data.properties).size,
+            set: (x) => store('text_size', x, 'medium'),
+        });
+        new SelectWidget({
+            container, label: 'Lesetempo',
+            hint: 'Wie lange ein Satz stehen bleibt. Mit der Punkt-Taste (.) springt man im Spiel sofort zum nächsten Satz.',
+            options: option_labels(SPEECH_SPEEDS),
+            get: () => speech_settings(self.data.properties).speed,
+            set: (x) => store('text_speed', x, 'normal'),
+        });
+        new ColorWidget({
+            container, label: 'Textfarbe der Spielfigur',
+            hint: 'In dieser Farbe spricht deine Spielfigur – auch wenn sie ein Schild vorliest.',
+            get: () => speech_settings(self.data.properties).color,
+            set: (x) => store('text_color', speech_color(x, SPEECH_PLAYER_COLOR), SPEECH_PLAYER_COLOR),
+        });
+        preview.appendTo(container);
+        // the same pixels the game draws
+        const draw_preview = () => {
+            const settings = speech_settings(self.data.properties);
+            const font = SPEECH_FONTS[settings.font];
+            const make_canvas = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+            const paint = () => {
+                const k = Math.max(1, Math.min(4, speech_scale(420, settings.font, settings.size)));
+                const bitmap = render_speech_bitmap(['So spricht deine Figur!', 'Grüße aus dem Pixelwald …'],
+                    settings.font, k, settings.color, make_canvas);
+                preview.empty().append($(bitmap.canvas).addClass('speech-preview-canvas'));
+            };
+            paint();
+            document.fonts?.load?.(`${font.em * 2}px "${font.family}"`).then(paint).catch(() => null);
+        };
+        draw_preview();
+    }
+
     add_controls_settings(container) {
         new SeparatorWidget({ container, label: 'Steuerung' });
         const box = $('<div>').addClass('controls-settings').appendTo(container);

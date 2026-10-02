@@ -2870,3 +2870,17 @@ details.trait-advanced[open] > summary {
     padding-left: 0;
     padding-right: 0;
 }
+
+/* Einstellungen → Texte: what speech looks like in the game (game.js, speech.js) */
+.speech-preview {
+    margin: 6px 0 10px 0;
+    padding: 10px;
+    border-radius: 6px;
+    background: #29366f;
+    overflow-x: auto;
+}
+.speech-preview-canvas {
+    display: block;
+    image-rendering: pixelated;
+    max-width: 100%;
+}

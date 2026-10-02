@@ -1509,17 +1509,13 @@ void main() {
 			if (switch_flipped(action_pressed, this.action_was_pressed)) {
 				for (let entry_index of (this.game.action_key_targets.switch ?? []))
 					this.game.flip_switch(entry_index, t);
+				// a sign: read it out – or, while somebody speaks, the next sentence
+				this.game.speech_action?.(t);
 			}
 			this.action_was_pressed = action_pressed;
 			if (this.pressed_keys[KEY_ACTION]) {
 				for (let entry_index of (this.game.action_key_targets.door ?? [])) {
 					this.game.toggle_door_intent(entry_index, t);
-				}
-				for (let entry_index of (this.game.action_key_targets.text ?? [])) {
-					let s = this.game.active_level_sprites[entry_index].text;
-					$('#text_frame').text(s);
-					$('#text_frame').addClass('showing');
-					console.log(s);
 				}
 			}
 		}
@@ -1626,6 +1622,8 @@ class Game {
 		this.pointer_client = null;
 		this.pointer_world = { valid: false, x: 0, y: 0 };
 		this.key_actions = controls_key_map(null);
+		// Sprechtexte (speech.js): what is being said, drawn in a last render pass
+		this.speech = new Speech();
 		this.reset();
 		this.combat = new CombatSystem(this);
 		register_swing(this.combat);
@@ -1731,7 +1729,7 @@ class Game {
 		$('#overlay').show();
 		$('#screen').hide();
 		this.curtain.hide();
-		$('#text_frame').removeClass('showing');
+		this.speech?.stop();
 
 		this.points = 0;
 
@@ -1878,7 +1876,7 @@ class Game {
 	}
 
 	stop() {
-		$('#text_frame').removeClass('showing');
+		this.speech?.stop();
 		window.yt_pending = null;   // music that is still loading must not start later
 		if (window.yt_player !== null) {
 			window.yt_player.pauseVideo();
@@ -1974,13 +1972,12 @@ class Game {
 		this.mouse_click_handler = (event) => {
 			const touch = event.pointerType === 'touch' || event.pointerType === 'pen';
 			if (event.target?.closest?.('#touch_controls') || (event.target?.closest?.('#overlay') && !this.curtain?.showing)) return;
-			// Touch: a tap closes a sign's text and continues after the curtain,
-			// like any key on the keyboard.
-			if (touch && ((typeof document !== 'undefined' && document.querySelector('#text_frame.showing')) || this.curtain?.showing)) {
+			// Touch: a tap goes on to the next sentence of what somebody says
+			// (speech.js) and continues after the curtain, like a key would.
+			if (touch && (this.speech?.active || this.curtain?.showing)) {
 				this.handle_key_down('Tap');
 				return;
 			}
-			if (event.target?.closest?.('#text_frame.showing')) return;
 			if (this.running && this.action_box_at?.(event.clientX, event.clientY)) {
 				// a tap is over in a moment: hold the key long enough for the game to see it
 				this.pressed_keys[KEY_ACTION] = true;
@@ -2211,6 +2208,9 @@ class Game {
 		this.movement_regions = typeof MovementRegions !== 'undefined' ? MovementRegions.resolve(level) : null;
 		// Signale (signals.js): who listens to which Code in this level
 		this.setup_signals(level);
+		// nothing is being said when a level starts; its font is loaded now
+		this.speech?.stop();
+		this.speech_fonts_ready?.();
 		this.update_layer_visibility();
 		// console.log(this.minx, this.maxx, this.miny, this.maxy);
 
@@ -2458,6 +2458,114 @@ class Game {
 		if (state_index === -1 || !mesh_state) return;
 		mesh_state.state_index = state_index;
 		mesh_state.frame_index = 0;
+	}
+
+	// ------------------------------------------------------------ Sprechtexte
+	// speech.js: a sign is read out by the figure (or speaks itself), one line
+	// after the other, above the speaker's head.
+
+	// The action key: while somebody speaks, the next sentence; else the sign
+	// the figure stands at starts speaking.
+	speech_action(t) {
+		if (this.speech.active) {
+			this.speech.skip(t);
+			return;
+		}
+		const entry_index = (this.action_key_targets.text ?? [])[0];
+		if (entry_index !== undefined) this.start_speech(entry_index, t);
+	}
+
+	start_speech(entry_index, t) {
+		const entry = this.active_level_sprites[entry_index];
+		if (!entry) return false;
+		const settings = speech_settings(this.data.properties);
+		const itself = entry.speaker === 'self';
+		return this.speech.start({
+			parts: speech_parts(entry.text),
+			speaker: itself ? entry_index : 'player',
+			color: itself ? speech_color(entry.color, SPEECH_SELF_COLOR) : settings.color,
+			source: entry_index,
+			speed: settings.speed,
+		}, t);
+	}
+
+	// The game's font, loaded before it is needed (a promise; recipes wait for it).
+	speech_fonts_ready() {
+		if (typeof document === 'undefined' || !document.fonts?.load) return Promise.resolve();
+		const font = SPEECH_FONTS[speech_settings(this.data?.properties).font];
+		return document.fonts.load(`${font.em * 4}px "${font.family}"`).catch(() => null);
+	}
+
+	// The world point above the speaker's head: [x, y].
+	speech_anchor() {
+		const speaker = this.speech.current?.speaker;
+		if (speaker === 'player') {
+			const pc = this.player_character;
+			return pc?.mesh ? [pc.mesh.position.x, pc.mesh.position.y + pc.sprite.height] : null;
+		}
+		const entry = this.active_level_sprites[speaker];
+		if (!entry?.mesh) return null;
+		return [entry.mesh.position.x, entry.mesh.position.y + this.data.sprites[entry.sprite_index].height];
+	}
+
+	// The last render pass: the sentence being said, in screen pixels, on top
+	// of everything (also of the CRT effect), so it is crisp and readable.
+	draw_speech() {
+		if (!this.speech?.active || typeof document === 'undefined') return;
+		this.speech.update(this.clock.getElapsedTime());
+		const anchor = this.speech.active ? this.speech_anchor() : null;
+		if (!anchor) return;
+		const settings = speech_settings(this.data.properties);
+		const k = speech_scale(this.height, settings.font, settings.size);
+		const font = SPEECH_FONTS[settings.font];
+		const key = [this.speech.text, settings.font, k, this.speech.current.color, this.width].join('|');
+		if (key !== this.speech_key) {
+			// not loaded yet: draw with what there is, again once it is there
+			if (document.fonts && !document.fonts.check(`${font.em * k}px "${font.family}"`)) {
+				this.speech_fonts_ready().then(() => { this.speech_key = null; });
+			}
+			const make_canvas = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+			const probe = make_canvas(1, 1).getContext('2d');
+			probe.font = `${font.em * k}px "${font.family}"`;
+			const lines = wrap_speech(this.speech.text, Math.max(font.em * k * 4, this.width * 0.6), s => probe.measureText(s).width);
+			const bitmap = render_speech_bitmap(lines, settings.font, k, this.speech.current.color, make_canvas);
+			if (!this.speech_scene) {
+				this.speech_scene = new THREE.Scene();
+				this.speech_camera = new THREE.OrthographicCamera(0, 1, 1, 0, -10, 10);
+				this.speech_mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+					new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, depthWrite: false }));
+				this.speech_scene.add(this.speech_mesh);
+			}
+			const texture = new THREE.CanvasTexture(bitmap.canvas);
+			texture.magFilter = THREE.NearestFilter;
+			texture.minFilter = THREE.NearestFilter;
+			texture.generateMipmaps = false;
+			this.speech_mesh.material.map?.dispose();
+			this.speech_mesh.material.map = texture;
+			this.speech_mesh.material.needsUpdate = true;
+			this.speech_size = [bitmap.width, bitmap.height];
+			this.speech_key = key;
+		}
+		// world → screen pixels (y up), above the head, kept on the screen
+		const [w, h] = this.speech_size;
+		const cam = this.camera;
+		const sx = (anchor[0] - cam.left) / (cam.right - cam.left) * this.width;
+		const sy = (anchor[1] - cam.bottom) / (cam.top - cam.bottom) * this.height;
+		const margin = 2 * k;
+		let left = Math.round(sx - w / 2);
+		left = Math.max(margin, Math.min(this.width - w - margin, left));
+		let bottom = Math.round(sy + k);
+		bottom = Math.max(margin, Math.min(this.height - h - margin, bottom));
+		this.speech_camera.right = this.width;
+		this.speech_camera.top = this.height;
+		this.speech_camera.updateProjectionMatrix();
+		this.speech_mesh.scale.set(w, h, 1);
+		this.speech_mesh.position.set(left + w / 2, bottom + h / 2, 0);
+		const auto_clear = this.renderer.autoClear;
+		this.renderer.autoClear = false;
+		this.renderer.setRenderTarget(null);
+		this.renderer.render(this.speech_scene, this.speech_camera);
+		this.renderer.autoClear = auto_clear;
 	}
 
 	flip_switch(entry_index, t) {
@@ -2742,6 +2850,8 @@ class Game {
 			this.renderer.setRenderTarget(null);
 			this.renderer.render(this.screen_scene, this.screen_camera);
 		}
+		// what somebody says: on top of everything
+		this.draw_speech();
 		if (this.running)
 			requestAnimationFrame((t) => this.render());
 	}
@@ -2822,7 +2932,7 @@ class Game {
 	restart_playtest() {
 		if (!this.playtest || this.restarting_playtest) return;
 		this.restarting_playtest = true;
-		$('#text_frame').removeClass('showing');
+		this.speech?.stop();
 		this.curtain.hide();
 		this.running = false;
 		requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -3008,8 +3118,12 @@ class Game {
 			this.stop();
 			return;
 		}
-		if ($('#text_frame').hasClass('showing')) {
-			$('#text_frame').removeClass('showing');
+		// Sprechtexte (speech.js): "." goes on to the next sentence, like in old
+		// adventure games (unless "." is one of the game's own keys); so does a
+		// tap on a touch screen. Every other key plays on.
+		if (this.speech?.active && (key === 'Tap' ||
+			((key === 'Period' || key === 'NumpadDecimal') && !this.key_actions.has(key)))) {
+			this.speech.skip(this.clock.getElapsedTime());
 			return;
 		}
 		if (this.curtain.showing) {

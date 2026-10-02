@@ -132,7 +132,7 @@ Develop a small, understandable trigger/action system rather than implementing e
 Next steps, roughly in order of usefulness (each must stay an understandable choice in the editor, not scripting):
 
 - more senders: sprite collected (any pickup with a Code), level starts; enemies pressing a Druckplatte
-- more receivers: show text, spawn / remove a single sprite, a trap that switches on and off, a moving platform that starts, complete the level, set a simple game flag
+- more receivers: show text (signs already speak with F in the new pixel-font style, speech.js – next: speak on a Signal or when the figure walks past), spawn / remove a single sprite, a trap that switches on and off, a moving platform that starts, complete the level, set a simple game flag
 - show a sender's Verzögerung on its connection line in the level editor, if children lose track of which signals are delayed
 - signals across levels only with an explicit design (flags), never implicitly: keys and Codes are per level
 
@@ -431,7 +431,7 @@ Once triggers/actions exist, build higher-level systems on top of them.
 Possible progression:
 
 - NPC interaction
-- speech bubbles / dialogue
+- speech bubbles / dialogue (monologue exists: a sign or the figure says one line after the other, speech.js; a conversation between two speakers is still open)
 - multi-line conversations
 - collect-and-return tasks
 - defeat-enemy tasks
