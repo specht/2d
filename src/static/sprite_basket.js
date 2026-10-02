@@ -84,25 +84,6 @@ function normalized_source_game(data) {
 
 // ------------------------------------------------------------ the studio
 
-if (typeof Game === 'function') {
-    // Adds new sprites (already with IDs) at the end of the list and shows the
-    // first one. Used by the basket and by Duplizieren.
-    Game.prototype.add_sprites = function (sprites, { select = true } = {}) {
-        if (!sprites.length) return;
-        const first = this.data.sprites.length;
-        for (const sprite of sprites) this.data.sprites.push(sprite);
-        this.fix_game_data();
-        for (let si = first; si < this.data.sprites.length; si++)
-            this.create_geometry_and_material_for_sprite(si);
-        for (const sprite of sprites) window.collaboration?.structure_changed?.('sprite', 'insert', sprite.id);
-        this.sprites_widget?.append_items(first);
-        this.refresh_sprite_reference_pickers();
-        this.level_editor?.refresh_sprite_widget?.();
-        setTimeout(() => this.refresh_sprite_titles(), 0);
-        if (select) this.sprites_widget?.select_index(first);
-    };
-}
-
 const SPRITE_BASKET_CODE = /^[0-9a-z]{7}$/;
 
 class SpriteBasket {

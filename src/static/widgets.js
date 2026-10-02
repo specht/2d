@@ -105,8 +105,11 @@ class DragAndDropWidget {
             }
             $(options.container).append(this.extra_divs);
         }
-        if (options.items.length > 0 && (!options.can_be_empty))
-            this.options.onclick(this.options.container.children().eq(0).children().eq(0), 0);
+        // selected_index: which item is shown at first (default: the first)
+        if (options.items.length > 0 && (!options.can_be_empty)) {
+            const first = Math.max(0, Math.min(options.selected_index ?? 0, options.items.length - 1));
+            this.options.onclick(this.options.container.children().eq(first).children().eq(0), first);
+        }
         this.moving_index = null;
     }
 
@@ -133,6 +136,16 @@ class DragAndDropWidget {
     // Spiel, Duplizieren): shown at the end, like the + button adds one.
     append_items(first_index) {
         for (let i = first_index; i < this.options.items.length; i++)
+            this._append_item(this.options.gen_item(this.options.items[i], i), i);
+        this._move_add_div_to_end();
+    }
+
+    // The whole list again (after an item was inserted in the middle).
+    rebuild() {
+        this.add_div.detach();
+        this.extra_divs?.detach();
+        $(this.options.container).empty();
+        for (let i = 0; i < this.options.items.length; i++)
             this._append_item(this.options.gen_item(this.options.items[i], i), i);
         this._move_add_div_to_end();
     }
@@ -167,7 +180,13 @@ class DragAndDropWidget {
         let self = this;
         let item_div = $(`<div>`).addClass('_dnd_item');
         let item_subdiv = $(`<div>`).addClass(this.options.item_class).appendTo(item_div);
-        item_subdiv.on('contextmenu', () => false);
+        // context_menu(index): the entries of its right-click menu (show_context_menu)
+        item_subdiv.on('contextmenu', (e) => {
+            const index = item_div.index();
+            const entries = this.options.context_menu?.(index);
+            if (entries?.length) show_context_menu(e.clientX, e.clientY, entries);
+            return false;
+        });
         let drag_handle = $(`<div class='drag_handle'>`);
         item_subdiv.append(drag_handle);
         item_subdiv.append(item);
@@ -381,6 +400,64 @@ class DragAndDropWidget {
         }
         return false;
     }
+}
+
+// A small right-click menu. entries: { label, icon?, callback, disabled?, hint?,
+// children? } or '-' for a line. It closes on a click elsewhere, Esc or scrolling.
+function show_context_menu(x, y, entries) {
+    close_context_menu();
+    const menu = $('<div>').addClass('context-menu').attr('role', 'menu');
+    const build = (container, list) => {
+        for (const entry of list) {
+            if (entry === '-') { $('<div>').addClass('context-menu-line').appendTo(container); continue; }
+            if (!entry) continue;
+            const item = $('<div>').addClass('context-menu-item').attr('role', 'menuitem').appendTo(container);
+            $('<i>').addClass(`fa fa-fw ${entry.icon ?? ''}`).appendTo(item);
+            $('<span>').addClass('context-menu-label').text(entry.label).appendTo(item);
+            if (entry.hint) item.attr('title', entry.hint);
+            if (entry.disabled) { item.addClass('disabled'); continue; }
+            if (entry.children) {
+                item.addClass('has-children').append($('<i>').addClass('fa fa-angle-right context-menu-arrow'));
+                const sub = $('<div>').addClass('context-menu context-menu-sub').appendTo(item);
+                if (entry.children.length) build(sub, entry.children);
+                else $('<div>').addClass('context-menu-item disabled').append($('<span>').text(entry.empty ?? '–')).appendTo(sub);
+                // keep the submenu inside the window (menus near the bottom open upwards)
+                item.on('mouseenter', () => {
+                    sub.css('top', '-5px');
+                    const rect = sub[0].getBoundingClientRect();
+                    const overflow = rect.bottom - (window.innerHeight - 4);
+                    if (overflow > 0) sub.css('top', `${-5 - overflow}px`);
+                });
+                continue;
+            }
+            item.on('mousedown', (e) => e.stopPropagation());
+            item.on('click', (e) => {
+                e.stopPropagation();
+                close_context_menu();
+                entry.callback?.();
+            });
+        }
+    };
+    build(menu, entries);
+    menu.appendTo(document.body);
+    // inside the window
+    const w = menu.outerWidth(), h = menu.outerHeight();
+    menu.css({ left: Math.max(4, Math.min(x, window.innerWidth - w - 4)), top: Math.max(4, Math.min(y, window.innerHeight - h - 4)) });
+    // a submenu opens to the left when there is no room on the right
+    if (x + w * 2 > window.innerWidth) menu.addClass('subs-left');
+    setTimeout(() => {
+        $(document).on('mousedown.contextmenu touchstart.contextmenu', (e) => {
+            if (!$(e.target).closest('.context-menu').length) close_context_menu();
+        });
+        $(document).on('keydown.contextmenu', (e) => { if (e.key === 'Escape') close_context_menu(); });
+        $(window).on('blur.contextmenu resize.contextmenu wheel.contextmenu', () => close_context_menu());
+    }, 0);
+}
+
+function close_context_menu() {
+    $('.context-menu').remove();
+    $(document).off('.contextmenu');
+    $(window).off('.contextmenu');
 }
 
 class SortableTable {
@@ -771,6 +848,8 @@ class CheckboxWidget {
         this.container = data.container;
         let div = $(`<div class='item'>`).data('widget-instance', this);
         let label = $(`<div style='margin-right: 1em;'>`).text(data.label);
+        // key: its shortcut, shown like a key (the shortcut itself lives in menu.js)
+        if (data.key) label.append(' ').append($('<span>').addClass('key widget-key').text(data.key));
         div.append(label);
         this.input = $(`<button class='btn-checkbox' data-state='${this.data.get()}'>`);
         // label.click(function(e) {

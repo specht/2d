@@ -133,6 +133,13 @@ class Menu {
 
     handle_status_button_down(is, was_key) {
         let self = this;
+        // toggle: a setting that stays on until it is pressed again (Gitter, Zwiebelhaut …)
+        if (this.status_buttons[is].type === 'toggle') {
+            const value = !this.status_buttons[is].get();
+            this.status_buttons[is].callback(value);
+            this.refresh_toggles();
+            return;
+        }
         if (this.status_buttons[is].type === 'checkbox') {
             if (this.status_buttons[is].value) {
                 if (!was_key) {
@@ -161,6 +168,12 @@ class Menu {
         }
     }
 
+    // Toggles show whether their setting is on (it may change elsewhere, too).
+    refresh_toggles() {
+        for (const entry of Object.values(this.status_buttons))
+            if (entry.type === 'toggle') entry.button.toggleClass('active', !!entry.get());
+    }
+
     refresh_status_bar() {
         if (current_pane !== this.pane) return;
         let active_command = {};
@@ -180,6 +193,18 @@ class Menu {
                 callback: () => game.level_editor?.undo() });
             hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'level-history-redo',
                 callback: () => game.level_editor?.redo() });
+            // the view settings of the level editor (also under Werkzeuge)
+            for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['V', 'show_signal_links', 'Verbindungen'], ['B', 'animate_backdrops', 'Effekte bewegen']]) {
+                hints.push({ key, type: 'toggle', label,
+                    get: () => !!game.level_editor?.[option],
+                    callback: (value) => game.level_editor?.set_view_option?.(option, value) });
+            }
+        }
+        // Sprite editor: Zwiebelhaut (canvas.js)
+        if (this.pane === 'sprites') {
+            hints.push({ key: 'O', type: 'toggle', label: 'Zwiebelhaut',
+                get: () => !!canvas?.onion_skin,
+                callback: (value) => canvas?.set_onion_skin?.(value) });
         }
         // hints.unshift({
         //     label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () {
@@ -329,7 +354,8 @@ class Menu {
                     }
                     button.append(hint.label);
                     button.append($(`<span class='hint-divider'></span>`));
-                    this.status_buttons[is] = { button: button, value: false, type: hint.type, callback: hint.callback || (() => { }) };
+                    this.status_buttons[is] = { button: button, value: false, type: hint.type, get: hint.get, callback: hint.callback || (() => { }) };
+                    if (hint.type === 'toggle') button.addClass('status-bar-toggle').toggleClass('active', !!hint.get());
                     if (hint.key)
                         this.status_shortcuts[hint.key] = is;
                     if (hint.visible !== false)
