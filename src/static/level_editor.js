@@ -3101,6 +3101,24 @@ class LevelEditor {
                                 get,
                                 set,
                             });
+                            // e.g. "Neue Sprechblase": puts a | where the cursor is
+                            const insert = property.options?.insert_button;
+                            if (insert) {
+                                const field = widget.input;
+                                $('<button type="button">').addClass('text-insert-button')
+                                    .append($('<i>').addClass(`fa ${insert.icon ?? 'fa-plus'}`))
+                                    .append(document.createTextNode(` ${insert.label}`))
+                                    .on('mousedown', (e) => e.preventDefault())   // the field keeps its cursor
+                                    .on('click', () => {
+                                        const el = field[0];
+                                        const value = el.value, from = el.selectionStart ?? value.length, to = el.selectionEnd ?? from;
+                                        el.value = value.slice(0, from) + insert.text + value.slice(to);
+                                        el.selectionStart = el.selectionEnd = from + insert.text.length;
+                                        widget.update();
+                                        el.focus();
+                                    })
+                                    .insertAfter(field);
+                            }
                         } else if (property.type === 'color') {
                             widget = new ColorWidget({
                                 container: div,

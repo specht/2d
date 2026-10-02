@@ -754,7 +754,7 @@ class Game {
             const make_canvas = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
             const paint = () => {
                 const k = Math.max(1, Math.min(4, speech_scale(420, settings.font, settings.size)));
-                const bitmap = render_speech_bitmap(['So spricht deine Figur!', 'Grüße aus dem Pixelwald …'],
+                const bitmap = render_speech_bitmap(['Hallo! So sehen meine Sätze aus.', 'Groß und klein: ÄÖÜ äöü ß 123'],
                     settings.font, k, settings.color, make_canvas);
                 preview.empty().append($(bitmap.canvas).addClass('speech-preview-canvas'));
             };

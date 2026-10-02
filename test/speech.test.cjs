@@ -17,6 +17,23 @@ test('every line is a sentence; empty lines and spaces around them do not count'
     assert.deepEqual(sp.speech_parts(undefined), []);
 });
 
+test('without |: every sentence is a bubble of its own', () => {
+    assert.deepEqual(sp.speech_parts('Willkommen im Pilzwald! Vorsicht vor dem Glibber – er klebt!'),
+        ['Willkommen im Pilzwald!', 'Vorsicht vor dem Glibber – er klebt!']);
+    assert.deepEqual(sp.speech_parts('Hallo? Ist da wer … Hallo!'), ['Hallo?', 'Ist da wer …', 'Hallo!']);
+    // not after abbreviations, numbers or initials, not before a small letter
+    assert.deepEqual(sp.speech_parts('Nimm z. B. den Schlüssel. Er liegt in Raum Nr. 3 im Keller. Dann los!'),
+        ['Nimm z. B. den Schlüssel.', 'Er liegt in Raum Nr. 3 im Keller.', 'Dann los!']);
+    assert.deepEqual(sp.speech_parts('Du bist am 2. Tor.'), ['Du bist am 2. Tor.']);
+    assert.deepEqual(sp.speech_parts('Na ja … vielleicht.'), ['Na ja … vielleicht.']);
+    assert.deepEqual(sp.speech_parts('„Lauf!“ Sie rannte.'), ['„Lauf!“', 'Sie rannte.']);
+});
+
+test('with |: the child decides where a new bubble begins', () => {
+    assert.equal(sp.SPEECH_SEPARATOR, '|');
+    assert.deepEqual(sp.speech_parts('Hallo! Ich bin Pip. | Und das\nist mein Wald.|'), ['Hallo! Ich bin Pip.', 'Und das ist mein Wald.']);
+});
+
 test('a sentence stays long enough to read it, at least 1.5 s; the reading speed scales it', () => {
     assert.equal(sp.speech_seconds('Hi'), 1.5);
     const long = 'x'.repeat(60);
