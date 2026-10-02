@@ -543,8 +543,10 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     window.focus_play_frame = focus_play_frame;
     for (const type of ['keydown', 'keyup']) {
         window.addEventListener(type, (e) => {
-            if (current_pane !== 'play' || $(e.target).is('input, textarea, select')) return;
-            if (e.ctrlKey || e.altKey || e.metaKey || e.key === 'F11') return;
+            if (current_pane !== 'play' || $(e.target).is('input, textarea, select, [contenteditable]')) return;
+            // a dialog is open (Strg+S, Gemeinsam bearbeiten …): its buttons get the keys
+            if ($('.modal-dialogs').is(':visible')) return;
+            if (e.ctrlKey || e.altKey || e.metaKey || /^F\d+$/.test(e.key ?? '')) return;
             const frame = $('#play_iframe')[0]?.contentWindow;
             if (!frame?.game) return;
             e.preventDefault();

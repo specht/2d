@@ -107,7 +107,12 @@ function state_context_menu(sti) {
             hint: 'Tauscht die Frames (und die Framerate) der beiden Zustände – Titel und Rollen bleiben, wo sie sind.',
             children: others.map(i => ({ label: state_label_for(sprite.states[i], i), callback: () => swap_animations(si, sti, i) })) },
         { label: 'In anderes Sprite kopieren', icon: 'fa-share', empty: 'Kein anderes Sprite hat dieselbe Größe.',
-            hint: 'Kopiert diesen Zustand ans Ende eines anderen Sprites mit derselben Größe.',
+            // in a live session only the sprite one is working on is sent: there, open
+            // the other sprite and paste the copied animation into it
+            disabled: !!window.collaboration?.code,
+            hint: window.collaboration?.code
+                ? 'Während ihr gemeinsam bearbeitet: Animation kopieren, das andere Sprite öffnen und dort Frames einfügen.'
+                : 'Kopiert diesen Zustand ans Ende eines anderen Sprites mit derselben Größe.',
             children: same_size.map(i => ({ label: sprite_label(game.data.sprites[i], i), callback: () => copy_state_to_sprite(si, sti, i) })) },
     ];
 }

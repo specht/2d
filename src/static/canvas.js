@@ -1416,7 +1416,9 @@ class Canvas {
                     },
                     delete_item: (index) => {
                         self.game.data.sprites[self.sprite_index].states.splice(index, 1);
-                        // canvas.detachSprite();
+                        // another state is at this place now: show it from its first frame
+                        self.state_index = null;
+                        self.frame_index = null;
                     },
                     on_move_item: (from, to) => {
                         move_item_helper(self.game.data.sprites[self.sprite_index].states, from, to);
@@ -1452,6 +1454,8 @@ class Canvas {
                     },
                     delete_item: (index) => {
                         self.game.data.sprites[self.sprite_index].states[self.state_index].frames.splice(index, 1);
+                        // another frame is at this place now: load it again
+                        self.frame_index = null;
                         self.game.refresh_frames_on_screen();
                     },
                     on_move_item: (from, to) => {
