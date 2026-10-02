@@ -33,6 +33,11 @@
 // signal arrives that much later, "an" and "aus" alike and in the order they
 // were sent – like an echo, not a timer that starts again.
 // A door can also close again by itself (placed door.close_after).
+//
+// Namen: a level may give its Codes names (level.properties.signal_names,
+// e.g. { "4": "Brücke" }; absent = numbers only). Editor-only: the game never
+// reads them, and the Code itself stays the number everywhere, so a typo in a
+// name can never split one signal into two.
 
 const SIGNAL_MAX_DEPTH = 16;
 // Verzögerung and "schließt wieder nach": 0 … 60 s
@@ -81,6 +86,70 @@ function signal_key(code) {
 function signal_delay_seconds(value) {
     return typeof value === 'number' && Number.isFinite(value) && value > 0 ?
         Math.min(value, SIGNAL_DELAY_MAX_SECONDS) : 0;
+}
+
+// ------------------------------------------------------------- Namen
+// A name is a label for a Code in one level, nothing more: senders and
+// receivers still meet by the number. Absent or empty = no name.
+const SIGNAL_NAME_MAX_LENGTH = 24;
+
+// What is stored: trimmed, inner whitespace as single spaces, at most
+// SIGNAL_NAME_MAX_LENGTH characters. Anything that is not a string is ''.
+function clean_signal_name(text) {
+    if (typeof text !== 'string') return '';
+    return [...text.replace(/\s+/g, ' ').trim()].slice(0, SIGNAL_NAME_MAX_LENGTH).join('').trim();
+}
+
+function signal_names_of(level) {
+    const names = level?.properties?.signal_names;
+    return names && typeof names === 'object' && !Array.isArray(names) ? names : null;
+}
+
+// The name of a Code in this level, or ''.
+function signal_name(level, code) {
+    const key = signal_key(code);
+    const names = signal_names_of(level);
+    return key === null || !names ? '' : clean_signal_name(names[key]);
+}
+
+// The Code that already has this name (compared without case and outer
+// spaces), or null. except: a Code to leave out (the one being renamed).
+function signal_code_named(level, name, except = null) {
+    const wanted = clean_signal_name(name).toLocaleLowerCase('de');
+    const names = signal_names_of(level);
+    if (!wanted || !names) return null;
+    for (const [key, value] of Object.entries(names)) {
+        if (signal_key(key) !== key || (except !== null && signal_key(except) === key)) continue;
+        if (clean_signal_name(value).toLocaleLowerCase('de') === wanted) return Number(key);
+    }
+    return null;
+}
+
+// Gives a Code a name ('' removes it). Two Codes of one level never share a
+// name – that would be as confusing as two signals with one name. Returns
+// { ok: true, name } or { ok: false, taken_by: code }. The last name removed
+// also removes signal_names, so a level without names saves as before.
+function set_signal_name(level, code, name) {
+    const key = signal_key(code);
+    if (key === null || !level || typeof level !== 'object') return { ok: false, taken_by: null };
+    const clean = clean_signal_name(name);
+    const taken_by = signal_code_named(level, clean, Number(key));
+    if (taken_by !== null) return { ok: false, taken_by };
+    if (!level.properties || typeof level.properties !== 'object') level.properties = {};
+    const names = signal_names_of(level);
+    if (clean) {
+        if (!names) level.properties.signal_names = {};
+        level.properties.signal_names[key] = clean;
+    } else if (names) {
+        delete names[key];
+        if (!Object.keys(names).length) delete level.properties.signal_names;
+    }
+    return { ok: true, name: clean };
+}
+
+// »Brücke« (Code 4) or Code 4: how a Code is written in sentences.
+function signal_code_text(code, name = '') {
+    return name ? `»${name}« (Code ${Number(code)})` : `Code ${Number(code)}`;
 }
 
 class SignalBus {
@@ -353,7 +422,8 @@ function signal_partners(level, code, traits_of) {
 }
 
 // "Code 7 in diesem Level – sendet: 1 Schalter · reagiert: 2 Türen, Ebene »Brücke«"
-function describe_signal_partners(code, partners) {
+// (with a name: "»Brücke« (Code 7) in diesem Level – …")
+function describe_signal_partners(code, partners, name = '') {
     const list = (sends) => [...SIGNAL_SPRITE_ROLES, SIGNAL_LOOT_ROLE]
         .filter(role => role.sends === sends && partners.counts[role.id ?? role.trait])
         .map(role => {
@@ -368,7 +438,7 @@ function describe_signal_partners(code, partners) {
     if (receivers.length) parts.push(`reagiert: ${receivers.join(', ')}`);
     if (!senders.length) parts.push('noch nichts sendet diesen Code');
     else if (!receivers.length) parts.push('noch nichts reagiert darauf');
-    return `Code ${Number(code)} in diesem Level – ${parts.join(' · ')}`;
+    return `${signal_code_text(code, clean_signal_name(name))} in diesem Level – ${parts.join(' · ')}`;
 }
 
 // ------------------------------------------------- level editor: see and connect
@@ -546,7 +616,7 @@ function set_signal_object_code(level, object, code, sender) {
 // ------------------------------------------- level editor: the overview
 // Every Code of a level as a rule card: "Wenn … dann …" (Signale-Übersicht in
 // the level editor). traits_of(ref) gives a sprite's traits, name_of(ref) its
-// label ("Schalter", "Sprite 3"). A card: { code, senders, receivers, problem }
+// label ("Schalter", "Sprite 3"). A card: { code, name, senders, receivers, problem }
 // with lines { text, count, objects } (objects to select: { kind, layer_index,
 // placed_index }), problem 'no_receiver' | 'no_sender' | null. Doors that only
 // open like a plain door (not verschließbar, Bei Signal: aufschließen) are no
@@ -644,6 +714,7 @@ function signal_rules(level, traits_of, name_of) {
         add(card(all).senders, 'alle Gegner besiegt sind' + delay_text(level.properties.signal_all_defeated_delay), null);
     return [...cards.values()].sort((a, b) => a.code - b.code).map(c => ({
         code: c.code,
+        name: signal_name(level, c.code), // '' without a name
         senders: c.senders,
         receivers: c.receivers,
         // "aus" only where something does something with it
@@ -671,6 +742,10 @@ function signal_codes_in_level(level) {
         }
     }
     add(level?.properties?.signal_all_defeated);
+    // a named Code stays taken even when nothing uses it right now, so a new
+    // Schalter never turns up with somebody else's old name
+    for (const key of Object.keys(signal_names_of(level) ?? {}))
+        if (signal_key(key) === key) add(key);
     return used;
 }
 
@@ -760,5 +835,6 @@ if (typeof module !== 'undefined' && module.exports) {
         signal_partners, describe_signal_partners, signal_codes_in_level, free_signal_code,
         signal_objects, signal_links, same_signal_object, pick_signal_object, connect_signal_objects,
         promote_legacy_signals, signal_rules,
+        SIGNAL_NAME_MAX_LENGTH, clean_signal_name, signal_name, signal_code_named, set_signal_name, signal_code_text,
     };
 }

@@ -1465,7 +1465,8 @@ class LevelEditor {
             for (const { line, role } of lines) {
                 // an enemy only takes part once "sendet, wenn besiegt" is on
                 const found = roles.find(found => found.role === role);
-                line.text(found ? describe_signal_partners(found.code, signal_partners(level, found.code, traits_of)) : '');
+                line.text(found ? describe_signal_partners(found.code, signal_partners(level, found.code, traits_of),
+                    signal_name(level, found.code)) : '');
             }
             this.build_signal_links();
             this.render();
@@ -1480,10 +1481,11 @@ class LevelEditor {
         const level = this.game.data.levels[this.level_index];
         const links = $('<div class="signal-links">');
         const update_links = () => {
+            const code = layer.properties.signal_code ?? 0;
             links.text(layer_reacts_to_signals(layer.properties) ?
-                describe_signal_partners(layer.properties.signal_code ?? 0, signal_partners(level,
-                    layer.properties.signal_code ?? 0,
-                    ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits)) : '');
+                describe_signal_partners(code, signal_partners(level, code,
+                    ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits),
+                    signal_name(level, code)) : '');
             this.build_signal_links();
             this.render();
         };
@@ -1548,7 +1550,7 @@ class LevelEditor {
             const code = level.properties.signal_all_defeated;
             details?.toggle(Number.isInteger(code));
             links.text(Number.isInteger(code) ? describe_signal_partners(code, signal_partners(level, code,
-                ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits)) : '');
+                ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits), signal_name(level, code)) : '');
         };
         new CheckboxWidget({
             container: box,
@@ -1606,7 +1608,7 @@ class LevelEditor {
         const update_links = () => {
             const code = layer.properties.signal_code ?? 0;
             links.text(describe_signal_partners(code, signal_partners(level, code,
-                ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits)));
+                ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits), signal_name(level, code)));
             this.build_signal_links();
             this.render();
         };
@@ -2200,6 +2202,8 @@ class LevelEditor {
             box.on('mouseleave', () => { this.signal_focus_code = null; this.build_signal_links(); this.render(); });
             $('<button class="signal-rule-code">').text(`Code ${card.code}`).attr('title', 'Alles mit diesem Code zeigen')
                 .on('click', () => this.focus_signal_code(card.code)).appendTo(box);
+            // a named Code: its name on top, the number stays small on the right
+            if (card.name) $('<div class="signal-rule-name">').text(card.name).appendTo(box);
             const section = (word, lines, empty) => {
                 const row = $('<div class="signal-rule-row">').appendTo(box);
                 $('<span class="signal-rule-word">').text(word).appendTo(row);
