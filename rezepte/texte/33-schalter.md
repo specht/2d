@@ -62,7 +62,7 @@ Unter dem Code steht, was im Level noch denselben Code hat: *Code 3 in diesem Le
 - **Bei Signal** kann noch mehr: **schließen**, **offen, solange an** (der Schalter macht das Tor auf und wieder zu) oder **wechseln** (jedes Umlegen macht es auf oder zu).
 - Mehrere Tore mit demselben Code gehen alle gleichzeitig auf.
 - Ein Tor, das nach ein paar Sekunden von selbst wieder zugeht, baust du am besten mit einer Druckplatte – siehe *Ein Tor, das nur kurz offen bleibt*.
-- Ein Schalter kann auch eine **Ebene** erscheinen oder verschwinden lassen – siehe *Eine Druckplatte baut eine Brücke*.
+- Ein Schalter kann auch **Ebenen** erscheinen und verschwinden lassen – siehe *Rote und grüne Blöcke*.
 
 ## Wenn's nicht klappt
 

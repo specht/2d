@@ -244,6 +244,18 @@ sprites:
       - { strip: welt/gitter_zu, traits: { door: [closed] } }
       - { strip: welt/gitter_auf, traits: { door: [open] } }
       - { strip: welt/gitter_uebergang, fps: 10, traits: { door: [transition] } }
+  # An/Aus-Plattformen: red blocks while the Schalter is off, green ones while it
+  # is on (the colours of its knob); the dashed outlines show where the others are
+  block_rot:
+    label: Roter Block
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/block_rot }]
+  block_gruen:
+    label: Grüner Block
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: welt/block_gruen }]
+  umriss_rot: { label: Umriss rot, states: [{ strip: welt/umriss_rot }] }
+  umriss_gruen: { label: Umriss grün, states: [{ strip: welt/umriss_gruen }] }
   muenze:
     label: Münze
     traits: { pickup: { points: 10 } }

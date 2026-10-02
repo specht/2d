@@ -65,7 +65,7 @@ Unter dem Code der Ebene steht, wer ihr Signale sendet: *Code 4 in diesem Level 
 
 - Eine Ebene, die weg ist, ist wirklich weg: Man sieht sie nicht, man kann nicht auf ihr stehen, und ihre Stacheln oder Münzen tun nichts.
 - **da, solange an** lässt die Brücke nur erscheinen, solange jemand auf der Platte steht. **verschwindet** macht das Gegenteil – praktisch für eine Wand, die nach dem Tritt auf die Platte weg ist.
-- Statt einer Druckplatte kann auch ein **Schalter** oder ein **Schlüssel** mit demselben Code die Brücke bauen.
+- Statt einer Druckplatte kann auch ein **Schalter** oder ein **Schlüssel** mit demselben Code die Brücke bauen. Mit einem Schalter und zwei Ebenen tauschst du Mauer und Brücke hin und her – siehe *Rote und grüne Blöcke*.
 
 ## Wenn's nicht klappt
 
