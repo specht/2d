@@ -735,6 +735,72 @@ function signal_rules(level, traits_of, name_of) {
     }));
 }
 
+// ------------------------------------- copying between levels: names travel
+// Every Code a placed sprite stores: [props, key] for the signal_code of
+// each trait and an enemy's drop_code (integers only).
+function placed_signal_fields(placed) {
+    const fields = [];
+    const all = placed?.[3];
+    if (!all || typeof all !== 'object') return fields;
+    for (const props of Object.values(all)) {
+        if (!props || typeof props !== 'object') continue;
+        for (const key of ['signal_code', 'drop_code'])
+            if (Number.isInteger(props[key])) fields.push([props, key]);
+    }
+    return fields;
+}
+
+// The names of the Codes these placed sprites use, { "4": "Brücke" }, or
+// null without any (what the clipboard takes along from its level).
+function signal_names_for_placed(level, items) {
+    let names = null;
+    for (const placed of items ?? [])
+        for (const [props, key] of placed_signal_fields(placed)) {
+            const name = signal_name(level, props[key]);
+            if (name) (names ??= {})[String(props[key])] = name;
+        }
+    return names;
+}
+
+// Pasted into a level, a named Code keeps its name – the name wins:
+// - the level has that name already (on any Code): the pasted sprites join
+//   that Code ("Brücke" is "Brücke")
+// - else, the level has the same number without a name: it gets the name
+//   (the pasted sprites join that number, as unnamed Codes always have)
+// - else (the same number has another name here): a free Code with the name
+// Unnamed Codes keep their number, exactly as before. items: the pasted
+// copies (changed in place). names: from signal_names_for_placed. Returns
+// { from: to } for every Code that changed.
+function carry_signal_names(level, items, names) {
+    const changed = {};
+    if (!level || !names || typeof names !== 'object') return changed;
+    const taken = new Set();
+    for (const placed of items ?? []) for (const [props, key] of placed_signal_fields(placed)) taken.add(props[key]);
+    const plan = new Map();
+    const keys = Object.keys(names).filter(key => signal_key(key) === key).sort((a, b) => Number(a) - Number(b));
+    for (const key of keys) {
+        const from = Number(key);
+        const name = clean_signal_name(names[key]);
+        if (!name) continue;
+        let to = signal_code_named(level, name);
+        if (to === null) {
+            if (!signal_name(level, from)) to = from;
+            else { to = free_signal_code(level, taken); taken.add(to); }
+        }
+        plan.set(from, { to, name });
+    }
+    for (const placed of items ?? [])
+        for (const [props, key] of placed_signal_fields(placed)) {
+            const step = plan.get(props[key]);
+            if (step && step.to !== props[key]) props[key] = step.to;
+        }
+    for (const [from, { to, name }] of plan) {
+        if (!signal_name(level, to)) set_signal_name(level, to, name);
+        if (to !== from) changed[from] = to;
+    }
+    return changed;
+}
+
 // ---------------------------------------------------------- older games
 // Every Code the level uses, so a new one can be found (a free Code).
 function signal_codes_in_level(level) {
@@ -848,5 +914,6 @@ if (typeof module !== 'undefined' && module.exports) {
         signal_objects, signal_links, same_signal_object, pick_signal_object, connect_signal_objects,
         promote_legacy_signals, signal_rules,
         SIGNAL_NAME_MAX_LENGTH, clean_signal_name, signal_name, signal_code_named, set_signal_name, signal_code_text, unique_signal_name,
+        placed_signal_fields, signal_names_for_placed, carry_signal_names,
     };
 }

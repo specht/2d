@@ -907,6 +907,9 @@ class LevelEditor {
         const layer = this.current_sprite_layer();
         if (!layer || !this.selection.length) return false;
         window.level_clipboard = copy_placed(layer.sprites, this.selection);
+        // the names of their Codes travel along (pasting into another level)
+        if (window.level_clipboard)
+            window.level_clipboard.signal_names = signal_names_for_placed(this.game.data.levels[this.level_index], window.level_clipboard.items);
         this.show_level_notice?.(`${this.selection.length === 1 ? '1 Sprite' : `${this.selection.length} Sprites`} kopiert – mit Strg+V einfügen.`);
         return true;
     }
@@ -927,7 +930,15 @@ class LevelEditor {
             [x, y] = this.ui_to_world(this.pointer_world_raw, true);
         if (menus.level.active_key !== 'tool/select') menus.level.handle_click('tool/select');
         const pasted = paste_placed(layer.sprites, clipboard, x, y);
+        // named Codes keep their names here: the name wins (signals.js)
+        const level = this.game.data.levels[this.level_index];
+        const changed = carry_signal_names(level, pasted.selection.map(i => pasted.sprites[i]), clipboard.signal_names);
         this.set_layer_sprites(this.layer_index, pasted.sprites, pasted.selection);
+        // "Eingefügt – in diesem Level ist »Tor auf« Code 1."
+        const moved = Object.values(changed).map(code => `»${signal_name(level, code)}« Code ${code}`);
+        if (moved.length)
+            this.show_level_notice(`Eingefügt – in diesem Level ${moved.length === 1 ? 'ist' : 'sind'} ${moved.length === 1 ? moved[0] :
+                `${moved.slice(0, -1).join(', ')} und ${moved[moved.length - 1]}`}.`);
     }
 
     duplicate_selection() {
