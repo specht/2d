@@ -696,6 +696,19 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         },
                     ],
                 },
+                // palette_apply.js: every sprite and every background colour
+                {
+                    label: 'Ganzes Spiel an Palette anpassen',
+                    children: Object.entries(PALETTE_METHODS).map(([method, label]) => ({
+                        label: label.charAt(0).toUpperCase() + label.slice(1),
+                        callback: () => apply_palette_to_game(method),
+                    })),
+                },
+                {
+                    label: 'Umfärben rückgängig machen',
+                    enabled: () => !!game?.palette_undo,
+                    callback: () => undo_game_palette(),
+                },
             ],
         },
     ]);
@@ -1158,6 +1171,10 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 self.div_for_palette_index[i] = div2;
                 $('#palettes_here').append(div);
             }
+            $('<label>').addClass('palette-apply-all')
+                .append($('<input type="checkbox" id="palette_apply_all">'))
+                .append(document.createTextNode(' Mein Spiel gleich in diese Palette umfärben – alle Sprites und die Farben der Hintergründe'))
+                .insertBefore(self.dialog.find('.modal-footer'));
             window.modal_choose_palette_grid = $('#palettes_here').masonry({
                 itemSelector: '.grid-item',
                 transitionDuration: 0,
@@ -1188,6 +1205,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                     window.selected_palette_index = self.palette_index;
                     update_color_palette();
                     self.dismiss();
+                    // palette_apply.js: the whole game in the new colours, backgrounds too
+                    if ($('#palette_apply_all').prop('checked')) apply_palette_to_game('ordered');
                 }
             },
         ]

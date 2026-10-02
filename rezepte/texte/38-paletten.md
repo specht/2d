@@ -98,11 +98,11 @@ Blasse, weiche Farben und kein echtes Schwarz. Nichts wirkt hart oder gefährlic
 ## Schritt für Schritt
 
 1. Überleg dir zuerst, wie sich dein Level anfühlen soll: fröhlich, gemütlich, kalt, gefährlich, geheimnisvoll?
-2. Öffne **Funktionen → Palette → Palette wählen**. Jede Palette zeigt ihre Farben als kleine Kästchen. Such dir eine aus, die zu deiner Stimmung passt, und klick auf **Palette wählen**.
-3. Jetzt malst du mit den Farben dieser Palette. Sie wird mit deinem Spiel gespeichert.
-4. Ein Bild, das schon fertig ist, färbst du mit **Funktionen → Palette → Sprite an Palette anpassen** um. Jeder Pixel bekommt die Farbe aus der Palette, die ihm am ähnlichsten ist. Das gilt immer für das Bild, das du gerade bearbeitest – bei einer Animation also für jedes Bild einzeln.
-5. Gefällt es dir nicht, klick in der Bilderleiste unter der Zeichenfläche auf das Bild von vorher – dann ist die alte Version wieder da.
-6. Stell zum Schluss den Himmel auf zwei Farben aus der Palette (siehe *Himmel mit Farbverlauf*). Das ist der wichtigste Schritt: Beim Umfärben bleibt Helles hell und Dunkles dunkel. Ob es Tag oder Nacht ist, entscheidet vor allem der Himmel.
+2. Öffne **Funktionen → Palette → Palette wählen**. Jede Palette zeigt ihre Farben als kleine Kästchen. Such dir eine aus, die zu deiner Stimmung passt.
+3. Ist dein Spiel schon gemalt, setz unten den Haken bei **Mein Spiel gleich in diese Palette umfärben** und klick auf **Palette wählen**. Dann bekommt alles Farben aus der Palette: jedes Bild jedes Sprites und auch die Farben der Hintergründe und Effekte (Himmel, Schnee, Sterne …). Jeder Pixel bekommt die Farbe aus der Palette, die ihm am ähnlichsten ist.
+4. Gefällt es dir nicht, klick auf **Rückgängig machen** – oder später auf **Funktionen → Palette → Umfärben rückgängig machen**.
+5. Jetzt malst du mit den Farben dieser Palette. Sie wird mit deinem Spiel gespeichert. Neue Sprites passt du mit **Funktionen → Palette → Sprite an Palette anpassen** an (das gilt für das Bild, das du gerade bearbeitest) – oder wieder mit **Ganzes Spiel an Palette anpassen**.
+6. Stell zum Schluss den Himmel auf zwei Farben aus der Palette, die zur Tageszeit passen (siehe *Himmel mit Farbverlauf*). Das ist der wichtigste Schritt: Beim Umfärben bleibt Helles hell und Dunkles dunkel. Ob es Tag oder Nacht ist, entscheidet vor allem der Himmel.
 
 ## Welche Palette für welche Stimmung?
 
@@ -120,15 +120,15 @@ Blasse, weiche Farben und kein echtes Schwarz. Nichts wirkt hart oder gefährlic
 > **Tipp:** Je weniger Farben eine Palette hat, desto stärker ist die Stimmung – aber desto mehr Einzelheiten gehen beim Umfärben verloren. Mit acht bis sechzehn Farben kann man gut malen.
 
 - Wähl die Palette am besten, **bevor** du anfängst zu malen. Umfärben geht, aber selbst gemalt sieht es fast immer schöner aus.
-- Beim Umfärben gibt es drei Arten: **Ordered Dithering** macht ein gleichmäßiges Muster, **Diffusion** und **Atkinson** verteilen die Pixel eher zufällig. Probier aus, was dir besser gefällt.
+- Beim Umfärben gibt es mehrere Arten: **mit gleichmäßigem Muster** (Ordered), **mit verteiltem Muster** (Diffusion, Atkinson) – oder **ohne Muster**: Dann bekommt jede Farbe einfach die ähnlichste aus der Palette. Probier aus, was dir besser gefällt.
 - Ein Spiel darf mehrere Stimmungen haben: Der Wald am Anfang ist fröhlich, die Höhle am Ende gefährlich. Mal jede Welt mit anderen Farben.
 - Die Spielfigur darf ruhig ein bisschen herausstechen. Dann findet man sie auch in einem dunklen Level sofort.
 
 ## Wenn's nicht klappt
 
 - **Nach dem Umfärben ist alles eine Fläche:** Die Palette hat zu wenige helle und dunkle Farben. Nimm eine mit mehr Farben oder mal die wichtigen Stellen nach.
-- **Nur ein Bild der Animation hat die neuen Farben:** Umgefärbt wird immer nur das Bild, das du gerade bearbeitest. Geh die anderen Bilder nacheinander durch.
-- **Das Level wirkt immer noch bunt:** Der Himmel und die Sprites, die du noch nicht umgefärbt hast, haben die alten Farben.
+- **Nur ein Bild der Animation hat die neuen Farben:** **Sprite an Palette anpassen** färbt nur das Bild um, das du gerade bearbeitest. Nimm **Ganzes Spiel an Palette anpassen** – das färbt alle Bilder um.
+- **Das Level wirkt immer noch bunt:** Ein Sprite, das du erst danach gemalt oder hereingeholt hast, hat noch die alten Farben. Färb das ganze Spiel noch einmal um.
 - **Es sieht nach Tag aus, obwohl die Palette dunkel ist:** Der Himmel ist noch hell. Nimm für den Himmel die dunkelsten Farben der Palette.
 
 ## Mach mehr draus
