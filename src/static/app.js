@@ -1864,6 +1864,10 @@ class Game {
 
 	setup() {
 		this.combat.reset();
+		// Keys open doors of the level they were found in only. setup() runs
+		// for every level (not when the figure dies and respawns), so keys
+		// collected earlier in this level stay collected after dying.
+		this.found_keys = {};
         for (const character of [this.player_character, ...(this.baddies ?? [])])
             character?.dispose_hit_flash?.();
 		this.running = false;
