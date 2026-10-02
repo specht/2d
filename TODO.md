@@ -353,6 +353,8 @@ Before expanding this, define:
 - how unmet conditions are communicated to the player
 - how old games remain compatible
 
+Once signals run properly and a level can be completed in different ways (the exit, and e.g. a "Level geschafft" receiver – see Further Signale extensions), add a recipe that explains how a level can be completed: the ways side by side, and how to choose between them.
+
 ---
 
 # Additional Gameplay Mechanics
@@ -487,7 +489,7 @@ The Signale recipes have their own category, in this order: Schalter → Tor, Dr
 - **Eine Falle mit Verzögerung** – a Druckplatte lets spikes appear a second later, so Pip can still run. Left out for now: it is the Druckplatte recipe with one more number (Verzögerung is a tip in Tor mit Zeit and Falle). Worth it once something can drop stones on a Signal.
 - **Licht an** – a Schalter that switches a dark colour layer (abdunkeln) off and a Lichtschein on: a room that becomes light. Could also fit "Level gestalten".
 
-Would need new features: two senders that must both be active (AND), a counter ("drei Schalter umlegen"), a text that is spoken on a Signal.
+Would need new features: two senders that must both be active (AND), a counter ("drei Schalter umlegen"), a text that is spoken on a Signal, a level that is completed by a Signal (then: the recipe on completing a level, see Level completion).
 
 ---
 
@@ -497,6 +499,7 @@ Every recipe's scene can be opened in the studio (Hilfe → Selbst ausprobieren 
 
 - give a scene room outside the recorded frame (an optional extra map in the recipe that only the studio scene contains), so children have more space to explore and sprites to borrow for their own games
 - a short "look here" hint per recipe (which layer, which sprite, which setting matters)
+- **proper titles everywhere in the recipe scenes:** sprites (Titel, not "Sprite 3"), states, layers, levels and signals (names instead of bare Codes, see "Names for signals"). Children open these scenes in the studio and borrow from them, so what they see in the lists, the Eigenschaften, the Signale-Übersicht and the Code fields should read like a well-kept game. Go through every recipe in `rezepte/` and check it in the studio; this includes the item "the Signale recipes then use names" above.
 
 ---
 
