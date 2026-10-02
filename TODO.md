@@ -154,7 +154,6 @@ Roughly in order of usefulness (each must stay an understandable choice in the e
 - "und" and counters: a receiver that waits for two Codes, or a Code that has to arrive three times ("drei Schalter umlegen")
 - more receivers: "Level geschafft" (could answer the open level-completion question: "alle Gegner besiegt → Level geschafft"), a sign or figure that speaks on a Signal or when the figure walks past (speech.js is ready), a moving platform or lift that starts, spawn / remove a single sprite, a trap that switches on and off, set a simple game flag
 - more senders: sprite collected (any pickup with a Code), level starts; enemies pressing a Druckplatte
-- show a sender's Verzögerung on its connection line in the level editor, if children lose track of which signals are delayed
 - signals across levels only with an explicit design (flags), never implicitly: keys and Codes are per level
 
 Possible actions still open:

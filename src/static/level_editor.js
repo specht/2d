@@ -1134,6 +1134,7 @@ class LevelEditor {
         }
         this.signal_link_curves = [];
         this.signal_link_frames = [];
+        this.signal_link_labels = [];
         this.refresh_signal_overview();
         this.refresh_signal_code_widgets();
         if (!this.game.data.levels?.[this.level_index]) return;
@@ -1148,8 +1149,13 @@ class LevelEditor {
                 : [object.rect];
             for (const rect of rects) this.signal_link_frames.push({ rect, color: signal_link_color(object.code) });
         }
-        for (const link of signal_links(objects, codes))
+        for (const link of signal_links(objects, codes)) {
             this.signal_link_curves.push({ from: link.from.anchor, to: link.to.anchor, color: signal_link_color(link.code) });
+            // a sender with a Verzögerung: its lines say how long
+            const delay = this.signal_object_delay(level, link.from);
+            if (delay > 0) this.signal_link_labels.push({ from: link.from.anchor, to: link.to.anchor,
+                text: signal_seconds_text(delay), color: signal_link_color(link.code) });
+        }
         if (this.connect_from && this.connect_pointer)
             this.signal_link_curves.push({ from: this.connect_from.anchor, to: this.connect_pointer, color: '#f4f4f4' });
         this.signal_dash_mesh = null;
@@ -1329,6 +1335,43 @@ class LevelEditor {
     // build_signal_links, i.e. after every change that could matter.
     refresh_signal_code_widgets() {
         $('.signal-code-pick').each((_, el) => $(el).data('signal-code-widget')?.refresh_button());
+    }
+
+    // The Verzögerung of a sender in seconds (0: at once), as stored: the
+    // placed sprite's signal_delay (not for the key an enemy leaves behind)
+    // or a Bereich's properties.signal_delay.
+    signal_object_delay(level, object) {
+        const layer = level?.layers[object?.layer_index];
+        if (!layer || !object.sends) return 0;
+        if (object.kind === 'area') return signal_delay_seconds(layer.properties?.signal_delay);
+        if (object.kind !== 'sprite' || object.role === 'loot') return 0;
+        return signal_delay_seconds(layer.sprites?.[object.placed_index]?.[3]?.[object.trait]?.signal_delay);
+    }
+
+    // The labels on delayed connections: small boxes over the level view,
+    // put at the middle of their curve on every render (the curve bends with
+    // the zoom, see update_signal_dashes).
+    place_signal_link_labels() {
+        let box = $(this.element).find('.signal-link-labels');
+        const labels = this.signal_link_labels ?? [];
+        if (!labels.length) { box.remove(); return; }
+        if (!box.length) box = $('<div class="signal-link-labels">').appendTo(this.element);
+        const items = box.children();
+        const px = 1 / this.scale;
+        labels.forEach((label, i) => {
+            let item = items.eq(i);
+            if (!item.length) item = $('<div class="signal-link-label">').append($('<i class="fa fa-clock-o">'), $('<span>')).appendTo(box);
+            item.find('span').text(label.text);
+            item.css('--signal-color', label.color);
+            const a = label.from, b = label.to;
+            const distance = Math.hypot(b.x - a.x, b.y - a.y);
+            // the curve's middle: a quadratic Bézier at t = ½ is ¼ a + ½ control + ¼ b
+            const control_y = (a.y + b.y) / 2 + distance * 0.25 + 12 * px;
+            const x = (a.x + b.x) / 2, y = 0.25 * a.y + 0.5 * control_y + 0.25 * b.y;
+            item.css({ left: `${this.width / 2 + (x - this.camera_x) * this.scale}px`,
+                top: `${this.height / 2 - (y - this.camera_y) * this.scale}px` });
+        });
+        items.slice(labels.length).remove();
     }
 
     // What a sender or receiver is called in a suggested name: the sprite's
@@ -3090,6 +3133,7 @@ class LevelEditor {
         this.renderer.setSize(this.width, this.height);
         this.renderer.sortObjects = false;
         this.renderer.render(this.scene, this.camera);
+        this.place_signal_link_labels();
         // let data = {};
         // if (this.layer_structs.length > 0) {
         //     data.sprites = ((this.game.data.levels || [{}])[0].layers || [{}])[0].sprites.map(function(x) {return `#${x[0]} @ ${x[1]}/${x[2]}`;});

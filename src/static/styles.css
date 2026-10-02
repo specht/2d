@@ -2964,6 +2964,33 @@ details.trait-advanced[open] > summary {
     color: #ef7d57;
 }
 
+/* A delayed connection: "⏱ 1,5 s" at the middle of its line (level_editor.js
+   place_signal_link_labels) */
+.signal-link-labels {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 2;
+}
+.signal-link-label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px;
+    border-radius: 9px;
+    border: 1px solid var(--signal-color, #94b0c2);
+    background: rgba(18, 20, 32, 0.88);
+    color: #fff;
+    font-size: 11px;
+    white-space: nowrap;
+}
+.signal-link-label .fa {
+    color: var(--signal-color, #94b0c2);
+}
+
 /* The Signale beside a test run (level_editor.js start_signal_watch): the
    overview's cards, only to read, flashing when their signal arrives */
 .signal-overview.signal-watch {
