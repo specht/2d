@@ -1,6 +1,6 @@
 ---
 titel: Ein Tor, das nur kurz offen bleibt
-kategorie: Türen & Schlüssel
+kategorie: Signale
 stufe: 2
 skala: 2
 kurz: Pip tritt auf eine Druckplatte, rennt los – und hinter ihm fährt das Gittertor wieder herunter.

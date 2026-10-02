@@ -505,10 +505,16 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 if (data.success) {
                     console.log(`tag: ${data.tag}`);
                     const frame = $('#play_iframe')[0].contentWindow;
+                    // keys must reach the game, not the editor that was open
+                    // before (a test run starts with T in the level editor)
+                    const focus_game = focus_play_frame;
                     const loaded = frame.game.load(data.tag);
-                    if (playtest) Promise.resolve(loaded).then(() => frame.game.start_playtest?.(playtest));
+                    Promise.resolve(loaded).then(() => {
+                        if (playtest) frame.game.start_playtest?.(playtest);
+                        focus_game();
+                    });
                     $('#play_iframe').fadeIn();
-                    $('#play_iframe').focus();
+                    focus_game();
                 }
             });
         } else {
@@ -521,6 +527,33 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             refresh_playtesting_code();
         }
         return changed;
+    }
+
+    // Spielen: the game frame gets the keys. Keys that still arrive here (the
+    // frame did not have the focus yet, e.g. right after T in the level
+    // editor) are handed to the game, and the frame takes the focus for the
+    // next ones. Studio shortcuts with Strg/Alt stay here.
+    function focus_play_frame() {
+        if (current_pane !== 'play') return;
+        const iframe = $('#play_iframe')[0];
+        document.activeElement?.blur?.();
+        iframe?.focus();
+        try { iframe?.contentWindow?.focus(); } catch { }
+    }
+    window.focus_play_frame = focus_play_frame;
+    for (const type of ['keydown', 'keyup']) {
+        window.addEventListener(type, (e) => {
+            if (current_pane !== 'play' || $(e.target).is('input, textarea, select')) return;
+            if (e.ctrlKey || e.altKey || e.metaKey || e.key === 'F11') return;
+            const frame = $('#play_iframe')[0]?.contentWindow;
+            if (!frame?.game) return;
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                frame.dispatchEvent(new frame.KeyboardEvent(type, { key: e.key, code: e.code, repeat: e.repeat, shiftKey: e.shiftKey, bubbles: true }));
+            } catch { }
+            focus_play_frame();
+        }, true);
     }
 
     // Browser history: every pane (and every opened recipe in Hilfe) gets its own

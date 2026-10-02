@@ -9,6 +9,10 @@ import sharp from 'sharp';
 import YAML from 'yaml';
 
 export const TILE = 24;
+// World x of the left edge of map column 0. The studio's level editor puts the
+// centre of a 24-pixel sprite on multiples of 24, so a map cell's centre is
+// c × 24: whatever a child paints into a recipe scene lines up with it.
+export const X0 = -TILE / 2;
 const SHEET_WIDTH = 1024;       // MAX_SPRITESHEET_WIDTH
 const SHEET_FACTOR = 4;         // SPRITESHEET_FACTOR
 
@@ -272,7 +276,7 @@ export async function build_game(catalog, recipe, repo) {
         const entry = lookup(ch);
         const si = index_of(entry.sprite);
         // Big sprites start at their map cell (left edge) and stand on its bottom.
-        const placed = [si, c * TILE + sprites[si].width / 2, (rows - 1 - r) * TILE];
+        const placed = [si, c * TILE + X0 + sprites[si].width / 2, (rows - 1 - r) * TILE];
         if (entry.platziert) placed.push(clone(entry.platziert));
         const traits = sprites[si].traits;
         // figuren: true keeps characters in their own map layer (e.g. behind a window)
@@ -285,7 +289,7 @@ export async function build_game(catalog, recipe, repo) {
     // bild_hoch: the picture moves up by so many tiles (less floor, more sky)
     const lift = Number(recipe.bild_hoch ?? 0) * TILE;
     const view = {
-        x0: ax * TILE, x1: (ax + aw) * TILE,
+        x0: ax * TILE + X0, x1: (ax + aw) * TILE + X0,
         y0: (rows - ay - ah) * TILE + lift, y1: (rows - ay) * TILE + lift,
     };
     // The engine centres the camera on the bounding box of everything placed
@@ -358,8 +362,8 @@ export async function build_game(catalog, recipe, repo) {
                 colors: clone(colors),
                 // bereich: [column, row from top, width, height] in tiles – e.g. only over a cave
                 rects: [e.bereich ?
-                    { left: e.bereich[0] * TILE, bottom: (rows - e.bereich[1] - e.bereich[3]) * TILE, width: e.bereich[2] * TILE, height: e.bereich[3] * TILE } :
-                    { left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
+                    { left: e.bereich[0] * TILE + X0, bottom: (rows - e.bereich[1] - e.bereich[3]) * TILE, width: e.bereich[2] * TILE, height: e.bereich[3] * TILE } :
+                    { left: -TILE * 4 + X0, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
             };
         }
         if (!EFFECT_POINTS[e.effekt]) throw new Error(`${recipe.id}: unbekannter Effekt "${e.effekt}"`);
@@ -381,8 +385,8 @@ export async function build_game(catalog, recipe, repo) {
                 ...layer_signal_of(e.signal, `${recipe.id}: `) } } : {}),
             // bereich: [column, row from top, width, height] in tiles – e.g. only the air above the ground
             rects: [e.bereich ?
-                { left: e.bereich[0] * TILE, bottom: (rows - e.bereich[1] - e.bereich[3]) * TILE, width: e.bereich[2] * TILE, height: e.bereich[3] * TILE } :
-                { left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
+                { left: e.bereich[0] * TILE + X0, bottom: (rows - e.bereich[1] - e.bereich[3]) * TILE, width: e.bereich[2] * TILE, height: e.bereich[3] * TILE } :
+                { left: -TILE * 4 + X0, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
         };
     };
     // vorne: false = behind all layers; hinter: <Ebene> = right behind that layer
@@ -405,7 +409,7 @@ export async function build_game(catalog, recipe, repo) {
         if (!Number.isInteger(b.code)) throw new Error(`${recipe.id}: Bereich ${i + 1}: code fehlt`);
         return {
             type: 'signal_area', properties: { name: b.name ?? `Bereich ${i + 1}`, signal_code: b.code },
-            rects: b.rechtecke.map(([c, r, w, h]) => ({ left: c * TILE, bottom: (rows - r - h) * TILE, width: w * TILE, height: h * TILE })),
+            rects: b.rechtecke.map(([c, r, w, h]) => ({ left: c * TILE + X0, bottom: (rows - r - h) * TILE, width: w * TILE, height: h * TILE })),
         };
     });
     // Bewegungsbereiche (movement_regions.js): swimming, floating, other gravity,
@@ -425,7 +429,7 @@ export async function build_game(catalog, recipe, repo) {
     const movement_regions = (scene.bewegungsbereiche ?? []).map((b, i) => ({
         type: 'movement_region', properties: { name: b.name ?? `Bewegungsbereich ${i + 1}` },
         movement: movement_of(b, `Bewegungsbereich ${i + 1}`),
-        rects: b.rechtecke.map(([c, r, w, h]) => ({ left: c * TILE, bottom: (rows - r - h) * TILE, width: w * TILE, height: h * TILE })),
+        rects: b.rechtecke.map(([c, r, w, h]) => ({ left: c * TILE + X0, bottom: (rows - r - h) * TILE, width: w * TILE, height: h * TILE })),
     })).reverse();
     const tile_layer_list = tile_layers.map((p, i) => ({
         vorne: Boolean(layer_defs[i].vorne),
@@ -454,7 +458,7 @@ export async function build_game(catalog, recipe, repo) {
                 ...(sky_def.dither ? { dither: sky_def.dither, dither_levels: sky_def.stufen ?? 8 } : {}),
                 // exactly the scene's height: colour positions (0 = bottom, 1 = top) match the picture
                 // (and above it, when the picture is lifted: bild_hoch)
-                rects: [{ left: -TILE * 4, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE + (follow ? 0 : Math.max(0, view.y1 - rows * TILE)) }],
+                rects: [{ left: -TILE * 4 + X0, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE + (follow ? 0 : Math.max(0, view.y1 - rows * TILE)) }],
             },
         ],
     };

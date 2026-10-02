@@ -2903,6 +2903,8 @@ class Game {
 		$('#overlay').stop(true, true).hide();
 		$('#screen').stop(true, true).show();
 		$('#playtest_badge').addClass('showing');
+		// the keys belong to the game at once (the studio started this with T)
+		try { window.focus(); } catch { }
 		this.frame = 0;
 		this.clock.start();
 		this.run();

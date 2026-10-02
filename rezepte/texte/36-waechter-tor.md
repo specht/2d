@@ -1,6 +1,6 @@
 ---
 titel: Erst den Wächter besiegen
-kategorie: Türen & Schlüssel
+kategorie: Signale
 stufe: 2
 skala: 2
 kurz: Ein Glibber bewacht das Tor. Erst wenn Pip ihn besiegt hat, fährt das Gitter hoch.

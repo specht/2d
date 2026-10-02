@@ -324,7 +324,8 @@ export function check(expect, state) {
         const open = state.doors_open.some(Boolean);
         if (open !== e.tuer_offen) fail.push(`tuer_offen: ${open} statt ${e.tuer_offen}`);
     }
-    if (e.figur_rechts_von !== undefined && !(state.player?.x > e.figur_rechts_von * 24))
+    // column N starts at x = N × 24 − 12 (game.mjs X0)
+    if (e.figur_rechts_von !== undefined && !(state.player?.x > e.figur_rechts_von * 24 - 12))
         fail.push(`Figur steht bei x=${state.player?.x?.toFixed(1)}, erwartet rechts von Spalte ${e.figur_rechts_von}`);
     if (e.figur_hoeher_als !== undefined && !(state.player?.y >= e.figur_hoeher_als * 24))
         fail.push(`Figur steht bei y=${state.player?.y?.toFixed(1)}, erwartet mindestens auf Höhe ${e.figur_hoeher_als}`);

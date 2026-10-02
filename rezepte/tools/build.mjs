@@ -65,7 +65,7 @@ function fingerprint(recipe, games) {
     return h.digest('hex').slice(0, 16);
 }
 
-const KATEGORIEN = ['Loslegen', 'Figuren animieren', 'Welt bauen', 'Level gestalten', 'Türen & Schlüssel', 'Kampf', 'Gegner', 'Wasser & Weltall'];
+const KATEGORIEN = ['Loslegen', 'Figuren animieren', 'Welt bauen', 'Level gestalten', 'Türen & Schlüssel', 'Signale', 'Kampf', 'Gegner', 'Wasser & Weltall'];
 
 function read_recipe(file) {
     const text = fs.readFileSync(file, 'utf8').replace(/\r/g, '');
