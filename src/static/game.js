@@ -34,6 +34,13 @@ class Game {
 
     save() {
         if (this.currently_saving) return;
+        this.send_save();
+    }
+
+    // Saves the game as the next version of `data.parent` (a new game when
+    // there is none) and shows its code. on_saved(tag) / on_failed() are
+    // optional (own_game.js: Als eigenes Spiel weiterführen).
+    send_save(on_saved = null, on_failed = null) {
         this.currently_saving = true;
         this.data.palette = palettes[selected_palette_index].colors;
         let self = this;
@@ -52,8 +59,11 @@ class Game {
                     self.currently_saving = false;
                 }, 3000);
                 // window.location.href = `/?${data.tag}`;
+                self.refresh_own_game_button?.();
+                on_saved?.(data.tag);
             } else {
                 self.currently_saving = false;
+                on_failed?.();
             }
         });
     }
@@ -421,6 +431,7 @@ class Game {
                 self.data.properties.author = x;
             },
         });
+        this.add_own_game_button?.($('#game-settings-here'));
         new SeparatorWidget({
             container: $('#game-settings-here'),
             label: 'Gesundheit',
