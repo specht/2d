@@ -363,7 +363,7 @@ var SPRITE_TRAITS = {
         placed_properties: {
             door_code: {
                 label: 'Code',
-                hint: 'Der Schlüssel kann nur Türen mit demselben Code öffnen.',
+                hint: 'Der Schlüssel kann nur Türen mit demselben Code in diesem Level öffnen.',
                 type: 'int',
                 min: 0,
                 max: 1000,
