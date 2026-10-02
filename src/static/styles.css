@@ -486,6 +486,15 @@ body {
     opacity: 0.5;
 }
 
+/* Ebene sperren (level_editor.js): faint while unlocked, clear when locked */
+.layer-lock .fa-unlock {
+    opacity: 0.35;
+}
+.layer-lock.locked {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
 .mono {
     font-family: 'IBM Plex Mono', 'Roboto Mono', monospace;
 }
