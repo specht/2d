@@ -206,6 +206,28 @@
         color: #fff;
         padding-top: 1vh;
       }
+      /* a test run from the studio's level editor (app.js start_playtest) */
+      #playtest_badge {
+        position: absolute;
+        right: 1.5vh;
+        bottom: 1.5vh;
+        padding: 0.6vh 1.4vh;
+        border-radius: 0.8vh;
+        background: rgba(26, 28, 44, 0.85);
+        border: 1px solid rgba(255, 205, 117, 0.7);
+        color: #f4f4f4;
+        font-family: sans-serif;
+        font-size: 1.9vh;
+        pointer-events: none;
+        display: none;
+        z-index: 5;
+      }
+      #playtest_badge.showing {
+        display: block;
+      }
+      #playtest_badge b {
+        color: #ffcd75;
+      }
       #stats.showing {
         transform: translate(0, 0);
         transition: transform 0.5s ease;
@@ -300,6 +322,7 @@
           <div id="start_controls"></div>
           <div id="start_hint"></div>
         </div>
+        <div id="playtest_badge"><b>Test</b> · R: neu starten · Esc: zurück zum Level</div>
         <div id="stats">
           <div class="item la_level">
           </div>

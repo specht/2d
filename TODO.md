@@ -155,16 +155,12 @@ The editor should present these as understandable choices rather than as scripti
 
 # Playtesting
 
-The editing/testing loop should be very short.
+"Level testen" exists (▶ in the level editor's tools, key T): the Spielen pane runs the level being edited straight away, without the start screen; with the mouse over the level, the figure starts on the grid cell under it (lifted onto the floor if that cell is solid). R restarts the level, Esc goes back to the level editor exactly as it was. Nothing is saved or changed by a test run.
 
-Improve support for:
+Still open:
 
-- testing the level currently being edited
-- restarting quickly
-- returning to the same place in the editor afterwards
-- testing without having to restructure the game first
-
-Eventually it may also be useful to start playtesting near the part of the level currently being edited.
+- remembering game state between test runs (keys, switches) or starting with chosen items
+- a quick way to test while somebody else edits in a live session (today the test uses the local copy)
 
 ---
 

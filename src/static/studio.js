@@ -418,6 +418,9 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 'Ziehen oder Pfeiltasten verschieben die Auswahl, mit <span class=\'key longkey\'>Shift</span> pixelgenau',
             ]
         },
+        // not a tool: starts a test run of this level (T: the figure at the mouse)
+        { command: 'test', image: 'play-44', shortcut: 'T', label: 'Level testen',
+            callback: function () { game.level_editor?.start_playtest(); } },
         {
             group: 'tool', command: 'connect', image: 'connect-44', shortcut: 'R', label: 'Verbinden', hints: [
                 'Erst anklicken, was sendet (Schalter, Schlüssel, Druckplatte, Gegner, Bereich), dann, was reagieren soll (Tür, Brücke, Dach …)',
@@ -492,11 +495,16 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             game.level_editor.history_rebase?.();
         }
         if (current_pane === 'play') {
+            // "Level testen" (level editor): straight into that level
+            const playtest = window.studio_pending_playtest ?? null;
+            window.studio_pending_playtest = null;
             $('#play_iframe').hide();
             api_call('/api/save_game_temp', { game: game.data }, function (data) {
                 if (data.success) {
                     console.log(`tag: ${data.tag}`);
-                    $('#play_iframe')[0].contentWindow.game.load(data.tag);
+                    const frame = $('#play_iframe')[0].contentWindow;
+                    const loaded = frame.game.load(data.tag);
+                    if (playtest) Promise.resolve(loaded).then(() => frame.game.start_playtest?.(playtest));
                     $('#play_iframe').fadeIn();
                     $('#play_iframe').focus();
                 }
@@ -520,6 +528,16 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         if (show_pane(key)) studio_history_push({ pane: key });
     })
     window.studio_show_pane = show_pane;
+    // Test runs from the level editor: into the Spielen pane, and back with
+    // Esc to the level editor as it was (its camera and layer never changed).
+    window.studio_start_playtest = function (options) {
+        window.studio_pending_playtest = options;
+        if (show_pane('play')) studio_history_push({ pane: 'play' });
+    };
+    window.studio_return_from_playtest = function () {
+        if (show_pane('level')) studio_history_push({ pane: 'level' });
+        window.focus();
+    };
     window.addEventListener('popstate', (e) => {
         const state = e.state ?? parse_studio_hash();
         if (state.pane && $(`#mi_${state.pane}`).length) show_pane(state.pane);
