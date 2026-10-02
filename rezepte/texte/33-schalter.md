@@ -61,6 +61,7 @@ Unter dem Code steht, was im Level noch denselben Code hat: *Code 3 in diesem Le
 - Schneller geht's mit dem Werkzeug **Verbinden** (Taste R): erst den Schalter anklicken, dann das Tor. Beide bekommen denselben Code.
 - **Bei Signal** kann noch mehr: **schließen**, **offen, solange an** (der Schalter macht das Tor auf und wieder zu) oder **wechseln** (jedes Umlegen macht es auf oder zu).
 - Mehrere Tore mit demselben Code gehen alle gleichzeitig auf.
+- Soll das Tor nach ein paar Sekunden von selbst wieder zugehen? Siehe *Ein Tor, das nur kurz offen bleibt*.
 - Ein Schalter kann auch eine **Ebene** erscheinen oder verschwinden lassen – siehe *Eine Druckplatte baut eine Brücke*.
 
 ## Wenn's nicht klappt
