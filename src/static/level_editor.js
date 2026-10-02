@@ -1337,6 +1337,13 @@ class LevelEditor {
         $('.signal-code-pick').each((_, el) => $(el).data('signal-code-widget')?.refresh_button());
     }
 
+    // "+ Neue Regel": the Verbinden tool, and what to click.
+    start_new_signal_rule() {
+        if (menus.level.active_key !== 'tool/connect') menus.level.handle_click('tool/connect');
+        this.cancel_connect();
+        this.show_level_notice('Verbinden: Klicke zuerst auf das, was senden soll (Schalter, Schlüssel, Druckplatte, Gegner, Bereich) – dann auf das, was reagieren soll (Tür, Ebene). Esc bricht ab.', 7000);
+    }
+
     // The Verzögerung of a sender in seconds (0: at once), as stored: the
     // placed sprite's signal_delay (not for the key an enemy leaves behind)
     // or a Bereich's properties.signal_delay.
@@ -2302,6 +2309,9 @@ class LevelEditor {
             $('<p class="signal-overview-empty">').text('Noch nichts in diesem Level sendet oder reagiert auf ein Signal. Setz zum Beispiel einen Schalter und ein Tor ins Level und verbinde sie mit dem Werkzeug Verbinden (R).').appendTo(body);
         }
         for (const card of cards) this.build_signal_card(body, card, true);
+        $('<button class="signal-overview-new">').append($('<i class="fa fa-plus">'), $('<span>').text(' Neue Regel'))
+            .attr('title', 'Mit dem Werkzeug Verbinden (R): erst anklicken, was sendet, dann, was reagieren soll')
+            .on('click', () => this.start_new_signal_rule()).appendTo(body);
         body.scrollTop(scroll);
     }
 
