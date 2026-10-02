@@ -404,12 +404,18 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         {
             group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'W', label: 'Zeichnen', hints: [
                 { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
+                `<span class='key longkey'>Strg</span>&nbsp;+ ziehen: Rechteck füllen`,
             ]
         },
         {
             group: 'tool', command: 'select', image: 'select-rect-44', shortcut: 'E', label: 'Auswählen', hints: [
                 { key: 'Control+A', label: 'Alles auswählen', callback: function (x) { game.level_editor.select_all(); } },
                 { key: 'Delete', label: 'Auswahl löschen', callback: function (x) { game.level_editor.delete_selection(); } },
+                // handled by the printed letter in level_editor.js (key_label: shown only)
+                { key_label: 'Control+C', label: 'Kopieren', callback: function () { game.level_editor.copy_selection(); } },
+                { key_label: 'Control+V', label: 'Einfügen', callback: function () { game.level_editor.paste_clipboard(); } },
+                { key_label: 'Control+D', label: 'Duplizieren', callback: function () { game.level_editor.duplicate_selection(); } },
+                'Ziehen oder Pfeiltasten verschieben die Auswahl, mit <span class=\'key longkey\'>Shift</span> pixelgenau',
             ]
         },
         {

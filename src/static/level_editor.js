@@ -794,6 +794,174 @@ class LevelEditor {
         this.render();
     }
 
+    // ------------------------------------------------ working with a selection
+    // level_selection.js does the work on the data; here: showing it, the
+    // mouse and the keys. The clipboard lives as long as the studio page, so
+    // sprites can be copied from one level or layer to another.
+    current_sprite_layer() {
+        const layer = this.game.data.levels[this.level_index]?.layers[this.layer_index];
+        return layer?.type === 'sprites' ? layer : null;
+    }
+
+    // Outlines around the selected sprites (dx, dy: while they are dragged).
+    show_selection(dx = 0, dy = 0) {
+        const group = this.selection_group;
+        group.remove.apply(group, group.children);
+        const layer = this.current_sprite_layer();
+        if (!layer) return;
+        const material = this.layer_structs[this.layer_index]?.selectionMaterial ??
+            new THREE.LineBasicMaterial({ color: 0xffffff });
+        for (const index of this.selection) {
+            const placed = layer.sprites[index];
+            const sprite = placed && this.game.data.sprites[this.game.sprite_index_for_ref(placed[0])];
+            if (!sprite) continue;
+            const x0 = placed[1] - sprite.width / 2 + dx, x1 = placed[1] + sprite.width / 2 + dx;
+            const y0 = placed[2] + dy, y1 = placed[2] + sprite.height + dy;
+            const points = [[x0, y0], [x0, y1], [x1, y1], [x1, y0]].map(([x, y]) => new THREE.Vector3(x, y, 1));
+            group.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), material));
+        }
+    }
+
+    // Puts a changed sprites array into layer li and shows it, selecting `selection`.
+    set_layer_sprites(li, sprites, selection = []) {
+        const layer = this.game.data.levels[this.level_index].layers[li];
+        layer.sprites = sprites;
+        this.layer_structs[li]?.apply_layer(layer);
+        if (li === this.layer_index) this.selection = selection;
+        this.placed_properties_for = null;
+        this.show_selection();
+        this.refresh();
+        this.render();
+    }
+
+    selection_point_inside(x, y) {
+        const layer = this.current_sprite_layer();
+        return !!layer && this.selection.some(index => {
+            const placed = layer.sprites[index];
+            const sprite = placed && this.game.data.sprites[this.game.sprite_index_for_ref(placed[0])];
+            return sprite && x >= placed[1] - sprite.width / 2 && x <= placed[1] + sprite.width / 2 &&
+                y >= placed[2] && y <= placed[2] + sprite.height;
+        });
+    }
+
+    // Dragging the selection: the meshes follow the mouse in whole grid
+    // steps (with Shift pixel by pixel); the data changes on release.
+    preview_selection_move(dx, dy) {
+        const layer = this.current_sprite_layer();
+        const struct = this.layer_structs[this.layer_index];
+        if (!layer || !struct) return;
+        for (const index of this.selection) {
+            const placed = layer.sprites[index];
+            const mesh = placed && struct.mesh_for_pos[`${placed[1]}/${placed[2]}`];
+            if (mesh) mesh.position.set(placed[1] + dx, placed[2] + dy, mesh.position.z);
+        }
+        this.show_selection(dx, dy);
+        this.render();
+    }
+
+    nudge_selection(dx, dy) {
+        const layer = this.current_sprite_layer();
+        if (!layer || !this.selection.length || this.read_only_level()) return;
+        const moved = move_placed(layer.sprites, this.selection, dx, dy);
+        this.set_layer_sprites(this.layer_index, moved.sprites, moved.selection);
+    }
+
+    copy_selection() {
+        const layer = this.current_sprite_layer();
+        if (!layer || !this.selection.length) return false;
+        window.level_clipboard = copy_placed(layer.sprites, this.selection);
+        this.show_level_notice?.(`${this.selection.length === 1 ? '1 Sprite' : `${this.selection.length} Sprites`} kopiert – mit Strg+V einfügen.`);
+        return true;
+    }
+
+    cut_selection() {
+        if (this.read_only_level() || !this.copy_selection()) return;
+        this.delete_selection();
+    }
+
+    // At the mouse (its lower left corner on the grid cell under the
+    // pointer), or one grid step beside the original when the mouse is elsewhere.
+    paste_clipboard() {
+        const clipboard = window.level_clipboard;
+        const layer = this.current_sprite_layer();
+        if (!clipboard || !layer || this.read_only_level()) return;
+        let x = clipboard.x + this.grid_width, y = clipboard.y;
+        if (this.pointer_inside && this.pointer_world_raw)
+            [x, y] = this.ui_to_world(this.pointer_world_raw, true);
+        if (menus.level.active_key !== 'tool/select') menus.level.handle_click('tool/select');
+        const pasted = paste_placed(layer.sprites, clipboard, x, y);
+        this.set_layer_sprites(this.layer_index, pasted.sprites, pasted.selection);
+    }
+
+    duplicate_selection() {
+        const layer = this.current_sprite_layer();
+        if (!layer || !this.selection.length || this.read_only_level()) return;
+        const clipboard = copy_placed(layer.sprites, this.selection);
+        const pasted = paste_placed(layer.sprites, clipboard, clipboard.x + this.grid_width, clipboard.y);
+        this.set_layer_sprites(this.layer_index, pasted.sprites, pasted.selection);
+    }
+
+    move_selection_to_layer(target) {
+        const level = this.game.data.levels[this.level_index];
+        const from = this.current_sprite_layer();
+        const to = level.layers[target];
+        if (!from || to?.type !== 'sprites' || target === this.layer_index || !this.selection.length || this.read_only_level()) return;
+        const moved = move_placed_to_layer(from.sprites, this.selection, to.sprites);
+        from.sprites = moved.from;
+        this.layer_structs[this.layer_index]?.apply_layer(from);
+        to.sprites = moved.to;
+        this.layer_structs[target]?.apply_layer(to);
+        // go along to the layer, with the moved sprites selected
+        $('#menu_layers > ._dnd_item').eq(target).children().eq(0).trigger('click');
+        this.selection = moved.selection;
+        this.placed_properties_for = null;
+        this.show_selection();
+        this.refresh();
+        this.render();
+    }
+
+    fill_rectangle(x0, y0, x1, y1) {
+        const layer = this.current_sprite_layer();
+        const sprite = this.game.data.sprites[this.sprite_index];
+        if (!layer || !sprite || layer.properties.visible === false || this.read_only_level()) return;
+        const filled = fill_placed(layer.sprites, sprite.id, x0, y0, x1, y1,
+            { width: this.grid_width, height: this.grid_height });
+        this.set_layer_sprites(this.layer_index, filled.sprites, []);
+    }
+
+    read_only_level() {
+        return window.collaboration?.can_edit_current?.() === false;
+    }
+
+    // The box above the placed properties: how many are selected, and what
+    // can be done with them.
+    add_selection_controls(container) {
+        const count = this.selection.length;
+        const box = $('<div class="selection-box">').appendTo(container);
+        $('<div class="selection-count">').text(count === 1 ? '1 Sprite ausgewählt' : `${count} Sprites ausgewählt`).appendTo(box);
+        const buttons = $('<div class="selection-buttons">').appendTo(box);
+        const button = (label, title, action) => $('<button type="button">').text(label).attr('title', title)
+            .on('click', (e) => { e.preventDefault(); action(); }).appendTo(buttons);
+        button('Kopieren', 'Strg+C – einfügen mit Strg+V, auch in einem anderen Level', () => this.copy_selection());
+        button('Duplizieren', 'Strg+D – eine Kopie gleich daneben', () => this.duplicate_selection());
+        button('Löschen', 'Entf', () => this.delete_selection());
+        const level = this.game.data.levels[this.level_index];
+        const options = {};
+        level.layers.forEach((layer, li) => {
+            if (layer.type === 'sprites') options[String(li)] = layer.properties.name || `Ebene ${li + 1}`;
+        });
+        if (Object.keys(options).length > 1) {
+            new SelectWidget({
+                container: box,
+                label: 'In Ebene',
+                hint: 'Verschiebt die ausgewählten Sprites in eine andere Ebene – zum Beispiel eine Brücke in ihre eigene Ebene, die bei einem Signal erscheint.',
+                options,
+                get: () => String(this.layer_index),
+                set: (value) => this.move_selection_to_layer(Number(value)),
+            });
+        }
+    }
+
     // ---------------------------------------------- Signale: connections
     // Animated dashes run from what sends to what reacts (signals.js), and
     // both get a pulsing frame. Shown for what is selected (a placed sprite,
@@ -1685,6 +1853,7 @@ class LevelEditor {
     }
 
     handle_enter(e) {
+        this.pointer_inside = true;
         let p = this.ui_to_world(this.get_touch_point(e), true);
         this.cursor_group_inner.remove.apply(this.cursor_group_inner, this.cursor_group_inner.children);
         if (menus.level.active_key === 'tool/pen') {
@@ -1697,6 +1866,7 @@ class LevelEditor {
     }
 
     handle_leave(e) {
+        this.pointer_inside = false;
         if (menus.level.active_key === 'tool/pen') {
             this.cursor_group.visible = false;
         }
@@ -1735,7 +1905,13 @@ class LevelEditor {
         if (menus.level.active_key === 'tool/connect') {
             this.handle_connect_down(e);
         } else if (menus.level.active_key === 'tool/pen' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
-            if (e.button === 0) {
+            if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
+                // Strg + ziehen: fill a rectangle with the chosen sprite
+                this.filling_rectangle = true;
+                this.prepare_rect_group(this.mouse_down_position[0], this.mouse_down_position[1],
+                    this.mouse_down_position[0], this.mouse_down_position[1]);
+                this.rect_group.visible = true;
+            } else if (e.button === 0) {
                 if (this.modifier_shift) {
                     this.add_sprite_to_level(this.mouse_down_position_no_snap);
                 } else {
@@ -1751,8 +1927,16 @@ class LevelEditor {
         } else if (menus.level.active_key === 'tool/pan') {
             this.old_camera_position = [this.camera_x, this.camera_y];
         } else if (menus.level.active_key === 'tool/select' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
-            this.clear_selection(false);
-            this.updating_selection = true;
+            const [px, py] = this.mouse_down_position_no_snap;
+            if (e.button === 0 && !e.shiftKey && this.selection.length && this.selection_point_inside(px, py)) {
+                // on the selection: drag it
+                this.moving_selection = { dx: 0, dy: 0 };
+            } else {
+                // Shift: add to what is selected
+                this.selection_before = e.shiftKey ? [...this.selection] : [];
+                this.clear_selection(false);
+                this.updating_selection = true;
+            }
         }
 
         this.render();
@@ -1780,13 +1964,27 @@ class LevelEditor {
         //         }
         //     }
         // }
+        if (this.moving_selection) {
+            const { dx, dy } = this.moving_selection;
+            this.moving_selection = null;
+            if ((dx || dy) && !this.read_only_level()) this.nudge_selection(dx, dy);
+            else this.set_layer_sprites(this.layer_index, this.current_sprite_layer()?.sprites ?? [], this.selection);
+        }
+        if (this.filling_rectangle) {
+            this.filling_rectangle = false;
+            const p = this.ui_to_world(this.get_touch_point(e), true);
+            this.fill_rectangle(this.mouse_down_position[0], this.mouse_down_position[1], p[0], p[1]);
+        }
         if (this.updating_selection && menus.level.active_key === 'tool/select') {
             let sx0 = this.x0;
             let sy0 = this.y0;
             let sx1 = this.x1;
             let sy1 = this.y1;
             this.clear_selection(false);
-            this.selection = this.layer_structs[this.layer_index].select_rect(this.selection_group, sx0, sy0, sx1, sy1);
+            const found = this.layer_structs[this.layer_index].select_rect(this.selection_group, sx0, sy0, sx1, sy1);
+            this.selection = [...new Set([...(this.selection_before ?? []), ...found])];
+            this.selection_before = [];
+            this.show_selection();
             this.refresh();
             this.render();
         }
@@ -1829,7 +2027,31 @@ class LevelEditor {
         let touch = this.get_touch_point(e);
         let p = this.ui_to_world(touch, true);
         let p_no_snap = this.ui_to_world(touch, false);
+        this.pointer_world_raw = touch;
+        this.pointer_world = p_no_snap;
         if (menus.level.active_key === 'tool/connect') this.handle_connect_move(e);
+        if (this.moving_selection && this.mouse_down) {
+            let dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
+            let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
+            if (!e.shiftKey) {
+                dx = Math.round(dx / this.grid_width) * this.grid_width;
+                dy = Math.round(dy / this.grid_height) * this.grid_height;
+            }
+            if (dx !== this.moving_selection.dx || dy !== this.moving_selection.dy) {
+                this.moving_selection = { dx, dy };
+                this.preview_selection_move(dx, dy);
+            }
+            return;
+        }
+        if (this.filling_rectangle && this.mouse_down) {
+            const [x0, y0] = this.mouse_down_position;
+            const half_w = this.grid_width / 2;
+            this.prepare_rect_group(Math.min(x0, p[0]) - half_w, Math.min(y0, p[1]),
+                Math.max(x0, p[0]) + half_w, Math.max(y0, p[1]) + this.grid_height);
+            this.rect_group.visible = true;
+            this.render();
+            return;
+        }
         if (menus.level.active_key === 'tool/pen' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
             this.cursor_group.visible = true;
             if (this.modifier_shift) {
@@ -2449,19 +2671,20 @@ class LevelEditor {
             }
         }
 
-        let placed_properties_need_update = false;
-        if (this.selection.length !== 1) {
+        // rebuilt when the selection changes (which sprites, in which layer)
+        const selection_key = this.selection.length ? `${this.level_index}:${this.layer_index}:${this.selection.join(',')}` : null;
+        let placed_properties_need_update = (this.placed_properties_for ?? null) !== selection_key;
+        this.placed_properties_for = selection_key;
+        if (!selection_key) {
             $('#menu_placed_properties').empty();
-            this.placed_properties_for = null;
             this.update_signal_links = null;
-        } else {
-            placed_properties_need_update = ((this.placed_properties_for ?? null) != this.selection[0]);
-            this.placed_properties_for = this.selection[0];
+            placed_properties_need_update = false;
         }
 
         if (placed_properties_need_update) {
             $('#menu_placed_properties').empty();
             this.update_signal_links = null;
+            this.add_selection_controls($('#menu_placed_properties'));
             if (this.selection.length === 1) {
                 let div = $(`<div>`).appendTo($('#menu_placed_properties'));
                 let entry_index = this.selection[0];
@@ -2702,6 +2925,31 @@ class LevelEditor {
     document.addEventListener('keyup', (e) => observe_soon(is_field(e.target) ? TYPING_PAUSE_MS : 0), true);
     document.addEventListener('input', () => observe_soon(TYPING_PAUSE_MS), true);
     document.addEventListener('change', (e) => observe_soon(is_field(e.target) ? TYPING_PAUSE_MS : 0), true);
+
+    // The selection: Strg+C / Strg+X / Strg+V / Strg+D, arrow keys (one grid
+    // step, with Shift one pixel), Esc. By the printed letter, like Strg+Z.
+    window.addEventListener('keydown', (e) => {
+        const level_editor = editor();
+        if (!level_editor || e.altKey || is_field(e.target)) return;
+        const ctrl = e.ctrlKey || e.metaKey;
+        const key = (e.key ?? '').toLowerCase();
+        const selecting = menus.level.active_key === 'tool/select' && level_editor.selection.length > 0;
+        let handled = true;
+        if (ctrl && key === 'c') handled = level_editor.copy_selection();
+        else if (ctrl && key === 'x') level_editor.cut_selection();
+        else if (ctrl && key === 'v') level_editor.paste_clipboard();
+        else if (ctrl && key === 'd') level_editor.duplicate_selection();
+        else if (!ctrl && selecting && e.key.startsWith('Arrow')) {
+            const step_x = e.shiftKey ? 1 : level_editor.grid_width;
+            const step_y = e.shiftKey ? 1 : level_editor.grid_height;
+            const [dx, dy] = { ArrowLeft: [-step_x, 0], ArrowRight: [step_x, 0], ArrowUp: [0, step_y], ArrowDown: [0, -step_y] }[e.key] ?? [0, 0];
+            level_editor.nudge_selection(dx, dy);
+        } else if (!ctrl && selecting && e.key === 'Escape') level_editor.clear_selection();
+        else handled = false;
+        if (!handled) return;
+        e.preventDefault();
+        e.stopPropagation();
+    }, true);
 
     // Strg+Z / Strg+Y (or Strg+Umschalt+Z) by the printed letter: on a German
     // keyboard Z and Y swap places, so the key's position (e.code) would be wrong.
