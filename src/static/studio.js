@@ -46,8 +46,15 @@ function handleResize() {
     $('.menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('.menu_container').width() - 25}px`);
     $('.right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
     $('.far_right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25 + 225}px`);
-    $('.full_right_menu_container').css('left', `${window.innerWidth - 236}px`);
+    // Level editor: wider side columns on wide screens (1920 × 1080: the
+    // placed sprite's Eigenschaften fit their labels, more sprites per row),
+    // the level view takes what is left.
+    const wide = window.innerWidth >= 1600;
+    const right_width = wide ? 300 : 216;
+    const left_width = wide ? 276 : 222;
+    $('.full_right_menu_container').css({ left: `${window.innerWidth - right_width - 20}px`, width: `${right_width}px` });
     $('.full_left_menu_container').css('left', `20px`);
+    $('#main_div_level .full_left_menu_container').css('width', `${left_width}px`);
     // $('#right_menu_container .menu_frames').css('height', `${$('#canvas').height() * 0.2 - 25}px`);
 
     if (window.innerWidth - $('#canvas').width() > 940)
@@ -57,9 +64,9 @@ function handleResize() {
 
     $('#main_div_level .left_menu_container').css('left', '10px');
     $('#main_div_level .left_menu_container').css('width', '174px');
-    $('#level').css('left', '260px');
+    $('#level').css('left', `${20 + left_width + 18}px`);
     $('#level').css('top', '50px');
-    $('#level').css('width', `${window.innerWidth - 516}px`);
+    $('#level').css('width', `${window.innerWidth - (20 + left_width + 18) - (right_width + 40)}px`);
     $('#level').css('height', `${window.innerHeight - 100}px`);
     if (game != null && game.level_editor != null) game.level_editor.handleResize();
 }

@@ -543,6 +543,115 @@ function set_signal_object_code(level, object, code, sender) {
     if (object.kind === 'layer' && !layer_reacts_to_signals(layer.properties)) layer.properties.signal_reaction = 'appear';
 }
 
+// ------------------------------------------- level editor: the overview
+// Every Code of a level as a rule card: "Wenn … dann …" (Signale-Übersicht in
+// the level editor). traits_of(ref) gives a sprite's traits, name_of(ref) its
+// label ("Schalter", "Sprite 3"). A card: { code, senders, receivers, problem }
+// with lines { text, count, objects } (objects to select: { kind, layer_index,
+// placed_index }), problem 'no_receiver' | 'no_sender' | null. Doors that only
+// open like a plain door (not verschließbar, Bei Signal: aufschließen) are no
+// receivers here: they do not wait for anything.
+function signal_seconds_text(seconds) {
+    return `${String(Math.round(seconds * 10) / 10).replace('.', ',')} s`;
+}
+
+const SIGNAL_SENDER_TEXT = {
+    key: (n) => `»${n}« eingesammelt wird`,
+    switch: (n) => `»${n}« umgelegt wird`,
+    pressure_plate: (n) => `die Spielfigur auf »${n}« tritt`,
+    baddie: (n) => `»${n}« besiegt ist`,
+    loot: (n) => `der Schlüssel von »${n}« eingesammelt wird`,
+};
+// what "aus" means for a sender that also sends it
+const SIGNAL_SENDER_OFF_TEXT = {
+    switch: 'Zurücklegen schickt „aus“',
+    pressure_plate: 'Heruntergehen schickt „aus“',
+    area: 'Hinausgehen schickt „aus“',
+};
+const SIGNAL_DOOR_TEXT = {
+    unlock: (n) => `ist »${n}« aufgeschlossen`,
+    open: (n) => `öffnet sich »${n}«`,
+    close: (n) => `schließt sich »${n}«`,
+    follow: (n) => `öffnet sich »${n}« (bei „aus“ wieder zu)`,
+    toggle: (n) => `geht »${n}« bei jedem Signal auf oder zu`,
+};
+const SIGNAL_LAYER_TEXT = {
+    appear: (w) => `erscheint ${w}`,
+    disappear: (w) => `verschwindet ${w}`,
+    while_on: (w) => `erscheint ${w} (bei „aus“ wieder weg)`,
+    while_off: (w) => `verschwindet ${w} (bei „aus“ wieder da)`,
+    toggle: (w) => `erscheint oder verschwindet ${w} bei jedem Signal`,
+};
+// receivers that do something with "aus", too
+const SIGNAL_OFF_REACTIONS = new Set(['follow', 'toggle', 'while_on', 'while_off']);
+
+function signal_rules(level, traits_of, name_of) {
+    const cards = new Map();
+    const card = (code) => {
+        if (!cards.has(code)) cards.set(code, { code, senders: [], receivers: [], off: new Set(), reacts_to_off: false });
+        return cards.get(code);
+    };
+    const add = (list, text, object) => {
+        const line = list.find(line => line.text === text);
+        if (line) { line.count++; if (object) line.objects.push(object); return; }
+        list.push({ text, count: 1, objects: object ? [object] : [] });
+    };
+    const delay_text = (value) => {
+        const seconds = signal_delay_seconds(value);
+        return seconds > 0 ? ` (kommt nach ${signal_seconds_text(seconds)} an)` : '';
+    };
+    (level?.layers ?? []).forEach((layer, li) => {
+        const layer_name = layer?.properties?.name || `Ebene ${li + 1}`;
+        if (layer?.type === 'sprites') {
+            (layer.sprites ?? []).forEach((placed, pi) => {
+                const traits = traits_of(placed?.[0]) ?? {};
+                const name = name_of(placed?.[0]) || 'Sprite';
+                const object = { kind: 'sprite', layer_index: li, placed_index: pi };
+                for (const found of placed_signal_roles(placed, traits, traits_of)) {
+                    const id = found.role.id ?? found.role.trait;
+                    const props = placed?.[3]?.[found.role.trait] ?? {};
+                    if (found.role.sends) {
+                        const target = card(found.code);
+                        add(target.senders, SIGNAL_SENDER_TEXT[id](name) + (id === 'loot' ? '' : delay_text(props.signal_delay)), object);
+                        if (SIGNAL_SENDER_OFF_TEXT[id]) target.off.add(SIGNAL_SENDER_OFF_TEXT[id]);
+                        continue;
+                    }
+                    // a door
+                    const reaction = props.door_reaction ?? 'unlock';
+                    if (reaction === 'unlock' && !door_setting(props.lockable, traits.door?.lockable)) continue;
+                    const target = card(found.code);
+                    add(target.receivers, (SIGNAL_DOOR_TEXT[reaction] ?? SIGNAL_DOOR_TEXT.unlock)(name), object);
+                    if (SIGNAL_OFF_REACTIONS.has(reaction)) target.reacts_to_off = true;
+                }
+            });
+        }
+        const code = Number(layer?.properties?.signal_code ?? 0);
+        if (layer?.type === 'signal_area') {
+            const target = card(code);
+            add(target.senders, `die Spielfigur in den Bereich »${layer.properties?.name || `Bereich ${li + 1}`}« läuft` +
+                delay_text(layer.properties?.signal_delay), { kind: 'area', layer_index: li });
+            target.off.add(SIGNAL_SENDER_OFF_TEXT.area);
+        } else if (layer_reacts_to_signals(layer?.properties)) {
+            const reaction = layer.properties.signal_reaction;
+            const what = layer.type === 'sprites' ? `die Ebene »${layer_name}«` : `der Hintergrund »${layer_name}«`;
+            const target = card(code);
+            add(target.receivers, SIGNAL_LAYER_TEXT[reaction](what), { kind: 'layer', layer_index: li });
+            if (SIGNAL_OFF_REACTIONS.has(reaction)) target.reacts_to_off = true;
+        }
+    });
+    const all = level?.properties?.signal_all_defeated;
+    if (Number.isInteger(all))
+        add(card(all).senders, 'alle Gegner besiegt sind' + delay_text(level.properties.signal_all_defeated_delay), null);
+    return [...cards.values()].sort((a, b) => a.code - b.code).map(c => ({
+        code: c.code,
+        senders: c.senders,
+        receivers: c.receivers,
+        // "aus" only where something does something with it
+        off: c.reacts_to_off ? [...c.off] : [],
+        problem: !c.receivers.length ? 'no_receiver' : !c.senders.length ? 'no_sender' : null,
+    }));
+}
+
 // ---------------------------------------------------------- older games
 // Every Code the level uses, so a new one can be found (a free Code).
 function signal_codes_in_level(level) {
@@ -650,6 +759,6 @@ if (typeof module !== 'undefined' && module.exports) {
         give_new_senders_codes, give_defeat_sender_code, door_setting,
         signal_partners, describe_signal_partners, signal_codes_in_level, free_signal_code,
         signal_objects, signal_links, same_signal_object, pick_signal_object, connect_signal_objects,
-        promote_legacy_signals,
+        promote_legacy_signals, signal_rules,
     };
 }

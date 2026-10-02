@@ -270,6 +270,9 @@ class LevelEditor {
         this.connect_from = null;
         this.connect_pointer = null;
         this.signal_highlight = null;
+        // Signale-Übersicht (S): every Code of the level as a rule card
+        try { this.show_signal_overview = localStorage.getItem('signal_overview') === '1'; } catch { this.show_signal_overview = false; }
+        this.signal_focus_code = null;
 
         this.texture_loader = new THREE.TextureLoader();
         this.refresh_sprite_widget();
@@ -291,6 +294,14 @@ class LevelEditor {
             hint: 'Zeigt alle Signale im Level: Von allem, was sendet (Schalter, Schlüssel, Druckplatte, Bereich, Gegner), laufen Striche zu allem, was mit demselben Code reagiert (Türen, Ebenen). Sonst siehst du nur die Verbindungen von dem, was du gerade ausgewählt hast.',
             get: () => self.show_signal_links,
             set: (x) => self.set_view_option('show_signal_links', x),
+        });
+        this.view_option_widgets.show_signal_overview = new CheckboxWidget({
+            container: $('#tool_menu_level_settings'),
+            label: 'Signale-Übersicht',
+            key: 'S',
+            hint: 'Zeigt rechts im Level alle Signale als Regeln: Wenn das passiert – dann das. Fährst du mit der Maus über eine Regel, siehst du ihre Verbindungen. Ein Klick auf eine Zeile wählt aus, was dort steht.',
+            get: () => self.show_signal_overview,
+            set: (x) => self.set_view_option('show_signal_overview', x),
         });
         this.view_option_widgets.animate_backdrops = new CheckboxWidget({
             container: $('#tool_menu_level_settings'),
@@ -1091,6 +1102,8 @@ class LevelEditor {
     }
 
     signal_codes_to_show() {
+        // a card of the Signale-Übersicht under the mouse: only its Code
+        if (this.show_signal_overview && Number.isInteger(this.signal_focus_code)) return new Set([this.signal_focus_code]);
         if (this.show_signal_links) return null;
         const { level, traits_of } = this.signal_context();
         const codes = new Set();
@@ -1116,6 +1129,7 @@ class LevelEditor {
         }
         this.signal_link_curves = [];
         this.signal_link_frames = [];
+        this.refresh_signal_overview();
         if (!this.game.data.levels?.[this.level_index]) return;
         const { level, traits_of, size_of } = this.signal_context();
         const codes = this.signal_codes_to_show();
@@ -1397,6 +1411,11 @@ class LevelEditor {
         this[option] = value;
         if (option === 'show_grid') this.refresh();
         if (option === 'show_signal_links') this.build_signal_links();
+        if (option === 'show_signal_overview') {
+            try { localStorage.setItem('signal_overview', value ? '1' : '0'); } catch { }
+            if (!value) this.signal_focus_code = null;
+            this.build_signal_links();
+        }
         if (option === 'animate_backdrops') {
             if (value) this.start_backdrop_animation();
             else this.set_backdrop_time(0);
@@ -2139,6 +2158,134 @@ class LevelEditor {
         $('<span>').text(`Ebene: ${layer.properties?.name || `Ebene ${this.layer_index + 1}`}`).appendTo(label);
     }
 
+    // ------------------------------------------- Signale-Übersicht (S)
+    // A panel at the right edge of the level view: every Code of the level as
+    // a rule card (signal_rules in signals.js). Hovering a card shows only its
+    // connections; clicking a line selects what it names, clicking the Code
+    // shows everything that has it. Drawn again only when the rules change.
+    refresh_signal_overview() {
+        let panel = $(this.element).find('.signal-overview');
+        const level = this.game.data.levels?.[this.level_index];
+        if (!this.show_signal_overview || !level) {
+            panel.remove();
+            this.signal_overview_key = null;
+            return;
+        }
+        const { traits_of } = this.signal_context();
+        const name_of = (ref) => {
+            const index = this.game.sprite_index_for_ref(ref);
+            return Number.isInteger(index) && this.game.data.sprites[index] ? sprite_label(this.game.data.sprites[index], index) : '';
+        };
+        const cards = signal_rules(level, traits_of, name_of);
+        const key = JSON.stringify([this.level_index, cards]);
+        if (panel.length && key === this.signal_overview_key) return;
+        this.signal_overview_key = key;
+        const scroll = panel.find('.signal-overview-body').scrollTop() ?? 0;
+        panel.remove();
+        panel = $('<div class="signal-overview">').appendTo(this.element);
+        // the level view must not paint, zoom or pan through the panel
+        panel.on('mousedown touchstart dblclick wheel contextmenu', (e) => e.stopPropagation());
+        const head = $('<div class="signal-overview-head">').appendTo(panel);
+        $('<span>').text('Signale in diesem Level').appendTo(head);
+        $('<button class="signal-overview-close" title="Schließen (S)">').append($('<i class="fa fa-times">'))
+            .on('click', () => this.set_view_option('show_signal_overview', false)).appendTo(head);
+        const body = $('<div class="signal-overview-body">').appendTo(panel);
+        if (!cards.length) {
+            $('<p class="signal-overview-empty">').text('Noch nichts in diesem Level sendet oder reagiert auf ein Signal. Setz zum Beispiel einen Schalter und ein Tor ins Level und verbinde sie mit dem Werkzeug Verbinden (R).').appendTo(body);
+        }
+        for (const card of cards) {
+            const box = $('<div class="signal-rule">').toggleClass('signal-rule-problem', !!card.problem).appendTo(body);
+            box.css('--signal-color', signal_link_color(card.code));
+            box.on('mouseenter', () => { this.signal_focus_code = card.code; this.build_signal_links(); this.render(); });
+            box.on('mouseleave', () => { this.signal_focus_code = null; this.build_signal_links(); this.render(); });
+            $('<button class="signal-rule-code">').text(`Code ${card.code}`).attr('title', 'Alles mit diesem Code zeigen')
+                .on('click', () => this.focus_signal_code(card.code)).appendTo(box);
+            const section = (word, lines, empty) => {
+                const row = $('<div class="signal-rule-row">').appendTo(box);
+                $('<span class="signal-rule-word">').text(word).appendTo(row);
+                const list = $('<div class="signal-rule-lines">').appendTo(row);
+                if (!lines.length) $('<div class="signal-rule-missing">').text(empty).appendTo(list);
+                lines.forEach((line, i) => {
+                    const entry = $('<div class="signal-rule-line">').appendTo(list);
+                    if (i > 0) $('<span class="signal-rule-or">').text(word === 'Wenn' ? 'oder ' : 'und ').appendTo(entry);
+                    $('<span>').text(line.text + (line.count > 1 ? ` (${line.count}×)` : '')).appendTo(entry);
+                    if (line.objects.length) {
+                        entry.addClass('signal-rule-pick').attr('title', 'Auswählen');
+                        let next = 0;
+                        entry.on('click', () => { this.pick_signal_overview_object(line.objects[next % line.objects.length]); next++; });
+                    }
+                });
+            };
+            section('Wenn', card.senders, 'nichts sendet diesen Code');
+            section('dann', card.receivers, 'nichts reagiert darauf');
+            if (card.off.length) $('<div class="signal-rule-off">').text(card.off.join(' · ')).appendTo(box);
+            if (card.problem === 'no_receiver')
+                $('<div class="signal-rule-warning">').append($('<i class="fa fa-exclamation-triangle">'))
+                    .append($('<span>').text(' Das wird gesendet – aber nichts reagiert darauf. Gib einer Tür oder Ebene denselben Code.')).appendTo(box);
+            if (card.problem === 'no_sender')
+                $('<div class="signal-rule-warning">').append($('<i class="fa fa-exclamation-triangle">'))
+                    .append($('<span>').text(' Hier wartet etwas – aber nichts sendet diesen Code. Gib einem Schalter, Schlüssel oder Bereich denselben Code.')).appendTo(box);
+        }
+        body.scrollTop(scroll);
+    }
+
+    // The camera onto a rectangle of one layer (its Parallaxe taken into
+    // account); zooms out if it does not fit.
+    view_signal_rects(entries) {
+        const level = this.game.data.levels[this.level_index];
+        let box = null;
+        for (const { rect, layer_index } of entries) {
+            const parallax = level.layers[layer_index]?.properties?.parallax ?? 0;
+            const f = Math.abs(1 - parallax) < 0.05 ? 1 : 1 / (1 - parallax);
+            box = signal_rect_union(box, { x0: rect.x0 * f, x1: rect.x1 * f, y0: rect.y0 * f, y1: rect.y1 * f });
+        }
+        if (!box) return;
+        const panel_width = $(this.element).find('.signal-overview').outerWidth() ?? 0;
+        const free_width = Math.max(100, this.width - panel_width - 24);
+        const need = Math.min(this.height / ((box.y1 - box.y0) + 96), free_width / ((box.x1 - box.x0) + 96));
+        if (need < this.scale) {
+            this.visible_pixels = this.height / need;
+            this.fix_scale();
+        }
+        // centred in the part of the view the panel leaves free
+        this.camera_x = (box.x0 + box.x1) / 2 + panel_width / 2 / this.scale;
+        this.camera_y = (box.y0 + box.y1) / 2;
+        this.auto_adjust_camera = false;
+        this.backdrop_controls_setup_for = null;
+        this.handleResize();
+        this.refresh();
+        this.render();
+    }
+
+    focus_signal_code(code) {
+        const { level, traits_of, size_of } = this.signal_context();
+        const objects = signal_objects(level, traits_of, size_of).filter(o => o.code === code);
+        this.signal_highlight = { code, until: performance.now() + 4000 };
+        this.view_signal_rects(objects.map(o => ({ rect: o.rect, layer_index: o.layer_index })));
+        this.build_signal_links();
+        this.render();
+    }
+
+    // A line of a card: select the placed sprite (in its layer), or make the
+    // layer or Bereich the current one – and look at it.
+    pick_signal_overview_object(object) {
+        const level = this.game.data.levels[this.level_index];
+        if (!object || !level?.layers[object.layer_index]) return;
+        if (object.layer_index !== this.layer_index)
+            $('#menu_layers > ._dnd_item').eq(object.layer_index).children().eq(0).trigger('click');
+        const { traits_of, size_of } = this.signal_context();
+        const found = signal_objects(level, traits_of, size_of).find(o => o.layer_index === object.layer_index &&
+            (object.kind !== 'sprite' || o.placed_index === object.placed_index) && (object.kind === 'sprite') === (o.kind === 'sprite'));
+        if (object.kind === 'sprite') {
+            menus.level.handle_click('tool/select');
+            this.selection = [object.placed_index];
+            this.placed_properties_for = null;
+            this.show_selection();
+        }
+        if (found) this.view_signal_rects([{ rect: found.rect, layer_index: object.layer_index }]);
+        else { this.refresh(); this.render(); }
+    }
+
     get_touch_point(e) {
         let dx = this.element.position().left;
         let dy = this.element.position().top;
@@ -2297,6 +2444,7 @@ class LevelEditor {
 
     handle_move(e) {
         if (current_pane !== 'level') return;
+        if (!this.mouse_down && $(e.target).closest('.signal-overview').length) return;
         if (this.is_double_touch) {
             if ((e.touches ?? []).length < 2) return;
             let this_touch_points = [
