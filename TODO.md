@@ -124,47 +124,18 @@ Examples include:
 
 Develop a small, understandable trigger/action system rather than implementing each of these as a separate special case.
 
-**Signale exist (`src/static/signals.js`, see AGENTS.md):** senders send their Code with *an* or *aus*: a collected key, a Schalter, a Druckplatte (player only), a Bereich (the player enters / leaves rectangles), a defeated enemy and "alle Gegner besiegt". Every sender can send later (Verzögerung). Receivers: doors (`door_reaction`; a door can also close again by itself after some seconds) and sprite or backdrop layers that appear or disappear (with Überblendung; a layer that is away has no collisions, and its enemies wait). Sichtbarkeitsbereiche and door codes of older games are promoted to this on load. The level editor shows under every Code what else in the level has it.
+**Signale exist** (`src/static/signals.js`; how they work is in AGENTS.md). Senders send their Code with *an* or *aus*, each optionally later (Verzögerung): a collected key or any collected sprite ("sendet, wenn eingesammelt"), a Schalter, a Druckplatte (player only), a Bereich (the player enters / leaves rectangles), a defeated enemy, "alle Gegner besiegt" and the level's start ("sendet beim Start" – with a Verzögerung a timer). Receivers: doors (`door_reaction`, "schließt wieder nach"), sprite or backdrop layers that appear or disappear, signs that speak ("spricht bei Signal") and the level itself ("geschafft bei Signal"). A Code can have a name per level; an emptied Code field means "Kein Signal". In the level editor: the Verbinden tool (R), connection lines (with the Verzögerung on them), a Code menu on every Code field, and the Signale-Übersicht (S): one "Wenn … dann …" card per Code, with renaming, removing a line or a whole rule, and "+ Neue Regel"; during "Level testen" the cards light up beside the game. Sichtbarkeitsbereiche and door codes of older games are promoted to this on load.
 
-## Next: names for signals (the Signale-Übersicht exists)
-
-Wanted next. With five or six signals in a level, "Code 4" says little; a name ("Brücke") makes the overview, the lines and the Code fields readable.
-
-**Done: the Signale-Übersicht** (S in the level editor; `signal_rules` in `signals.js`, `refresh_signal_overview` in `level_editor.js`): a panel at the right edge of the level view with one "Wenn … dann …" card per Code, warnings for Codes that nothing reacts to or nothing sends; hovering a card shows only its Code's lines, clicking a line selects the object in its layer, clicking the Code shows everything with it. The level pane's side columns are wider on wide screens, so the panel and the Eigenschaften both have room.
-
-The overview ends with "+ Neue Regel", which starts the Verbinden tool and says what to click.
-
-**Names for signals instead of bare numbers.** The Code stays a number in the saved game and in the engine (`free_signal_code`, the Verbinden tool, recipe checks, `fix_game_data` all keep working); a level may give its Codes names: optional `level.properties.signal_names`, e.g. `{ "4": "Brücke" }` (absent = numbers only, exactly as today; editor-only, never read by the game; renaming changes one place). Not strings as Codes: "Brücke" and "brücke " would be two different signals, an invisible and frustrating mistake.
-
-**Done:** the data (`signal_name`/`set_signal_name` in `signals.js`; two Codes never share a name; a named Code stays taken for `free_signal_code`), names on the overview cards and in the line under every Code, and renaming in the overview (the name on a card, or the pencil next to its Code; Enter or leaving the field saves, Esc cancels, Strg+Z undoes). Every Code field (keys, doors, Schalter, Druckplatten, enemies and their Beute, layers, Bereiche, "alle Gegner besiegt") keeps its number field – the recipes still say "trag als Code 4 ein" – and has a button with the Code's name next to it: the level's Codes ("Brücke · 4"), "Neues Signal …" (a free Code, then its name) and "Namen geben …" / "umbenennen …". When the Verbinden tool makes a new Code, a field over the level asks for its name, prefilled "Schalter → Gittertor" (Enter keeps it, Esc leaves the Code without a name). Pasting into another level takes the names along, and the name wins: a name the level already has joins that Code, an unnamed same number gets the name, the same number with another name moves to a free Code (with a notice); unnamed Codes keep their number as before.
-
-Still open for names:
-
-- the Signale recipes then use names ("Brücke") instead of "Code 4"
-- a name whose Code nothing uses any more is invisible (no card) and keeps its number taken; offer a way to see or remove such names if children run into it
-
-Done: during "Level testen" the Spielen pane shows the cards beside the game (while the Signale-Übersicht is on); a card flashes when its signal arrives and shows "an"/"aus".
-
-## Further Signale extensions
+## Still open for Signale
 
 Roughly in order of usefulness (each must stay an understandable choice in the editor, not scripting):
 
+- more senders: enemies pressing a Druckplatte (opt-in per Druckplatte, or old levels change); a timer that shows how much time is left (today a "sendet beim Start" timer is invisible to the player)
+- more receivers: a moving platform or lift that starts, spawn / remove a single sprite, a trap that switches on and off, enable / disable an object, set a simple game flag
 - "und" and counters: a receiver that waits for two Codes, or a Code that has to arrive three times ("drei Schalter umlegen")
-- more receivers (a sign that speaks on a Signal and "geschafft bei Signal" exist): a moving platform or lift that starts, spawn / remove a single sprite, a trap that switches on and off, set a simple game flag
-- more senders: sprite collected (any pickup with a Code), level starts; enemies pressing a Druckplatte
+- names: the recipes still say "Code 4" (part of the titles pass under Recipe Scenes in the Studio); a name whose Code nothing uses any more is invisible (no card) and keeps its number taken – offer a way to see or remove such names if children run into it
+- a door closed by a signal still closes onto whoever stands in it (see Doors and switches)
 - signals across levels only with an explicit design (flags), never implicitly: keys and Codes are per level
-
-Possible actions still open:
-
-- enable / disable object
-- spawn object
-- remove object
-- display text
-- activate another object
-- change level
-- set a simple game flag
-
-The editor should present these as understandable choices rather than as scripting.
 
 ---
 
@@ -485,7 +456,7 @@ The Signale recipes have their own category, in this order: Schalter → Tor, Dr
 - **Eine Falle mit Verzögerung** – a Druckplatte lets spikes appear a second later, so Pip can still run. Left out for now: it is the Druckplatte recipe with one more number (Verzögerung is a tip in Tor mit Zeit and Falle). Worth it once something can drop stones on a Signal.
 - **Licht an** – a Schalter that switches a dark colour layer (abdunkeln) off and a Lichtschein on: a room that becomes light. Could also fit "Level gestalten".
 
-Now possible: a sign that speaks when the figure walks past (Bereich → Hinweistext "spricht bei Signal"), a level that is done when all enemies are defeated ("alle Gegner besiegt" → "geschafft bei Signal"; then the recipe on completing a level, see Level completion). Would need new features: two senders that must both be active (AND), a counter ("drei Schalter umlegen").
+Now possible: "Der Edelstein" (a collected gem builds the bridge: "sendet, wenn eingesammelt"), "Wettlauf gegen die Zeit" (the gate closes 30 s after the start: "sendet beim Start" with a Verzögerung), a sign that speaks when the figure walks past (Bereich → Hinweistext "spricht bei Signal"), a level that is done when all enemies are defeated ("alle Gegner besiegt" → "geschafft bei Signal"; then the recipe on completing a level, see Level completion). Would need new features: two senders that must both be active (AND), a counter ("drei Schalter umlegen").
 
 ---
 
@@ -495,7 +466,7 @@ Every recipe's scene can be opened in the studio (Hilfe → Selbst ausprobieren 
 
 - give a scene room outside the recorded frame (an optional extra map in the recipe that only the studio scene contains), so children have more space to explore and sprites to borrow for their own games
 - a short "look here" hint per recipe (which layer, which sprite, which setting matters)
-- **proper titles everywhere in the recipe scenes:** sprites (Titel, not "Sprite 3"), states, layers, levels and signals (names instead of bare Codes, see "Names for signals"). Children open these scenes in the studio and borrow from them, so what they see in the lists, the Eigenschaften, the Signale-Übersicht and the Code fields should read like a well-kept game. Go through every recipe in `rezepte/` and check it in the studio; this includes the item "the Signale recipes then use names" above.
+- **proper titles everywhere in the recipe scenes:** sprites (Titel, not "Sprite 3"), states, layers, levels and signals (names instead of bare Codes). Children open these scenes in the studio and borrow from them, so what they see in the lists, the Eigenschaften, the Signale-Übersicht and the Code fields should read like a well-kept game. Go through every recipe in `rezepte/` and check it in the studio; this includes giving the Signale recipes names instead of "Code 4" (see Still open for Signale).
 
 ---
 
@@ -513,7 +484,7 @@ In particular:
 6. Make game lineage understandable (the independent-fork action exists: Als eigenes Spiel weiterführen).
 7. Make deliberate, named multi-browser collaboration practical without introducing accounts.
 8. Polish sprite-animation workflows.
-9. Extend the Signale: next names for signals (the overview exists, see Triggers and Actions), then "und"/counters and new receivers.
+9. Extend the Signale: new receivers (moving platforms), then "und"/counters (see Triggers and Actions).
 10. Build new gameplay systems on those foundations.
 
 The central question for new work should be:

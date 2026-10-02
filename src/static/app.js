@@ -1322,6 +1322,9 @@ void main() {
 					this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
 					this.game.transitioning_sprites['pickup'] ??= {};
 					this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+					// "sendet, wenn eingesammelt" (signals.js; absent = sends nothing)
+					if (entry.pickup_signal_on === true)
+						this.game.signals?.send(stored_signal_code(entry.pickup_signal_code), true, t, { delay: entry.pickup_signal_delay });
 					this.game.points += sprite.traits.pickup.points ?? 0;
 					this.game.lives += sprite.traits.pickup.lives ?? 0;
 					if (this.game.lives > this.game.data.properties.max_lives)
@@ -2143,7 +2146,8 @@ class Game {
 								// Old games may store placed checkboxes as 0/1 instead of true/false.
 								if (data.type === 'bool') value = Boolean(value);
 								console.log(`setting placed prop: ${trait} / ${key}: ${value}`);
-								if (active_entry !== null) active_entry[key] = value;
+								// entry_key: a field of its own on the entry (a pickup's Code must not overwrite a key's)
+								if (active_entry !== null) active_entry[data.entry_key ?? key] = value;
 								console.log('look', active_entry);
 							}
 						}
@@ -2414,10 +2418,18 @@ class Game {
 		const all = level.properties?.signal_all_defeated;
 		this.signal_all_defeated = Number.isInteger(all) ? all : null;
 		this.signal_all_defeated_delay = level.properties?.signal_all_defeated_delay;
+		// "sendet beim Start" (level setting; absent = nothing): once per level start (also R),
+		// not after a lost life. Without a Verzögerung it is decided at once with the Bereiche, so the
+		// level looks right from its first frame; with one it is a timer on the level's clock
+		// (setup starts the simulation at 0), which goes on when the figure dies.
+		const start = level.properties?.signal_level_start;
+		const start_delay = signal_delay_seconds(level.properties?.signal_level_start_delay);
 		// A figure that starts inside a Bereich: the level looks right at once.
 		this.signals.immediate = true;
 		this.update_signal_areas(0);
+		if (Number.isInteger(start) && start_delay === 0) this.signals.send(start, true, 0);
 		this.signals.immediate = false;
+		if (Number.isInteger(start) && start_delay > 0) this.signals.send(start, true, 0, { delay: start_delay, from: 'level_start' });
 	}
 
 	update_signal_areas(t) {
