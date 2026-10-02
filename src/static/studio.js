@@ -473,8 +473,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         current_pane = key;
         if (key in menus)
             menus[key].refresh_status_bar();
-        if (current_pane === 'level')
+        if (current_pane === 'level') {
             game.level_editor.refresh_sprite_widget();
+            // deleting a sprite elsewhere tidies the levels: not an edit to undo here
+            game.level_editor.history_rebase?.();
+        }
         if (current_pane === 'play') {
             $('#play_iframe').hide();
             api_call('/api/save_game_temp', { game: game.data }, function (data) {

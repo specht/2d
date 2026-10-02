@@ -776,9 +776,11 @@ class CollaborationClient {
             return true;
         }
 
+        // Somebody else's version: our undo steps of this level would undo theirs.
+        window.game.level_history?.forget(target.id);
         list[index] = copied;
         if (this.current_resource() === resource && typeof $ !== 'undefined')
-            this.reload_level_keeping_view(index);
+            window.game.level_editor?.reload_level_keeping_view?.(index);
         return true;
     }
 
@@ -859,27 +861,6 @@ class CollaborationClient {
         canvas.offset_x = view.offset_x;
         canvas.offset_y = view.offset_y;
         canvas.handleResize?.();
-    }
-
-    // Rebuilds the level editor for a level somebody else changed, keeping
-    // the camera and the selected layer of whoever is watching.
-    reload_level_keeping_view(index) {
-        const editor = window.game.level_editor;
-        const view = editor ? {
-            camera_x: editor.camera_x, camera_y: editor.camera_y,
-            visible_pixels: editor.visible_pixels, layer_index: editor.layer_index,
-        } : null;
-        $('#menu_levels > ._dnd_item').eq(index).children().eq(0).trigger('click');
-        if (!view || editor.level_index !== index) return;
-        editor.auto_adjust_camera = false;
-        editor.camera_x = view.camera_x;
-        editor.camera_y = view.camera_y;
-        editor.visible_pixels = view.visible_pixels;
-        editor.fix_scale?.();
-        const layers = window.game.data.levels[index]?.layers ?? [];
-        if (view.layer_index > 0 && view.layer_index < layers.length)
-            $('#menu_layers > ._dnd_item').eq(view.layer_index).children().eq(0).trigger('click');
-        editor.render?.();
     }
 
     restore_resource_selection(resource) {
