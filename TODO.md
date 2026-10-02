@@ -139,11 +139,10 @@ Still open for the overview:
 
 **Names for signals instead of bare numbers.** The Code stays a number in the saved game and in the engine (`free_signal_code`, the Verbinden tool, recipe checks, `fix_game_data` all keep working); a level may give its Codes names: optional `level.properties.signal_names`, e.g. `{ "4": "Brücke" }` (absent = numbers only, exactly as today; editor-only, never read by the game; renaming changes one place). Not strings as Codes: "Brücke" and "brücke " would be two different signals, an invisible and frustrating mistake.
 
-**Done:** the data (`signal_name`/`set_signal_name` in `signals.js`; two Codes never share a name; a named Code stays taken for `free_signal_code`), names on the overview cards and in the line under every Code, and renaming in the overview (the name on a card, or the pencil next to its Code; Enter or leaving the field saves, Esc cancels, Strg+Z undoes).
+**Done:** the data (`signal_name`/`set_signal_name` in `signals.js`; two Codes never share a name; a named Code stays taken for `free_signal_code`), names on the overview cards and in the line under every Code, and renaming in the overview (the name on a card, or the pencil next to its Code; Enter or leaving the field saves, Esc cancels, Strg+Z undoes). Every Code field (keys, doors, Schalter, Druckplatten, enemies and their Beute, layers, Bereiche, "alle Gegner besiegt") keeps its number field – the recipes still say "trag als Code 4 ein" – and has a button with the Code's name next to it: the level's Codes ("Brücke · 4"), "Neues Signal …" (a free Code, then its name) and "Namen geben …" / "umbenennen …".
 
 Still open for names:
 
-- the Code field of senders, receivers, layers and the level becomes a dropdown of this level's signals ("Brücke · 4", "+ Neues Signal …"); a name is typed only when a signal is created, the number stays visible but small
 - the Verbinden tool asks for a name when it creates a new Code (prefilled, e.g. "Schalter → Gittertor")
 - copying, pasting or duplicating between levels: a Code that arrives with a name the target level does not have takes the name along; a clash of the same number with a different name gets a free number (decide and test before implementing)
 - the Signale recipes then use names ("Brücke") instead of "Code 4"

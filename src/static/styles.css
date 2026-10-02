@@ -2964,6 +2964,39 @@ details.trait-advanced[open] > summary {
     color: #ef7d57;
 }
 
+/* The Code field (level_editor.js SignalCodeWidget): the number, then a
+   button with the Code's name that lists the level's signals */
+.signal-code-row {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+    gap: 0.4em;
+}
+.dropdown-button.signal-code-pick {
+    flex: 0 1 auto;
+    min-width: 3.5em;
+    max-width: 9em;
+    color: var(--signal-color, #eee);
+    font-weight: bold;
+}
+.dropdown-button.signal-code-pick.signal-code-unnamed {
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: normal;
+    font-style: italic;
+}
+.signal-code-name-input {
+    flex: 0 1 9em;
+    min-width: 0;
+    width: 9em;
+    box-sizing: border-box;
+    padding: 0.25em 0.45em;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--signal-color, #94b0c2);
+    border-radius: 5px;
+    color: #fff;
+    font: inherit;
+}
+
 /* "Eigenschaft hinzufügen" (game.js): tall enough for all groups on a usual
    school screen; if it still has to scroll, the slim bar (see the end). */
 .traits-menu {
