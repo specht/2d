@@ -258,7 +258,10 @@ export async function build_game(catalog, recipe, repo) {
             frames_by_key.push(frames);
         }
         const blend = def.mischmodus;
-        sprites.push({ width: sw, height: sh, ...(blend ? { blend } : {}), traits, states });
+        // the catalogue's label as the sprite's Titel: the studio scene and
+        // "Sprites aus einem anderen Spiel holen" show "Pip", not "Sprite 1"
+        const title = typeof def.label === 'string' && def.label.trim() ? { properties: { name: def.label.trim() } } : {};
+        sprites.push({ width: sw, height: sh, ...(blend ? { blend } : {}), ...title, traits, states });
     }
 
     // Placements: characters go to the front layer, maps back-to-front.
@@ -471,7 +474,28 @@ export async function build_game(catalog, recipe, repo) {
     data = fix_game_data(data, repo);
     const sheet = await build_spritesheet(frames_by_key, sprites);
     const tag = 'rz' + crypto.createHash('sha1').update(JSON.stringify(data)).digest('hex').slice(0, 5);
-    return { tag, data, sheet, view: view_out, screen_pixel_height, rows, cols, camera_lift: follow ? lift : 0 };
+    const pngs = new Map(frames_by_key.flat().map(f => [f.tag, f.png]));
+    return { tag, data, sheet, pngs, view: view_out, screen_pixel_height, rows, cols, camera_lift: follow ? lift : 0 };
+}
+
+// The recipe's scene as a game the studio can open (Hilfe → "Im Studio
+// ausprobieren", rezepte.js): the saved-game JSON with every frame's picture
+// inside, as /api/load_game returns a game. No parent: it is nobody's version.
+export function studio_game(game) {
+    const data = JSON.parse(JSON.stringify(game.data));
+    for (const sprite of data.sprites) for (const state of sprite.states) for (const frame of state.frames) {
+        const png = game.pngs.get(frame.tag);
+        if (!png) throw new Error(`${game.tag}: Bild für Frame ${frame.tag} fehlt`);
+        frame.src = `data:image/png;base64,${png.toString('base64')}`;
+        delete frame.tag;
+    }
+    data.parent = null;
+    return data;
+}
+
+// …as the file the build writes (src/static/rezepte/spiele/<id>.json).
+export function studio_game_file(game) {
+    return Buffer.from(JSON.stringify(studio_game(game)) + '\n');
 }
 
 // Packs frames like the Ruby renderer: 1 px replicated border, then 4x.

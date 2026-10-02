@@ -71,35 +71,78 @@ class RecipeGallery {
         return `/rezepte/${recipe.standbild}${recipe.standbild_version ? '?' + recipe.standbild_version : ''}`;
     }
 
-    async load_recipe_game(recipe, link) {
-        if (!window.DEVELOPMENT || link.attr('aria-disabled') === 'true') return;
+    // The recipe's scene as a game (rezepte/tools: spiele/<id>.json, written by
+    // every build). Older builds have no `spiel` entry; in DEVELOPMENT the file
+    // may still be there from `npm run studio`.
+    scene_url(recipe) {
+        if (recipe.spiel) return `/rezepte/${recipe.spiel}${recipe.spiel_version ? '?' + recipe.spiel_version : ''}`;
+        return window.DEVELOPMENT ? `/rezepte/spiele/${encodeURIComponent(recipe.id)}.json?${Date.now()}` : null;
+    }
+
+    // Opens the recipe's scene in the studio, so a child can look at how it is
+    // built and play with it. It replaces the game in the studio: asks first if
+    // that one has unsaved changes. Saving it later makes it an own game
+    // (game.save → own_game.js), so the game list never shows changed recipes.
+    open_scene(recipe, button) {
+        if (button.prop('disabled')) return;
         if (window.collaboration?.code) {
             // Opening another game leaves the live session (after asking).
-            window.collaboration.confirm_leave('load', () => this.load_recipe_game(recipe, link));
+            window.collaboration.confirm_leave('load', () => this.open_scene(recipe, button));
             return;
         }
-        const label = link.text();
-        link.attr('aria-disabled', 'true').text('Rezeptspiel wird geladen …');
+        if (game?.has_unsaved_changes?.()) {
+            this.ask_before_replacing(() => this.load_scene(recipe, button));
+            return;
+        }
+        this.load_scene(recipe, button);
+    }
+
+    ask_before_replacing(proceed) {
+        window.recipeReplaceModal ??= new ModalDialog({
+            title: 'Dein Spiel ist noch nicht gespeichert',
+            width: '460px',
+            max_width: '90vw',
+            body: `<div class="collab-dialog"><p class="collab-lead">Die Szene aus dem Rezept ersetzt das Spiel, das gerade im Studio offen ist. Was du seit dem letzten Speichern geändert hast, ist dann weg.</p></div>`,
+            footer: [
+                { type: 'button', label: 'Abbrechen', callback: (self) => self.dismiss() },
+                { type: 'button', label: 'Zuerst speichern', callback: (self) => { self.dismiss(); game.save(); } },
+                { type: 'button', label: 'Trotzdem öffnen', color: 'green',
+                    callback: (self) => { self.dismiss(); window.recipeReplaceModal.proceed?.(); } },
+            ],
+        });
+        window.recipeReplaceModal.proceed = proceed;
+        window.recipeReplaceModal.show();
+    }
+
+    async load_scene(recipe, button) {
+        const url = this.scene_url(recipe);
+        if (!url) return;
+        const label = button.html();
+        button.prop('disabled', true).text('Wird geöffnet …');
         try {
-            // No immutable cache here: these files are local development output
-            // and may have been rebuilt without restarting the studio.
-            const response = await fetch(`/rezepte/spiele/${encodeURIComponent(recipe.id)}.json?${Date.now()}`);
+            const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
             data.parent = null;
             game.data = data;
             game._load();
+            game.from_recipe = { id: recipe.id, titel: recipe.titel };
+            game.refresh_own_game_button?.();
             $('#game_code_div').hide();
 
-            // Start on the level so the generated scene is visible immediately.
+            // Start on the level so the scene is visible immediately.
             // Browser Back returns to the recipe popup.
             const changed = window.studio_show_pane?.('level');
             if (changed && typeof studio_history_push === 'function')
                 studio_history_push({ pane: 'level' });
+            game.level_editor?.show_level_notice?.(`Das ist die Szene aus „${recipe.titel}“. Schau dich um und probier alles aus – mit T testest du das Level.`, 8000);
         } catch (e) {
-            console.error('Rezeptspiel konnte nicht geladen werden:', e);
-            link.removeAttr('aria-disabled').text(label);
-            window.alert('Das Rezeptspiel fehlt. Bitte unter rezepte/tools „npm run studio“ ausführen.');
+            console.error('Rezept-Szene konnte nicht geladen werden:', e);
+            window.alert(window.DEVELOPMENT
+                ? 'Die Szene fehlt. Bitte unter rezepte/tools „npm run studio“ (oder den Build) ausführen.'
+                : 'Die Szene konnte nicht geladen werden. Versuche es noch einmal.');
+        } finally {
+            button.prop('disabled', false).html(label);
         }
     }
 
@@ -228,16 +271,22 @@ class RecipeGallery {
             .appendTo(article);
         $('<h2>').text(recipe.titel).appendTo(article);
         $('<p>').addClass('rezept-lead').text(recipe.kurz).appendTo(article);
-        if (window.DEVELOPMENT) {
-            const dev = $('<p>').appendTo(article);
-            $('<a>').attr('href', '#').addClass('link_button').text('Rezept als Spiel laden')
-                .on('click', (e) => {
-                    e.preventDefault();
-                    this.load_recipe_game(recipe, $(e.currentTarget));
-                }).appendTo(dev);
+        const stage = $('<figure>').addClass('rezept-buehne').appendTo(article);
+        // Right above the recording (big recordings fill the screen): open
+        // exactly this scene in the studio.
+        if (this.scene_url(recipe)) {
+            const bar = $('<figcaption>').addClass('rezept-ausprobieren').appendTo(stage);
+            $('<span>').addClass('rezept-ausprobieren-text')
+                .append($('<b>').text('Selbst ausprobieren: '))
+                .append(document.createTextNode('Öffne diese Szene im Studio und schau nach, wie sie gebaut ist.'))
+                .appendTo(bar);
+            $('<button>').attr('type', 'button').addClass('rezept-ausprobieren-knopf')
+                .html('<i class="fa fa-wrench"></i> Szene öffnen')
+                .on('click', (e) => this.open_scene(recipe, $(e.currentTarget)))
+                .appendTo(bar);
         }
         $('<img>').addClass('rezept-hauptbild').attr({ src: this.media_url(recipe), alt: recipe.titel,
-            width: recipe.breite, height: recipe.hoehe }).appendTo(article);
+            width: recipe.breite, height: recipe.hoehe }).appendTo(stage);
         // Generated at build time from the Markdown sources in rezepte/texte.
         $('<div>').addClass('rezept-inhalt').html(recipe.html).appendTo(article);
         const more = $('<div>').addClass('rezept-weiter').appendTo(this.popup_body);

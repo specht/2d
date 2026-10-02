@@ -12,7 +12,7 @@ rezepte/
   texte/NN-id.md      one recipe per file: YAML head (scene, input, checks) + German Markdown
   tools/              build + recorder (Node, Playwright, sharp)
 src/static/rezepte/   generated: <id>.webp|gif, katalog/*.png|webp, rezepte.json  (commit these)
-  spiele/*.json       local DEVELOPMENT studio copies with embedded frame PNGs (ignored)
+  spiele/<id>.json    each recipe's scene as a game for the studio (embedded frame PNGs)
 src/static/rezepte.js gallery in the Hilfe tab (reads rezepte.json)
 ```
 
@@ -23,8 +23,8 @@ cd rezepte/tools
 npm install          # playwright, sharp, yaml, marked
 npx playwright install chromium   # only if no Chromium is installed yet
 npm run build        # all recipes that changed (see "Only what changed")
-npm run studio       # rebuild only the local DEVELOPMENT studio games
-npm run studio -- leiter bombe    # only these studio games
+npm run studio       # only the studio scenes (spiele/), nothing recorded
+npm run studio -- leiter bombe    # only these studio scenes
 node build.mjs leiter bombe       # always these (others are kept from rezepte.json)
 node build.mjs --force            # everything, changed or not
 npm run check        # record + verify, write nothing
@@ -41,13 +41,18 @@ fresh clone rebuilds nothing. Recipes named on the command line and
 `--force` always record; `--check` always records and verifies.
 
 Commit the generated files in `src/static/rezepte/`; the production server
-needs no Node or Chromium. The exception is `src/static/rezepte/spiele/`:
-it is ignored and exists only as a local DEVELOPMENT aid. `npm run studio`
-creates or refreshes these files without recording animations. In DEVELOPMENT,
-every recipe popup shows **Rezept als Spiel laden**. It loads the recipe's base
-scene into the normal sprite and level editors; the ordinary **Spielen** tab
-then runs it through the existing temporary-save path. Rebuild the studio copies
-after changing a recipe, its art, or editor/game normalization.
+needs no Node or Chromium. That includes `spiele/<id>.json`: every build writes
+each recipe's scene as a game with its frame pictures inside (for unchanged
+recipes too – it takes no recording), and `rezepte.json` names it (`spiel`,
+`spiel_version`). Every recipe popup in the Hilfe tab then shows **Selbst
+ausprobieren → Szene öffnen** above the recording: it opens exactly that scene
+in the sprite and level editors (after asking if the open game has unsaved
+changes), so children can look at how it is built and play it with T or the
+**Spielen** tab (temporary saves only). Saving a recipe scene never saves the
+recipe: it asks for a title of its own and an author and saves a new game
+(`own_game.js`), so the game list never shows a changed recipe. `npm run
+studio` writes only the scenes (and their entries in `rezepte.json`), which is
+quicker while working on a scene.
 
 **Every recipe checks its own outcome.** The `erwartet` block (see below) is
 evaluated after recording. If an engine change breaks, say, doors, the door

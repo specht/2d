@@ -34,6 +34,12 @@ class Game {
 
     save() {
         if (this.currently_saving) return;
+        // A recipe scene is never saved as it is (rezepte.js, own_game.js):
+        // it becomes the child's own game, with its own title and author.
+        if (this.from_recipe && typeof show_own_game_dialog === 'function') {
+            show_own_game_dialog('recipe');
+            return;
+        }
         this.send_save();
     }
 
@@ -44,6 +50,7 @@ class Game {
         this.currently_saving = true;
         this.data.palette = palettes[selected_palette_index].colors;
         let self = this;
+        const sent = this.saved_state_snapshot?.();
         api_call('/api/save_game', { game: this.data }, function (data) {
             if (data.success) {
                 $('#game_code_div').show();
@@ -59,6 +66,7 @@ class Game {
                     self.currently_saving = false;
                 }, 3000);
                 // window.location.href = `/?${data.tag}`;
+                self.remember_saved_state?.(sent);
                 self.refresh_own_game_button?.();
                 on_saved?.(data.tag);
             } else {
@@ -342,9 +350,14 @@ class Game {
         // if (this.palette)
         // update_color_palette_with_colors()
 
-        new DragAndDropWidget({
+        this.sprites_widget = new DragAndDropWidget({
             game: this,
             container: $('#menu_sprites'),
+            // sprite_basket.js: sprites from another game or a recipe
+            extra_buttons: typeof show_sprite_basket === 'function' ? [{
+                icon: 'fa-shopping-basket', title: 'Sprites aus einem anderen Spiel holen',
+                callback: () => show_sprite_basket(),
+            }] : [],
             trash: $('#trash'),
             items: this.data.sprites,
             item_class: 'menu_sprite_item',
@@ -625,6 +638,10 @@ class Game {
                 $('#play_iframe').focus();
             }
         }
+        // another game: no longer a recipe scene (rezepte.js sets it again
+        // after loading one), and nothing is unsaved yet
+        this.from_recipe = null;
+        this.remember_saved_state?.();
     }
 
     refresh_game_settings_controls() {

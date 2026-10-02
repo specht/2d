@@ -319,6 +319,12 @@ class CollaborationClient {
             modal.showError('Das Spiel ist noch nicht fertig geladen.');
             return;
         }
+        // A recipe scene is never saved as it is (own_game.js): it becomes an
+        // own game first, then it can be shared like any other.
+        if (window.game.from_recipe) {
+            modal.showError('Das ist eine Szene aus einem Rezept. Speichere sie zuerst als dein eigenes Spiel (Strg+S) – dann könnt ihr gemeinsam daran arbeiten.');
+            return;
+        }
 
         const payload = { game: window.game.data };
         if (typeof window.game.data.parent === 'string' && window.game.data.parent)

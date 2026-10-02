@@ -1712,6 +1712,8 @@ input:not([type='range']) {
     top: 0;
     right: 0;
     bottom: 0;
+    /* above the recipe popup (a dialog asked from inside a recipe) */
+    z-index: 950;
     background-color: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
@@ -2903,4 +2905,291 @@ details.trait-advanced[open] > summary {
     font-size: 85%;
     line-height: 1.35;
     color: #94b0c2;
+}
+
+/* A recipe's recording with "Selbst ausprobieren" right under it (rezepte.js) */
+.rezept-buehne {
+    margin: 12px 0 8px 0;
+    border-radius: 10px;
+    box-shadow: 0 0 24px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.rezept-buehne .rezept-hauptbild {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.rezept-ausprobieren {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 12px 10px 16px;
+    background: #29366f;
+    color: #e8eef7;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.rezept-ausprobieren-text {
+    flex: 1;
+}
+
+.rezept-ausprobieren-text b {
+    color: #ffcd75;
+}
+
+.rezept-dialog button.rezept-ausprobieren-knopf {
+    flex-shrink: 0;
+    padding: 0.55em 1.1em;
+    border: none;
+    border-radius: 6px;
+    background: #ffcd75;
+    color: #1a1c2c;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.rezept-dialog button.rezept-ausprobieren-knopf:hover {
+    background: #ffe0a3;
+}
+
+.rezept-dialog button.rezept-ausprobieren-knopf:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.rezept-ausprobieren-knopf .fa {
+    margin-right: 0.35em;
+}
+
+@media (max-width: 640px) {
+    .rezept-ausprobieren {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    .rezept-buehne {
+        border-radius: 6px;
+    }
+}
+
+/* Sprites aus einem anderen Spiel holen (sprite_basket.js) */
+.basket {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    color: #ddd;
+}
+
+.basket-source {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 14px;
+}
+
+.basket-field > span {
+    display: block;
+    margin-bottom: 0.35em;
+    color: #ccc;
+    font-size: 13px;
+}
+
+.basket-field input, .basket-field select {
+    box-sizing: border-box;
+    padding: 0.45em 0.6em;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    font: inherit;
+    font-size: 15px;
+}
+
+.basket-field input {
+    width: 9em;
+    font-family: 'IBM Plex Mono', 'Roboto Mono', monospace;
+    letter-spacing: 0.1em;
+    user-select: text;
+}
+
+.basket-field select option {
+    background: #222;
+}
+
+.basket-recipe-field {
+    margin-left: auto;
+}
+
+.basket-open {
+    font: inherit;
+}
+
+.basket-info {
+    color: #94b0c2;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.basket-info.error {
+    color: #ffcd75;
+}
+
+.basket-grid {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    grid-auto-rows: min-content;
+    gap: 10px;
+    padding: 2px;
+}
+
+button.basket-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 10px 6px 8px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #ddd;
+    font: inherit;
+    text-align: center;
+}
+
+button.basket-card:hover {
+    border-color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+button.basket-card.chosen {
+    border-color: #a7f070;
+    background: rgba(167, 240, 112, 0.12);
+}
+
+button.basket-card.needed {
+    border-style: dashed;
+    border-color: rgba(167, 240, 112, 0.6);
+}
+
+.basket-card-bild {
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: repeating-conic-gradient(#2a2a2a 0% 25%, #333 0% 50%) 50% / 12px 12px;
+    border-radius: 4px;
+}
+
+.basket-preview {
+    max-width: 100%;
+    max-height: 100%;
+    min-width: 48px;
+    image-rendering: pixelated;
+    object-fit: contain;
+}
+
+.basket-card-name {
+    font-size: 13px;
+    color: #fff;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.basket-card-info {
+    font-size: 11px;
+    color: #94b0c2;
+}
+
+.basket-card-mark {
+    position: absolute;
+    top: 5px;
+    right: 6px;
+    padding: 1px 6px;
+    border-radius: 9px;
+    background: #a7f070;
+    color: #1a1c2c;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.needed .basket-card-mark {
+    background: transparent;
+    color: #a7f070;
+}
+
+.basket-tray {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.35);
+    color: #ddd;
+    font-size: 14px;
+    min-height: 44px;
+}
+
+.basket-tray-label .fa {
+    margin-right: 0.3em;
+    color: #a7f070;
+}
+
+.basket-tray-items {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    flex: 1;
+}
+
+button.basket-tray-item {
+    position: relative;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    padding: 3px;
+    border: 1px solid rgba(167, 240, 112, 0.6);
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+button.basket-tray-item .basket-preview {
+    min-width: 0;
+    width: 100%;
+    height: 100%;
+}
+
+button.basket-tray-item .fa {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 15px;
+    height: 15px;
+    line-height: 15px;
+    border-radius: 50%;
+    background: #b13e53;
+    color: #fff;
+    font-size: 10px;
+    display: none;
+}
+
+button.basket-tray-item:hover .fa {
+    display: block;
+}
+
+.modal-footer button:disabled {
+    opacity: 0.45;
+    cursor: default;
 }
