@@ -161,33 +161,6 @@ Still open:
 
 ---
 
-# Game History and Independent Forks
-
-The no-account model is intentional.
-
-Games are public to anyone who has their code or link, and anybody may open, edit and save them. Do not add user ownership, private games or a permissions system merely to support branching. A global browser containing every saved game is not required.
-
-Normal saving should continue the current version lineage. Opening a game makes that version the parent of the next save; later saves form a version tree without modifying older versions.
-
-Add an explicit way to start an **independent game from the current state**. In the student-facing UI, prefer an understandable German label such as **Als eigenes Spiel weiterführen** over Git terminology.
-
-The operation should:
-
-- work for any loaded game
-- leave the source game and its complete history untouched
-- save the current state as a new root with no version-parent relationship to the source
-- make the new root the parent for subsequent normal saves
-- give the independent game its own code even if nothing has been edited yet
-- allow two people to fork the same version into genuinely independent lineages
-- require no accounts, ownership or copy permissions
-- remain discoverable by code/link rather than requiring a global game catalogue
-
-There is an important storage constraint: game tags are currently derived from the saved JSON. Merely setting `parent` to `null` cannot guarantee a distinct identity for an unchanged root game or for repeated identical forks. Design a small explicit lineage identity for independent forks, for example an optional non-gameplay lineage/root identifier. Games without that field must retain their existing tags, graph relationships and behaviour.
-
-The version graph and an independent fork are different concepts. Do not delete or rewrite existing graph edges when forking, and do not use the version `PARENT` relationship for optional attribution back to the source. If provenance is ever wanted, model it separately from version ancestry.
-
----
-
 # Live Collaboration
 
 Facilitate working on one game from two or more browsers without introducing accounts.
@@ -261,7 +234,7 @@ A normal shared save should:
 - broadcast the resulting game tag to all connected browsers
 - use that saved version as the parent of the next shared save
 
-Independent forks and live collaboration remain orthogonal. **Als eigenes Spiel weiterführen** starts a new lineage; **Gemeinsam bearbeiten** lets several named participants edit one working copy within whichever lineage they started from.
+Independent forks and live collaboration remain orthogonal. **Als eigenes Spiel weiterführen** (implemented, see README) starts a new lineage; **Gemeinsam bearbeiten** lets several named participants edit one working copy within whichever lineage they started from.
 
 ## First useful milestone
 
@@ -507,7 +480,7 @@ In particular:
 3. Add strong selection manipulation (level undo/redo exists).
 4. Improve layers and large-level navigation.
 5. Shorten the playtest loop.
-6. Make game lineage understandable and add an explicit independent-fork action.
+6. Make game lineage understandable (the independent-fork action exists: Als eigenes Spiel weiterführen).
 7. Make deliberate, named multi-browser collaboration practical without introducing accounts.
 8. Polish sprite-animation workflows.
 9. Extend the Signale (generic triggers/actions; milestone 1 exists).

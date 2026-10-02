@@ -117,18 +117,14 @@ When a saved game is opened, its tag becomes the parent for the next normal save
 
 #### Independent forks
 
-An explicit independent-fork workflow is planned for cases where somebody wants to use an existing public game as a starting point without keeping the new work in the source game's version tree.
+**Als eigenes Spiel weiterführen** (Einstellungen → Spiel, shown for every game that has a code) starts an independent game from the current state. A short dialog asks for a new title and the author's name, then the current state is saved as the root of a new lineage:
 
-An independent fork should:
+- the source game and its version history stay unchanged
+- the new game has no `parent`, so it is a new entry in the game list, and every later normal save descends from it
+- it gets its own code even when nothing has been edited yet
+- no account, ownership or permission is involved, and no global list of games is needed
 
-- save the current game state as the root of a new lineage
-- leave the source game and its version history unchanged
-- make subsequent normal saves descend from the new root
-- produce its own game code even when the gameplay content has not changed yet
-- require no account, ownership or permission model
-- not require a global list of all games
-
-The current tags are content-derived. Simply clearing `parent` is therefore not sufficient to guarantee a distinct new root in every case: an unchanged root game, or repeated forks of the same version, could otherwise collapse to the same tag. The fork design needs a small independent lineage identity, for example an optional non-gameplay lineage identifier, while existing games without it keep their current tags and behaviour.
+Tags are content-derived, so clearing `parent` alone would give an unchanged root game (or two identical forks) the same code. An independent game therefore carries a random `lineage` field (`own_game.js`). It only makes the saved JSON distinct and is never read by the game; games without it keep their tags and behaviour. It is not available during a live collaboration session (leave the session first).
 
 #### Live collaboration
 

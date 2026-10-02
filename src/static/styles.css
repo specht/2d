@@ -2884,3 +2884,23 @@ details.trait-advanced[open] > summary {
     image-rendering: pixelated;
     max-width: 100%;
 }
+
+/* Einstellungen → Spiel: Als eigenes Spiel weiterführen (own_game.js) */
+.own-game {
+    margin: 8px 5px 2px 5px;
+}
+
+.own-game-button {
+    font: inherit;
+}
+
+.own-game-button .fa {
+    margin-right: 0.3em;
+}
+
+.own-game-hint {
+    margin-top: 5px;
+    font-size: 85%;
+    line-height: 1.35;
+    color: #94b0c2;
+}
