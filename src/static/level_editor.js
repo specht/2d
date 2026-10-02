@@ -258,6 +258,14 @@ class LevelEditor {
         this.backdrop_time_meshes = [];
         this.backdrop_animation_frame = null;
         this.camera_mode = false;
+        // Signale: connections (build_signal_links)
+        this.signal_links_group = new THREE.Group();
+        this.signal_link_curves = [];
+        this.signal_link_frames = [];
+        this.show_signal_links = false;
+        this.connect_from = null;
+        this.connect_pointer = null;
+        this.signal_highlight = null;
 
         this.texture_loader = new THREE.TextureLoader();
         this.refresh_sprite_widget();
@@ -270,6 +278,17 @@ class LevelEditor {
             set: (x) => {
                 self.show_grid = x;
                 self.refresh();
+                self.render();
+            },
+        });
+        new CheckboxWidget({
+            container: $('#tool_menu_level_settings'),
+            label: 'Verbindungen zeigen',
+            hint: 'Zeigt alle Signale im Level: Von allem, was sendet (Schalter, Schlüssel, Druckplatte, Bereich, Gegner), laufen Striche zu allem, was mit demselben Code reagiert (Türen, Ebenen). Sonst siehst du nur die Verbindungen von dem, was du gerade ausgewählt hast.',
+            get: () => self.show_signal_links,
+            set: (x) => {
+                self.show_signal_links = x;
+                self.build_signal_links();
                 self.render();
             },
         });
@@ -410,6 +429,9 @@ class LevelEditor {
                     },
                 });
 
+                // Signale: "alle Gegner besiegt" (absent = the level sends nothing)
+                self.add_all_defeated_controls($('<div>').appendTo($('#menu_level_properties')));
+
                 // Bewegung im ganzen Level (movement_regions.js): absent = as always
                 const movement_box = $('<div>').appendTo($('#menu_level_properties'));
                 self.add_movement_controls(movement_box, null, true);
@@ -445,7 +467,7 @@ class LevelEditor {
                     gen_new_item_options: [
                         ['Sprites', 'sprites'],
                         ['Hintergrund', 'backdrop'],
-                        ['Sichtbarkeitsbereich', 'visibility_region'],
+                        ['Bereich (sendet ein Signal)', 'signal_area'],
                         ['Bewegungsbereich', 'movement_region'],
                         // ['Text', 'text'],
                     ],
@@ -480,8 +502,8 @@ class LevelEditor {
                             self.layer_structs[index].el_sprite_count = sprite_count;
                         } else if (type === 'backdrop') {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Hintergrund · '));
-                        } else if (type === 'visibility_region') {
-                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Sichtbarkeitsbereich · '));
+                        } else if (type === 'signal_area') {
+                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Bereich · '));
                         } else if (type === 'movement_region') {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Bewegungsbereich · '));
                         } else if (type === 'text') {
@@ -499,7 +521,7 @@ class LevelEditor {
                         if (self.game.data.levels[self.level_index].layers[self.layer_index].type !== 'sprites') {
                             menus.level.blur();
                         }
-                        if (['backdrop', 'visibility_region', 'movement_region'].includes(self.game.data.levels[self.level_index].layers[self.layer_index].type)) {
+                        if (['backdrop', 'signal_area', 'movement_region'].includes(self.game.data.levels[self.level_index].layers[self.layer_index].type)) {
                             self.refresh_backdrop_controls();
                         }
                         self.setup_layer_properties();
@@ -513,10 +535,11 @@ class LevelEditor {
                         let layer_struct = new LayerStruct(self);
                         self.layer_structs.push(layer_struct);
                         let layer = { type: type };
-                        if (type === 'visibility_region') {
-                            let count = self.game.data.levels[self.level_index].layers.filter(x => x.type === type).length + 1;
-                            layer.properties = { name: `Sichtbarkeitsbereich ${count}` };
-                            layer.inside_visible = false;
+                        if (type === 'signal_area') {
+                            const level = self.game.data.levels[self.level_index];
+                            let count = level.layers.filter(x => x.type === type).length + 1;
+                            // a Code nothing else uses yet, so it does not start anything by itself
+                            layer.properties = { name: `Bereich ${count}`, signal_code: free_signal_code(level) };
                         }
                         if (type === 'movement_region') {
                             let count = self.game.data.levels[self.level_index].layers.filter(x => x.type === type).length + 1;
@@ -525,7 +548,7 @@ class LevelEditor {
                         }
                         if (type === 'sprites') {
                             layer.sprites = [];
-                        } else if (type === 'backdrop' || type === 'visibility_region' || type === 'movement_region') {
+                        } else if (type === 'backdrop' || type === 'signal_area' || type === 'movement_region') {
                             let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
                             let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
                             let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
@@ -767,6 +790,255 @@ class LevelEditor {
         this.render();
     }
 
+    // ---------------------------------------------- Signale: connections
+    // Animated dashes run from what sends to what reacts (signals.js), and
+    // both get a pulsing frame. Shown for what is selected (a placed sprite,
+    // the current layer, what "Verbinden" started from, a connection just
+    // made), or for everything with "Verbindungen zeigen".
+    signal_context() {
+        const level = this.game.data.levels[this.level_index];
+        const sprite_of = ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)];
+        return {
+            level,
+            traits_of: ref => sprite_of(ref)?.traits,
+            size_of: ref => { const sprite = sprite_of(ref); return sprite ? { width: sprite.width, height: sprite.height } : null; },
+        };
+    }
+
+    signal_codes_to_show() {
+        if (this.show_signal_links) return null;
+        const { level, traits_of } = this.signal_context();
+        const codes = new Set();
+        if (Number.isInteger(this.connect_from?.code)) codes.add(this.connect_from.code);
+        if (this.signal_highlight && performance.now() < this.signal_highlight.until) codes.add(this.signal_highlight.code);
+        const layer = level?.layers[this.layer_index];
+        if (layer?.type === 'sprites' && this.selection.length === 1) {
+            const placed = layer.sprites[this.selection[0]];
+            const found = placed && placed_signal_role(placed, traits_of(placed[0]));
+            if (found) codes.add(found.code);
+        } else if (layer && (layer.type === 'signal_area' || layer_reacts_to_signals(layer.properties))) {
+            codes.add(Number(layer.properties.signal_code ?? 0));
+        }
+        return codes;
+    }
+
+    build_signal_links() {
+        const group = this.signal_links_group;
+        for (const child of [...group.children]) {
+            group.remove(child);
+            child.geometry?.dispose?.();
+            child.material?.dispose?.();
+        }
+        this.signal_link_curves = [];
+        this.signal_link_frames = [];
+        if (!this.game.data.levels?.[this.level_index]) return;
+        const { level, traits_of, size_of } = this.signal_context();
+        const codes = this.signal_codes_to_show();
+        const objects = signal_objects(level, traits_of, size_of);
+        const framed = objects.filter(o => codes === null || codes.has(o.code));
+        if (this.connect_from && !framed.some(o => same_signal_object(o, this.connect_from))) framed.push(this.connect_from);
+        // marching frames around everything involved
+        for (const object of framed) {
+            const rects = object.rects ? object.rects.map(r => ({ x0: r.left, y0: r.bottom, x1: r.left + r.width, y1: r.bottom + r.height }))
+                : [object.rect];
+            for (const rect of rects) this.signal_link_frames.push({ rect, color: signal_link_color(object.code) });
+        }
+        for (const link of signal_links(objects, codes))
+            this.signal_link_curves.push({ from: link.from.anchor, to: link.to.anchor, color: signal_link_color(link.code) });
+        if (this.connect_from && this.connect_pointer)
+            this.signal_link_curves.push({ from: this.connect_from.anchor, to: this.connect_pointer, color: '#f4f4f4' });
+        this.signal_dash_mesh = null;
+        if (this.signal_link_curves.length || this.signal_link_frames.length) {
+            // a dark edge under the colours: visible on a light sky and on dark walls
+            this.signal_dash_shadow = new THREE.Mesh(new THREE.BufferGeometry(),
+                new THREE.MeshBasicMaterial({ color: 0x1a1c2c, transparent: true, opacity: 0.6, depthTest: false, side: THREE.DoubleSide }));
+            this.signal_dash_shadow.renderOrder = 10;
+            group.add(this.signal_dash_shadow);
+            this.signal_dash_mesh = new THREE.Mesh(new THREE.BufferGeometry(),
+                new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthTest: false, side: THREE.DoubleSide }));
+            this.signal_dash_mesh.renderOrder = 11;
+            group.add(this.signal_dash_mesh);
+        }
+        this.update_signal_dashes(performance.now() / 1000);
+        if (group.children.length) this.start_signal_animation();
+    }
+
+    // Dashes along a curve that bends upwards, moving from sender to receiver,
+    // with an arrow head; sizes in screen pixels.
+    update_signal_dashes(time) {
+        if (!this.signal_dash_mesh) return;
+        const px = 1 / this.scale;
+        const positions = [], colors = [], shadow = [];
+        const color = new THREE.Color();
+        const quad = (a, b, half) => {
+            const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy) || 1;
+            const ux = dx / length, uy = dy / length;
+            for (const [h, extend, out] of [[half + px, px, shadow], [half, 0, positions]]) {
+                const nx = -uy * h, ny = ux * h, ex = ux * extend, ey = uy * extend;
+                const p = [[a.x - ex + nx, a.y - ey + ny], [a.x - ex - nx, a.y - ey - ny], [b.x + ex - nx, b.y + ey - ny], [b.x + ex + nx, b.y + ey + ny]];
+                for (const i of [0, 1, 2, 0, 2, 3]) {
+                    out.push(p[i][0], p[i][1], 2);
+                    if (out === positions) colors.push(color.r, color.g, color.b);
+                }
+            }
+        };
+        for (const curve of this.signal_link_curves) {
+            const a = curve.from, b = curve.to;
+            const distance = Math.hypot(b.x - a.x, b.y - a.y);
+            if (distance < 1) continue;
+            color.set(curve.color);
+            const control = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 + distance * 0.25 + 12 * px };
+            const at = t => ({ x: (1 - t) ** 2 * a.x + 2 * (1 - t) * t * control.x + t * t * b.x,
+                y: (1 - t) ** 2 * a.y + 2 * (1 - t) * t * control.y + t * t * b.y });
+            const steps = 48;
+            const points = [at(0)];
+            const lengths = [0];
+            for (let i = 1; i <= steps; i++) {
+                points.push(at(i / steps));
+                lengths.push(lengths[i - 1] + Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y));
+            }
+            const total = lengths[steps];
+            const dash = 7 * px, gap = 5 * px, period = dash + gap;
+            const offset = (time * 24 * px) % period;
+            const point_at = (s) => {
+                let i = 1;
+                while (i < steps && lengths[i] < s) i++;
+                const t = (s - lengths[i - 1]) / ((lengths[i] - lengths[i - 1]) || 1);
+                return { x: points[i - 1].x + (points[i].x - points[i - 1].x) * t, y: points[i - 1].y + (points[i].y - points[i - 1].y) * t };
+            };
+            const end = total - 7 * px; // room for the arrow head
+            for (let s = offset - period; s < end; s += period) {
+                const s0 = Math.max(0, s), s1 = Math.min(end, s + dash);
+                if (s1 <= s0) continue;
+                const pieces = Math.max(1, Math.ceil((s1 - s0) / (3 * px)));
+                for (let k = 0; k < pieces; k++)
+                    quad(point_at(s0 + (s1 - s0) * k / pieces), point_at(s0 + (s1 - s0) * (k + 1) / pieces), 1.25 * px);
+            }
+            // arrow head
+            const tip = points[steps], back = point_at(total - 9 * px);
+            const dx = tip.x - back.x, dy = tip.y - back.y, length = Math.hypot(dx, dy) || 1;
+            const ux = dx / length, uy = dy / length;
+            const left = { x: back.x - uy * 4.5 * px, y: back.y + ux * 4.5 * px };
+            const right = { x: back.x + uy * 4.5 * px, y: back.y - ux * 4.5 * px };
+            for (const p of [tip, left, right]) { positions.push(p.x, p.y, 2); colors.push(color.r, color.g, color.b); }
+            const grow = (p) => ({ x: p.x + (p.x - (tip.x + left.x + right.x) / 3) * 0.35, y: p.y + (p.y - (tip.y + left.y + right.y) / 3) * 0.35 });
+            for (const p of [tip, left, right].map(grow)) shadow.push(p.x, p.y, 2);
+        }
+        // frames: dashes marching around the outline
+        for (const frame of this.signal_link_frames) {
+            color.set(frame.color);
+            const pad = 3 * px, r = frame.rect;
+            const corners = [[r.x0 - pad, r.y0 - pad], [r.x1 + pad, r.y0 - pad], [r.x1 + pad, r.y1 + pad], [r.x0 - pad, r.y1 + pad], [r.x0 - pad, r.y0 - pad]]
+                .map(([x, y]) => ({ x, y }));
+            const dash = 5 * px, period = 8 * px;
+            let walked = 0;
+            const offset = (time * 16 * px) % period;
+            for (let i = 0; i < 4; i++) {
+                const a = corners[i], b = corners[i + 1];
+                const length = Math.hypot(b.x - a.x, b.y - a.y);
+                const point = s => ({ x: a.x + (b.x - a.x) * s / length, y: a.y + (b.y - a.y) * s / length });
+                // dashes on this side: where (walked + s - offset) mod period < dash
+                let s = ((offset - walked) % period + period) % period - period;
+                for (; s < length; s += period) {
+                    const s0 = Math.max(0, s), s1 = Math.min(length, s + dash);
+                    if (s1 > s0) quad(point(s0), point(s1), 1 * px);
+                }
+                walked += length;
+            }
+        }
+        const geometry = this.signal_dash_mesh.geometry;
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        geometry.computeBoundingSphere();
+        const under = this.signal_dash_shadow.geometry;
+        under.setAttribute('position', new THREE.Float32BufferAttribute(shadow, 3));
+        under.computeBoundingSphere();
+    }
+
+    start_signal_animation() {
+        if (this.signal_animation_frame) return;
+        const tick = () => {
+            this.signal_animation_frame = null;
+            if (typeof current_pane !== 'undefined' && current_pane !== 'level') return;
+            if (!this.signal_links_group.children.length) return;
+            // a connection just made stays visible for a moment
+            if (this.signal_highlight && performance.now() >= this.signal_highlight.until) {
+                this.signal_highlight = null;
+                this.build_signal_links();
+            }
+            this.update_signal_dashes(performance.now() / 1000);
+            this.render();
+            this.signal_animation_frame = requestAnimationFrame(tick);
+        };
+        this.signal_animation_frame = requestAnimationFrame(tick);
+    }
+
+    // "Verbinden" tool: first click what sends (or what reacts), then its
+    // partner. They get a shared Code (connect_signal_objects).
+    handle_connect_down(e) {
+        if (e.button === 2) {
+            this.cancel_connect();
+            return;
+        }
+        const touch = this.get_touch_point(e);
+        const x = this.camera_x + (touch[0] - this.width / 2) / this.scale;
+        const y = this.camera_y - (touch[1] - this.height / 2) / this.scale;
+        const { level, traits_of, size_of } = this.signal_context();
+        // the first click looks for what sends, the second for its partner
+        const prefer = !this.connect_from || !this.connect_from.sends ? 'sender' : 'receiver';
+        const picked = pick_signal_object(level, x, y, traits_of, size_of, this.layer_index, prefer);
+        if (!this.connect_from) {
+            this.connect_from = picked;
+            this.connect_pointer = picked ? { x, y } : null;
+        } else {
+            // a layer that would take away its own sender
+            const own_layer = (layer, sprite) => layer?.kind === 'layer' && sprite?.kind === 'sprite' &&
+                sprite.layer_index === layer.layer_index;
+            if (own_layer(picked, this.connect_from) || own_layer(this.connect_from, picked)) {
+                this.show_level_notice('Das liegt auf derselben Ebene wie der Sender – die Ebene würde ihn mit verschwinden lassen. Leg das, was erscheinen oder verschwinden soll, in eine eigene Ebene.');
+            } else if (picked && !same_signal_object(picked, this.connect_from) &&
+                window.collaboration?.can_edit_current?.() !== false) {
+                const code = connect_signal_objects(level, this.connect_from, picked, traits_of, size_of);
+                if (code !== null) this.signal_highlight = { code, until: performance.now() + 2500 };
+                // the panels show the new Code
+                this.placed_properties_for = null;
+                if ($('#menu_layer_properties_container').is(':visible')) this.setup_layer_properties();
+            }
+            this.connect_from = null;
+            this.connect_pointer = null;
+        }
+        this.refresh();
+        this.render();
+    }
+
+    handle_connect_move(e) {
+        if (!this.connect_from) return;
+        const touch = this.get_touch_point(e);
+        this.connect_pointer = {
+            x: this.camera_x + (touch[0] - this.width / 2) / this.scale,
+            y: this.camera_y - (touch[1] - this.height / 2) / this.scale,
+        };
+        this.build_signal_links();
+        this.render();
+    }
+
+    // A short message over the level (a few seconds).
+    show_level_notice(text) {
+        let notice = $(this.element).find('.level-notice');
+        if (!notice.length) notice = $('<div class="level-notice">').appendTo(this.element);
+        notice.text(text).addClass('showing');
+        clearTimeout(this.level_notice_timer);
+        this.level_notice_timer = setTimeout(() => notice.removeClass('showing'), 4500);
+    }
+
+    cancel_connect() {
+        if (!this.connect_from) return;
+        this.connect_from = null;
+        this.connect_pointer = null;
+        this.build_signal_links();
+        this.render();
+    }
+
     // Under the Code of a key, door, Schalter or Druckplatte: what else in this
     // level has the same Code (signals.js), so a child sees what is connected.
     add_signal_links(container, sprite, entry_index) {
@@ -778,15 +1050,24 @@ class LevelEditor {
             const level = this.game.data.levels[level_index];
             const placed = level?.layers[layer_index]?.sprites?.[entry_index];
             if (!placed) return;
-            const code = placed[3]?.[role.trait]?.[role.key] ?? 0;
+            // an enemy only takes part once "sendet, wenn besiegt" is on
+            if (role.active && !role.active(placed[3]?.[role.trait])) {
+                line.text('');
+                this.build_signal_links();
+                this.render();
+                return;
+            }
+            const code = placed[3]?.[role.trait]?.signal_code ?? 0;
             line.text(describe_signal_partners(code, signal_partners(level, code,
                 ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits)));
+            this.build_signal_links();
+            this.render();
         };
         this.update_signal_links();
     }
 
-    // Signale (signals.js): a layer can appear or disappear when a key,
-    // Schalter or Druckplatte sends its Code. Absent = it does not react.
+    // Signale (signals.js): a layer can appear or disappear when something
+    // sends its Code. Absent = it does not react.
     add_layer_signal_controls(layer) {
         const container = $('#menu_layer_properties');
         const level = this.game.data.levels[this.level_index];
@@ -796,31 +1077,34 @@ class LevelEditor {
                 describe_signal_partners(layer.properties.signal_code ?? 0, signal_partners(level,
                     layer.properties.signal_code ?? 0,
                     ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits)) : '');
+            this.build_signal_links();
+            this.render();
         };
-        let code_widget = null;
+        let details = null;
         new SelectWidget({
             container,
             label: 'Bei Signal',
-            hint: 'Die Ebene kann erscheinen oder verschwinden, wenn ein Schlüssel, Schalter oder eine Druckplatte mit ihrem Code ein Signal sendet. „erscheint“: am Anfang weg, beim ersten Signal „an“ da. „verschwindet“: am Anfang da, beim ersten Signal „an“ weg. „da, solange an“ und „weg, solange an“: folgt dem Signal – praktisch mit einer Druckplatte. „wechselt“: jedes Signal macht die Ebene da oder weg. Eine Ebene, die weg ist, wird nicht gezeichnet, und man kann auch nicht mehr auf ihr stehen – so baust du Brücken, die erst erscheinen, oder Wände, die verschwinden. Auf diese Ebene gehören weder die Spielfigur noch Gegner.',
+            hint: 'Die Ebene kann erscheinen oder verschwinden, wenn etwas mit ihrem Code ein Signal sendet: ein Schlüssel, ein Schalter, eine Druckplatte, ein Bereich oder ein besiegter Gegner. „erscheint“: am Anfang weg, beim ersten Signal „an“ da. „verschwindet“: am Anfang da, beim ersten Signal „an“ weg. „da, solange an“ und „weg, solange an“: folgt dem Signal – praktisch mit einer Druckplatte oder einem Bereich (ein Dach, das verschwindet, solange man im Haus ist). „wechselt“: jedes Signal macht die Ebene da oder weg. Eine Ebene, die weg ist, wird nicht gezeichnet, man kann nicht auf ihr stehen, und Gegner auf ihr warten, bis sie erscheint – so baust du Brücken, Wände, die verschwinden, oder einen Hinterhalt. Die Spielfigur gehört nicht auf so eine Ebene.',
             options: LAYER_SIGNAL_REACTIONS,
             get: () => layer.properties.signal_reaction ?? 'none',
             set: (value) => {
                 if (value === 'none') {
                     delete layer.properties.signal_reaction;
                     delete layer.properties.signal_code;
+                    delete layer.properties.signal_fade;
                 } else {
                     layer.properties.signal_reaction = value;
                     layer.properties.signal_code ??= 0;
                 }
-                code_widget?.toggle(value !== 'none');
+                details?.toggle(value !== 'none');
                 update_links();
             },
         });
-        code_widget = $('<div>').appendTo(container);
+        details = $('<div>').appendTo(container);
         new NumberWidget({
-            container: code_widget,
+            container: details,
             label: 'Code',
-            hint: 'Schlüssel, Schalter und Druckplatten mit demselben Code senden dieser Ebene ein Signal.',
+            hint: 'Alles mit demselben Code sendet dieser Ebene ein Signal.',
             min: 0,
             max: 1000,
             get: () => layer.properties.signal_code ?? 0,
@@ -829,7 +1113,88 @@ class LevelEditor {
                 update_links();
             },
         });
-        code_widget.toggle(layer_reacts_to_signals(layer.properties));
+        new NumberWidget({
+            container: details,
+            label: 'Überblendung',
+            hint: 'Wie lange die Ebene ein- oder ausgeblendet wird. 0 Sekunden: sofort. Ob man auf ihr stehen kann, ändert sich trotzdem sofort.',
+            min: 0,
+            max: SIGNAL_LAYER_FADE_MAX_SECONDS,
+            step: 0.1,
+            decimalPlaces: 1,
+            width: '3em',
+            suffix: 's',
+            get: () => layer_fade_seconds(layer.properties),
+            set: (value) => { layer.properties.signal_fade = value; },
+        });
+        details.toggle(layer_reacts_to_signals(layer.properties));
+        links.appendTo(container);
+        update_links();
+    }
+
+    // Level setting: when no enemy is left, the level sends a Code (signals.js).
+    add_all_defeated_controls(box) {
+        const level = this.game.data.levels[this.level_index];
+        const links = $('<div class="signal-links">');
+        let details = null;
+        const update = () => {
+            const code = level.properties.signal_all_defeated;
+            details?.toggle(Number.isInteger(code));
+            links.text(Number.isInteger(code) ? describe_signal_partners(code, signal_partners(level, code,
+                ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits)) : '');
+        };
+        new CheckboxWidget({
+            container: box,
+            label: 'sendet, wenn alle Gegner besiegt',
+            hint: 'Sind alle Gegner in diesem Level besiegt, sendet das Level einen Code – zum Beispiel öffnet sich dann das Tor zum Ziel. Gegner auf einer Ebene, die noch nicht erschienen ist, zählen erst mit, wenn sie da sind: So kann die nächste Welle erscheinen, sobald die erste besiegt ist.',
+            get: () => Number.isInteger(level.properties.signal_all_defeated),
+            set: (on) => {
+                if (on) level.properties.signal_all_defeated = free_signal_code(level);
+                else delete level.properties.signal_all_defeated;
+                details?.find('input').first().val(level.properties.signal_all_defeated ?? 0);
+                update();
+            },
+        });
+        details = $('<div>').appendTo(box);
+        new NumberWidget({
+            container: details,
+            label: 'Code',
+            min: 0,
+            max: 1000,
+            get: () => level.properties.signal_all_defeated ?? 0,
+            set: (value) => {
+                level.properties.signal_all_defeated = Math.round(value);
+                update();
+            },
+        });
+        links.appendTo(box);
+        update();
+    }
+
+    // A Bereich (layer type signal_area): its rectangles send the Code "an"
+    // when the figure's centre enters them and "aus" when it leaves.
+    add_area_signal_controls(layer) {
+        const container = $('#menu_layer_properties');
+        const level = this.game.data.levels[this.level_index];
+        const links = $('<div class="signal-links">');
+        const update_links = () => {
+            const code = layer.properties.signal_code ?? 0;
+            links.text(describe_signal_partners(code, signal_partners(level, code,
+                ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits)));
+            this.build_signal_links();
+            this.render();
+        };
+        new NumberWidget({
+            container,
+            label: 'Code',
+            hint: 'Kommt die Mitte der Spielfigur in eines der Rechtecke, sendet der Bereich diesen Code mit „an“, geht sie wieder hinaus, mit „aus“. Ebenen und Türen mit demselben Code reagieren darauf – zum Beispiel verschwindet das Dach, solange man im Haus ist („weg, solange an“).',
+            min: 0,
+            max: 1000,
+            get: () => layer.properties.signal_code ?? 0,
+            set: (value) => {
+                layer.properties.signal_code = Math.round(value);
+                update_links();
+            },
+        });
         links.appendTo(container);
         update_links();
     }
@@ -863,7 +1228,7 @@ class LevelEditor {
             });
             self.add_layer_signal_controls(layer);
         }
-        if (layer.type === 'backdrop' || layer.type === 'visibility_region' || layer.type === 'movement_region') {
+        if (layer.type === 'backdrop' || layer.type === 'signal_area' || layer.type === 'movement_region') {
             let backdrop = layer;
             // -----------------------------------------------------------
             let rect_div = $('<div>').appendTo($('#menu_layer_properties'));
@@ -918,61 +1283,8 @@ class LevelEditor {
                 }
             });
 
-            if (layer.type === 'visibility_region') {
-                const layers = self.game.data.levels[self.level_index].layers;
-                const options = { '': 'Keine Ebene ausgewählt' };
-                let selectedIndex = -1;
-                for (let i = 0; i < layers.length; i++) {
-                    const candidate = layers[i];
-                    if (candidate.type === 'visibility_region' || candidate.type === 'movement_region') continue;
-                    const taken = candidate.id && layers.some(other =>
-                        other !== layer && other.type === 'visibility_region' &&
-                        other.target_layer_id === candidate.id);
-                    if (taken) continue;
-                    options[String(i)] = `${candidate.properties.name || `Ebene ${i + 1}`} (${candidate.type === 'sprites' ? 'Sprites' : 'Hintergrund'})`;
-                    if (candidate.id && candidate.id === layer.target_layer_id &&
-                        layers.filter(other => other.id === candidate.id).length === 1)
-                        selectedIndex = i;
-                }
-                if (layer.target_layer_id && selectedIndex < 0)
-                    options.__invalid = 'Ziel ungültig oder bereits belegt – bitte neu wählen';
-                new SelectWidget({
-                    container: $('#menu_layer_properties'),
-                    label: 'Zielebene',
-                    hint: 'Diese Ebene wird im Bereich ein- oder ausgeblendet. Verwende für jede Fassade eine eigene Ebene ohne Kollisionserkennung. Eine Zielebene kann nur einem Sichtbarkeitsbereich gehören.',
-                    options,
-                    get: () => selectedIndex >= 0 ? String(selectedIndex) : (layer.target_layer_id ? '__invalid' : ''),
-                    set: (value) => {
-                        if (value === '__invalid') return;
-                        const candidate = value === '' ? null : layers[Number(value)];
-                        if (candidate && (candidate.type === 'visibility_region' || layers.some(other =>
-                            other !== layer && other.type === 'visibility_region' &&
-                            other.target_layer_id && other.target_layer_id === candidate.id))) return;
-                        layer.target_layer_id = candidate ? VisibilityRegions.uniqueTargetId(layers, candidate) : null;
-                        self.setup_layer_properties();
-                    },
-                });
-                new SelectWidget({
-                    container: $('#menu_layer_properties'),
-                    label: 'Im Bereich',
-                    hint: 'Sichtbar: Die Zielebene erscheint, wenn die Mitte der Spielfigur in einem der Rechtecke liegt. Versteckt: Die Zielebene verschwindet dort. Außerhalb gilt jeweils das Gegenteil.',
-                    options: { 'false': 'versteckt', 'true': 'sichtbar' },
-                    get: () => String(layer.inside_visible === true),
-                    set: (value) => { layer.inside_visible = value === 'true'; },
-                });
-                new NumberWidget({
-                    container: $('#menu_layer_properties'),
-                    label: 'Überblendung',
-                    hint: 'Wie lange die Zielebene beim Betreten oder Verlassen ein- oder ausgeblendet wird. 0 Sekunden bedeutet: sofort.',
-                    min: 0,
-                    max: 2,
-                    step: 0.1,
-                    decimalPlaces: 1,
-                    width: '3em',
-                    suffix: 's',
-                    get: () => layer.fade_seconds ?? 0,
-                    set: (value) => { layer.fade_seconds = value; },
-                });
+            if (layer.type === 'signal_area') {
+                self.add_area_signal_controls(layer);
             } else if (layer.type === 'movement_region') {
                 layer.movement ??= { mode: 'swim' };
                 const box = $('<div>').appendTo($('#menu_layer_properties'));
@@ -1199,7 +1511,9 @@ class LevelEditor {
                 },
             });
         }
-        if (layer.type !== 'visibility_region' && layer.type !== 'movement_region') {
+        // a Hintergrund (darkness, an effect) can appear and disappear, too
+        if (layer.type === 'backdrop') self.add_layer_signal_controls(layer);
+        if (layer.type !== 'signal_area' && layer.type !== 'movement_region') {
         new NumberWidget({
             container: $('#menu_layer_properties'),
             label: 'Parallaxe',
@@ -1414,7 +1728,9 @@ class LevelEditor {
         this.y1 = this.mouse_down_position_no_snap[1];
 
         if (e.touches) this.mouse_down_button = 0;
-        if (menus.level.active_key === 'tool/pen' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
+        if (menus.level.active_key === 'tool/connect') {
+            this.handle_connect_down(e);
+        } else if (menus.level.active_key === 'tool/pen' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
             if (e.button === 0) {
                 if (this.modifier_shift) {
                     this.add_sprite_to_level(this.mouse_down_position_no_snap);
@@ -1509,6 +1825,7 @@ class LevelEditor {
         let touch = this.get_touch_point(e);
         let p = this.ui_to_world(touch, true);
         let p_no_snap = this.ui_to_world(touch, false);
+        if (menus.level.active_key === 'tool/connect') this.handle_connect_move(e);
         if (menus.level.active_key === 'tool/pen' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
             this.cursor_group.visible = true;
             if (this.modifier_shift) {
@@ -2014,19 +2331,19 @@ class LevelEditor {
         this.scene.add(this.rect_group);
 
         this.backdrop_index = null;
-        if (['backdrop', 'visibility_region', 'movement_region'].includes(this.game.data.levels[this.level_index].layers[this.layer_index].type))
+        if (['backdrop', 'signal_area', 'movement_region'].includes(this.game.data.levels[this.level_index].layers[this.layer_index].type))
             this.backdrop_index = this.layer_index;
 
         if (this.backdrop_index !== null && menus.level.active_key === null &&
             this.game.data.levels[this.level_index].layers[this.backdrop_index].rects?.[this.rect_index]) {
             let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
             this.backdrop_cursor.remove.apply(this.backdrop_cursor, this.backdrop_cursor.children);
-            if (backdrop.type === 'visibility_region' || backdrop.type === 'movement_region') {
+            if (backdrop.type === 'signal_area' || backdrop.type === 'movement_region') {
                 // all rectangles of the region, so one can see where it applies
-                const outline = new THREE.LineBasicMaterial({ color: backdrop.type === 'movement_region' ? 0x38b764 : 0x56bde8,
+                const outline = new THREE.LineBasicMaterial({ color: backdrop.type === 'movement_region' ? 0x38b764 : 0xffcd75,
                     linewidth: 1.0, transparent: true, opacity: 0.65 });
                 for (const rect of backdrop.rects) {
-                    if (!VisibilityRegions.validRectangle(rect)) continue;
+                    if (!valid_signal_rect(rect)) continue;
                     const points = [
                         new THREE.Vector3(rect.left, rect.bottom),
                         new THREE.Vector3(rect.left + rect.width, rect.bottom),
@@ -2212,6 +2529,7 @@ class LevelEditor {
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Boolean(x);
+                                    this.update_signal_links?.();
                                 },
                             });
                         } else if (property.type === 'select') {
@@ -2310,6 +2628,8 @@ class LevelEditor {
             div.insertAfter(element);
         }
     */
+        this.scene.add(this.signal_links_group);
+        this.build_signal_links();
     }
 
     refresh_sprite_widget() {
@@ -2392,3 +2712,10 @@ class LevelEditor {
         else level_editor.redo();
     }, true);
 })();
+
+// Colours of the Codes in the level editor's connections (Sweetie 16, bright).
+const SIGNAL_LINK_COLORS = ['#ffcd75', '#73eff7', '#a7f070', '#ef7d57', '#41a6f6', '#f4f4f4', '#38b764', '#b13e53'];
+function signal_link_color(code) {
+    const n = Number.isInteger(code) ? code : 0;
+    return SIGNAL_LINK_COLORS[((n % SIGNAL_LINK_COLORS.length) + SIGNAL_LINK_COLORS.length) % SIGNAL_LINK_COLORS.length];
+}

@@ -412,6 +412,12 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 { key: 'Delete', label: 'Auswahl löschen', callback: function (x) { game.level_editor.delete_selection(); } },
             ]
         },
+        {
+            group: 'tool', command: 'connect', image: 'connect-44', shortcut: 'R', label: 'Verbinden', hints: [
+                'Erst anklicken, was sendet (Schalter, Schlüssel, Druckplatte, Gegner, Bereich), dann, was reagieren soll (Tür, Brücke, Dach …)',
+                { key: 'Escape', label: 'Abbrechen', callback: function () { game.level_editor.cancel_connect(); } },
+            ]
+        },
         // { group: 'tool', command: 'fill-rect', image: 'fill-rectangle', shortcut: 'W', label: 'Rechteck füllen' },
     ];
 
@@ -437,6 +443,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         if (this.active_key !== 'tool/select') {
             game?.level_editor?.clear_selection();
         }
+        if (this.active_key !== 'tool/connect') game?.level_editor?.cancel_connect?.();
         if (this.active_key !== null) {
             game?.level_editor?.refresh_backdrop_controls();
             game?.level_editor?.refresh();

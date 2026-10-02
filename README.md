@@ -225,10 +225,11 @@ Shared combat systems.
 
 ```text
 src/static/movement_regions.js
-src/static/visibility_regions.js
+src/static/signals.js
+src/static/layer_fade.js
 ```
 
-Movement regions and seamless/interior visibility regions.
+Movement regions, and Signale: keys, switches, pressure plates, Bereiche and defeated enemies send a Code; doors and layers react (a roof that disappears while the player is inside, a bridge that appears, an ambush).
 
 The backend lives mainly in:
 
@@ -424,7 +425,7 @@ They cover systems such as:
 - enemy AI
 - controls
 - movement regions
-- visibility regions
+- signals and layer fading
 - backdrop effects
 
 These tests are useful for protecting engine contracts, but they are not a substitute for actually trying changes in the Studio and playing affected games in a browser.

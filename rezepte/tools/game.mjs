@@ -176,24 +176,27 @@ function sprite_refs(value, out = []) {
     return out;
 }
 
-// signal: { code: 3, reaktion: erscheint } – how a layer reacts to signals
-// (signals.js, Ebene "Bei Signal"): erscheint | verschwindet |
-// solange_an | solange_aus | wechselt, or the engine's names.
+// signal: { code: 3, reaktion: erscheint, ueberblendung: 0.6 } – how a layer
+// or effect reacts to signals (signals.js, "Bei Signal"): erscheint |
+// verschwindet | solange_an | solange_aus | wechselt, or the engine's names.
+// ueberblendung: seconds (0 … 2), absent = the default fade.
 const LAYER_SIGNAL_REAKTIONEN = {
     erscheint: 'appear', verschwindet: 'disappear', solange_an: 'while_on',
     solange_aus: 'while_off', wechselt: 'toggle',
 };
 function layer_signal_of(signal, where) {
+    if (!signal) return {};
     const reaction = LAYER_SIGNAL_REAKTIONEN[signal.reaktion] ?? signal.reaktion;
     if (!Object.values(LAYER_SIGNAL_REAKTIONEN).includes(reaction))
         throw new Error(`${where}unbekannte Signal-Reaktion "${signal.reaktion}"`);
     if (!Number.isInteger(signal.code)) throw new Error(`${where}signal.code fehlt`);
-    return { signal_code: signal.code, signal_reaction: reaction };
+    return { signal_code: signal.code, signal_reaction: reaction,
+        ...(signal.ueberblendung !== undefined ? { signal_fade: Number(signal.ueberblendung) } : {}) };
 }
 
 /**
  * Build the game JSON, sprite sheet and scene geometry for one recipe.
- * recipe.szene: { karte | ebenen, legende?, anpassen?, ausschnitt?, himmel?, bereiche?, bewegung?, bewegungsbereiche? }
+ * recipe.szene: { karte | ebenen, legende?, anpassen?, ausschnitt?, himmel?, bereiche?, bewegung?, bewegungsbereiche?, alle_besiegt? }
  * An `ebenen` entry is a map string or { karte, name?, kollision?, id?, signal? }.
  */
 export async function build_game(catalog, recipe, repo) {
@@ -347,7 +350,8 @@ export async function build_game(catalog, recipe, repo) {
             if (![1, 2, 4].includes(colors.length)) throw new Error(`${recipe.id}: effekt farbe braucht 1, 2 oder 4 Farben`);
             return {
                 type: 'backdrop', backdrop_type: 'color', ...(e.id ? { id: e.id } : {}),
-                properties: { name: e.name ?? 'Tönung', ...(e.mischmodus ? { blend: blend_of(e.mischmodus, `${recipe.id}: `) } : {}) },
+                properties: { name: e.name ?? 'Tönung', ...(e.mischmodus ? { blend: blend_of(e.mischmodus, `${recipe.id}: `) } : {}),
+                    ...layer_signal_of(e.signal, `${recipe.id}: `) },
                 colors: clone(colors),
                 // bereich: [column, row from top, width, height] in tiles – e.g. only over a cave
                 rects: [e.bereich ?
@@ -358,7 +362,8 @@ export async function build_game(catalog, recipe, repo) {
         if (!EFFECT_POINTS[e.effekt]) throw new Error(`${recipe.id}: unbekannter Effekt "${e.effekt}"`);
         return {
             type: 'backdrop', backdrop_type: 'effect', effect: e.effekt, ...(e.id ? { id: e.id } : {}),
-            properties: { name: e.name ?? e.effekt }, scale: e.skala ?? 1.0, speed: e.tempo ?? 1.0,
+            properties: { name: e.name ?? e.effekt, ...layer_signal_of(e.signal, `${recipe.id}: `) },
+            scale: e.skala ?? 1.0, speed: e.tempo ?? 1.0,
             color: e.farbe ?? '#ffffffff', control_points: e.punkte ?? EFFECT_POINTS[e.effekt],
             ...(e.pixel ? { pixelated: true } : {}),
             ...(e.menge !== undefined ? { density: Number(e.menge) } : {}),
@@ -369,7 +374,8 @@ export async function build_game(catalog, recipe, repo) {
             ...(e.blitz_aufbau !== undefined ? { lightning_rise: Number(e.blitz_aufbau) } : {}),
             // Strömung: the direction of the streaks in degrees (0 right, 90 up)
             ...(e.richtung !== undefined ? { current_angle: Number(e.richtung) } : {}),
-            ...(e.mischmodus ? { properties: { name: e.name ?? e.effekt, blend: blend_of(e.mischmodus, `${recipe.id}: `) } } : {}),
+            ...(e.mischmodus ? { properties: { name: e.name ?? e.effekt, blend: blend_of(e.mischmodus, `${recipe.id}: `),
+                ...layer_signal_of(e.signal, `${recipe.id}: `) } } : {}),
             // bereich: [column, row from top, width, height] in tiles – e.g. only the air above the ground
             rects: [e.bereich ?
                 { left: e.bereich[0] * TILE, bottom: (rows - e.bereich[1] - e.bereich[3]) * TILE, width: e.bereich[2] * TILE, height: e.bereich[3] * TILE } :
@@ -386,16 +392,16 @@ export async function build_game(catalog, recipe, repo) {
         properties: { name, collision_detection: def.kollision !== false,
             ...(def.parallaxe && !scene.parallaxe_aus ? { parallax: Number(def.parallaxe) } : {}),
             ...(def.mischmodus ? { blend: blend_of(def.mischmodus, `${recipe.id}: `) } : {}),
-            ...(def.signal ? layer_signal_of(def.signal, `${recipe.id}: `) : {}) },
+            ...layer_signal_of(def.signal, `${recipe.id}: `) },
         sprites: placed,
     });
-    // Sichtbarkeitsbereiche: rectangles in tiles [column, row from top, width, height].
+    // Bereiche (signals.js): rectangles in tiles [column, row from top, width,
+    // height] that send their Code while the figure's centre is inside.
     const regions = (scene.bereiche ?? []).map((b, i) => {
-        if (!layer_defs.some(d => d.id === b.ziel) && !(scene.effekte ?? []).some(e => e.id === b.ziel)) throw new Error(`${recipe.id}: Bereich zielt auf unbekannte Ebene "${b.ziel}"`);
+        if (b.ziel !== undefined) throw new Error(`${recipe.id}: Sichtbarkeitsbereiche gibt es nicht mehr – ein Bereich hat einen code, die Ebene bekommt signal: { code, reaktion: solange_aus }`);
+        if (!Number.isInteger(b.code)) throw new Error(`${recipe.id}: Bereich ${i + 1}: code fehlt`);
         return {
-            type: 'visibility_region', properties: { name: b.name ?? `Sichtbarkeitsbereich ${i + 1}` },
-            target_layer_id: b.ziel, inside_visible: b.im_bereich === 'sichtbar',
-            ...(b.ueberblendung ? { fade_seconds: b.ueberblendung } : {}),
+            type: 'signal_area', properties: { name: b.name ?? `Bereich ${i + 1}`, signal_code: b.code },
             rects: b.rechtecke.map(([c, r, w, h]) => ({ left: c * TILE, bottom: (rows - r - h) * TILE, width: w * TILE, height: h * TILE })),
         };
     });
@@ -425,7 +431,9 @@ export async function build_game(catalog, recipe, repo) {
     const figure_layers = [layer('Figuren', figures)];
     const level = {
         properties: { name: recipe.titel, background_color: sky[1],
-            ...(scene.bewegung ? { movement: movement_of(scene.bewegung, 'bewegung') } : {}) },
+            ...(scene.bewegung ? { movement: movement_of(scene.bewegung, 'bewegung') } : {}),
+            // alle_besiegt: 9 – the level sends Code 9 once no enemy is left
+            ...(Number.isInteger(scene.alle_besiegt) ? { signal_all_defeated: scene.alle_besiegt } : {}) },
         layers: [
             ...movement_regions,
             ...regions,

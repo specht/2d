@@ -221,6 +221,9 @@ class Game {
                 }
             }
         }
+        // Signale (signals.js): door codes and Sichtbarkeitsbereiche of older
+        // games become the one Code and Bereiche. Deterministic.
+        promote_legacy_signals(this.data);
         // Stable sprite/level identities (game_ids.js). Deterministic, so the
         // same JSON always gets the same IDs; existing IDs are kept.
         ensure_game_ids(this.data);
@@ -1007,8 +1010,8 @@ class Game {
                     container: box, label: 'Schlüssel-Code',
                     hint: 'Der Schlüssel öffnet Türen mit demselben Code.',
                     min: 0, max: 1000, step: 1, decimalPlaces: 0,
-                    get: () => baddie().drop?.door_code ?? 0,
-                    set: (x) => { baddie().drop.door_code = Math.round(x); },
+                    get: () => baddie().drop?.signal_code ?? 0,
+                    set: (x) => { baddie().drop.signal_code = Math.round(x); },
                 });
             } else if (!('pickup' in chosen.traits)) {
                 $('<div>').css({ margin: '4px 5px 8px', color: '#d8b34d', 'font-size': '0.9em' })

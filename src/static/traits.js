@@ -351,9 +351,10 @@ var SPRITE_TRAITS = {
             },
         },
         placed_properties: {
-            door_code: {
+            // older games: door_code (signals.js promote_legacy_signals)
+            signal_code: {
                 label: 'Code',
-                hint: 'Schlüssel, Schalter und Druckplatten mit demselben Code senden dieser Tür ein Signal. Was die Tür dann macht, stellst du darunter ein.',
+                hint: 'Schlüssel, Schalter, Druckplatten, Bereiche und Gegner mit demselben Code senden dieser Tür ein Signal. Was die Tür dann macht, stellst du darunter ein.',
                 type: 'int',
                 default: 0,
                 min: 0,
@@ -377,7 +378,8 @@ var SPRITE_TRAITS = {
     key: {
         label: 'ist ein Schlüssel',
         placed_properties: {
-            door_code: {
+            // older games: door_code (signals.js promote_legacy_signals)
+            signal_code: {
                 label: 'Code',
                 hint: 'Wenn man den Schlüssel einsammelt, sendet er seinen Code. Er kann nur Türen mit demselben Code in diesem Level öffnen.',
                 type: 'int',
@@ -683,6 +685,23 @@ var SPRITE_TRAITS = {
     },
     baddie: {
         label: 'Gegner',
+        // Signale (signals.js): absent = the enemy sends nothing, as always
+        placed_properties: {
+            signal_on_defeat: {
+                label: 'sendet, wenn besiegt',
+                hint: 'Ist das an, sendet dieser Gegner seinen Code, sobald er besiegt ist – zum Beispiel öffnet sich dann ein Tor oder eine Brücke erscheint.',
+                type: 'bool',
+                default: false,
+            },
+            signal_code: {
+                label: 'Code',
+                hint: 'Diesen Code sendet der Gegner, wenn er besiegt ist (nur wenn „sendet, wenn besiegt“ an ist).',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 1000,
+            },
+        },
         properties: {
             energy: {
                 label: 'Energie',

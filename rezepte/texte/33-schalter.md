@@ -7,7 +7,7 @@ kurz: Pip legt einen Schalter um – und weiter hinten fährt ein Gittertor hoch
 szene:
   legende:
     S: { sprite: schalter, platziert: { switch: { signal_code: 3 } } }
-    G: { sprite: gittertor, platziert: { door: { door_code: 3, door_reaction: open } } }
+    G: { sprite: gittertor, platziert: { door: { signal_code: 3, door_reaction: open } } }
   karte: |
     .......M..
     .......M..

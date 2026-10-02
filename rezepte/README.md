@@ -129,7 +129,7 @@ kurz: Pip klettert eine Leiter hoch und läuft oben weiter.
 szene:
   ausschnitt: [0, 1, 10, 4]    # optional crop in tiles: column, row (from top), width, height
   legende:                     # optional, extends katalog.yaml `legende`
-    L: { sprite: schlosstuer, platziert: { door: { door_code: 7 } } }
+    L: { sprite: schlosstuer, platziert: { door: { signal_code: 7 } } }
   anpassen:                    # optional trait overrides for this recipe only
     glibber: { baddie: { patrols: false } }
   karte: |                     # one character = one 24×24 tile, '.' = empty
@@ -140,22 +140,25 @@ szene:
     ##########
   # ebenen:                    # instead of karte: several layers, back to front
   #   - name: Fassade          #   layer name shown in the editor
-  #     id: fassade            #   stable id, needed as target of a Sichtbarkeitsbereich
+  #     id: fassade            #   optional stable layer id
   #     kollision: false       #   "Kollisionen erkennen" off (decoration, facades, supports)
   #     parallaxe: 0.5         #   layer Parallaxe (-1 … 1); placed so the layer looks like
   #                            #   its map when the level starts
   #     mischmodus: leuchten   #   the layer's Mischmodus: leuchten | aufhellen | abdunkeln
   #     figuren: true          #   characters stay in this layer (a ghost behind a window)
   #                            #   instead of the common layer "Figuren"
-  #     signal: { code: 4, reaktion: erscheint }   # the layer reacts to signals (signals.js):
-  #                            #   erscheint | verschwindet | solange_an | solange_aus | wechselt
-  #     karte: |
-  #       …
-  # bereiche:                  # Sichtbarkeitsbereiche (visibility_region layers)
-  #   - { ziel: fassade, rechtecke: [[4, 2, 6, 3]], im_bereich: versteckt, ueberblendung: 0.4 }
-  #                            # rectangles in tiles: column, row from top, width, height
   #     vorne: true            #   drawn in front of the characters (water Pip wades
   #                            #   through, light falling on him). Default: behind them.
+  #     signal: { code: 4, reaktion: erscheint, ueberblendung: 0.6 }
+  #                            #   the layer reacts to signals (signals.js, "Bei Signal"):
+  #                            #   erscheint | verschwindet | solange_an | solange_aus | wechselt;
+  #                            #   ueberblendung in seconds (default 0.3). Effects take it, too.
+  #     karte: |
+  #       …
+  # bereiche:                  # Bereiche (signal_area layers): send their code "an" while the
+  #   - { name: Haus, code: 4, rechtecke: [[4, 2, 6, 3]] }   # figure's centre is inside, else "aus"
+  #                            # rectangles in tiles: column, row from top, width, height
+  # alle_besiegt: 9            # the level sends Code 9 once no enemy is left
   # bewegung: { art: schwimmen, schwerkraft: 0, gleiten: 85, tempo: 1.2, schwimmzug: 0 }
   #                            # how the player moves in the whole level (Level-Eigenschaften:
   #                            # "Bewegung im ganzen Level", src/static/movement_regions.js):
@@ -193,7 +196,7 @@ szene:
   #     #                          right behind that layer (fireflies between the trees)
   #     # menge: 1.5               snow, rain, dust: amount (1 = normal)
   #     # mischmodus: leuchten     the layer's Mischmodus
-  #     # id: staub                target of a Sichtbarkeitsbereich (bereiche: ziel: staub)
+  #     # signal: { code: 4, reaktion: solange_an }   reacts to signals like a layer
   #   - { effekt: farbe, farben: ['#56668a', '#7d6784'], mischmodus: abdunkeln }
   #     # a colour layer instead of an effect (top, bottom or [[colour, x, y], …]):
   #     # with abdunkeln a tint over the whole scene (the gloomy world in Schwebestaub)
@@ -383,9 +386,9 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `hausfront`, warm – on a layer with *Leuchten*), `dachschatten` (soft,
   dithered, *Abdunkeln*), `farbkreis` (opaque disc for *Mischmodi verstehen*).
 * **Beute:** a defeated enemy can leave a sprite behind that is collected
-  like a placed one – `traits.baddie.drop = { sprite_index, door_code }`
+  like a placed one – `traits.baddie.drop = { sprite_index, signal_code }`
   (in `katalog.yaml`/`anpassen`: `drop: { sprite_index: { sprite: schluessel },
-  door_code: 1 }`). It must be a key or have "man kann es einsammeln".
+  signal_code: 1 }`). It must be a key or have "man kann es einsammeln".
   `on_touch: true` (*gibt die Beute ab, wenn man ihn berührt*): the player
   gets it by touching the enemy, without defeating it (once).
 * **Intelligenz** (`traits.smart`, a sprite trait of its own next to

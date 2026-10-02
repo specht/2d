@@ -966,6 +966,11 @@ void main() {
 				this.update_state_and_direction('dead', 'front');
 				// Beute: an item the enemy leaves behind (a key, a life, coins …)
 				this.game.spawn_drop?.(this);
+				// Signale: "sendet, wenn besiegt", "alle Gegner besiegt" (once)
+				if (!this.defeated) {
+					this.defeated = true;
+					this.game.baddie_defeated?.(this, this.game.clock.getElapsedTime());
+				}
 				// this.mesh.visible = false;
 			}
 		}
@@ -1350,9 +1355,9 @@ void main() {
 				this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
 				console.log('picking up key!');
 				console.log(this.game.active_level_sprites[entry.entry_index]);
-				this.game.found_keys[entry.door_code] = true;
+				this.game.found_keys[entry.signal_code] = true;
 				// …and sends its Code: doors with "öffnen" and layers react, too.
-				this.game.signals?.emit(entry.door_code, true, t);
+				this.game.signals?.emit(entry.signal_code, true, t);
 				this.game.update_stats();
 			}
 
@@ -1733,7 +1738,7 @@ class Game {
 		return this.blend_materials[key];
 	}
 
-	// Beute (traits.baddie.drop = { sprite_index, door_code }): a defeated enemy
+	// Beute (traits.baddie.drop = { sprite_index, signal_code }): a defeated enemy
 	// leaves a sprite behind that can be collected like a placed one – a key
 	// (with its door code) or anything "man kann es einsammeln". Absent = nothing.
 	spawn_drop(owner) {
@@ -1757,7 +1762,7 @@ class Game {
 		for (const trait of Object.keys(sprite.traits))
 			for (const [key, data] of Object.entries(SPRITE_TRAITS[trait]?.placed_properties ?? {}))
 				entry[key] = data.type === 'bool' ? Boolean(data.default) : data.default;
-		if ('key' in sprite.traits) entry.door_code = Number.isInteger(drop.door_code) ? drop.door_code : 0;
+		if ('key' in sprite.traits) entry.signal_code = Number.isInteger(drop.signal_code) ? drop.signal_code : 0;
 		const index = this.active_level_sprites.length;
 		this.active_level_sprites.push(entry);
 		this.interval_tree_x.insert([x - sprite.width / 2, x + sprite.width / 2], index);
@@ -1771,7 +1776,10 @@ class Game {
 	// Material for a frame, honouring a layer's Mischmodus (stored on the mesh).
 	material_for_frame(info, mesh) {
 		const mode = mesh?.userData?.blend;
-		return mode ? this.blend_material(info.sheet, mode) : info.material;
+		const material = mode ? this.blend_material(info.sheet, mode) : info.material;
+		// an enemy on a layer that fades in or out (Signale) fades with it
+		const fade = this.signal_layer_fades?.get(mesh?.userData?.signal_layer);
+		return fade ? (LayerFade.copy_for(fade.materials, material, fade.alpha) ?? material) : material;
 	}
 
 	async load(tag) {
@@ -1784,6 +1792,9 @@ class Game {
 		}
 
 		this.data = await (await fetch(`/gen/games/${tag}.json`)).json();
+		// Door codes and Sichtbarkeitsbereiche of older games become Signale
+		// (signals.js), exactly as the studio does when it loads them.
+		promote_legacy_signals(this.data);
 		// Saved games refer to sprites by ID (game_ids.js); the engine keeps
 		// working with array indices. Old games already hold indices.
 		resolve_sprite_references_to_indices(this.data);
@@ -1974,7 +1985,6 @@ class Game {
 		this.mesh_catalogue = [];
 		this.overlay_mesh_catalogue = {};
 		this.layers = [];
-		this.visibility_rules = [];
 		// set up for the level in setup_signals(), after the level's sprites
 		this.signals = null;
 		this.signal_hidden_layers = new Set();
@@ -2123,11 +2133,16 @@ class Game {
 					this.meshes_for_sprite[si].push(mesh);
 					if ('actor' in sprite.traits) {
 						this.player_character = new Character(this, si, mesh);
+						this.player_character.layer_index = li;
 						this.camera_x = placed[1];
 						this.camera_y = placed[2] + this.data.properties.screen_pixel_height * 0.3;
 					}
 					else if ('baddie' in sprite.traits) {
-						this.baddies.push(new Character(this, si, mesh));
+						const baddie = new Character(this, si, mesh);
+						baddie.layer_index = li;
+						// Signale: "sendet, wenn besiegt" and its Code (absent = sends nothing)
+						baddie.placed_signal = placed[3]?.baddie ?? null;
+						this.baddies.push(baddie);
 					}
 					let fx = sprite.states[0].properties.phase_x;
 					let fy = sprite.states[0].properties.phase_y;
@@ -2171,15 +2186,11 @@ class Game {
 		}
 		// touch buttons for this level's figure (melee / ranged only if it has them)
 		this.update_touch_buttons();
-		// Sichtbarkeit beeinflusst nur Three.js-Gruppen, nicht die Kollisionsindizes.
-		this.visibility_rules = VisibilityRegions.resolve(level.layers);
 		// Bewegungsbereiche: swimming, floating, other gravity, currents (player and walking enemies)
 		this.movement_regions = typeof MovementRegions !== 'undefined' ? MovementRegions.resolve(level) : null;
-		VisibilityRegions.prepare(this.visibility_rules, this.layers);
 		// Signale (signals.js): who listens to which Code in this level
-		// (after the Sichtbarkeitsbereiche: layers fade with their own materials)
 		this.setup_signals(level);
-		this.update_layer_visibility(true);
+		this.update_layer_visibility();
 		// console.log(this.minx, this.maxx, this.miny, this.maxy);
 
 		for (let i = this.layers.length - 1; i >= 0; i--)
@@ -2295,26 +2306,22 @@ class Game {
 		}
 	}
 
-	update_layer_visibility(immediate = false) {
-		VisibilityRegions.apply(this.visibility_rules, this.layers, this.player_character,
-			this.clock.getElapsedTime(), immediate);
-		// Layers that appear or disappear by a signal fade in and out. One that
-		// is also a Sichtbarkeitsbereich's target does not fade (the region
-		// owns its materials) but stays away, also inside the region.
+	// Layers that appear or disappear by a signal fade in and out.
+	update_layer_visibility() {
 		const time = this.clock.getElapsedTime();
 		for (const [li, fade] of this.signal_layer_fades ?? []) {
 			const group = this.layers[li];
 			if (!group) continue;
 			fade.alpha = signal_fade_alpha(fade, time);
-			if (fade.materials) VisibilityRegions.setFade(fade.materials, fade.alpha);
-			if (!fade.region) group.visible = fade.alpha > 0;
-			else if (fade.to === 0) group.visible = false;
+			LayerFade.set(fade.materials, fade.alpha);
+			group.visible = fade.alpha > 0;
 		}
 	}
 
 	// ------------------------------------------------------------ Signale
-	// Senders: keys (when collected), Schalter and Druckplatten. Receivers:
-	// doors (door_reaction) and layers (signal_code / signal_reaction). See
+	// Senders: keys (when collected), Schalter, Druckplatten, Bereiche,
+	// defeated enemies and "alle Gegner besiegt". Receivers: doors
+	// (door_reaction) and layers (signal_code / signal_reaction). See
 	// signals.js. Every level starts with a new bus; objects keep their state
 	// when the figure dies.
 	setup_signals(level) {
@@ -2324,7 +2331,7 @@ class Game {
 		this.active_level_sprites.forEach((entry, entry_index) => {
 			const traits = this.data.sprites[entry.sprite_index].traits;
 			if ('door' in traits)
-				this.signals.connect(entry.door_code, (value, t) => this.door_signal(entry_index, value, t));
+				this.signals.connect(entry.signal_code, (value, t) => this.door_signal(entry_index, value, t));
 			if ('switch' in traits)
 				this.show_trait_state(entry, 'switch', entry.switch_on ? 'on' : 'off');
 			if ('pressure_plate' in traits) {
@@ -2335,40 +2342,80 @@ class Game {
 		for (let li = 0; li < level.layers.length; li++) {
 			const layer = level.layers[li];
 			if (!layer_reacts_to_signals(layer.properties)) continue;
-			// The figure and enemies are drawn in their layer: it must not take them away.
-			if ((layer.sprites ?? []).some((placed) => {
-				const traits = this.data.sprites[placed[0]]?.traits ?? {};
-				return 'actor' in traits || 'baddie' in traits;
-			})) continue;
+			// The figure is drawn in its layer: that layer must not take it away.
+			if (this.player_character?.layer_index === li) continue;
 			const reaction = layer.properties.signal_reaction;
-			const region = (this.visibility_rules ?? []).some(rule => rule.targetIndex === li);
-			this.signal_layer_fades.set(li, { region, alpha: 1, from: 1, to: 1, started_at: 0,
-				materials: region ? null : VisibilityRegions.fadeMaterials(this.layers[li], 'signalOpacity') });
+			this.signal_layer_fades.set(li, { alpha: 1, from: 1, to: 1, started_at: 0,
+				seconds: layer_fade_seconds(layer.properties),
+				materials: LayerFade.materials(this.layers[li], 'signalOpacity') });
+			// enemies on it switch their material every frame (material_for_frame)
+			for (const baddie of this.baddies) if (baddie.layer_index === li) baddie.mesh.userData.signal_layer = li;
 			let visible = layer_visible_at_start(reaction);
 			this.set_layer_signal_visible(li, visible, true);
 			this.signals.connect(layer.properties.signal_code ?? 0, (value) => {
 				visible = layer_visible_after(reaction, value, visible);
-				this.set_layer_signal_visible(li, visible);
+				this.set_layer_signal_visible(li, visible, this.signals.immediate === true);
 			});
+		}
+		// Bereiche: rectangles that send when the figure's centre enters or leaves them
+		this.signal_areas = [];
+		level.layers.forEach((layer, li) => {
+			if (layer?.type !== 'signal_area' || !(layer.rects ?? []).some(valid_signal_rect)) return;
+			this.signal_areas.push({ li, code: layer.properties?.signal_code ?? 0, rects: layer.rects, inside: false });
+		});
+		// "alle Gegner besiegt" (level setting; absent = nothing is sent)
+		const all = level.properties?.signal_all_defeated;
+		this.signal_all_defeated = Number.isInteger(all) ? all : null;
+		// A figure that starts inside a Bereich: the level looks right at once.
+		this.signals.immediate = true;
+		this.update_signal_areas(0);
+		this.signals.immediate = false;
+	}
+
+	update_signal_areas(t) {
+		const pc = this.player_character;
+		if (!pc?.mesh || !this.signal_areas?.length) return;
+		const x = pc.mesh.position.x;
+		const y = pc.mesh.position.y + pc.sprite.height / 2;
+		for (const area of this.signal_areas) {
+			const inside = point_in_signal_rects(area.rects, x, y);
+			if (inside === area.inside) continue;
+			area.inside = inside;
+			this.signals?.emit(area.code, inside, t);
 		}
 	}
 
-	// A layer that is away is not drawn and its sprites do not collide
-	// (collision_candidates skips them). Sichtbarkeitsbereiche only change the
-	// drawing; this changes the level.
+	// A defeated enemy sends its Code ("sendet, wenn besiegt"); once no enemy
+	// is left in the level (enemies on a layer that is away do not count yet),
+	// the level sends "alle Gegner besiegt".
+	baddie_defeated(baddie, t) {
+		if (baddie.placed_signal?.signal_on_defeat === true)
+			this.signals?.emit(baddie.placed_signal.signal_code ?? 0, true, t);
+		if (this.signal_all_defeated === null || this.signal_all_defeated === undefined) return;
+		if (this.baddies.some(other => other.active && !other.signal_hidden)) return;
+		this.signals?.emit(this.signal_all_defeated, true, t);
+	}
+
+	// A layer that is away is not drawn, its sprites do not collide
+	// (collision_candidates skips them) and its enemies wait (not moving, not
+	// hurting, not to be hit) until it appears.
 	set_layer_signal_visible(li, visible, immediate = false) {
 		if (visible) this.signal_hidden_layers.delete(li);
 		else this.signal_hidden_layers.add(li);
 		for (const entry of this.active_level_sprites)
 			if (entry.layer_index === li) entry.signal_hidden = !visible;
+		for (const baddie of this.baddies ?? [])
+			if (baddie.layer_index === li) baddie.signal_hidden = !visible;
+		this.dynamic_interval_frame = -1;
 		const fade = this.signal_layer_fades?.get(li);
 		if (fade) {
 			const time = this.clock.getElapsedTime();
-			fade.from = immediate ? (visible ? 1 : 0) : signal_fade_alpha(fade, time);
+			const now = immediate || !(fade.seconds > 0);
+			fade.from = now ? (visible ? 1 : 0) : signal_fade_alpha(fade, time);
 			fade.to = visible ? 1 : 0;
 			fade.started_at = time;
 		}
-		// shown again: the fade (or a Sichtbarkeitsbereich) decides in the same frame (render)
+		// shown again: the fade decides in the same frame (render)
 		if (visible && this.layers[li]) this.layers[li].visible = true;
 		if (!visible && immediate && this.layers[li]) this.layers[li].visible = false;
 	}
@@ -2412,7 +2459,7 @@ class Game {
 		const closed = entry.door_signal_pending ? entry.door_signal_pending === 'close' :
 			entry.door_state === 'opening' ? false : entry.door_state === 'closing' ? true : entry.door_closed;
 		const action = door_signal_action(entry.door_reaction, value, closed);
-		if (action === 'unlock') this.found_keys[entry.door_code] = true;
+		if (action === 'unlock') this.found_keys[entry.signal_code] = true;
 		else if (action) this.move_door_by_signal(entry_index, action, t);
 	}
 
@@ -2644,7 +2691,13 @@ class Game {
 			this.player_character.mesh.position.x = this.player_character.initial_position[0];
 			this.player_character.mesh.position.y = this.player_character.initial_position[1];
 			this.player_character.invincible_until = this.clock.getElapsedTime() + this.data.properties.respawn_invincible;
-			this.update_layer_visibility(true);
+			// back at the start or the checkpoint: Bereiche decide at once, without fading
+			if (this.signals) {
+				this.signals.immediate = true;
+				this.update_signal_areas(this.clock.getElapsedTime());
+				this.signals.immediate = false;
+			}
+			this.update_layer_visibility();
 		}
 	}
 
@@ -2945,8 +2998,10 @@ class Game {
 	simulation_step(t) {
 		if (this.player_character !== null)
 			this.player_character.simulation_step(t);
+		// enemies on a layer that is away (Signale) wait
 		for (let baddie of this.baddies)
-			baddie.simulation_step(t);
+			if (!baddie.signal_hidden) baddie.simulation_step(t);
+		this.update_signal_areas(t);
 		if (this.combat.game_allows_combat()) {
 			this.request_melee_attacks(t);
 			this.request_ranged_attacks(t);
@@ -3010,7 +3065,7 @@ class Game {
 			this.dynamic_interval_tree_y.clear();
 			for (let bi = 0; bi < this.baddies.length; bi++) {
 				let baddie = this.baddies[bi];
-				if (!baddie.active) continue;
+				if (!baddie.active || baddie.signal_hidden) continue;
 				let x = baddie.mesh.position.x;
 				let y = baddie.mesh.position.y;
 				let x0 = x - (baddie.sprite.width / 2) * baddie.traits.ex_left;
@@ -3047,7 +3102,7 @@ class Game {
 		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
 		for (let entry_index of result) {
 			let baddie = this.baddies[entry_index];
-			if (baddie.active) return baddie;
+			if (baddie.active && !baddie.signal_hidden) return baddie;
 		}
 		return null;
 	}
@@ -3061,8 +3116,8 @@ class Game {
 		let ok = false;
 		if (sprite.traits.door.lockable && !options.force) {
 			// check if we have correct key
-			console.log(`Checking door key: ${entry.door_code}, have: `, this.found_keys)
-			if (this.found_keys[entry.door_code] === true) {
+			console.log(`Checking door key: ${entry.signal_code}, have: `, this.found_keys)
+			if (this.found_keys[entry.signal_code] === true) {
 				ok = true;
 			}
 		} else {
