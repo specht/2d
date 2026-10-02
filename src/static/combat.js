@@ -32,6 +32,9 @@ class CombatImpactEffects {
 
     spawn(instance, target, time) {
         const si = instance.definition.visual?.hit_sprite_index;
+        // No hit effect configured (the common case): nothing to place, so the
+        // target's position is not needed either.
+        if (!Number.isInteger(si) || !target?.mesh?.position) return;
         const sprite = this.game.data?.sprites?.[si];
         // Atlas planes are anchored at their bottom edge. Draw at native size,
         // centred on the target and aligned to whole logical game pixels.

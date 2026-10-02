@@ -318,10 +318,10 @@ test('Generic Nahkampfangriff editor displays and edits modern and legacy attack
     const widget = (type) => class {
         constructor(options) { controls.push({ type, ...options }); }
     };
-    const $ = () => ({ text() { return this; }, appendTo() { return this; } });
-    const Editor = new Function('NumberWidget', 'SelectWidget', 'LineEditWidget', 'melee_attack_for_editor', '$',
+    const $ = () => ({ addClass() { return this; }, text() { return this; }, appendTo() { return this; } });
+    const Editor = new Function('NumberWidget', 'SelectWidget', 'LineEditWidget', 'SpriteSelectWidget', 'melee_attack_for_editor', '$',
         `return class Editor { ${source.slice(start, end)} };`)(
-            widget('number'), widget('select'), widget('text'), melee_attack_for_editor, $);
+            widget('number'), widget('select'), widget('text'), widget('sprite'), melee_attack_for_editor, $);
     const actorOld = {
         id: 'sword', slot: 'nah', delivery: { kind: 'swing', range_px: 40 },
         effect: { kind: 'damage', amount: 20 }, timing: { cooldown_s: 0.6 },
