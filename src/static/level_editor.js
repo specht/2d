@@ -962,6 +962,18 @@ class LevelEditor {
         }
     }
 
+    // ------------------------------------------------------- test runs
+    // "Level testen": this level in the Spielen pane. With the mouse over the
+    // level (key T), the figure starts on the grid cell under the mouse.
+    start_playtest() {
+        const options = { level_index: this.level_index, start: null };
+        if (this.pointer_inside && this.pointer_world_raw) {
+            const [x, y] = this.ui_to_world(this.pointer_world_raw, true);
+            options.start = { x, y };
+        }
+        window.studio_start_playtest?.(options);
+    }
+
     // ---------------------------------------------- Signale: connections
     // Animated dashes run from what sends to what reacts (signals.js), and
     // both get a pulsing frame. Shown for what is selected (a placed sprite,

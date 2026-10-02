@@ -1635,6 +1635,19 @@ class Game {
 			// playing. The established default keys keep their old behaviour.
 			if (this.running && this.key_actions.has(e.code) && !DEFAULT_CONTROL_KEYS.has(e.code))
 				e.preventDefault();
+			// a test run from the studio: R starts the level again (unless R is
+			// one of the game's own keys), Esc goes back to the level editor
+			if (this.playtest && !e.repeat && (e.key ?? '').toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey &&
+				!this.key_actions.has(e.code)) {
+				e.preventDefault();
+				this.restart_playtest();
+				return;
+			}
+			if (this.playtest && e.code === 'Escape') {
+				e.preventDefault();
+				this.end_playtest();
+				return;
+			}
 			this.handle_key_down(e.code)
 		});
 		window.addEventListener('keyup', (e) => {
@@ -1784,6 +1797,8 @@ class Game {
 
 	async load(tag) {
 		// load game json
+		this.playtest = null;
+		$('#playtest_badge').removeClass('showing');
 		this.reset();
 		if (window.yt_player !== null) {
 			try {
@@ -2701,6 +2716,82 @@ class Game {
 		}
 	}
 
+	// -------------------------------------------------------- test runs
+	// "Level testen" in the studio: straight into one level, without the
+	// start screen and the curtain, optionally with the figure at a chosen
+	// point (start: { x, y }, its feet there). Nothing about the game changes.
+	start_playtest({ level_index = 0, start = null } = {}) {
+		if (!this.data) return;
+		const count = this.data.levels?.length ?? 0;
+		this.playtest = { level_index: Math.max(0, Math.min(count - 1, level_index | 0)), start };
+		this.reset();
+		this.level_index = this.playtest.level_index;
+		this.setup();
+		const pc = this.player_character;
+		if (pc && start && Number.isFinite(start.x) && Number.isFinite(start.y)) {
+			pc.mesh.position.x = start.x;
+			pc.mesh.position.y = this.free_start_height(pc, start.x, start.y);
+			// dying brings the figure back here, too
+			pc.initial_position = [pc.mesh.position.x, pc.mesh.position.y];
+			this.camera_x = pc.mesh.position.x;
+			this.camera_y = pc.mesh.position.y + this.data.properties.screen_pixel_height * 0.3;
+			// Bereiche and the picture: as if the level had started here
+			if (this.signals) {
+				this.signals.immediate = true;
+				this.update_signal_areas(0);
+				this.signals.immediate = false;
+			}
+			this.update_layer_visibility();
+		}
+		$('#overlay').stop(true, true).hide();
+		$('#screen').stop(true, true).show();
+		$('#playtest_badge').addClass('showing');
+		this.frame = 0;
+		this.clock.start();
+		this.run();
+	}
+
+	// Clicked on the floor or a wall: the figure stands on top of it instead
+	// of being stuck inside.
+	free_start_height(pc, x, y) {
+		const half = pc.sprite.width * 0.5;
+		for (let tries = 0; tries < 64; tries++) {
+			const solid = this.collision_candidates(x - half * pc.traits.ex_left + 0.5, x + half * pc.traits.ex_right - 0.5,
+				y + 0.5, y + pc.sprite.height * pc.traits.ex_top - 0.5)
+				.map(i => this.active_level_sprites[i])
+				.filter(entry => {
+					const traits = this.data.sprites[entry.sprite_index].traits;
+					return 'block_sides' in traits || 'block_above' in traits || 'block_below' in traits ||
+						('door' in traits && entry.door_closed);
+				});
+			if (!solid.length) return y;
+			y = Math.max(...solid.map(entry => entry.mesh.position.y + this.data.sprites[entry.sprite_index].height));
+		}
+		return y;
+	}
+
+	// Without stop(): no fading out and in. The running frame loop ends by
+	// itself (running is false), the new one starts a frame later.
+	restart_playtest() {
+		if (!this.playtest || this.restarting_playtest) return;
+		this.restarting_playtest = true;
+		$('#text_frame').removeClass('showing');
+		this.curtain.hide();
+		this.running = false;
+		requestAnimationFrame(() => requestAnimationFrame(() => {
+			this.restarting_playtest = false;
+			if (this.playtest) this.start_playtest(this.playtest);
+		}));
+	}
+
+	end_playtest() {
+		this.stop();
+		this.playtest = null;
+		$('#playtest_badge').removeClass('showing');
+		// back to the level editor, exactly where it was
+		try { window.parent?.studio_return_from_playtest?.(); } catch { }
+	}
+
 	// Built like the overlay icons, but only on first use (see ALERT_ICON).
 	alert_icon_template() {
 		if (this.alert_icon_mesh !== undefined) return this.alert_icon_mesh;
@@ -3360,6 +3451,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 	if (tag.length === 7) window.game.load(tag);
 
 	$('#mi_start').click(function (e) {
+		window.game.playtest = null;
+		$('#playtest_badge').removeClass('showing');
 		window.game.level_index = 0;
 		window.game.reset();
 		window.game.setup();
