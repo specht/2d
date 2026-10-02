@@ -431,6 +431,7 @@ class LevelEditor {
 
                 // Signale: "alle Gegner besiegt" (absent = the level sends nothing)
                 self.add_all_defeated_controls($('<div>').appendTo($('#menu_level_properties')));
+                self.add_level_start_controls($('<div>').appendTo($('#menu_level_properties')));
                 self.add_level_complete_controls($('<div>').appendTo($('#menu_level_properties')));
 
                 // Bewegung im ganzen Level (movement_regions.js): absent = as always
@@ -1349,6 +1350,7 @@ class LevelEditor {
             if (!(object.setting in (level.properties ?? {}))) return false;
             delete level.properties[object.setting];
             if (object.setting === 'signal_all_defeated') delete level.properties.signal_all_defeated_delay;
+            if (object.setting === 'signal_level_start') delete level.properties.signal_level_start_delay;
             return true;
         }
         const layer = level.layers[object.layer_index];
@@ -1368,7 +1370,7 @@ class LevelEditor {
         if (!placed || !trait) return false;
         if (!placed[3] || typeof placed[3] !== 'object') placed[3] = {};
         const props = placed[3][trait] ??= {};
-        const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal' }[trait];
+        const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal', pickup: 'signal_on_collect' }[trait];
         if (flag) {
             props[flag] = false;
             delete props.signal_code;
@@ -1816,6 +1818,81 @@ class LevelEditor {
             },
         });
         links.appendTo(box);
+        update();
+    }
+
+    // Level setting: the level sends a Code when it starts (signals.js, app.js
+    // setup_signals) – with a Verzögerung a simple timer. Absent = nothing.
+    add_level_start_controls(box) {
+        const level = this.game.data.levels[this.level_index];
+        const links = $('<div class="signal-links">');
+        let details = null, code_widget = null, delay_widget = null;
+        const update = () => {
+            const code = level.properties.signal_level_start;
+            details?.toggle(Number.isInteger(code));
+            links.text(Number.isInteger(code) ? describe_signal_partners(code, signal_partners(level, code,
+                ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits), signal_name(level, code)) : '');
+            this.build_signal_links();
+        };
+        const toggle = new CheckboxWidget({
+            container: box,
+            label: 'sendet beim Start',
+            hint: 'Das Level sendet einen Code mit „an“, sobald es beginnt (auch nach R im Test, aber nicht nach einem verlorenen Leben). Mit einer Verzögerung ist das eine Uhr: Nach so vielen Sekunden geht zum Beispiel das Tor zu, erscheint eine Brücke oder ist das Level geschafft („geschafft bei Signal“ mit demselben Code). Die Zeit läuft weiter, wenn die Spielfigur ein Leben verliert.',
+            get: () => Number.isInteger(level.properties.signal_level_start),
+            set: (on) => {
+                if (on) level.properties.signal_level_start = free_signal_code(level);
+                else {
+                    delete level.properties.signal_level_start;
+                    delete level.properties.signal_level_start_delay;
+                }
+                code_widget?.refresh();
+                delay_widget?.refresh();
+                update();
+            },
+        });
+        details = $('<div>').appendTo(box);
+        code_widget = new SignalCodeWidget({
+            editor: this,
+            container: details,
+            label: 'Code',
+            // "Kein Signal": the level sends nothing when it starts
+            clear: () => {
+                delete level.properties.signal_level_start;
+                delete level.properties.signal_level_start_delay;
+                toggle.refresh();
+                delay_widget?.refresh();
+                update();
+            },
+            get: () => level.properties.signal_level_start ?? 0,
+            set: (value) => {
+                level.properties.signal_level_start = Math.round(value);
+                update();
+            },
+        });
+        // absent = 0 = at once (signals.js)
+        delay_widget = new NumberWidget({
+            container: details,
+            label: 'Verzögerung',
+            hint: 'So viele Sekunden nach dem Start kommt das Signal an – eine Uhr für dein Level. 0: sofort.',
+            min: 0,
+            max: SIGNAL_DELAY_MAX_SECONDS,
+            step: 0.5,
+            decimalPlaces: 1,
+            suffix: 's',
+            get: () => level.properties.signal_level_start_delay ?? 0,
+            set: (value) => {
+                level.properties.signal_level_start_delay = value;
+                this.build_signal_links();
+            },
+        });
+        links.appendTo(box);
+        // the overview can take this setting away: then the box shows it at once
+        box.addClass('level-signal-controls').data('refresh', () => {
+            toggle.refresh();
+            code_widget?.refresh();
+            delay_widget?.refresh();
+            update();
+        });
         update();
     }
 
@@ -3728,8 +3805,10 @@ class LevelEditor {
                                 give_defeat_sender_code(level, props);
                                 widgets['baddie/signal_code']?.refresh();
                             }
-                            // "spricht bei Signal": a free Code, so it does not start with the keys and doors on 0
-                            if (trait === 'text' && key === 'speaks_on_signal' && value === true && !('signal_code' in props))
+                            // "spricht bei Signal" / "sendet, wenn eingesammelt": a free Code, so it does
+                            // not start with the keys and doors on 0
+                            if (((trait === 'text' && key === 'speaks_on_signal') || (trait === 'pickup' && key === 'signal_on_collect')) &&
+                                value === true && !('signal_code' in props))
                                 props.signal_code = free_signal_code(level);
                             // a setting that shows or hides others ("Wer spricht" → Textfarbe)
                             if (property.rebuilds_panel) {
@@ -3746,7 +3825,7 @@ class LevelEditor {
                                 const props = writable_props_of(trait);
                                 // an enemy or a sign: its signal switches off; a key, door,
                                 // Schalter or Druckplatte: null, it neither sends nor reacts
-                                const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal' }[trait];
+                                const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal', pickup: 'signal_on_collect' }[trait];
                                 if (flag) {
                                     props[flag] = false;
                                     delete props.signal_code;

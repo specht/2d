@@ -353,7 +353,7 @@ test('the editor tells what else in the level has a Code', () => {
         { type: 'backdrop', properties: {} },
     ] };
     const of = (code) => signal_partners(level, code, ref => traits[ref]);
-    assert.deepEqual(of(3), { counts: { switch: 1, door: 2 }, layers: ['Brücke', 'Ebene 4'], areas: [], all_defeated: false, level_complete: false });
+    assert.deepEqual(of(3), { counts: { switch: 1, door: 2 }, layers: ['Brücke', 'Ebene 4'], areas: [], all_defeated: false, level_complete: false, level_start: false });
     assert.equal(describe_signal_partners(3, of(3)),
         'Code 3 in diesem Level – sendet: 1 Schalter · reagiert: 2 Türen, Ebene »Brücke«, Ebene »Ebene 4«');
     assert.equal(describe_signal_partners(0, of(0)), 'Code 0 in diesem Level – sendet: 1 Schlüssel · reagiert: 1 Tür');
@@ -1107,4 +1107,66 @@ test('a door with "kein Signal" reacts to nothing in the game', () => {
     const entry = zero.active_level_sprites[0];
     assert.ok(entry.door_closed === false || entry.door_state === 'opening' || entry.door_signal_pending === 'open',
         `door on 0 should start opening: ${JSON.stringify({ closed: entry.door_closed, state: entry.door_state })}`);
+});
+
+// ------------------------------- anything collected, and the level's start
+
+test('a collected sprite sends only with "sendet, wenn eingesammelt"; a key that is also a pickup stays a key', () => {
+    const { placed_signal_role } = signals;
+    const traits = { g: { pickup: {} }, kp: { key: {}, pickup: {} } };
+    assert.equal(placed_signal_role(['g', 0, 0, { pickup: { signal_code: 3 } }], traits.g), null);
+    const gem = placed_signal_role(['g', 0, 0, { pickup: { signal_on_collect: true, signal_code: 3 } }], traits.g);
+    assert.deepEqual([gem.role.trait, gem.code], ['pickup', 3]);
+    const key = placed_signal_role(['kp', 0, 0, { key: { signal_code: 7 }, pickup: { signal_on_collect: true, signal_code: 3 } }], traits.kp);
+    assert.deepEqual([key.role.trait, key.code], ['key', 7]);
+});
+
+test('signal_rules: a collected sprite and the level start are senders; Verbinden switches a pickup on', () => {
+    const traits = { g: { pickup: {} }, d: { door: { lockable: true } } };
+    const level = { properties: { signal_level_start: 2, signal_level_start_delay: 30 }, layers: [
+        { type: 'sprites', properties: {}, sprites: [
+            ['g', 0, 0, { pickup: { signal_on_collect: true, signal_code: 1, signal_delay: 1 } }],
+            ['d', 40, 0, { door: { signal_code: 1, door_reaction: 'open' } }],
+            ['d', 80, 0, { door: { signal_code: 2, door_reaction: 'close' } }]] },
+    ] };
+    const cards = signals.signal_rules(level, r => traits[r], () => 'Edelstein');
+    assert.deepEqual(cards[0].senders.map(l => l.text), ['»Edelstein« eingesammelt wird (kommt nach 1 s an)']);
+    assert.deepEqual(cards[0].senders[0].objects, [{ kind: 'sprite', layer_index: 0, placed_index: 0, role: 'pickup' }]);
+    assert.deepEqual(cards[1].senders.map(l => l.text), ['das Level startet (kommt nach 30 s an)']);
+    assert.deepEqual(cards[1].senders[0].objects, [{ kind: 'level', setting: 'signal_level_start' }]);
+    assert.equal(signals.describe_signal_partners(2, signals.signal_partners(level, 2, r => traits[r])),
+        'Code 2 in diesem Level – sendet: Levelstart · reagiert: 1 Tür');
+    assert.ok(signals.signal_codes_in_level({ properties: { signal_level_start: 9 }, layers: [] }).has(9));
+    // Verbinden onto a plain pickup
+    const plain = { properties: {}, layers: [{ type: 'sprites', properties: {}, sprites: [
+        ['g', 0, 0, {}], ['d', 40, 0, { door: { door_reaction: 'open' } }]] }] };
+    const size_of = () => ({ width: 16, height: 16 }), of = r => traits[r];
+    const a = signals.pick_signal_object(plain, 0, 8, of, size_of, 0, 'sender');
+    const b = signals.pick_signal_object(plain, 40, 8, of, size_of, 0, 'receiver');
+    assert.equal(a.trait, 'pickup');
+    const code = signals.connect_signal_objects(plain, a, b, of, size_of);
+    assert.deepEqual(plain.layers[0].sprites[0][3].pickup, { signal_code: code, signal_on_collect: true });
+});
+
+test('"sendet beim Start": at once without a Verzögerung, a timer with one', () => {
+    const door = () => [[1, 0, 0, { signal_code: 5, door_reaction: 'open', door_closed: true }]];
+    const opening = (entry) => entry.door_closed === false || entry.door_state === 'opening' || entry.door_signal_pending === 'open';
+    const at_once = level_game([{ properties: {}, sprites: door() }]);
+    at_once.setup_signals({ properties: { signal_level_start: 5 }, layers: [{ properties: {}, sprites: [] }] });
+    assert.deepEqual(at_once.signals.sent, [[5, true]]);
+    assert.ok(opening(at_once.active_level_sprites[0]));
+    const timer = level_game([{ properties: {}, sprites: door() }]);
+    timer.setup_signals({ properties: { signal_level_start: 5, signal_level_start_delay: 2 }, layers: [{ properties: {}, sprites: [] }] });
+    assert.deepEqual(timer.signals.sent, []);
+    timer.signals.deliver_due(1.9);
+    assert.deepEqual(timer.signals.sent, []);
+    timer.signals.deliver_due(2);
+    assert.deepEqual(timer.signals.sent, [[5, true]]);
+    assert.ok(opening(timer.active_level_sprites[0]));
+    // a respawn (deciding at once again) does not take the timer back
+    const again = level_game([{ properties: {}, sprites: door() }]);
+    again.setup_signals({ properties: { signal_level_start: 5, signal_level_start_delay: 2 }, layers: [{ properties: {}, sprites: [] }] });
+    again.signals.immediate = true; again.update_signal_areas(1); again.signals.immediate = false;
+    again.signals.deliver_due(2);
+    assert.deepEqual(again.signals.sent, [[5, true]]);
 });

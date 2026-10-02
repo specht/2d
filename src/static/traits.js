@@ -584,6 +584,32 @@ var SPRITE_TRAITS = {
     },
     pickup: {
         label: 'man kann es einsammeln',
+        // Signale (signals.js): absent = it sends nothing, as always. Stored as
+        // placed pickup.signal_* like every Code; in the game they are entry fields
+        // of their own (entry_key), so a key that is also a pickup keeps its Code.
+        placed_properties: {
+            signal_on_collect: {
+                label: 'sendet, wenn eingesammelt',
+                hint: 'Ist das an, sendet dieses Sprite seinen Code, sobald die Spielfigur es einsammelt – zum Beispiel erscheint dann eine Brücke, wenn man den Edelstein holt.',
+                type: 'bool',
+                default: false,
+                entry_key: 'pickup_signal_on',
+                rebuilds_panel: true,   // Code and Verzögerung appear or go
+            },
+            signal_code: {
+                label: 'Code',
+                hint: 'Diesen Code sendet das Sprite, wenn es eingesammelt wird.',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 1000,
+                entry_key: 'pickup_signal_code',
+                visible: (traits, traits_of, props) => props?.signal_on_collect === true,
+            },
+            signal_delay: { ...signal_delay_placed_property('Das Sprite sendet seinen Code erst so viele Sekunden nach dem Einsammeln.'),
+                entry_key: 'pickup_signal_delay',
+                visible: (traits, traits_of, props) => props?.signal_on_collect === true },
+        },
         properties: {
             duration: {
                 label: 'Ausblenden',

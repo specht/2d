@@ -8,7 +8,10 @@
 // - a Bereich (layer type signal_area), when the player's centre enters one
 //   of its rectangles (an) and leaves them again (aus)
 // - an enemy that is defeated (placed baddie.signal_on_defeat): an
+// - any collected sprite with placed pickup.signal_on_collect: an
 // - the level when no enemy is left (properties.signal_all_defeated): an
+// - the level when it starts (properties.signal_level_start): an – with a
+//   Verzögerung a simple timer
 //
 // Receivers with the same Code react, each in its own way:
 // - a door: placed property door_reaction (default: unlock, exactly what a
@@ -334,6 +337,10 @@ const SIGNAL_SPRITE_ROLES = [
     // a sign that speaks on "an" (placed text.speaks_on_signal; absent = only with F, as always)
     { trait: 'text', sends: false, one: 'Hinweistext', many: 'Hinweistexte',
         active: (props) => props?.speaks_on_signal === true },
+    // anything collected (placed pickup.signal_on_collect; absent = sends nothing, as always).
+    // Last: a key that is also a pickup is a key here.
+    { trait: 'pickup', sends: true, one: 'Sammelobjekt', many: 'Sammelobjekte',
+        active: (props) => props?.signal_on_collect === true },
 ];
 
 // The role of a placed sprite in the Signale (or null), and its Code.
@@ -452,7 +459,9 @@ function signal_partners(level, code, traits_of) {
         level.properties.signal_all_defeated === wanted;
     const level_complete = Number.isInteger(level?.properties?.signal_level_complete) &&
         level.properties.signal_level_complete === wanted;
-    return { counts, layers, areas, all_defeated, level_complete };
+    const level_start = Number.isInteger(level?.properties?.signal_level_start) &&
+        level.properties.signal_level_start === wanted;
+    return { counts, layers, areas, all_defeated, level_complete, level_start };
 }
 
 // "Code 7 in diesem Level – sendet: 1 Schalter · reagiert: 2 Türen, Ebene »Brücke«"
@@ -465,7 +474,7 @@ function describe_signal_partners(code, partners, name = '') {
             return `${count} ${count === 1 ? role.one : role.many}`;
         });
     const senders = [...list(true), ...(partners.areas ?? []).map(name => `Bereich »${name}«`),
-        ...(partners.all_defeated ? ['alle Gegner besiegt'] : [])];
+        ...(partners.all_defeated ? ['alle Gegner besiegt'] : []), ...(partners.level_start ? ['Levelstart'] : [])];
     const receivers = [...list(false), ...partners.layers.map(name => `Ebene »${name}«`),
         ...(partners.level_complete ? ['Level geschafft'] : [])];
     const parts = [];
@@ -639,6 +648,7 @@ function set_signal_object_code(level, object, code, sender) {
         props.signal_code = code;
         if (object.trait === 'baddie') props.signal_on_defeat = true;
         if (object.trait === 'text') props.speaks_on_signal = true;
+        if (object.trait === 'pickup') props.signal_on_collect = true;
         if (object.trait === 'door' && sender && (props.door_reaction ?? 'unlock') === 'unlock') {
             const reaction = sender.kind === 'area' || ['switch', 'pressure_plate'].includes(sender.trait) ? 'follow' :
                 sender.trait === 'baddie' ? 'open' : null;
@@ -671,6 +681,7 @@ const SIGNAL_SENDER_TEXT = {
     pressure_plate: (n) => `die Spielfigur auf »${n}« tritt`,
     baddie: (n) => `»${n}« besiegt ist`,
     loot: (n) => `der Schlüssel von »${n}« eingesammelt wird`,
+    pickup: (n) => `»${n}« eingesammelt wird`,
 };
 // what "aus" means for a sender that also sends it
 const SIGNAL_SENDER_OFF_TEXT = {
@@ -759,6 +770,10 @@ function signal_rules(level, traits_of, name_of) {
     if (Number.isInteger(all))
         add(card(all).senders, 'alle Gegner besiegt sind' + delay_text(level.properties.signal_all_defeated_delay),
             { kind: 'level', setting: 'signal_all_defeated' });
+    const start = level?.properties?.signal_level_start;
+    if (Number.isInteger(start))
+        add(card(start).senders, 'das Level startet' + delay_text(level.properties.signal_level_start_delay),
+            { kind: 'level', setting: 'signal_level_start' });
     const complete = level?.properties?.signal_level_complete;
     if (Number.isInteger(complete))
         add(card(complete).receivers, 'ist das Level geschafft', { kind: 'level', setting: 'signal_level_complete' });
@@ -859,6 +874,7 @@ function signal_codes_in_level(level) {
     }
     add(level?.properties?.signal_all_defeated);
     add(level?.properties?.signal_level_complete);
+    add(level?.properties?.signal_level_start);
     // a named Code stays taken even when nothing uses it right now, so a new
     // Schalter never turns up with somebody else's old name
     for (const key of Object.keys(signal_names_of(level) ?? {}))

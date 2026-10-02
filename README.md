@@ -24,7 +24,7 @@ The Studio lets you:
 - configure collision and movement
 - use slopes, ladders, conveyors and moving environments
 - create doors, keys and checkpoints
-- connect switches, pressure plates, keys, Bereiche and defeated enemies to doors and layers by a shared Code (Signale)
+- connect switches, pressure plates, keys, collectibles, Bereiche, defeated enemies and the start of a level (a timer) to doors, layers, speaking signs and the end of a level by a shared, nameable Code (Signale), and see every rule of a level in one overview
 - let signs and characters speak in pixel-font speech bubbles
 - add collectibles and hazards
 - create melee and ranged combat
@@ -229,7 +229,7 @@ src/static/layer_fade.js
 src/static/speech.js
 ```
 
-Movement regions, and Signale: keys, switches, pressure plates, Bereiche and defeated enemies send a Code; doors and layers react (a roof that disappears while the player is inside, a bridge that appears, an ambush). Speech bubbles for signs and characters.
+Movement regions, and Signale: keys, collectibles, switches, pressure plates, Bereiche, defeated enemies and the level's start send a Code; doors, layers, signs and the level react (a roof that disappears while the player is inside, a bridge that appears, an ambush, a sign that speaks when the player walks past, a level that is done once every enemy is defeated). Speech bubbles for signs and characters.
 
 ```text
 src/static/image_import.js
