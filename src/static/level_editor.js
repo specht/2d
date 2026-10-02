@@ -787,6 +787,10 @@ class LevelEditor {
         const layers = this.game.data.levels[index]?.layers ?? [];
         if (view.layer_index > 0 && view.layer_index < layers.length)
             $('#menu_layers > ._dnd_item').eq(view.layer_index).children().eq(0).trigger('click');
+        // Showing the level fitted the camera to its sprites and drew the grid
+        // (and backdrop handles) for that view: draw them again for the old one.
+        this.backdrop_controls_setup_for = null;
+        this.refresh();
         this.render();
     }
 
