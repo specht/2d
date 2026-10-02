@@ -2169,8 +2169,6 @@ class Game {
 			}
 			this.layers.push(game_layer);
 		}
-		// Signale (signals.js): who listens to which Code in this level
-		this.setup_signals(level);
 		// touch buttons for this level's figure (melee / ranged only if it has them)
 		this.update_touch_buttons();
 		// Sichtbarkeit beeinflusst nur Three.js-Gruppen, nicht die Kollisionsindizes.
@@ -2178,6 +2176,9 @@ class Game {
 		// Bewegungsbereiche: swimming, floating, other gravity, currents (player and walking enemies)
 		this.movement_regions = typeof MovementRegions !== 'undefined' ? MovementRegions.resolve(level) : null;
 		VisibilityRegions.prepare(this.visibility_rules, this.layers);
+		// Signale (signals.js): who listens to which Code in this level
+		// (after the Sichtbarkeitsbereiche: layers fade with their own materials)
+		this.setup_signals(level);
 		this.update_layer_visibility(true);
 		// console.log(this.minx, this.maxx, this.miny, this.maxy);
 
@@ -2297,9 +2298,17 @@ class Game {
 	update_layer_visibility(immediate = false) {
 		VisibilityRegions.apply(this.visibility_rules, this.layers, this.player_character,
 			this.clock.getElapsedTime(), immediate);
-		// A layer a signal has taken away stays away, also inside a Sichtbarkeitsbereich.
-		for (const li of this.signal_hidden_layers ?? []) {
-			if (this.layers[li]) this.layers[li].visible = false;
+		// Layers that appear or disappear by a signal fade in and out. One that
+		// is also a Sichtbarkeitsbereich's target does not fade (the region
+		// owns its materials) but stays away, also inside the region.
+		const time = this.clock.getElapsedTime();
+		for (const [li, fade] of this.signal_layer_fades ?? []) {
+			const group = this.layers[li];
+			if (!group) continue;
+			fade.alpha = signal_fade_alpha(fade, time);
+			if (fade.materials) VisibilityRegions.setFade(fade.materials, fade.alpha);
+			if (!fade.region) group.visible = fade.alpha > 0;
+			else if (fade.to === 0) group.visible = false;
 		}
 	}
 
@@ -2311,6 +2320,7 @@ class Game {
 	setup_signals(level) {
 		this.signals = new SignalBus();
 		this.signal_hidden_layers = new Set();
+		this.signal_layer_fades = new Map();
 		this.active_level_sprites.forEach((entry, entry_index) => {
 			const traits = this.data.sprites[entry.sprite_index].traits;
 			if ('door' in traits)
@@ -2331,8 +2341,11 @@ class Game {
 				return 'actor' in traits || 'baddie' in traits;
 			})) continue;
 			const reaction = layer.properties.signal_reaction;
+			const region = (this.visibility_rules ?? []).some(rule => rule.targetIndex === li);
+			this.signal_layer_fades.set(li, { region, alpha: 1, from: 1, to: 1, started_at: 0,
+				materials: region ? null : VisibilityRegions.fadeMaterials(this.layers[li], 'signalOpacity') });
 			let visible = layer_visible_at_start(reaction);
-			this.set_layer_signal_visible(li, visible);
+			this.set_layer_signal_visible(li, visible, true);
 			this.signals.connect(layer.properties.signal_code ?? 0, (value) => {
 				visible = layer_visible_after(reaction, value, visible);
 				this.set_layer_signal_visible(li, visible);
@@ -2343,13 +2356,21 @@ class Game {
 	// A layer that is away is not drawn and its sprites do not collide
 	// (collision_candidates skips them). Sichtbarkeitsbereiche only change the
 	// drawing; this changes the level.
-	set_layer_signal_visible(li, visible) {
+	set_layer_signal_visible(li, visible, immediate = false) {
 		if (visible) this.signal_hidden_layers.delete(li);
 		else this.signal_hidden_layers.add(li);
 		for (const entry of this.active_level_sprites)
 			if (entry.layer_index === li) entry.signal_hidden = !visible;
-		// shown again: a Sichtbarkeitsbereich decides in the same frame (render)
-		if (this.layers[li]) this.layers[li].visible = visible;
+		const fade = this.signal_layer_fades?.get(li);
+		if (fade) {
+			const time = this.clock.getElapsedTime();
+			fade.from = immediate ? (visible ? 1 : 0) : signal_fade_alpha(fade, time);
+			fade.to = visible ? 1 : 0;
+			fade.started_at = time;
+		}
+		// shown again: the fade (or a Sichtbarkeitsbereich) decides in the same frame (render)
+		if (visible && this.layers[li]) this.layers[li].visible = true;
+		if (!visible && immediate && this.layers[li]) this.layers[li].visible = false;
 	}
 
 	show_trait_state(entry, trait, name) {

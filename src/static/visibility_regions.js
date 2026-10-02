@@ -50,52 +50,66 @@ const VisibilityRegions = (() => {
         return rules;
     }
 
-    // A group has no opacity in Three.js. Give ONLY controlled meshes their own
-    // materials; shared spritesheets, other layers and child visibility stay intact.
+    // A group has no opacity in Three.js. Give ONLY the meshes of this group
+    // their own materials; shared spritesheets, other layers and child
+    // visibility stay intact. uniform: the name of the opacity uniform added
+    // to shader materials. Returns [{ material, shader } | { material, opacity }].
+    function fadeMaterials(group, uniform = 'visibilityRegionOpacity') {
+        const copies = new Map();
+        const result = [];
+        function visit(node) {
+            if (node.material) {
+                const originals = Array.isArray(node.material) ? node.material : [node.material];
+                const materials = originals.map(original => {
+                    if (!original?.clone) return original;
+                    if (!copies.has(original)) {
+                        const copy = original.clone();
+                        if (copy.isShaderMaterial) {
+                            // ShaderMaterial.clone() clones THREE.Texture uniforms too.
+                            // That copy is not the uploaded atlas texture and may render
+                            // transparent/empty: share the ORIGINAL texture, just as the
+                            // character hit-flash materials do in app.js.
+                            if (original.uniforms?.texture1 && copy.uniforms?.texture1)
+                                copy.uniforms.texture1.value = original.uniforms.texture1.value;
+                            // Keep the original shader (and its animation uniforms)
+                            // but multiply its final alpha by this layer's opacity.
+                            if (!/}\s*$/.test(copy.fragmentShader)) return original;
+                            // Mischmodus (backdrops.js): the colour is premultiplied
+                            // and must fade as well, not only the alpha.
+                            const fade = copy.userData?.blend ? 'gl_FragColor' : 'gl_FragColor.a';
+                            copy.fragmentShader = `uniform float ${uniform};\n` +
+                                copy.fragmentShader.replace(/}\s*$/, `    ${fade} *= ${uniform};\n}`);
+                            copy.uniforms[uniform] = { value: 1 };
+                            copy.needsUpdate = true;
+                            result.push({ material: copy, shader: true, uniform });
+                        } else {
+                            result.push({ material: copy, opacity: copy.opacity ?? 1 });
+                        }
+                        copy.transparent = true;
+                        copy.depthWrite = false; // Das transparente Dach darf den Innenraum nicht verdecken.
+                        copies.set(original, copy);
+                    }
+                    return copies.get(original);
+                });
+                node.material = Array.isArray(node.material) ? materials : materials[0];
+            }
+            for (const child of node.children ?? []) visit(child);
+        }
+        if (group) visit(group);
+        return result;
+    }
+
+    function setFade(materials, alpha) {
+        for (const entry of materials ?? []) {
+            if (entry.shader) entry.material.uniforms[entry.uniform].value = alpha;
+            else entry.material.opacity = entry.opacity * alpha;
+        }
+    }
+
     function prepare(rules, groups) {
         for (const rule of rules) {
             if (!rule.fadeSeconds || !groups[rule.targetIndex]) continue;
-            const copies = new Map();
-            rule.fadeMaterials = [];
-            function visit(node) {
-                if (node.material) {
-                    const originals = Array.isArray(node.material) ? node.material : [node.material];
-                    const materials = originals.map(original => {
-                        if (!original?.clone) return original;
-                        if (!copies.has(original)) {
-                            const copy = original.clone();
-                            if (copy.isShaderMaterial) {
-                                // ShaderMaterial.clone() clones THREE.Texture uniforms too.
-                                // That copy is not the uploaded atlas texture and may render
-                                // transparent/empty: share the ORIGINAL texture, just as the
-                                // character hit-flash materials do in app.js.
-                                if (original.uniforms?.texture1 && copy.uniforms?.texture1)
-                                    copy.uniforms.texture1.value = original.uniforms.texture1.value;
-                                // Keep the original shader (and its animation uniforms)
-                                // but multiply its final alpha by this layer's opacity.
-                                if (!/}\s*$/.test(copy.fragmentShader)) return original;
-                                // Mischmodus (backdrops.js): the colour is premultiplied
-                                // and must fade as well, not only the alpha.
-                                const fade = copy.userData?.blend ? 'gl_FragColor' : 'gl_FragColor.a';
-                                copy.fragmentShader = 'uniform float visibilityRegionOpacity;\n' +
-                                    copy.fragmentShader.replace(/}\s*$/, `    ${fade} *= visibilityRegionOpacity;\n}`);
-                                copy.uniforms.visibilityRegionOpacity = { value: 1 };
-                                copy.needsUpdate = true;
-                                rule.fadeMaterials.push({ material: copy, shader: true });
-                            } else {
-                                rule.fadeMaterials.push({ material: copy, opacity: copy.opacity ?? 1 });
-                            }
-                            copy.transparent = true;
-                            copy.depthWrite = false; // Das transparente Dach darf den Innenraum nicht verdecken.
-                            copies.set(original, copy);
-                        }
-                        return copies.get(original);
-                    });
-                    node.material = Array.isArray(node.material) ? materials : materials[0];
-                }
-                for (const child of node.children ?? []) visit(child);
-            }
-            visit(groups[rule.targetIndex]);
+            rule.fadeMaterials = fadeMaterials(groups[rule.targetIndex]);
         }
     }
 
@@ -131,13 +145,10 @@ const VisibilityRegions = (() => {
             }
             rule.alpha = alpha;
             group.visible = alpha > 0;
-            for (const entry of rule.fadeMaterials ?? []) {
-                if (entry.shader) entry.material.uniforms.visibilityRegionOpacity.value = alpha;
-                else entry.material.opacity = entry.opacity * alpha;
-            }
+            setFade(rule.fadeMaterials, alpha);
         }
     }
 
-    return { uniqueTargetId, validRectangle, resolve, prepare, apply };
+    return { uniqueTargetId, validRectangle, resolve, prepare, apply, fadeMaterials, setFade };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = VisibilityRegions;

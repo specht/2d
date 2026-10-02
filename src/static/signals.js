@@ -17,14 +17,18 @@
 // own state (an opened door stays open, also when the player dies).
 
 const SIGNAL_MAX_DEPTH = 16;
+// A layer that appears or disappears fades in or out this long. Only the
+// drawing fades: it collides (or not) from the moment of the signal.
+const SIGNAL_LAYER_FADE_SECONDS = 0.3;
 
-// Reactions of a door to a signal with its Code.
+// Reactions of a door to a signal with its Code (short: the panel is
+// narrow; the hint of door_reaction in traits.js explains them).
 const DOOR_SIGNAL_REACTIONS = {
-    unlock: 'aufschließen (wie ein Schlüssel)',
+    unlock: 'aufschließen',
     open: 'öffnen',
     close: 'schließen',
-    follow: 'offen, solange das Signal an ist',
-    toggle: 'wechseln (auf ↔ zu) bei jedem Signal',
+    follow: 'offen, solange an',
+    toggle: 'wechseln',
 };
 
 // Reactions of a layer (short: the layer panel is narrow; the hint in
@@ -106,6 +110,17 @@ function layer_visible_after(reaction, value, visible) {
     }
 }
 
+// fade: { from, to, started_at } with opacities 0 … 1. A fade reversed
+// halfway goes on from where it is (set from to the current alpha).
+function signal_fade_alpha(fade, time) {
+    if (!fade || fade.from === fade.to || !Number.isFinite(time) || !Number.isFinite(fade.started_at))
+        return fade?.to ?? 1;
+    const progress = Math.max(0, Math.min(1,
+        (time - fade.started_at) / (SIGNAL_LAYER_FADE_SECONDS * Math.abs(fade.to - fade.from))));
+    // soft start and end (smoothstep)
+    return fade.from + (fade.to - fade.from) * progress * progress * (3 - 2 * progress);
+}
+
 // Only the moment the action key goes down flips a switch, not every frame
 // it is held (a tap on a touch screen holds it for a moment, too).
 function switch_flipped(pressed_now, pressed_before) {
@@ -159,7 +174,7 @@ function describe_signal_partners(code, partners) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        SIGNAL_MAX_DEPTH, DOOR_SIGNAL_REACTIONS, LAYER_SIGNAL_REACTIONS, SignalBus,
+        SIGNAL_MAX_DEPTH, SIGNAL_LAYER_FADE_SECONDS, signal_fade_alpha, DOOR_SIGNAL_REACTIONS, LAYER_SIGNAL_REACTIONS, SignalBus,
         door_signal_action, layer_reacts_to_signals, layer_visible_at_start, layer_visible_after,
         switch_flipped, signal_partners, describe_signal_partners,
     };

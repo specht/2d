@@ -54,7 +54,7 @@ erwartet:
 3. Bau im **Level** einen Graben mit Stacheln und leg die Druckplatte davor auf den Boden.
 4. Klicke auf die Druckplatte und trage bei **Code** eine Zahl ein, z. B. **4**.
 5. Leg eine **neue Ebene** an, nenne sie **Brücke** und lass **Kollisionen erkennen** an.
-6. Stell bei dieser Ebene **Bei einem Signal** auf **erscheint** und trag als **Code** auch **4** ein.
+6. Stell bei dieser Ebene **Bei Signal** auf **erscheint** und trag als **Code** auch **4** ein.
 7. Setz in der Ebene *Brücke* Bretter über den Graben.
 
 Unter dem Code der Ebene steht, wer ihr Signale sendet: *Code 4 in diesem Level – sendet: 1 Druckplatte · reagiert: Ebene »Brücke«*.
@@ -69,7 +69,7 @@ Unter dem Code der Ebene steht, wer ihr Signale sendet: *Code 4 in diesem Level 
 
 ## Wenn's nicht klappt
 
-- **Die Brücke ist schon am Anfang da:** Bei **Bei einem Signal** steht nicht **erscheint**, oder die Bretter liegen in einer anderen Ebene.
+- **Die Brücke ist schon am Anfang da:** Unter **Bei Signal** steht nicht **erscheint**, oder die Bretter liegen in einer anderen Ebene.
 - **Die Brücke erscheint nicht:** Die Codes von Platte und Ebene sind verschieden, oder die Druckplatte liegt in einer Ebene ohne **Kollisionen erkennen**.
 - **Man fällt durch die Brücke:** In der Ebene *Brücke* ist **Kollisionen erkennen** aus.
 - **Die Ebene reagiert gar nicht:** Die Spielfigur oder ein Gegner liegt in dieser Ebene.

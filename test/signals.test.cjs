@@ -48,6 +48,17 @@ test('layer reactions', () => {
     assert.equal(layer_visible_after('toggle', true, false), true);
 });
 
+test('a layer fades, and a fade reversed halfway goes on from where it is', () => {
+    const { signal_fade_alpha, SIGNAL_LAYER_FADE_SECONDS: T } = signals;
+    assert.equal(signal_fade_alpha({ from: 0, to: 1, started_at: 2 }, 2), 0);
+    assert.ok(Math.abs(signal_fade_alpha({ from: 0, to: 1, started_at: 2 }, 2 + T / 2) - 0.5) < 1e-9);
+    assert.equal(signal_fade_alpha({ from: 0, to: 1, started_at: 2 }, 2 + T * 3), 1);
+    // back to 0 from 0.5 takes half the time
+    assert.ok(signal_fade_alpha({ from: 0.5, to: 0, started_at: 3 }, 3 + T / 2) < 1e-9);
+    assert.equal(signal_fade_alpha({ from: 1, to: 1, started_at: 0 }, 5), 1);
+    assert.equal(signal_fade_alpha(undefined, 5), 1);
+});
+
 test('a switch flips when the key goes down, not while it is held', () => {
     assert.equal(switch_flipped(true, false), true);
     assert.equal(switch_flipped(true, true), false);
@@ -106,9 +117,9 @@ const IntervalTree = new Function(
 const VisibilityRegions = require('../src/static/visibility_regions.js');
 const quiet = { log() {}, warn() {} };
 const GameSignals = new Function('SignalBus', 'door_signal_action', 'layer_reacts_to_signals',
-    'layer_visible_at_start', 'layer_visible_after', 'VisibilityRegions', 'console',
+    'layer_visible_at_start', 'layer_visible_after', 'signal_fade_alpha', 'VisibilityRegions', 'console',
     `return class { ${methods} };`)(SignalBus, door_signal_action, layer_reacts_to_signals,
-    layer_visible_at_start, layer_visible_after, VisibilityRegions, quiet);
+    layer_visible_at_start, layer_visible_after, signals.signal_fade_alpha, VisibilityRegions, quiet);
 
 const state = (trait, name, frames = 1) => ({ traits: { [trait]: { [name]: {} } }, properties: { fps: 8 }, frames: Array(frames).fill({}) });
 const SPRITES = [
@@ -132,7 +143,7 @@ function level_game(layers, visibility_rules = []) {
         interval_tree_x: new IntervalTree(), interval_tree_y: new IntervalTree(),
         active_level_sprites: [], state_for_mesh: {}, transitioning_sprites: {}, found_keys: {},
         layers: [], visibility_rules, player_character: null,
-        clock: { getElapsedTime: () => 0 },
+        now: 0, clock: { getElapsedTime: () => game.now },
     });
     layers.forEach((layer, li) => {
         game.layers.push({ visible: true });
@@ -172,12 +183,24 @@ test('a switch opens a door and lets a bridge appear, and the bridge then carrie
     assert.equal(game.active_level_sprites[1].switch_on, true);
     assert.equal(entry_state(game, 1), 1); // Schalter ist an
     assert.equal(game.active_level_sprites[0].door_closed, false);
-    assert.equal(game.layers[1].visible, true);
+    // the bridge carries at once; its drawing fades in
     assert.deepEqual(bridge_hits(), [2]);
+    game.now = signals.SIGNAL_LAYER_FADE_SECONDS / 2;
+    game.update_layer_visibility();
+    assert.equal(game.layers[1].visible, true);
+    assert.ok(Math.abs(game.signal_layer_fades.get(1).alpha - 0.5) < 1e-9);
+    game.now = 1;
+    game.update_layer_visibility();
+    assert.equal(game.signal_layer_fades.get(1).alpha, 1);
 
     game.flip_switch(1, 2.0);
     assert.equal(game.active_level_sprites[0].door_closed, true);
-    assert.deepEqual(bridge_hits(), []);
+    assert.deepEqual(bridge_hits(), []); // gone at once, while it fades out
+    game.update_layer_visibility();
+    assert.equal(game.layers[1].visible, true);
+    game.now = 2;
+    game.update_layer_visibility();
+    assert.equal(game.layers[1].visible, false);
     assert.deepEqual(game.signals.sent, [[7, true], [7, false]]);
 });
 
