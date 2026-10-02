@@ -2858,9 +2858,69 @@ details.trait-advanced[open] > summary {
 }
 .signal-rule-name {
     margin-bottom: 4px;
-    font-weight: bold;
+}
+.signal-rule-rename {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    max-width: 100%;
+    padding: 0 4px;
+    margin-left: -4px;
+    background: none;
+    border: none;
+    border-radius: 3px;
     color: var(--signal-color, #fff);
+    font: inherit;
+    font-weight: bold;
+    text-align: left;
+    cursor: pointer;
+}
+.signal-rule-name-text {
     overflow-wrap: anywhere;
+}
+.signal-rule-rename .fa {
+    font-size: 11px;
+    opacity: 0;
+    color: rgba(255, 255, 255, 0.7);
+}
+.signal-rule:hover .signal-rule-rename .fa,
+.signal-rule-rename:focus-visible .fa {
+    opacity: 1;
+}
+.signal-rule-rename:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+/* no name yet: a quiet pencil left of the Code, only while the card is under the mouse */
+.signal-rule-name-add {
+    float: right;
+    margin-right: 4px;
+    padding: 1px 6px;
+    background: none;
+    border: none;
+    border-radius: 9px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 11px;
+    cursor: pointer;
+    opacity: 0;
+}
+.signal-rule:hover .signal-rule-name-add,
+.signal-rule-name-add:focus-visible {
+    opacity: 1;
+}
+.signal-rule-name-add:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+.signal-rule-name-input {
+    width: calc(100% - 4.5em);
+    box-sizing: border-box;
+    padding: 1px 5px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--signal-color, #94b0c2);
+    border-radius: 3px;
+    color: #fff;
+    font: inherit;
+    font-weight: bold;
 }
 .signal-rule-row {
     display: flex;

@@ -2183,7 +2183,9 @@ class LevelEditor {
         if (panel.length && key === this.signal_overview_key) return;
         this.signal_overview_key = key;
         const scroll = panel.find('.signal-overview-body').scrollTop() ?? 0;
-        panel.remove();
+        // a name field that disappears with the old panel must not save on blur
+        this.signal_overview_rebuilding = true;
+        try { panel.remove(); } finally { this.signal_overview_rebuilding = false; }
         panel = $('<div class="signal-overview">').appendTo(this.element);
         // the level view must not paint, zoom or pan through the panel
         panel.on('mousedown touchstart dblclick wheel contextmenu', (e) => e.stopPropagation());
@@ -2203,7 +2205,7 @@ class LevelEditor {
             $('<button class="signal-rule-code">').text(`Code ${card.code}`).attr('title', 'Alles mit diesem Code zeigen')
                 .on('click', () => this.focus_signal_code(card.code)).appendTo(box);
             // a named Code: its name on top, the number stays small on the right
-            if (card.name) $('<div class="signal-rule-name">').text(card.name).appendTo(box);
+            this.add_signal_rule_name(box, card);
             const section = (word, lines, empty) => {
                 const row = $('<div class="signal-rule-row">').appendTo(box);
                 $('<span class="signal-rule-word">').text(word).appendTo(row);
@@ -2231,6 +2233,89 @@ class LevelEditor {
                     .append($('<span>').text(' Hier wartet etwas – aber nichts sendet diesen Code. Gib einem Schalter, Schlüssel oder Bereich denselben Code.')).appendTo(box);
         }
         body.scrollTop(scroll);
+    }
+
+    // The name of a card: on top in the Code's colour, a click (or the pencil)
+    // turns it into a field. A card without a name only has a small pencil
+    // next to its Code. Enter or leaving the field saves, Esc keeps the old
+    // name. The Code itself never changes (signals.js).
+    add_signal_rule_name(box, card) {
+        const chip = box.children('.signal-rule-code');
+        let row = null;
+        let add = null;
+        const show = () => {
+            row?.remove();
+            row = null;
+            add?.remove();
+            add = null;
+            if (card.name) {
+                row = $('<div class="signal-rule-name">').insertAfter(chip);
+                const button = $('<button class="signal-rule-rename">').attr('title', 'Umbenennen')
+                    .on('click', edit).appendTo(row);
+                $('<span class="signal-rule-name-text">').text(card.name).appendTo(button);
+                $('<i class="fa fa-pencil">').appendTo(button);
+            } else {
+                // floats right as well: it sits just left of the Code
+                add = $('<button class="signal-rule-name-add">')
+                    .attr('title', 'Diesem Signal einen Namen geben, zum Beispiel »Brücke«')
+                    .append($('<i class="fa fa-pencil">')).on('click', edit).insertAfter(chip);
+            }
+        };
+        const edit = () => {
+            if (window.collaboration?.can_edit_current?.() === false) {
+                this.show_level_notice('Gerade bearbeitet jemand anderes dieses Level.');
+                return;
+            }
+            add?.remove();
+            add = null;
+            row ??= $('<div class="signal-rule-name">').insertAfter(chip);
+            row.empty();
+            let finished = false;
+            const input = $('<input type="text" class="signal-rule-name-input">')
+                .attr({ maxlength: SIGNAL_NAME_MAX_LENGTH, placeholder: 'Name, z. B. Brücke', spellcheck: 'false' })
+                .val(card.name).appendTo(row);
+            const finish = (save) => {
+                if (finished) return true;
+                if (save && !this.rename_signal_code(card.code, input.val())) return false;
+                finished = true;
+                // a changed name rebuilds the whole panel; else show this card's name again
+                if (box.closest('body').length) show();
+                return true;
+            };
+            input.on('keydown', (e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+                else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+            });
+            input.on('blur', () => {
+                if (this.signal_overview_rebuilding) return;
+                // a name that is taken: keep the old one (the notice says why)
+                if (!finish(true)) finish(false);
+            });
+            input.trigger('focus').trigger('select');
+        };
+        show();
+    }
+
+    // Gives a Code of the current level a name ('' removes it). False, with a
+    // notice, when another Code already has that name.
+    rename_signal_code(code, name) {
+        const level = this.game.data.levels[this.level_index];
+        if (!level) return false;
+        if (clean_signal_name(name) === signal_name(level, code)) return true;
+        const result = set_signal_name(level, code, name);
+        if (!result.ok) {
+            if (result.taken_by !== null)
+                this.show_level_notice(`»${clean_signal_name(name)}« heißt in diesem Level schon Code ${result.taken_by}. Wähle einen anderen Namen.`);
+            return false;
+        }
+        this.history_observe();
+        // the lines under the Code fields show the new name
+        this.update_signal_links?.();
+        if ($('#menu_layer_properties_container').is(':visible')) this.setup_layer_properties();
+        this.build_signal_links();
+        this.render();
+        return true;
     }
 
     // The camera onto a rectangle of one layer (its Parallaxe taken into
