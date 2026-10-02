@@ -114,7 +114,7 @@ studio.
 The recorder relies on these runtime entry points: `window.game`,
 `Game.load(tag)`, `reset()`, `setup()`, `render()`, `clock.getElapsedTime()`,
 `camera`, `renderer`, `handle_key_down/up`, `player_character`, `baddies`,
-`found_keys`, `active_level_sprites`. If one of them changes, adjust
+`found_keys`, `signals.sent`, `active_level_sprites`. If one of them changes, adjust
 `record.mjs`.
 
 ## Writing a recipe
@@ -147,6 +147,8 @@ szene:
   #     mischmodus: leuchten   #   the layer's Mischmodus: leuchten | aufhellen | abdunkeln
   #     figuren: true          #   characters stay in this layer (a ghost behind a window)
   #                            #   instead of the common layer "Figuren"
+  #     signal: { code: 4, reaktion: erscheint }   # the layer reacts to signals (signals.js):
+  #                            #   erscheint | verschwindet | solange_an | solange_aus | wechselt
   #     karte: |
   #       …
   # bereiche:                  # Sichtbarkeitsbereiche (visibility_region layers)
@@ -232,6 +234,7 @@ erwartet:                      # outcome checks
   figur_rechts_von: 5          # player x > 5 tiles
   # gegner_besiegt: 1 · gegner_leben: 0 · schluessel: [7] · tuer_offen: true
   # punkte: 60 · energie_unter: 100 · energie_gleich: 100 · lebt: true · checkpoint_aktiv: true
+  # signale: ['4 an', '4 aus'] – exactly these signals were sent, in this order (signals.js)
   # Enemy behaviours (some enemy in the scene): gegner_modi: [chase, idle] (modes of
   # baddie_ai.js: chase/idle, wait/windup/charge/rest, shake/drop/bottom/rise/cool/done) ·
   # gegner_ausrufezeichen: true · gegner_weg: 96 (px sideways) · gegner_hub: 24 (px up/down)
@@ -306,7 +309,10 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `fahne_aus` / `fahne_an` (2, checkpoint), `wurzeln`, `tuer_zu`, `tuer_auf`,
   `tuer_uebergang` (3), `schlosstuer_zu`, `schluessel` (2), `muenze` (4),
   `pfeil`, `stein`, `spore` (2), `bombe_zuendschnur` (4), `bombe_explosion`
-  (4), `treffer_funke` (3).
+  (4), `treffer_funke` (3), `schalter_aus` / `schalter_an` (lever),
+  `druckplatte_oben` / `druckplatte_unten`, `gitter_zu`, `gitter_auf`,
+  `gitter_uebergang` (3, a portcullis rising; catalogue `gittertor` is locked
+  and automatic, so only a signal opens it).
 * **Deko** (transparent, no traits, own layer without collisions): `moos`,
   `ranke`, `riss`, `fackel` (3), `burgfenster`, `grasbuesche`, `innenwand`,
   `bild`, `lampe`, `tisch`, `pflanze`, `fassade`, `fassade_fenster`, `zimmer`

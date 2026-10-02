@@ -138,7 +138,7 @@ function fix_game_data(data, repo) {
     if (!fixer) {
         const ctx = { console, DEFAULT_WIDTH: TILE, DEFAULT_HEIGHT: TILE, createDataUrlForImageSize: () => undefined };
         vm.createContext(ctx);
-        for (const f of ['traits.js', 'baddie_ai.js', 'game_ids.js', 'game.js'])
+        for (const f of ['signals.js', 'traits.js', 'baddie_ai.js', 'game_ids.js', 'game.js'])
             vm.runInContext(fs.readFileSync(path.join(repo, 'src/static', f), 'utf8'), ctx, { filename: f });
         vm.runInContext('globalThis.__fix = (d) => { const g = { data: d }; Game.prototype.fix_game_data.call(g); return g.data; };', ctx);
         fixer = ctx.__fix;
@@ -176,10 +176,25 @@ function sprite_refs(value, out = []) {
     return out;
 }
 
+// signal: { code: 3, reaktion: erscheint } – how a layer reacts to signals
+// (signals.js, Ebene "Bei einem Signal"): erscheint | verschwindet |
+// solange_an | solange_aus | wechselt, or the engine's names.
+const LAYER_SIGNAL_REAKTIONEN = {
+    erscheint: 'appear', verschwindet: 'disappear', solange_an: 'while_on',
+    solange_aus: 'while_off', wechselt: 'toggle',
+};
+function layer_signal_of(signal, where) {
+    const reaction = LAYER_SIGNAL_REAKTIONEN[signal.reaktion] ?? signal.reaktion;
+    if (!Object.values(LAYER_SIGNAL_REAKTIONEN).includes(reaction))
+        throw new Error(`${where}unbekannte Signal-Reaktion "${signal.reaktion}"`);
+    if (!Number.isInteger(signal.code)) throw new Error(`${where}signal.code fehlt`);
+    return { signal_code: signal.code, signal_reaction: reaction };
+}
+
 /**
  * Build the game JSON, sprite sheet and scene geometry for one recipe.
  * recipe.szene: { karte | ebenen, legende?, anpassen?, ausschnitt?, himmel?, bereiche?, bewegung?, bewegungsbereiche? }
- * An `ebenen` entry is a map string or { karte, name?, kollision?, id? }.
+ * An `ebenen` entry is a map string or { karte, name?, kollision?, id?, signal? }.
  */
 export async function build_game(catalog, recipe, repo) {
     const scene = recipe.szene ?? {};
@@ -370,7 +385,8 @@ export async function build_game(catalog, recipe, repo) {
         type: 'sprites', ...(def.id ? { id: def.id } : {}),
         properties: { name, collision_detection: def.kollision !== false,
             ...(def.parallaxe && !scene.parallaxe_aus ? { parallax: Number(def.parallaxe) } : {}),
-            ...(def.mischmodus ? { blend: blend_of(def.mischmodus, `${recipe.id}: `) } : {}) },
+            ...(def.mischmodus ? { blend: blend_of(def.mischmodus, `${recipe.id}: `) } : {}),
+            ...(def.signal ? layer_signal_of(def.signal, `${recipe.id}: `) : {}) },
         sprites: placed,
     });
     // Sichtbarkeitsbereiche: rectangles in tiles [column, row from top, width, height].

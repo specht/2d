@@ -304,13 +304,7 @@ void main() {
 			}
 		}
 
-		let result_x = new Set();
-		for (let i of this.game.interval_tree_x.search([x0, x1]))
-			result_x.add(i);
-		let result_y = new Set();
-		for (let i of this.game.interval_tree_y.search([y0, y1]))
-			result_y.add(i);
-		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
+		let result = this.game.collision_candidates(x0, x1, y0, y1);
 		for (let entry_index of result) {
 			let entry = this.game.active_level_sprites[entry_index];
 			let sprite = this.game.data.sprites[entry.sprite_index];
@@ -386,13 +380,7 @@ void main() {
 		let check_for_block_sides = trait_or_traits.indexOf('block_sides') >= 0;
 		let check_for_block_below = trait_or_traits.indexOf('block_below') >= 0;
 
-		let result_x = new Set();
-		for (let i of this.game.interval_tree_x.search([x0, x1]))
-			result_x.add(i);
-		let result_y = new Set();
-		for (let i of this.game.interval_tree_y.search([y0, y1]))
-			result_y.add(i);
-		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
+		let result = this.game.collision_candidates(x0, x1, y0, y1);
 		for (let entry_index of result) {
 			let entry = this.game.active_level_sprites[entry_index];
 			let sprite = this.game.data.sprites[entry.sprite_index];
@@ -444,13 +432,7 @@ void main() {
 		let y0 = this.mesh.position.y + dy0;
 		let y1 = this.mesh.position.y + dy1;
 
-		let result_x = new Set();
-		for (let i of this.game.interval_tree_x.search([x0, x1]))
-			result_x.add(i);
-		let result_y = new Set();
-		for (let i of this.game.interval_tree_y.search([y0, y1]))
-			result_y.add(i);
-		let result = [...new Set([...result_x].filter((x) => result_y.has(x)))];
+		let result = this.game.collision_candidates(x0, x1, y0, y1);
 		for (let entry_index of result) {
 			let entry = this.game.active_level_sprites[entry_index];
 			let sprite = this.game.data.sprites[entry.sprite_index];
@@ -581,6 +563,7 @@ void main() {
 		for (const i of this.game.interval_tree_y.search([y - 0.5, y - 0.01])) {
 			if (!ids_x.has(i)) continue;
 			const entry = this.game.active_level_sprites[i];
+			if (entry.signal_hidden) continue;
 			const sprite = this.game.data.sprites[entry.sprite_index];
 			const carries = 'block_above' in sprite.traits || ('door' in sprite.traits && entry.door_closed);
 			if (carries && y >= entry.mesh.position.y + sprite.height - 1.0) return true;
@@ -1368,8 +1351,13 @@ void main() {
 				console.log('picking up key!');
 				console.log(this.game.active_level_sprites[entry.entry_index]);
 				this.game.found_keys[entry.door_code] = true;
+				// …and sends its Code: doors with "öffnen" and layers react, too.
+				this.game.signals?.emit(entry.door_code, true, t);
 				this.game.update_stats();
 			}
+
+			// Druckplatten: "an" when the figure steps on, "aus" when it leaves.
+			this.game.update_pressure_plates(this, t);
 
 			for (let mesh of this.game.overlay_meshes)
 				mesh.visible = false;
@@ -1405,6 +1393,17 @@ void main() {
 						this.game.action_key_targets.door.push(entry.entry_index);
 					}
 				}
+			}
+
+			entry = this.has_trait_at(['switch'],
+				-this.traits.ex_left * this.sprite.width * 0.5 - 10,
+				this.traits.ex_right * this.sprite.width * 0.5 + 10,
+				-10,
+				this.traits.ex_top * this.sprite.height + 10);
+			if (entry) {
+				this.game.active_level_sprites[entry.entry_index].overlay_mesh.visible = true;
+				this.game.action_key_targets.switch ??= [];
+				this.game.action_key_targets.switch.push(entry.entry_index);
 			}
 
 			entry = this.has_trait_at(['text'],
@@ -1497,6 +1496,13 @@ void main() {
 			if (!this.dead()) {
 				if (this.mesh.position.y < this.game.miny - this.game.screen_pixel_height * 1.5) this.die(null, null);
 			}
+			// A switch flips once per press, not in every step the key is held.
+			const action_pressed = Boolean(this.pressed_keys[KEY_ACTION]);
+			if (switch_flipped(action_pressed, this.action_was_pressed)) {
+				for (let entry_index of (this.game.action_key_targets.switch ?? []))
+					this.game.flip_switch(entry_index, t);
+			}
+			this.action_was_pressed = action_pressed;
 			if (this.pressed_keys[KEY_ACTION]) {
 				for (let entry_index of (this.game.action_key_targets.door ?? [])) {
 					this.game.toggle_door_intent(entry_index, t);
@@ -1969,6 +1975,9 @@ class Game {
 		this.overlay_mesh_catalogue = {};
 		this.layers = [];
 		this.visibility_rules = [];
+		// set up for the level in setup_signals(), after the level's sprites
+		this.signals = null;
+		this.signal_hidden_layers = new Set();
 
 		if (this.data === null)
 			return;
@@ -2099,7 +2108,7 @@ class Game {
 								console.log('look', active_entry);
 							}
 						}
-						if (active_entry !== null && ('door' in sprite.traits || 'text' in sprite.traits)) {
+						if (active_entry !== null && ('door' in sprite.traits || 'text' in sprite.traits || 'switch' in sprite.traits)) {
 							active_entry.door_state = 'idle';
 							let overlay_mesh = this.overlay_mesh_catalogue['f_key'].clone();
 							overlay_mesh.geometry = overlay_mesh.geometry.clone();
@@ -2160,6 +2169,8 @@ class Game {
 			}
 			this.layers.push(game_layer);
 		}
+		// Signale (signals.js): who listens to which Code in this level
+		this.setup_signals(level);
 		// touch buttons for this level's figure (melee / ranged only if it has them)
 		this.update_touch_buttons();
 		// Sichtbarkeit beeinflusst nur Three.js-Gruppen, nicht die Kollisionsindizes.
@@ -2286,6 +2297,115 @@ class Game {
 	update_layer_visibility(immediate = false) {
 		VisibilityRegions.apply(this.visibility_rules, this.layers, this.player_character,
 			this.clock.getElapsedTime(), immediate);
+		// A layer a signal has taken away stays away, also inside a Sichtbarkeitsbereich.
+		for (const li of this.signal_hidden_layers ?? []) {
+			if (this.layers[li]) this.layers[li].visible = false;
+		}
+	}
+
+	// ------------------------------------------------------------ Signale
+	// Senders: keys (when collected), Schalter and Druckplatten. Receivers:
+	// doors (door_reaction) and layers (signal_code / signal_reaction). See
+	// signals.js. Every level starts with a new bus; objects keep their state
+	// when the figure dies.
+	setup_signals(level) {
+		this.signals = new SignalBus();
+		this.signal_hidden_layers = new Set();
+		this.active_level_sprites.forEach((entry, entry_index) => {
+			const traits = this.data.sprites[entry.sprite_index].traits;
+			if ('door' in traits)
+				this.signals.connect(entry.door_code, (value, t) => this.door_signal(entry_index, value, t));
+			if ('switch' in traits)
+				this.show_trait_state(entry, 'switch', entry.switch_on ? 'on' : 'off');
+			if ('pressure_plate' in traits) {
+				entry.plate_down = false;
+				this.show_trait_state(entry, 'pressure_plate', 'up');
+			}
+		});
+		for (let li = 0; li < level.layers.length; li++) {
+			const layer = level.layers[li];
+			if (!layer_reacts_to_signals(layer.properties)) continue;
+			// The figure and enemies are drawn in their layer: it must not take them away.
+			if ((layer.sprites ?? []).some((placed) => {
+				const traits = this.data.sprites[placed[0]]?.traits ?? {};
+				return 'actor' in traits || 'baddie' in traits;
+			})) continue;
+			const reaction = layer.properties.signal_reaction;
+			let visible = layer_visible_at_start(reaction);
+			this.set_layer_signal_visible(li, visible);
+			this.signals.connect(layer.properties.signal_code ?? 0, (value) => {
+				visible = layer_visible_after(reaction, value, visible);
+				this.set_layer_signal_visible(li, visible);
+			});
+		}
+	}
+
+	// A layer that is away is not drawn and its sprites do not collide
+	// (collision_candidates skips them). Sichtbarkeitsbereiche only change the
+	// drawing; this changes the level.
+	set_layer_signal_visible(li, visible) {
+		if (visible) this.signal_hidden_layers.delete(li);
+		else this.signal_hidden_layers.add(li);
+		for (const entry of this.active_level_sprites)
+			if (entry.layer_index === li) entry.signal_hidden = !visible;
+		// shown again: a Sichtbarkeitsbereich decides in the same frame (render)
+		if (this.layers[li]) this.layers[li].visible = visible;
+	}
+
+	show_trait_state(entry, trait, name) {
+		const sprite = this.data.sprites[entry.sprite_index];
+		const state_index = sprite.states.findIndex((state) => name in (state.traits?.[trait] ?? {}));
+		const mesh_state = this.state_for_mesh[entry.mesh.uuid];
+		if (state_index === -1 || !mesh_state) return;
+		mesh_state.state_index = state_index;
+		mesh_state.frame_index = 0;
+	}
+
+	flip_switch(entry_index, t) {
+		const entry = this.active_level_sprites[entry_index];
+		entry.switch_on = !entry.switch_on;
+		this.show_trait_state(entry, 'switch', entry.switch_on ? 'on' : 'off');
+		this.signals?.emit(entry.signal_code, entry.switch_on, t);
+	}
+
+	// A Druckplatte is down while the middle of the figure is above it (not
+	// already when the figure's edge touches the plate's tile).
+	update_pressure_plates(character, t) {
+		const x = character.mesh.position.x;
+		const y = character.mesh.position.y;
+		const pressed = new Set(this.collision_candidates(x - 1.0, x + 1.0,
+			y - 1.0, y + character.traits.ex_top * character.sprite.height - 0.1));
+		this.active_level_sprites.forEach((entry, entry_index) => {
+			if (!('pressure_plate' in this.data.sprites[entry.sprite_index].traits)) return;
+			const down = pressed.has(entry_index) && !character.dead();
+			if (down === entry.plate_down) return;
+			entry.plate_down = down;
+			this.show_trait_state(entry, 'pressure_plate', down ? 'down' : 'up');
+			this.signals?.emit(entry.signal_code, down, t);
+		});
+	}
+
+	door_signal(entry_index, value, t) {
+		const entry = this.active_level_sprites[entry_index];
+		// "wechseln" goes by where the door is heading, not where it is right now
+		const closed = entry.door_signal_pending ? entry.door_signal_pending === 'close' :
+			entry.door_state === 'opening' ? false : entry.door_state === 'closing' ? true : entry.door_closed;
+		const action = door_signal_action(entry.door_reaction, value, closed);
+		if (action === 'unlock') this.found_keys[entry.door_code] = true;
+		else if (action) this.move_door_by_signal(entry_index, action, t);
+	}
+
+	// A door that is still moving does the last signal when it is done, so a
+	// quick step on and off a Druckplatte cannot leave it open.
+	move_door_by_signal(entry_index, action, t) {
+		const entry = this.active_level_sprites[entry_index];
+		if ((entry.door_state ?? 'idle') !== 'idle') {
+			entry.door_signal_pending = action;
+			return;
+		}
+		entry.door_signal_pending = null;
+		if (action === 'open') this.open_door_intent(entry_index, t, { force: true });
+		else this.close_door_intent(entry_index, t, { force: true });
 	}
 
 	render() {
@@ -2411,8 +2531,12 @@ class Game {
 				this.transitioning_sprites.transition[pi].done();
 			}
 		}
-		for (let pi of delete_keys)
+		for (let pi of delete_keys) {
 			delete this.transitioning_sprites.transition[pi];
+			// a signal arrived while the door was moving
+			const pending = this.active_level_sprites[pi]?.door_signal_pending;
+			if (pending) this.move_door_by_signal(Number(pi), pending, t1);
+		}
 
 		if (this.player_character) {
 			if (this.player_character.invincible() || this.player_character.accelerated()) {
@@ -2562,7 +2686,8 @@ class Game {
 		const uses = {
 			left: true, right: true, jump: true,
 			up: has(t => 'ladder' in t), down: has(t => 'ladder' in t),
-			action: has(t => ('door' in t && !t.door?.automatic) || 'text' in t),
+			action: has(t => ('door' in t && !t.door?.automatic) || 'text' in t || 'switch' in t),
+			switch: has(t => 'switch' in t),
 			melee: actor_attack('nah', 'swing'),
 			ranged: actor_attack('fern', 'projectile'),
 		};
@@ -2571,7 +2696,7 @@ class Game {
 			['Laufen', ['linker Kreis']],
 			...(uses.up ? [['Leiter', ['linker Kreis hoch / runter']]] : []),
 			['Springen', ['⤒']],
-			...(uses.action ? [['Tür, Text', ['auf das F tippen']]] : []),
+			...(uses.action ? [[uses.switch ? 'Tür, Schalter, Text' : 'Tür, Text', ['auf das F tippen']]] : []),
 			...(uses.melee ? [['Nahkampf', ['⚔']]] : []),
 			...(uses.ranged ? [['Fernkampf', ['➶']]] : []),
 		] : (() => {
@@ -2583,7 +2708,7 @@ class Game {
 				['Laufen', ...k('left', 'right')],
 				...(uses.up ? [['Leiter', ...k('up', 'down')]] : []),
 				['Springen', ...k('jump')],
-				...(uses.action ? [['Tür, Text', ...k('action')]] : []),
+				...(uses.action ? [[uses.switch ? 'Tür, Schalter, Text' : 'Tür, Text', ...k('action')]] : []),
 				...(uses.melee ? [['Nahkampf', ...k('melee')]] : []),
 				...(uses.ranged ? [['Fernkampf', ...k('ranged')]] : []),
 			];
@@ -2878,6 +3003,19 @@ class Game {
 		}
 	}
 
+	// Level sprites whose rectangle overlaps this one, in the order the
+	// interval trees have always given them. Sprites on a layer that a signal
+	// has taken away are not there: they do not collide, cannot be collected
+	// and do not hurt.
+	collision_candidates(x0, x1, y0, y1) {
+		const result_y = new Set(this.interval_tree_y.search([y0, y1]));
+		const result = [];
+		for (const i of new Set(this.interval_tree_x.search([x0, x1]))) {
+			if (result_y.has(i) && !this.active_level_sprites[i]?.signal_hidden) result.push(i);
+		}
+		return result;
+	}
+
 	has_baddie_at(x0, x1, y0, y1) {
 		let result_x = new Set();
 		for (let i of this.dynamic_interval_tree_x.search([x0, x1]))
@@ -2893,13 +3031,14 @@ class Game {
 		return null;
 	}
 
-	open_door_intent(entry_index, t) {
+	// force: moved by a signal (signals.js), not by the figure – no key needed.
+	open_door_intent(entry_index, t, options = {}) {
 		let entry = this.active_level_sprites[entry_index];
 		let sprite = this.data.sprites[entry.sprite_index];
 		if (entry.door_state === 'opening' || entry.door_closed === false)
 			return;
 		let ok = false;
-		if (sprite.traits.door.lockable) {
+		if (sprite.traits.door.lockable && !options.force) {
 			// check if we have correct key
 			console.log(`Checking door key: ${entry.door_code}, have: `, this.found_keys)
 			if (this.found_keys[entry.door_code] === true) {
@@ -2945,12 +3084,12 @@ class Game {
 		}
 	}
 
-	close_door_intent(entry_index, t) {
+	close_door_intent(entry_index, t, options = {}) {
 		let entry = this.active_level_sprites[entry_index];
 		let sprite = this.data.sprites[entry.sprite_index];
 		if (entry.door_state === 'closing' || entry.door_closed === true)
 			return;
-		if (sprite.traits.door.closable) {
+		if (sprite.traits.door.closable || options.force) {
 			console.log("Now closing door!");
 			console.log("sprite", sprite);
 			let open_state_index = sprite.states.findIndex((s) => s.traits.door.open);

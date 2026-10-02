@@ -688,6 +688,73 @@ class LevelEditor {
         this.handleResize();
     }
 
+    // Under the Code of a key, door, Schalter or Druckplatte: what else in this
+    // level has the same Code (signals.js), so a child sees what is connected.
+    add_signal_links(container, sprite, entry_index) {
+        const role = SIGNAL_SPRITE_ROLES.find(role => role.trait in sprite.traits);
+        if (!role) return;
+        const line = $('<div class="signal-links">').appendTo(container);
+        const level_index = this.level_index, layer_index = this.layer_index;
+        this.update_signal_links = () => {
+            const level = this.game.data.levels[level_index];
+            const placed = level?.layers[layer_index]?.sprites?.[entry_index];
+            if (!placed) return;
+            const code = placed[3]?.[role.trait]?.[role.key] ?? 0;
+            line.text(describe_signal_partners(code, signal_partners(level, code,
+                ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits)));
+        };
+        this.update_signal_links();
+    }
+
+    // Signale (signals.js): a layer can appear or disappear when a key,
+    // Schalter or Druckplatte sends its Code. Absent = it does not react.
+    add_layer_signal_controls(layer) {
+        const container = $('#menu_layer_properties');
+        const level = this.game.data.levels[this.level_index];
+        const links = $('<div class="signal-links">');
+        const update_links = () => {
+            links.text(layer_reacts_to_signals(layer.properties) ?
+                describe_signal_partners(layer.properties.signal_code ?? 0, signal_partners(level,
+                    layer.properties.signal_code ?? 0,
+                    ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits)) : '');
+        };
+        let code_widget = null;
+        new SelectWidget({
+            container,
+            label: 'Bei einem Signal',
+            hint: 'Die Ebene kann erscheinen oder verschwinden, wenn ein Schlüssel, Schalter oder eine Druckplatte mit ihrem Code ein Signal sendet. „erscheint“: am Anfang weg, beim ersten Signal „an“ da. „verschwindet“: am Anfang da, beim ersten Signal „an“ weg. „da, solange an“ und „weg, solange an“: folgt dem Signal – praktisch mit einer Druckplatte. „wechselt“: jedes Signal macht die Ebene da oder weg. Eine Ebene, die weg ist, wird nicht gezeichnet, und man kann auch nicht mehr auf ihr stehen – so baust du Brücken, die erst erscheinen, oder Wände, die verschwinden. Auf diese Ebene gehören weder die Spielfigur noch Gegner.',
+            options: LAYER_SIGNAL_REACTIONS,
+            get: () => layer.properties.signal_reaction ?? 'none',
+            set: (value) => {
+                if (value === 'none') {
+                    delete layer.properties.signal_reaction;
+                    delete layer.properties.signal_code;
+                } else {
+                    layer.properties.signal_reaction = value;
+                    layer.properties.signal_code ??= 0;
+                }
+                code_widget?.toggle(value !== 'none');
+                update_links();
+            },
+        });
+        code_widget = $('<div>').appendTo(container);
+        new NumberWidget({
+            container: code_widget,
+            label: 'Code',
+            hint: 'Schlüssel, Schalter und Druckplatten mit demselben Code senden dieser Ebene ein Signal.',
+            min: 0,
+            max: 1000,
+            get: () => layer.properties.signal_code ?? 0,
+            set: (value) => {
+                layer.properties.signal_code = Math.round(value);
+                update_links();
+            },
+        });
+        code_widget.toggle(layer_reacts_to_signals(layer.properties));
+        links.appendTo(container);
+        update_links();
+    }
+
     setup_layer_properties() {
         let self = this;
         $('#menu_layer_properties').empty();
@@ -715,6 +782,7 @@ class LevelEditor {
                     // self.update_layer_label();
                 },
             });
+            self.add_layer_signal_controls(layer);
         }
         if (layer.type === 'backdrop' || layer.type === 'visibility_region' || layer.type === 'movement_region') {
             let backdrop = layer;
@@ -1982,6 +2050,7 @@ class LevelEditor {
         if (this.selection.length !== 1) {
             $('#menu_placed_properties').empty();
             this.placed_properties_for = null;
+            this.update_signal_links = null;
         } else {
             placed_properties_need_update = ((this.placed_properties_for ?? null) != this.selection[0]);
             this.placed_properties_for = this.selection[0];
@@ -1989,6 +2058,7 @@ class LevelEditor {
 
         if (placed_properties_need_update) {
             $('#menu_placed_properties').empty();
+            this.update_signal_links = null;
             if (this.selection.length === 1) {
                 let div = $(`<div>`).appendTo($('#menu_placed_properties'));
                 let entry_index = this.selection[0];
@@ -2024,6 +2094,7 @@ class LevelEditor {
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait] ??= {};
                                     this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index][3][trait][key] = Math.round(x);
+                                    this.update_signal_links?.();
                                 },
                             });
                         } else if (property.type === 'float') {
@@ -2091,6 +2162,7 @@ class LevelEditor {
                         }
                     }
                 }
+                this.add_signal_links(div, sprite, entry_index);
             }
         }
         /*

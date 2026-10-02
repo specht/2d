@@ -136,26 +136,30 @@ Examples include:
 
 Develop a small, understandable trigger/action system rather than implementing each of these as a separate special case.
 
-Possible triggers:
+**Milestone 1 exists (Signale, `src/static/signals.js`):** senders send their Code with *an* or *aus*: a collected key (an), a Schalter (F, on the rising edge), a Druckplatte (an on stepping on, aus on leaving, player only). Receivers react in their own way: a door (`door_reaction`: aufschließen = the old key behaviour and the default, öffnen, schließen, offen solange an, wechseln) and a layer (`signal_code` / `signal_reaction`: erscheint, verschwindet, da/weg solange an, wechselt; a layer that is away has no collisions either). One bus per level, state lives in the receivers, a depth limit stops loops. The level editor shows under every Code what else in the level has it. Recipes *Ein Schalter öffnet das Tor* and *Eine Druckplatte baut eine Brücke* check it end to end.
+
+Next steps, roughly in order of usefulness (each must stay an understandable choice in the editor, not scripting):
+
+- more senders: enemy defeated, all enemies defeated, sprite collected (any pickup with a Code), actor enters / leaves an area (a rectangle layer like the Bewegungsbereiche), level starts; enemies pressing a Druckplatte
+- more receivers: show text, spawn / remove a sprite, a trap that switches on and off, a moving platform that starts, complete the level, set a simple game flag
+- delays (send *an* 2 s later; a door that closes again by itself) – one optional field on the sender, not a timeline
+- signals across levels only with an explicit design (flags), never implicitly: keys and Codes are per level
+- an overview of all Codes of a level (who sends, who reacts), and highlighting partners in the level editor
+
+Possible triggers still open:
 
 - level starts
 - actor enters an area
 - actor leaves an area
-- action key pressed
-- sprite collected
-- switch activated
 - enemy defeated
 - all enemies defeated
 
-Possible actions:
+Possible actions still open:
 
-- show / hide object
 - enable / disable object
-- open / close door
 - spawn object
 - remove object
 - display text
-- change layer visibility
 - activate another object
 - change level
 - set a simple game flag
@@ -352,11 +356,10 @@ Remaining useful extensions include:
 
 - delayed automatic closing
 - sensible behaviour when something occupies a closing door
-- remote switches
-- remotely controlled passages or trapdoors
+- trapdoors (a layer that disappears under the player already works through Signale)
 - paired or teleporting doors
 
-Prefer implementing these through the trigger/action system where possible.
+Remote switches and remotely controlled passages exist (Signale). Build the rest on them where possible.
 
 ---
 
@@ -530,7 +533,7 @@ In particular:
 6. Make game lineage understandable and add an explicit independent-fork action.
 7. Make deliberate, named multi-browser collaboration practical without introducing accounts.
 8. Polish sprite-animation workflows.
-9. Add generic triggers/actions.
+9. Extend the Signale (generic triggers/actions; milestone 1 exists).
 10. Build new gameplay systems on those foundations.
 
 The central question for new work should be:
