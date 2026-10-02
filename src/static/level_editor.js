@@ -936,6 +936,34 @@ class LevelEditor {
         this.set_layer_sprites(this.layer_index, filled.sprites, []);
     }
 
+    // "Gleiche auswählen": every copy of the selected sprites in this layer.
+    select_same_sprites() {
+        const layer = this.current_sprite_layer();
+        if (!layer || !this.selection.length) return;
+        this.selection = same_sprite_indices(layer.sprites, this.selection);
+        this.placed_properties_for = null;
+        this.show_selection();
+        this.refresh();
+        this.render();
+    }
+
+    // "Ersetzen durch": the selected sprites become another sprite, each in
+    // its place (level_selection.js replace_placed). Settings of traits the
+    // new sprite has stay; a new Schalter or Druckplatte gets a free Code.
+    replace_selection(sprite_index) {
+        const layer = this.current_sprite_layer();
+        const sprite = this.game.data.sprites[sprite_index];
+        if (!layer || !sprite || !this.selection.length || this.read_only_level()) return;
+        const result = replace_placed(layer.sprites, this.selection, sprite.id, trait => trait in (sprite.traits ?? {}));
+        if (!result.changed.length) return;
+        give_new_senders_codes(this.game.data.levels[this.level_index],
+            result.changed.map(i => result.sprites[i]), () => sprite.traits);
+        this.set_layer_sprites(this.layer_index, result.sprites, result.selection);
+        this.build_signal_links();
+        const count = result.changed.length;
+        this.show_level_notice(`${count === 1 ? '1 Sprite' : `${count} Sprites`} ersetzt – Strg+Z macht es rückgängig.`);
+    }
+
     read_only_level() {
         return window.collaboration?.can_edit_current?.() === false;
     }
@@ -947,11 +975,33 @@ class LevelEditor {
         const box = $('<div class="selection-box">').appendTo(container);
         $('<div class="selection-count">').text(count === 1 ? '1 Sprite ausgewählt' : `${count} Sprites ausgewählt`).appendTo(box);
         const buttons = $('<div class="selection-buttons">').appendTo(box);
-        const button = (label, title, action) => $('<button type="button">').text(label).attr('title', title)
-            .on('click', (e) => { e.preventDefault(); action(); }).appendTo(buttons);
+        const button = (label, title, action, row = buttons) => $('<button type="button">').text(label).attr('title', title)
+            .on('click', (e) => { e.preventDefault(); action(); }).appendTo(row);
         button('Kopieren', 'Strg+C – einfügen mit Strg+V, auch in einem anderen Level', () => this.copy_selection());
         button('Duplizieren', 'Strg+D – eine Kopie gleich daneben', () => this.duplicate_selection());
         button('Löschen', 'Entf', () => this.delete_selection());
+        // a row of its own: the panel is narrow
+        const more = $('<div class="selection-buttons">').appendTo(box);
+        const layer_now = this.current_sprite_layer();
+        const same = layer_now ? same_sprite_indices(layer_now.sprites, this.selection).length : 0;
+        if (same > count)
+            button('Alle gleichen', `Wählt alle ${same} Sprites dieser Ebene aus, die so aussehen wie die ausgewählten – zum Beispiel jedes Grasstück, um alle auf einmal zu ersetzen.`,
+                () => this.select_same_sprites(), more);
+        // "Ersetzen durch": a small sprite picker of its own; choosing a sprite
+        // in the sprite list would switch to the pen and drop the selection
+        const picker = $('<div class="selection-replace">').hide();
+        button('Ersetzen durch …', 'Die ausgewählten Sprites werden zu einem anderen Sprite, jedes an seinem Platz. Codes und Einstellungen bleiben, wenn das neue Sprite sie auch hat (zum Beispiel eine Tür, die zu einer anderen Tür wird).',
+            () => picker.toggle(), more);
+        this.game.data.sprites.forEach((sprite, si) => {
+            const frames = sprite.states?.[0]?.frames ?? [];
+            const frame = frames[Math.floor(frames.length / 2 - 0.5)] ?? frames[0];
+            $('<button type="button" class="selection-replace-sprite">')
+                .attr('title', sprite_label(sprite, si))
+                .css('background-image', frame?.src ? `url(${frame.src})` : 'none')
+                .on('click', (e) => { e.preventDefault(); this.replace_selection(si); })
+                .appendTo(picker);
+        });
+        picker.appendTo(box);
         const level = this.game.data.levels[this.level_index];
         const options = {};
         level.layers.forEach((layer, li) => {

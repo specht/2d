@@ -14,11 +14,10 @@ The main current weakness is not the game engine or sprite editor, but the **lev
 
 The level editor should move beyond placing individual sprites and become a proper visual scene editor.
 
-Implemented (`level_selection.js`, select tool): selecting many (rectangle, Shift adds), dragging the selection in grid steps (Shift: pixel by pixel), arrow-key nudging, Strg+C/X/V/D (paste at the mouse, also into another layer or level), deleting, moving the selection to another layer ("In Ebene"), and Strg + drag with the pen to fill a rectangle.
+Implemented (`level_selection.js`, select tool): selecting many (rectangle, Shift adds), dragging the selection in grid steps (Shift: pixel by pixel), arrow-key nudging, Strg+C/X/V/D (paste at the mouse, also into another layer or level), deleting, moving the selection to another layer ("In Ebene"), and Strg + drag with the pen to fill a rectangle, selecting every copy of the selected sprites ("Alle gleichen") and replacing the selection with another sprite ("Ersetzen durch").
 
 Still open:
 
-- replacing a group of objects with another sprite
 - predictable drag behaviour across parallax layers
 - other bulk-placement operations (lines, outlines of a rectangle)
 
@@ -34,9 +33,8 @@ Placing sprites already works reasonably well.
 
 Editing something that already exists should become equally convenient.
 
-Typical operations should include (move, duplicate, copy / paste and move to another layer exist):
+Typical operations should include (move, duplicate, copy / paste, move to another layer and replace exist):
 
-- replace
 - align or arrange where useful
 
 Avoid requiring users to delete and recreate things simply because they changed their mind.

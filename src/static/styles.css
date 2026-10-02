@@ -2811,6 +2811,31 @@ details.trait-advanced[open] > summary {
 .selection-buttons button:hover {
     background: rgba(255, 255, 255, 0.2);
 }
+/* "Ersetzen durch": the sprites to choose from */
+.selection-replace {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    max-height: 120px;
+    overflow-y: auto;
+    margin-bottom: 4px;
+}
+.selection-replace-sprite {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background-color: rgba(0, 0, 0, 0.25);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    image-rendering: pixelated;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    cursor: pointer;
+}
+.selection-replace-sprite:hover {
+    border-color: #fff;
+}
 #menu_placed_properties .selection-box .item {
     padding-left: 0;
     padding-right: 0;
