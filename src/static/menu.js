@@ -89,6 +89,8 @@ class Menu {
                     // console.log(`Handling menu keydown: ${k}`, self.status_shortcuts[k]);
                     e.preventDefault();
                     e.stopPropagation();
+                    // a toggle flips once per key press, not with the key's repeat
+                    if (e.repeat && self.status_buttons[self.status_shortcuts[k]]?.type === 'toggle') return;
                     self.handle_status_button_down(self.status_shortcuts[k], true);
                     return;
                 }

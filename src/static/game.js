@@ -318,6 +318,9 @@ class Game {
     _load() {
         canvas.setGame(this);
         let self = this;
+        // another game: no longer a recipe scene (rezepte.js sets it again
+        // after loading one) – before the own-game button is built
+        this.from_recipe = null;
         // Another game (or a session's copy of it): the undo steps of the
         // levels before do not belong to it. Rebuilding the lists keeps them.
         if (this.level_history_data !== this.data || this.level_history_levels !== this.data.levels) {
@@ -640,9 +643,7 @@ class Game {
                 $('#play_iframe').focus();
             }
         }
-        // another game: no longer a recipe scene (rezepte.js sets it again
-        // after loading one), and nothing is unsaved yet
-        this.from_recipe = null;
+        // nothing is unsaved yet
         this.remember_saved_state?.();
     }
 
@@ -847,6 +848,8 @@ class Game {
         for (const sprite of sprites) window.collaboration?.structure_changed?.('sprite', 'insert', sprite.id);
         if (first + sprites.length === this.data.sprites.length) this.sprites_widget?.append_items(first);
         else this.sprites_widget?.rebuild();
+        // the sprite shown may have moved: show it again (or the new one)
+        if (canvas.sprite_index !== null && canvas.sprite_index >= first) canvas.detachSprite();
         // the level editor's chosen sprite stays the same sprite
         if (this.level_editor && this.level_editor.sprite_index >= first) this.level_editor.sprite_index += sprites.length;
         this.refresh_sprite_reference_pickers();
