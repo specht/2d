@@ -126,10 +126,47 @@ Develop a small, understandable trigger/action system rather than implementing e
 
 **Signale exist (`src/static/signals.js`, see AGENTS.md):** senders send their Code with *an* or *aus*: a collected key, a Schalter, a Druckplatte (player only), a Bereich (the player enters / leaves rectangles), a defeated enemy and "alle Gegner besiegt". Every sender can send later (Verzögerung). Receivers: doors (`door_reaction`; a door can also close again by itself after some seconds) and sprite or backdrop layers that appear or disappear (with Überblendung; a layer that is away has no collisions, and its enemies wait). Sichtbarkeitsbereiche and door codes of older games are promoted to this on load. The level editor shows under every Code what else in the level has it.
 
-Next steps, roughly in order of usefulness (each must stay an understandable choice in the editor, not scripting):
+## Next: a Signale overview and names for signals
 
+Wanted next. Today a child sees the connections one at a time (the line under a Code, the dashed lines for the selection or "Verbindungen zeigen"); with five or six signals in a level, nothing shows the whole picture.
+
+**Overview of the level's signals** (read-only first): one card per Code that reads as a rule, built from what `signals.js` already knows (`signal_objects`, `signal_links`, reaction labels):
+
+```
+Brücke                                   Code 4
+  Wenn  die Spielfigur auf die Druckplatte tritt
+  dann  erscheint die Ebene »Brücke«
+        (geht sie herunter, verschwindet sie wieder)
+
+Ausgang                                  Code 2
+  Wenn  alle Gegner besiegt sind
+  dann  öffnet sich das Gittertor
+```
+
+- every sender and every receiver of the Code, in "Wenn … dann …" sentences; a Verzögerung reads "… dann, 1 s später, …"; *an* and *aus* only where they matter (Druckplatte, Bereich, "solange an")
+- warnings as their own cards: a Code that is sent but nothing reacts to, one that something waits for but nothing sends (the most common mistakes, today only found by clicking every object)
+- clicking a card selects its objects (in their layers) and scrolls the view to them; hovering shows only that Code's connection lines
+- later: during "Level testen" a card lights up when its signal arrives, so children watch the rules happen while they play (needs a small message from the game frame to the studio)
+
+**Where it goes.** At 1920 × 1080 the level pane's left column holds Werkzeuge and the sprite palette, which grows with every sprite of the game; the right column holds Level, Layer and Eigenschaften, which grow with the selection. Neither has room that stays free. The level view itself is about 1450 px wide: the overview is a panel docked at the right edge inside the level view (like the layer name in its corner, but a real panel, about 360 px, scrolling on its own), opened and closed from the status bar with a letter key, remembered per browser. While it is open the connection lines follow the hovered card. It shows the current level only, because Codes belong to one level.
+
+**Names for signals instead of bare numbers.** The Code stays a number in the saved game and in the engine (`free_signal_code`, the Verbinden tool, recipe checks, `fix_game_data` all keep working); a level may give its Codes names: optional `level.properties.signal_names`, e.g. `{ "4": "Brücke" }` (absent = numbers only, exactly as today; editor-only, never read by the game; renaming changes one place). Not strings as Codes: "Brücke" and "brücke " would be two different signals, an invisible and frustrating mistake.
+
+- the Code field of senders, receivers, layers and the level becomes a dropdown of this level's signals ("Brücke · 4", "+ Neues Signal …"); a name is typed only when a signal is created, the number stays visible but small
+- the Verbinden tool asks for a name when it creates a new Code (prefilled, e.g. "Schalter → Gittertor")
+- the overview, the line under a Code and the connection lines use the name
+- copying, pasting or duplicating between levels: a Code that arrives with a name the target level does not have takes the name along; a clash of the same number with a different name gets a free number (decide and test before implementing)
+- the Signale recipes then use names ("Brücke") instead of "Code 4"
+
+Order: the overview (read-only, select, warnings) → names with the dropdown → cards lighting up in test runs.
+
+## Further Signale extensions
+
+Roughly in order of usefulness (each must stay an understandable choice in the editor, not scripting):
+
+- "und" and counters: a receiver that waits for two Codes, or a Code that has to arrive three times ("drei Schalter umlegen")
+- more receivers: "Level geschafft" (could answer the open level-completion question: "alle Gegner besiegt → Level geschafft"), a sign or figure that speaks on a Signal or when the figure walks past (speech.js is ready), a moving platform or lift that starts, spawn / remove a single sprite, a trap that switches on and off, set a simple game flag
 - more senders: sprite collected (any pickup with a Code), level starts; enemies pressing a Druckplatte
-- more receivers: show text (signs already speak with F in the new pixel-font style, speech.js – next: speak on a Signal or when the figure walks past), spawn / remove a single sprite, a trap that switches on and off, a moving platform that starts, complete the level, set a simple game flag
 - show a sender's Verzögerung on its connection line in the level editor, if children lose track of which signals are delayed
 - signals across levels only with an explicit design (flags), never implicitly: keys and Codes are per level
 
@@ -489,7 +526,7 @@ In particular:
 6. Make game lineage understandable (the independent-fork action exists: Als eigenes Spiel weiterführen).
 7. Make deliberate, named multi-browser collaboration practical without introducing accounts.
 8. Polish sprite-animation workflows.
-9. Extend the Signale (generic triggers/actions; milestone 1 exists).
+9. Extend the Signale: next the overview and names (see Triggers and Actions), then "und"/counters and new receivers.
 10. Build new gameplay systems on those foundations.
 
 The central question for new work should be:
