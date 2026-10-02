@@ -431,6 +431,7 @@ class LevelEditor {
 
                 // Signale: "alle Gegner besiegt" (absent = the level sends nothing)
                 self.add_all_defeated_controls($('<div>').appendTo($('#menu_level_properties')));
+                self.add_level_complete_controls($('<div>').appendTo($('#menu_level_properties')));
 
                 // Bewegung im ganzen Level (movement_regions.js): absent = as always
                 const movement_box = $('<div>').appendTo($('#menu_level_properties'));
@@ -1337,6 +1338,83 @@ class LevelEditor {
         $('.signal-code-pick').each((_, el) => $(el).data('signal-code-widget')?.refresh_button());
     }
 
+    // Takes one thing out of the Signale ("Kein Signal"): object as in a rule
+    // card (signal_rules). A key, door, Schalter, Druckplatte or Bereich gets
+    // the Code null; an enemy, a sign, a layer or a level setting switches its
+    // signal off. The key an enemy leaves behind is left alone (its Code falls
+    // back to the drawing's). False if nothing changed (or the layer is locked).
+    clear_signal_object(level, object) {
+        if (!level || !object) return false;
+        if (object.kind === 'level') {
+            if (!(object.setting in (level.properties ?? {}))) return false;
+            delete level.properties[object.setting];
+            if (object.setting === 'signal_all_defeated') delete level.properties.signal_all_defeated_delay;
+            return true;
+        }
+        const layer = level.layers[object.layer_index];
+        if (!layer || this.refuse_locked_layer(object.layer_index)) return false;
+        if (object.kind === 'layer') {
+            delete layer.properties.signal_reaction;
+            delete layer.properties.signal_code;
+            delete layer.properties.signal_fade;
+            return true;
+        }
+        if (object.kind === 'area') {
+            layer.properties.signal_code = null;
+            return true;
+        }
+        const placed = layer.sprites?.[object.placed_index];
+        const trait = { loot: null, baddie: 'baddie', text: 'text' }[object.role] ?? object.role;
+        if (!placed || !trait) return false;
+        if (!placed[3] || typeof placed[3] !== 'object') placed[3] = {};
+        const props = placed[3][trait] ??= {};
+        const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal' }[trait];
+        if (flag) {
+            props[flag] = false;
+            delete props.signal_code;
+        } else props.signal_code = null;
+        return true;
+    }
+
+    // After taking things out: one undo step, and every panel shows it.
+    signal_objects_cleared(notice) {
+        this.history_observe();
+        this.placed_properties_for = null;
+        if ($('#menu_layer_properties_container').is(':visible')) this.setup_layer_properties();
+        $('.level-signal-controls').each((_, box) => $(box).data('refresh')?.());
+        this.signal_focus_code = null;
+        this.refresh();
+        this.build_signal_links();
+        this.render();
+        this.show_level_notice(notice);
+    }
+
+    // × on a line of a card: everything on that line leaves the signal.
+    remove_signal_line(line) {
+        if (window.collaboration?.can_edit_current?.() === false) {
+            this.show_level_notice('Gerade bearbeitet jemand anderes dieses Level.');
+            return;
+        }
+        const level = this.game.data.levels[this.level_index];
+        let changed = 0;
+        for (const object of line.objects) if (object.role !== 'loot' && this.clear_signal_object(level, object)) changed++;
+        if (changed) this.signal_objects_cleared(`„${line.text}“ gehört nicht mehr zu diesem Signal – Strg+Z macht es rückgängig.`);
+    }
+
+    // The trash can of a card: the whole rule goes – every line, and its name.
+    delete_signal_rule(card) {
+        if (window.collaboration?.can_edit_current?.() === false) {
+            this.show_level_notice('Gerade bearbeitet jemand anderes dieses Level.');
+            return;
+        }
+        const level = this.game.data.levels[this.level_index];
+        let changed = 0;
+        for (const line of [...card.senders, ...card.receivers])
+            for (const object of line.objects) if (object.role !== 'loot' && this.clear_signal_object(level, object)) changed++;
+        if (signal_name(level, card.code)) { set_signal_name(level, card.code, ''); changed++; }
+        if (changed) this.signal_objects_cleared(`Die Regel ${signal_code_text(card.code, card.name)} ist gelöscht – Strg+Z macht es rückgängig.`);
+    }
+
     // "+ Neue Regel": the Verbinden tool, and what to click.
     start_new_signal_rule() {
         if (menus.level.active_key !== 'tool/connect') menus.level.handle_click('tool/connect');
@@ -1632,7 +1710,16 @@ class LevelEditor {
             editor: this,
             container: details,
             label: 'Code',
-            hint: 'Alles mit demselben Code sendet dieser Ebene ein Signal.',
+            hint: 'Alles mit demselben Code sendet dieser Ebene ein Signal. Ohne Code („Kein Signal“) reagiert die Ebene nicht.',
+            // "Kein Signal": the layer no longer reacts (Bei Signal: reagiert nicht)
+            clear: () => {
+                delete layer.properties.signal_reaction;
+                delete layer.properties.signal_code;
+                delete layer.properties.signal_fade;
+                setTimeout(() => this.setup_layer_properties(), 0);
+                this.build_signal_links();
+                this.render();
+            },
             get: () => layer.properties.signal_code ?? 0,
             set: (value) => {
                 layer.properties.signal_code = Math.round(value);
@@ -1670,7 +1757,7 @@ class LevelEditor {
             links.text(Number.isInteger(code) ? describe_signal_partners(code, signal_partners(level, code,
                 ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits), signal_name(level, code)) : '');
         };
-        new CheckboxWidget({
+        const toggle = new CheckboxWidget({
             container: box,
             label: 'sendet, wenn alle Gegner besiegt',
             hint: 'Sind alle Gegner in diesem Level besiegt, sendet das Level einen Code – zum Beispiel öffnet sich dann das Tor zum Ziel. Gegner auf einer Ebene, die noch nicht erschienen ist, zählen erst mit, wenn sie da sind: So kann die nächste Welle erscheinen, sobald die erste besiegt ist. Unverwundbare Gegner zählen nicht mit.',
@@ -1691,11 +1778,27 @@ class LevelEditor {
             editor: this,
             container: details,
             label: 'Code',
+            // "Kein Signal": the level no longer sends it
+            clear: () => {
+                delete level.properties.signal_all_defeated;
+                delete level.properties.signal_all_defeated_delay;
+                toggle.refresh();
+                delay_widget?.refresh();
+                update();
+                this.build_signal_links();
+            },
             get: () => level.properties.signal_all_defeated ?? 0,
             set: (value) => {
                 level.properties.signal_all_defeated = Math.round(value);
                 update();
             },
+        });
+        // the overview can take this setting away: then the box shows it at once
+        box.addClass('level-signal-controls').data('refresh', () => {
+            toggle.refresh();
+            code_widget?.refresh();
+            delay_widget?.refresh();
+            update();
         });
         // absent = 0 = at once (signals.js)
         delay_widget = new NumberWidget({
@@ -1716,6 +1819,59 @@ class LevelEditor {
         update();
     }
 
+    // Level setting: a Signal completes the level, like the exit (signals.js,
+    // app.js complete_level). Absent = only the exit does.
+    add_level_complete_controls(box) {
+        const level = this.game.data.levels[this.level_index];
+        const links = $('<div class="signal-links">');
+        let details = null;
+        let code_widget = null;
+        const update = () => {
+            const code = level.properties.signal_level_complete;
+            details?.toggle(Number.isInteger(code));
+            links.text(Number.isInteger(code) ? describe_signal_partners(code, signal_partners(level, code,
+                ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits), signal_name(level, code)) : '');
+            this.build_signal_links();
+        };
+        const toggle = new CheckboxWidget({
+            container: box,
+            label: 'geschafft bei Signal',
+            hint: 'Kommt ein Signal mit diesem Code „an“, ist das Level geschafft – wie am Ziel, und es geht weiter zum nächsten Level. Zum Beispiel: Wähle hier denselben Code wie bei „sendet, wenn alle Gegner besiegt“, dann ist das Level geschafft, sobald kein Gegner mehr übrig ist. Das Ziel funktioniert weiterhin.',
+            get: () => Number.isInteger(level.properties.signal_level_complete),
+            set: (on) => {
+                if (on) level.properties.signal_level_complete = free_signal_code(level);
+                else delete level.properties.signal_level_complete;
+                code_widget?.refresh();
+                update();
+            },
+        });
+        details = $('<div>').appendTo(box);
+        code_widget = new SignalCodeWidget({
+            editor: this,
+            container: details,
+            label: 'Code',
+            // "Kein Signal": only the exit completes the level again
+            clear: () => {
+                delete level.properties.signal_level_complete;
+                toggle.refresh();
+                update();
+            },
+            get: () => level.properties.signal_level_complete ?? 0,
+            set: (value) => {
+                level.properties.signal_level_complete = Math.round(value);
+                update();
+            },
+        });
+        links.appendTo(box);
+        // the overview can take this setting away: then the box shows it at once
+        box.addClass('level-signal-controls').data('refresh', () => {
+            toggle.refresh();
+            code_widget?.refresh();
+            update();
+        });
+        update();
+    }
+
     // A Bereich (layer type signal_area): its rectangles send the Code "an"
     // when the figure's centre enters them and "aus" when it leaves.
     add_area_signal_controls(layer) {
@@ -1723,8 +1879,8 @@ class LevelEditor {
         const level = this.game.data.levels[this.level_index];
         const links = $('<div class="signal-links">');
         const update_links = () => {
-            const code = layer.properties.signal_code ?? 0;
-            links.text(describe_signal_partners(code, signal_partners(level, code,
+            const code = stored_signal_code(layer.properties.signal_code);
+            links.text(code === null ? 'Kein Signal: Dieser Bereich sendet nichts.' : describe_signal_partners(code, signal_partners(level, code,
                 ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits), signal_name(level, code)));
             this.build_signal_links();
             this.render();
@@ -1733,8 +1889,13 @@ class LevelEditor {
             editor: this,
             container,
             label: 'Code',
-            hint: 'Kommt die Mitte der Spielfigur in eines der Rechtecke, sendet der Bereich diesen Code mit „an“, geht sie wieder hinaus, mit „aus“. Ebenen und Türen mit demselben Code reagieren darauf – zum Beispiel verschwindet das Dach, solange man im Haus ist („weg, solange an“).',
-            get: () => layer.properties.signal_code ?? 0,
+            hint: 'Kommt die Mitte der Spielfigur in eines der Rechtecke, sendet der Bereich diesen Code mit „an“, geht sie wieder hinaus, mit „aus“. Ebenen und Türen mit demselben Code reagieren darauf – zum Beispiel verschwindet das Dach, solange man im Haus ist („weg, solange an“). Ohne Code („Kein Signal“) sendet der Bereich nichts.',
+            // "Kein Signal": the Bereich sends nothing
+            clear: () => {
+                layer.properties.signal_code = null;
+                update_links();
+            },
+            get: () => stored_signal_code(layer.properties.signal_code),
             set: (value) => {
                 layer.properties.signal_code = Math.round(value);
                 update_links();
@@ -2338,6 +2499,9 @@ class LevelEditor {
         if (interactive) {
             box.on('mouseenter', () => { this.signal_focus_code = card.code; this.build_signal_links(); this.render(); });
             box.on('mouseleave', () => { this.signal_focus_code = null; this.build_signal_links(); this.render(); });
+            $('<button class="signal-rule-delete">').append($('<i class="fa fa-trash-o">'))
+                .attr('title', 'Diese Regel löschen: alles verliert diesen Code (Strg+Z macht es rückgängig)')
+                .on('click', (e) => { e.stopPropagation(); this.delete_signal_rule(card); }).appendTo(box);
             $('<button class="signal-rule-code">').text(`Code ${card.code}`).attr('title', 'Alles mit diesem Code zeigen')
                 .on('click', () => this.focus_signal_code(card.code)).appendTo(box);
             // a named Code: its name on top, the number stays small on the right
@@ -2355,10 +2519,18 @@ class LevelEditor {
                 const entry = $('<div class="signal-rule-line">').appendTo(list);
                 if (i > 0) $('<span class="signal-rule-or">').text(word === 'Wenn' ? 'oder ' : 'und ').appendTo(entry);
                 $('<span>').text(line.text + (line.count > 1 ? ` (${line.count}×)` : '')).appendTo(entry);
-                if (interactive && line.objects.length) {
+                const pickable = line.objects.filter(o => o.kind !== 'level');
+                if (interactive && pickable.length) {
                     entry.addClass('signal-rule-pick').attr('title', 'Auswählen');
                     let next = 0;
-                    entry.on('click', () => { this.pick_signal_overview_object(line.objects[next % line.objects.length]); next++; });
+                    entry.on('click', () => { this.pick_signal_overview_object(pickable[next % pickable.length]); next++; });
+                }
+                // × takes this line out of the signal (not the key an enemy leaves behind)
+                if (interactive && line.objects.some(o => o.role !== 'loot')) {
+                    entry.addClass('signal-rule-removable');
+                    $('<button class="signal-rule-remove">').append($('<i class="fa fa-times">'))
+                        .attr('title', line.count > 1 ? `Alle ${line.count} aus diesem Signal nehmen` : 'Aus diesem Signal nehmen')
+                        .on('click', (e) => { e.stopPropagation(); this.remove_signal_line(line); }).appendTo(entry);
                 }
             });
         };
@@ -3547,6 +3719,9 @@ class LevelEditor {
                                 give_defeat_sender_code(level, props);
                                 widgets['baddie/signal_code']?.refresh();
                             }
+                            // "spricht bei Signal": a free Code, so it does not start with the keys and doors on 0
+                            if (trait === 'text' && key === 'speaks_on_signal' && value === true && !('signal_code' in props))
+                                props.signal_code = free_signal_code(level);
                             // a setting that shows or hides others ("Wer spricht" → Textfarbe)
                             if (property.rebuilds_panel) {
                                 this.placed_properties_for = null;
@@ -3556,15 +3731,30 @@ class LevelEditor {
                         };
                         let widget = null;
                         if (key === 'signal_code' || key === 'drop_code') {
-                            // a number and the level's signals with their names
+                            // a number and the level's signals with their names; an emptied
+                            // Code is "kein Signal" (not for the Beute: absent there means the drawing's Code)
+                            const clear = key !== 'signal_code' ? null : () => {
+                                const props = writable_props_of(trait);
+                                // an enemy or a sign: its signal switches off; a key, door,
+                                // Schalter or Druckplatte: null, it neither sends nor reacts
+                                const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal' }[trait];
+                                if (flag) {
+                                    props[flag] = false;
+                                    delete props.signal_code;
+                                    this.placed_properties_for = null;
+                                    setTimeout(() => this.refresh(), 0);
+                                } else props.signal_code = null;
+                                this.update_signal_links?.();
+                            };
                             widget = new SignalCodeWidget({
                                 editor: this,
                                 container: div,
                                 label: property.label ?? key,
                                 hint: property.hint ?? null,
                                 max: property.max ?? 1000,
-                                get,
+                                get: () => props_of(trait)[key] === null ? null : get(),
                                 set,
+                                clear,
                             });
                         } else if (property.type === 'int' || property.type === 'float') {
                             widget = new NumberWidget({
@@ -3861,29 +4051,38 @@ function signal_link_color(code) {
 }
 
 // ------------------------------------------------------ the Code field
-// "Code" of a key, door, Schalter, Druckplatte, enemy, layer, Bereich or
-// "alle Gegner besiegt": the number stays a field you can type into (the
-// recipes say "trag als Code 4 ein"), and next to it a button with the
-// Code's name opens the level's signals: every Code of this level (with its
-// name), "Neues Signal …" (a free Code, then its name) and "Namen geben …".
-// data: { editor, container, label, hint, get, set, max }.
+// "Code" of a key, door, Schalter, Druckplatte, enemy, sign, layer, Bereich
+// or a level setting: a field you can type a number into (the recipes say
+// "trag als Code 4 ein"), and next to it a button with the Code's name that
+// opens the level's signals: every Code of this level (with its name),
+// "Neues Signal …" (a free Code, then its name), "Namen geben …" and
+// "Kein Signal". An emptied field also means "Kein Signal" (data.clear: what
+// that is for this object – a null Code, or switching its signal off); without
+// data.clear an empty field goes back to the Code it had.
+// data: { editor, container, label, hint, get, set, clear?, max }.
 class SignalCodeWidget {
     constructor(data) {
         this.data = data;
         this.editor = data.editor;
-        this.number = new NumberWidget({
-            container: data.container,
-            label: data.label ?? 'Code',
-            hint: data.hint ?? null,
-            min: 0,
-            max: data.max ?? 1000,
-            get: data.get,
-            set: (value) => { data.set(Math.round(value)); this.refresh_button(); },
+        const div = $('<div class="item">').data('widget-instance', this);
+        $('<div style="margin-right: 1em;">').text(data.label ?? 'Code').appendTo(div);
+        this.row = $('<div class="signal-code-row">').css({ display: 'flex', 'align-items': 'center' }).appendTo(div);
+        // sized inline like NumberWidget's fields (panel rules for text inputs would stretch it)
+        this.input = $('<input type="text" class="signal-code-input" inputmode="numeric">')
+            .css({ width: '2.5em', flex: '0 0 auto', 'text-align': 'center' })
+            .attr('placeholder', '–').appendTo(this.row);
+        // a number takes effect while typing; an empty field only once it is left (or Enter)
+        this.input.on('input', () => {
+            const value = this.parse();
+            if (value !== null && value !== 'empty' && value !== this.code()) this.apply(value);
         });
-        this.row = this.number.input[0].parent();
-        this.row.addClass('signal-code-row');
+        this.input.on('change blur', () => this.commit());
+        this.input.on('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); this.commit(); this.input.trigger('blur'); }
+        });
+        this.input.on('focus', () => this.input.trigger('select'));
         this.button = $('<button type="button" class="dropdown-button signal-code-pick">')
-            .attr('title', 'Signale in diesem Level: einen auswählen, ein neues anlegen oder einen Namen geben')
+            .attr('title', 'Signale in diesem Level: einen auswählen, ein neues anlegen, einen Namen geben oder das Signal entfernen')
             .append($('<span class="dropdown-text">'))
             .append($('<i class="fa fa-angle-down dropdown-arrow">'))
             .on('mousedown', (e) => { if (this.button.hasClass('open')) e.stopPropagation(); })
@@ -3896,28 +4095,71 @@ class SignalCodeWidget {
             .appendTo(this.row);
         // so that a rename elsewhere (overview, another field) reaches this button
         this.button.data('signal-code-widget', this);
+        $(data.container).append(div);
+        install_hint_handler(div, data);
+        this.refresh();
+    }
+
+    // What is typed: a Code (0 … max), 'empty', or null (not a number).
+    parse() {
+        const text = String(this.input.val() ?? '').trim();
+        if (text === '') return 'empty';
+        if (!/^\d+$/.test(text)) return null;
+        return Math.min(Number(text), this.data.max ?? 1000);
+    }
+
+    commit() {
+        // clearing may rebuild the panel this field is in; its blur must not commit again
+        if (this.committing || !document.body.contains(this.input[0])) return;
+        this.committing = true;
+        try { this.commit_now(); } finally { this.committing = false; }
+    }
+
+    commit_now() {
+        const value = this.parse();
+        if (value === 'empty' && this.code() !== null) {
+            if (this.data.clear) this.clear();
+        } else if (value !== null && value !== 'empty' && value !== this.code()) {
+            this.apply(value);
+        }
+        this.refresh();
+    }
+
+    apply(code) {
+        this.data.set(code);
         this.refresh_button();
+    }
+
+    clear() {
+        if (!this.data.clear) return;
+        this.data.clear();
+        this.refresh();
     }
 
     level() {
         return this.editor.game.data.levels[this.editor.level_index];
     }
 
+    // the current Code, or null for "kein Signal"
     code() {
-        const value = Number(this.data.get());
-        return Number.isInteger(value) ? value : 0;
+        const value = this.data.get();
+        if (value === null || value === undefined) return value === null ? null : 0;
+        const number = Number(value);
+        return Number.isInteger(number) ? number : 0;
     }
 
     refresh() {
-        this.number.refresh();
+        const code = this.code();
+        if (!this.input.is(':focus') || this.parse() !== code) this.input.val(code === null ? '' : String(code));
         this.refresh_button();
     }
 
     refresh_button() {
-        const name = signal_name(this.level(), this.code());
-        this.button.find('.dropdown-text').text(name || 'ohne Namen');
+        const code = this.code();
+        const name = code === null ? '' : signal_name(this.level(), code);
+        this.button.find('.dropdown-text').text(code === null ? 'kein Signal' : name || 'ohne Namen');
         this.button.toggleClass('signal-code-unnamed', !name);
-        this.button.css('--signal-color', signal_link_color(this.code()));
+        this.button.css('--signal-color', signal_link_color(code));
     }
 
     // every Code of the level, small first; the current one even if nothing
@@ -3930,7 +4172,7 @@ class SignalCodeWidget {
         const zero = signal_partners(level, 0, traits_of);
         if (!Object.keys(zero.counts).length && !zero.layers.length && !zero.areas.length && !zero.all_defeated)
             codes.delete(0);
-        codes.add(this.code());
+        if (this.code() !== null) codes.add(this.code());
         return [...codes].sort((a, b) => a - b);
     }
 
@@ -3961,10 +4203,17 @@ class SignalCodeWidget {
                 this.choose(free_signal_code(level));
                 this.edit_name();
             } });
-        const name = signal_name(level, current);
-        entries.push({ label: name ? `»${name}« umbenennen …` : 'Namen geben …', icon: 'fa-pencil',
-            hint: 'Der Name gilt für alles mit diesem Code in diesem Level.',
-            callback: () => { if (this.may_edit()) this.edit_name(); } });
+        if (current !== null) {
+            const name = signal_name(level, current);
+            entries.push({ label: name ? `»${name}« umbenennen …` : 'Namen geben …', icon: 'fa-pencil',
+                hint: 'Der Name gilt für alles mit diesem Code in diesem Level.',
+                callback: () => { if (this.may_edit()) this.edit_name(); } });
+        }
+        if (this.data.clear) {
+            entries.push({ label: 'Kein Signal', icon: current === null ? 'fa-check' : 'fa-ban',
+                hint: 'Dieses Objekt sendet nichts und reagiert auf nichts mehr. Du kannst auch einfach die Zahl löschen.',
+                callback: () => { if (current !== null && this.may_edit()) this.clear(); } });
+        }
         const rect = this.button[0].getBoundingClientRect();
         show_context_menu(rect.left, rect.bottom + 2, entries, { min_width: rect.width, dropdown: true });
         this.button.addClass('open');
@@ -3973,8 +4222,7 @@ class SignalCodeWidget {
 
     choose(code) {
         this.data.set(code);
-        this.number.refresh();
-        this.refresh_button();
+        this.refresh();
     }
 
     // The button becomes a field for the name of the current Code. Enter or

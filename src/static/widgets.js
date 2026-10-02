@@ -15,7 +15,8 @@ class DragAndDropWidget {
     constructor(options = {}) {
         let self = this;
         this.has_touch = false;
-        this.dragging_div = $(`<div style='position: relative; pointer-events: none;'>`);
+        // holds the item while it is dragged (in <body>, so styles of its list do not reach it: _dnd_dragging)
+        this.dragging_div = $(`<div class='_dnd_dragging' style='position: relative; pointer-events: none;'>`);
         this.mouse_down_element = null;
         this.drop_index = null;
         this.placeholder = $(`<div>`).addClass('_dnd_item').append($('<div>').addClass(options.item_class).addClass('placeholder'));
@@ -249,6 +250,8 @@ class DragAndDropWidget {
                 if ((dx * dx + dy * dy > 100) && (!body.data('_dnd_has_moved'))) {
                     let index = self.mouse_down_element.index();
                     self.drop_index = null;
+                    // outside its list the item would shrink to its content: it keeps its width
+                    self.dragging_div.css('width', `${self.mouse_down_element[0].getBoundingClientRect().width}px`);
                     self.placeholder.insertAfter(self.options.container.children().eq(index));
                     self.dragging_div.appendTo($('body'));
                     self.dragging_div.append(self.mouse_down_element);
