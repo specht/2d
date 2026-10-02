@@ -1,6 +1,6 @@
 ---
 titel: Ein Schalter öffnet das Tor
-kategorie: Türen & Schlüssel
+kategorie: Signale
 stufe: 2
 skala: 2
 kurz: Pip legt einen Schalter um – und weiter hinten fährt ein Gittertor hoch.

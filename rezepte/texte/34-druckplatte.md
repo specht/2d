@@ -1,6 +1,6 @@
 ---
 titel: Eine Druckplatte baut eine Brücke
-kategorie: Türen & Schlüssel
+kategorie: Signale
 stufe: 2
 skala: 2
 kurz: Pip tritt auf eine Druckplatte – und über dem Stachelgraben erscheint eine Brücke.

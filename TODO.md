@@ -459,6 +459,23 @@ They can easily dominate the architecture while benefiting relatively few games.
 
 ---
 
+# Recipe Ideas: Signale
+
+The Signale recipes have their own category. Ideas for more, all possible with what exists today:
+
+- **Die Falle schnappt zu** – a Bereich closes the gate behind Pip (door reaction "schließen"); only when all enemies are defeated (level: "sendet, wenn alle Gegner besiegt") does it open again. Arena feeling, two senders, one door.
+- **Gegnerwellen** – the second wave of enemies lies on a layer that appears when the first wave is defeated (enemies on a layer that is away do not count yet).
+- **An/Aus-Plattformen** – one Schalter, two layers: one reacts "da, solange an", the other "weg, solange an". Every flip swaps the platforms (a puzzle classic).
+- **Der Schlüssel macht Licht** – a key does not have to open a door: collecting it fades out a dark layer (or makes a bridge appear).
+- **Der Gegner hat den Schlüssel** – an enemy leaves a key behind (Beute) whose Code opens the door at the end.
+- **Eine Falle mit Verzögerung** – a Druckplatte drops stones (or spikes appear) a second later: Verzögerung on the sender, so Pip can still run.
+- **Ein geheimer Gang** – a wall layer fades away while Pip stands in a hidden Bereich (like the house roofs, but as a secret).
+- **Hin und her** – a Schalter with door reaction "umschalten": every flip opens or closes the gate.
+
+Would need new features: two senders that must both be active (AND), a counter ("drei Schalter umlegen"), a text that is spoken on a Signal.
+
+---
+
 # Recipe Scenes in the Studio
 
 Every recipe's scene can be opened in the studio (Hilfe → Selbst ausprobieren → Szene öffnen); saving it makes an own game. Ideas for later:

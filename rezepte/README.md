@@ -71,7 +71,10 @@ studio.
 ## How the recording works
 
 * `game.mjs` builds a real saved-game JSON from `katalog.yaml` and the
-  recipe's map. Defaults are filled in by running the studio's own
+  recipe's map. Map column *c* is centred on x = c × 24 (`X0`, the left edge
+  of column 0, is −12), exactly where the level editor puts a 24-pixel sprite,
+  so whatever a child paints into an opened recipe scene lines up with it;
+  Bereiche and other rectangles in tiles use the same grid. Defaults are filled in by running the studio's own
   `Game.prototype.fix_game_data()` (`game.js`) in a Node VM, so the recorded
   game has exactly the fields a child's saved game would have. The sprite
   sheet uses the same layout as `Main.render_spritesheet_for_tag`.
@@ -127,7 +130,7 @@ The recorder relies on these runtime entry points: `window.game`,
 ```yaml
 ---
 titel: Leitern hochklettern
-kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Türen & Schlüssel | Kampf | Gegner | Wasser & Weltall
+kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Türen & Schlüssel | Signale | Kampf | Gegner | Wasser & Weltall
 # entwurf: true                # hide this recipe (not built, not shown)
 stufe: 1                       # difficulty 1–3 (kept in rezepte.json, not shown)
 kurz: Pip klettert eine Leiter hoch und läuft oben weiter.
