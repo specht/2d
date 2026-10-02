@@ -592,10 +592,15 @@ body {
     transition: none;
 }
 
-/* Rückgängig / Wiederholen in the level editor with nothing to undo or redo */
+/* Rückgängig / Wiederholen in the level editor with nothing to undo or redo:
+   only the entry is dimmed, not the line between the entries */
 .status-bar-button.disabled {
-    opacity: 0.35;
+    color: rgba(170, 170, 170, 0.35);
     cursor: default;
+}
+
+.status-bar-button.disabled .key {
+    opacity: 0.35;
 }
 
 /* ------------------------------------------------------------------
@@ -3192,4 +3197,108 @@ button.basket-tray-item:hover .fa {
 .modal-footer button:disabled {
     opacity: 0.45;
     cursor: default;
+}
+
+/* A setting in the status bar that stays on (Gitter, Zwiebelhaut …: menu.js type toggle) */
+.status-bar-toggle::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 0.5em;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    vertical-align: 1px;
+}
+
+.status-bar-toggle.active {
+    background-color: transparent;
+    color: #fff;
+}
+
+.status-bar-toggle.active::before {
+    background: #a7f070;
+    border-color: #a7f070;
+}
+
+/* the shortcut next to a checkbox (Gitter anzeigen  G) */
+.key.widget-key {
+    margin: 0 0 0 0.3em;
+    padding: 0 0.4em;
+    font-size: 11px;
+}
+
+/* Right-click menus (widgets.js show_context_menu) */
+.context-menu {
+    position: fixed;
+    z-index: 2000;
+    min-width: 190px;
+    padding: 4px 0;
+    background: #1a1c2c;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 6px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+    color: #e8e8e8;
+    font-size: 14px;
+    user-select: none;
+}
+
+.context-menu-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 6px 12px 6px 10px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.context-menu-item > .fa-fw {
+    color: #94b0c2;
+}
+
+.context-menu-label {
+    flex: 1;
+}
+
+.context-menu-item:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.context-menu-item.disabled {
+    color: rgba(232, 232, 232, 0.35);
+    cursor: default;
+}
+
+.context-menu-item.disabled:hover {
+    background: transparent;
+}
+
+.context-menu-arrow {
+    margin-left: 1em;
+    color: #94b0c2;
+}
+
+.context-menu-line {
+    height: 1px;
+    margin: 4px 0;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.context-menu-sub {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: -5px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.subs-left .context-menu-sub {
+    left: auto;
+    right: 100%;
+}
+
+.context-menu-item.has-children:hover > .context-menu-sub {
+    display: block;
 }

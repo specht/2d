@@ -354,6 +354,8 @@ class Game {
             game: this,
             container: $('#menu_sprites'),
             // sprite_basket.js: sprites from another game or a recipe
+            // sprite_actions.js: Duplizieren …
+            context_menu: (index) => typeof sprite_context_menu === 'function' ? sprite_context_menu(index) : [],
             extra_buttons: typeof show_sprite_basket === 'function' ? [{
                 icon: 'fa-shopping-basket', title: 'Sprites aus einem anderen Spiel holen',
                 callback: () => show_sprite_basket(),
@@ -699,6 +701,7 @@ class Game {
         this.hit_sprite_picker?.refresh();
         this.ranged_projectile_picker?.refresh();
         this.ranged_hit_picker?.refresh();
+        canvas.update_onion_skin?.();
     }
 
     // Einstellungen → Steuerung. Without custom keys the game JSON stays unchanged;
@@ -829,6 +832,27 @@ class Game {
             render();
         };
         window.addEventListener('keydown', handler, true);
+    }
+
+    // Adds finished sprites (with IDs) to the game: at the end, or at `at`
+    // (Duplizieren puts the copy right after its original), and shows the
+    // first one. Used by Sprites aus einem anderen Spiel holen and Duplizieren.
+    add_sprites(sprites, { select = true, at = null } = {}) {
+        if (!sprites.length) return;
+        const first = at ?? this.data.sprites.length;
+        this.data.sprites.splice(first, 0, ...sprites);
+        this.fix_game_data();
+        for (let si = first; si < this.data.sprites.length; si++)
+            this.create_geometry_and_material_for_sprite(si);
+        for (const sprite of sprites) window.collaboration?.structure_changed?.('sprite', 'insert', sprite.id);
+        if (first + sprites.length === this.data.sprites.length) this.sprites_widget?.append_items(first);
+        else this.sprites_widget?.rebuild();
+        // the level editor's chosen sprite stays the same sprite
+        if (this.level_editor && this.level_editor.sprite_index >= first) this.level_editor.sprite_index += sprites.length;
+        this.refresh_sprite_reference_pickers();
+        this.level_editor?.refresh_sprite_widget?.();
+        setTimeout(() => this.refresh_sprite_titles(), 0);
+        if (select) this.sprites_widget?.select_index(first);
     }
 
     // Pickers show sprite thumbnails by position; after sprites were reordered

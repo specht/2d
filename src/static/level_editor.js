@@ -275,40 +275,30 @@ class LevelEditor {
         this.refresh_sprite_widget();
 
         $('#tool_menu_level_settings').empty();
-        new CheckboxWidget({
+        // View settings: also in the status bar, with G / V / B (set_view_option)
+        this.view_option_widgets = {};
+        this.view_option_widgets.show_grid = new CheckboxWidget({
             container: $('#tool_menu_level_settings'),
             label: 'Gitter anzeigen',
+            key: 'G',
             get: () => self.show_grid,
-            set: (x) => {
-                self.show_grid = x;
-                self.refresh();
-                self.render();
-            },
+            set: (x) => self.set_view_option('show_grid', x),
         });
-        new CheckboxWidget({
+        this.view_option_widgets.show_signal_links = new CheckboxWidget({
             container: $('#tool_menu_level_settings'),
             label: 'Verbindungen zeigen',
+            key: 'V',
             hint: 'Zeigt alle Signale im Level: Von allem, was sendet (Schalter, Schlüssel, Druckplatte, Bereich, Gegner), laufen Striche zu allem, was mit demselben Code reagiert (Türen, Ebenen). Sonst siehst du nur die Verbindungen von dem, was du gerade ausgewählt hast.',
             get: () => self.show_signal_links,
-            set: (x) => {
-                self.show_signal_links = x;
-                self.build_signal_links();
-                self.render();
-            },
+            set: (x) => self.set_view_option('show_signal_links', x),
         });
-        new CheckboxWidget({
+        this.view_option_widgets.animate_backdrops = new CheckboxWidget({
             container: $('#tool_menu_level_settings'),
             label: 'Effekte bewegen',
+            key: 'B',
             hint: 'Schnee, Regen, Schwebestaub und die anderen Effekte bewegen sich schon hier im Level-Editor – so wie später im Spiel.',
             get: () => self.animate_backdrops,
-            set: (x) => {
-                self.animate_backdrops = x;
-                if (x) self.start_backdrop_animation();
-                else {
-                    self.set_backdrop_time(0);
-                    self.render();
-                }
-            },
+            set: (x) => self.set_view_option('animate_backdrops', x),
         });
         this.grid_size_widget = new NumberWidget({
             count: 2,
@@ -369,13 +359,14 @@ class LevelEditor {
         // let line = new THREE.Line(geometry, material);
         // this.scene.add(line);
 
-        new DragAndDropWidget({
+        this.levels_widget = new DragAndDropWidget({
             game: self.game,
             container: $('#menu_levels'),
             trash: $('#trash'),
             items: self.game.data.levels,
             item_class: 'menu_level_item',
             step_aside_css: { top: '35px' },
+            context_menu: (index) => self.level_context_menu(index),
             gen_item: (level, index) => {
                 let level_div = $(`<div>`);
                 let level_label = $(`<div>`);
@@ -461,12 +452,13 @@ class LevelEditor {
                 //     },
                 // });
 
-                new DragAndDropWidget({
+                self.layers_widget = new DragAndDropWidget({
                     game: self.game,
                     container: $('#menu_layers'),
                     trash: $('#trash'),
                     items: self.game.data.levels[self.level_index].layers,
                     item_class: 'menu_layer_item',
+                    context_menu: (index) => self.layer_context_menu(index),
                     // a locked layer cannot be thrown away (the trash does not appear)
                     can_delete_index: (index) => !self.layer_locked(index),
                     step_aside_css: { top: '35px' },
@@ -1316,6 +1308,104 @@ class LevelEditor {
     }
 
     // A short message over the level (a few seconds).
+    // ------------------------------------------------ right-click menus
+    level_context_menu(index) {
+        return [
+            { label: 'Duplizieren', icon: 'fa-clone', callback: () => this.duplicate_level(index),
+                hint: 'Eine Kopie des ganzen Levels mit allen Ebenen – gleich dahinter in der Liste.' },
+        ];
+    }
+
+    layer_context_menu(index) {
+        const read_only = this.read_only_level();
+        return [
+            { label: 'Duplizieren', icon: 'fa-clone', disabled: read_only, callback: () => this.duplicate_layer(index),
+                hint: read_only ? 'Gerade bearbeitet jemand anderes dieses Level.' : 'Eine Kopie dieser Ebene mit allem, was darin liegt – direkt darüber.' },
+        ];
+    }
+
+    sprite_button_context_menu(si) {
+        const sprite = this.game.data.sprites[si];
+        if (!sprite) return [];
+        const layer = this.current_sprite_layer();
+        const count = layer ? layer.sprites.filter(entry => Array.isArray(entry) && entry[0] === sprite.id).length : 0;
+        return [
+            { label: 'Im Sprite-Editor bearbeiten', icon: 'fa-paint-brush', callback: () => {
+                if (window.studio_show_pane?.('sprites')) studio_history_push?.({ pane: 'sprites' });
+                canvas.switchToSprite(si);
+            } },
+            { label: count ? `Alle ${count} in dieser Ebene auswählen` : 'Alle in dieser Ebene auswählen', icon: 'fa-object-group',
+                disabled: !count, hint: count ? null : 'In dieser Ebene liegt keins davon.',
+                callback: () => this.select_all_of_sprite(sprite.id) },
+            '-',
+            { label: 'Duplizieren', icon: 'fa-clone', callback: () => { if (typeof duplicate_sprite === 'function') duplicate_sprite(si); },
+                hint: 'Ein neues Sprite als Kopie – zum Beispiel, um eine zweite Farbe davon zu malen.' },
+        ];
+    }
+
+    duplicate_level(index) {
+        this.history_observe();
+        const levels = this.game.data.levels;
+        const original = levels[index];
+        if (!original) return;
+        const copy = JSON.parse(JSON.stringify(original));
+        delete copy.id;
+        assign_new_game_id(this.game.data, 'levels', copy);
+        copy.properties.name = `${original.properties.name || `Level ${index + 1}`} (Kopie)`;
+        levels.splice(index + 1, 0, copy);
+        this.game.fix_game_data();
+        window.collaboration?.structure_changed?.('level', 'insert', copy.id);
+        this.label_for_level = [];
+        this.levels_widget.rebuild();
+        this.levels_widget.select_index(index + 1);
+    }
+
+    duplicate_layer(index) {
+        if (this.read_only_level()) return;
+        const level = this.game.data.levels[this.level_index];
+        const original = level?.layers?.[index];
+        if (!original) return;
+        const copy = JSON.parse(JSON.stringify(original));
+        copy.properties ??= {};
+        copy.properties.name = `${original.properties?.name || `Ebene ${index + 1}`} (Kopie)`;
+        delete copy.properties.locked;   // the copy is there to be worked on
+        level.layers.splice(index + 1, 0, copy);
+        this.game.fix_game_data();
+        const layer_struct = new LayerStruct(this);
+        layer_struct.apply_layer(level.layers[index + 1]);
+        this.layer_structs.splice(index + 1, 0, layer_struct);
+        this.layers_widget.rebuild();
+        this.layers_widget.select_index(index + 1);
+    }
+
+    // Every placed copy of one sprite in the current layer (sprite palette).
+    select_all_of_sprite(id) {
+        const layer = this.current_sprite_layer();
+        if (!layer) return;
+        menus.level.handle_click('tool/select');
+        this.selection = layer.sprites.map((entry, i) => Array.isArray(entry) && entry[0] === id ? i : -1).filter(i => i >= 0);
+        this.placed_properties_for = null;
+        this.show_selection();
+        this.refresh();
+        this.render();
+    }
+
+    // Gitter anzeigen / Verbindungen zeigen / Effekte bewegen: the checkboxes
+    // under Werkzeuge and the toggles in the status bar (G / V / B).
+    set_view_option(option, value) {
+        value = !!value;
+        this[option] = value;
+        if (option === 'show_grid') this.refresh();
+        if (option === 'show_signal_links') this.build_signal_links();
+        if (option === 'animate_backdrops') {
+            if (value) this.start_backdrop_animation();
+            else this.set_backdrop_time(0);
+        }
+        this.render();
+        this.view_option_widgets?.[option]?.refresh();
+        menus.level?.refresh_toggles?.();
+    }
+
     show_level_notice(text, duration = 4500) {
         let notice = $(this.element).find('.level-notice');
         if (!notice.length) notice = $('<div class="level-notice">').appendTo(this.element);
@@ -3106,6 +3196,10 @@ class LevelEditor {
             sprite_button.css('image-rendering', 'pixelated');
             sprite_button.data('sprite_index', si);
             sprite_button.attr('title', sprite_label(this.game.data.sprites[si], si));
+            sprite_button.on('contextmenu', (e) => {
+                show_context_menu(e.clientX, e.clientY, this.sprite_button_context_menu($(e.currentTarget).data('sprite_index')));
+                return false;
+            });
             // if (si === 0) sprite_button.addClass('active');
             sprite_button.mousedown(function(e) {
                 e.preventDefault();

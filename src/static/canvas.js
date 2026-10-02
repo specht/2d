@@ -39,6 +39,12 @@ class Canvas {
         this.selection_bitmap_outline = document.createElement('canvas');
         this.stamp_bitmap = document.createElement('canvas');
         this.overlay_grid = document.createElement('canvas');
+        // Zwiebelhaut: the frame before (and after) shines through (update_onion_skin)
+        this.onion_bitmap = document.createElement('canvas');
+        this.onion_skin = false;
+        try { this.onion_skin = localStorage.getItem('onion_skin') === '1'; } catch { }
+        this.onion_images = new Map();
+        this.onion_key = null;
         this.bitmap.width = DEFAULT_WIDTH;
         this.bitmap.height = DEFAULT_HEIGHT;
         this.overlay_bitmap.width = DEFAULT_WIDTH;
@@ -80,6 +86,7 @@ class Canvas {
         $(this.backdrop).css('position', 'absolute');
         $(this.bitmap).css('position', 'absolute');
         $(this.bitmap).css('image-rendering', 'pixelated');
+        $(this.onion_bitmap).css({ position: 'absolute', 'image-rendering': 'pixelated', 'pointer-events': 'none' }).hide();
         $(this.overlay_bitmap).css('position', 'absolute');
         $(this.overlay_bitmap).css('image-rendering', 'pixelated');
         $(this.overlay_bitmap).css('opacity', 0.9);
@@ -91,6 +98,7 @@ class Canvas {
         $(this.overlay_grid).css('position', 'absolute');
         this.element.append(this.backdrop_color);
         this.element.append(this.backdrop);
+        this.element.append(this.onion_bitmap);
         this.element.append(this.bitmap);
         this.element.append(this.selection_bitmap);
         this.element.append(this.overlay_bitmap);
@@ -1249,6 +1257,8 @@ class Canvas {
         $(this.bitmap).css('height', `${Math.round(this.bitmap.height * this.scale)}px`);
         $(this.bitmap).css('left', `${this.offset_x}px`);
         $(this.bitmap).css('top', `${this.offset_y}px`);
+        $(this.onion_bitmap).css({ width: `${Math.round(this.bitmap.width * this.scale)}px`, height: `${Math.round(this.bitmap.height * this.scale)}px`,
+            left: `${this.offset_x}px`, top: `${this.offset_y}px` });
         $(this.overlay_bitmap).css('width', `${this.bitmap.width * this.scale}px`);
         $(this.overlay_bitmap).css('height', `${this.bitmap.height * this.scale}px`);
         $(this.overlay_bitmap).css('left', `${this.offset_x}px`);
@@ -1377,7 +1387,10 @@ class Canvas {
                     trash: $('#trash'),
                     items: sprite.states,
                     item_class: 'menu_state_item',
+                    selected_index: self.state_index,
                     step_aside_css: { top: '35px' },
+                    // sprite_actions.js: Duplizieren, Animation kopieren/tauschen …
+                    context_menu: (index) => typeof state_context_menu === 'function' ? state_context_menu(index) : [],
                     gen_item: (state, index) => {
                         let state_div = $(`<div>`);
                         let fi = Math.floor(state.frames.length / 2 - 0.5);
@@ -1389,7 +1402,8 @@ class Canvas {
                         return state_div;
                     },
                     onclick: (e, index) => {
-                        self.attachSprite(self.sprite_index, index, 0, function() {
+                        // the state that is shown already: stay on its frame
+                        self.attachSprite(self.sprite_index, index, index === self.state_index ? self.frame_index : 0, function() {
                             // $(e).closest('.menu_state_item').parent().parent().find('.menu_state_item').removeClass('active');
                             // $(e).parent().addClass('active');
                         });
@@ -1410,6 +1424,7 @@ class Canvas {
                     }
                 });
             }
+            self.update_onion_skin();
             if (sprite_changed || state_changed) {
                 new DragAndDropWidget({
                     game: self.game,
@@ -1417,7 +1432,10 @@ class Canvas {
                     trash: $('#trash'),
                     items: sprite.states[self.state_index].frames,
                     item_class: 'menu_frame_item',
+                    selected_index: self.frame_index,
                     step_aside_css: { left: '68px' },
+                    // sprite_actions.js: Duplizieren, Kopieren, Einfügen …
+                    context_menu: (index) => typeof frame_context_menu === 'function' ? frame_context_menu(index) : [],
                     gen_item: (frame, index) => {
                         return $('<img>').attr('src', frame.src);
                     },
@@ -1443,6 +1461,65 @@ class Canvas {
                 });
             }
             callback();
+        });
+    }
+
+    set_onion_skin(flag) {
+        this.onion_skin = !!flag;
+        try { localStorage.setItem('onion_skin', this.onion_skin ? '1' : '0'); } catch { }
+        this.update_onion_skin();
+    }
+
+    // Zwiebelhaut: under the frame being drawn, the frame before it (reddish)
+    // and the one after it (bluish) shine through, so a movement can be drawn
+    // step by step. Animations loop: before the first frame comes the last.
+    update_onion_skin() {
+        const el = this.onion_bitmap;
+        const frames = this.game?.data?.sprites?.[this.sprite_index]?.states?.[this.state_index]?.frames ?? [];
+        const n = frames.length, fi = this.frame_index;
+        if (!this.onion_skin || n < 2 || fi === null || fi >= n) {
+            this.onion_key = null;
+            $(el).hide();
+            return;
+        }
+        const before = frames[(fi - 1 + n) % n].src;
+        const after = n > 2 ? frames[(fi + 1) % n].src : null;
+        const key = `${before}|${after}|${this.bitmap.width}x${this.bitmap.height}`;
+        $(el).show();
+        if (key === this.onion_key) return;
+        this.onion_key = key;
+        const load = (src) => {
+            if (!src) return Promise.resolve(null);
+            if (!this.onion_images.has(src)) {
+                if (this.onion_images.size > 64) this.onion_images.clear();
+                const image = new Image();
+                image.src = src;
+                this.onion_images.set(src, image.decode().then(() => image, () => null));
+            }
+            return this.onion_images.get(src);
+        };
+        Promise.all([load(before), load(after)]).then(([image_before, image_after]) => {
+            if (this.onion_key !== key) return;
+            el.width = this.bitmap.width;
+            el.height = this.bitmap.height;
+            const context = el.getContext('2d');
+            context.clearRect(0, 0, el.width, el.height);
+            const tinted = (image, color, alpha) => {
+                if (!image) return;
+                const temp = document.createElement('canvas');
+                temp.width = el.width;
+                temp.height = el.height;
+                const t = temp.getContext('2d');
+                t.drawImage(image, 0, 0);
+                t.globalCompositeOperation = 'source-atop';
+                t.fillStyle = color;
+                t.fillRect(0, 0, temp.width, temp.height);
+                context.globalAlpha = alpha;
+                context.drawImage(temp, 0, 0);
+                context.globalAlpha = 1;
+            };
+            tinted(image_after, 'rgba(65, 166, 246, 0.55)', 0.28);
+            tinted(image_before, 'rgba(239, 125, 87, 0.45)', 0.45);
         });
     }
 
