@@ -45,6 +45,11 @@ class Canvas {
         try { this.onion_skin = localStorage.getItem('onion_skin') === '1'; } catch { }
         this.onion_images = new Map();
         this.onion_key = null;
+        // Spiegelnd zeichnen (M): the pen and the shapes draw mirrored, too
+        // (pixel_tools.js); the axis is shown over the drawing
+        this.symmetric = false;
+        try { this.symmetric = localStorage.getItem('mirror_drawing') === '1'; } catch { }
+        this.mirror_axis_div = null;
         this.bitmap.width = DEFAULT_WIDTH;
         this.bitmap.height = DEFAULT_HEIGHT;
         this.overlay_bitmap.width = DEFAULT_WIDTH;
@@ -465,7 +470,7 @@ class Canvas {
                 let line_pattern = this.linePattern(this.mouse_down_point, s);
                 this.mouse_down_point = s;
                 let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
-                this.set_pixels(this.bitmap, mask, use_color);
+                this.set_pixels(this.bitmap, this.mirrored(mask), use_color);
             } else if (this.menu.get('tool') === 'tool/gradient') {
                 if (this.spray_pixels === null) {
                     this.mouse_down_point = s;
@@ -546,7 +551,7 @@ class Canvas {
             } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
                 let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
-                this.set_pixels(this.bitmap, mask, use_color);
+                this.set_pixels(this.bitmap, this.mirrored(mask), use_color);
             } else if (this.menu.get('tool') === 'tool/picker') {
                 this.mouse_down_point = s;
                 let pattern = this.penPattern(this.pen_width);
@@ -577,11 +582,22 @@ class Canvas {
                 this.start_ticker(20);
             } else if (this.menu.get('tool') === 'tool/fill') {
                 this.mouse_down_point = s;
+                if (s[0] < 0 || s[1] < 0 || s[0] >= this.bitmap.width || s[1] >= this.bitmap.height) return;
                 this.mouse_down_color = this.get_pixel(this.bitmap, this.mouse_down_point[0], this.mouse_down_point[1]);
+                // Farbe ersetzen: with Shift every pixel of this colour in the
+                // frame, with Strg in every frame of the sprite (pixel_tools.js)
+                if (this.modifier_ctrl || this.modifier_shift) {
+                    this.replace_color(Array.from(this.mouse_down_color), rgba_of(use_color >>> 0), this.modifier_ctrl);
+                    return;
+                }
                 let context = this.bitmap.getContext('2d');
                 this.flood_fill_data = context.getImageData(0, 0, this.bitmap.width, this.bitmap.height);
                 this.flood_fill_seen_pixels = {};
                 this._flood_fill(this.mouse_down_point, this.mouse_down_color);
+                // mirrored: the area on the other side, too (unless it is the same one)
+                const mx = this.bitmap.width - 1 - s[0];
+                if (this.symmetric && mx !== s[0] && !this.flood_fill_seen_pixels[s[1] * this.bitmap.width + mx])
+                    this._flood_fill([mx, s[1]], this.get_pixel(this.bitmap, mx, s[1]));
                 context.putImageData(this.flood_fill_data, 0, 0);
                 this.flood_fill_seen_pixels = null;
                 this.flood_fill_data = null;
@@ -835,8 +851,8 @@ class Canvas {
         if (!(this.is_touch && !this.mouse_down)) {
             if (this.menu.get('tool') === 'tool/pen') {
                 if (this.mouse_in_canvas && this.show_pen) {
-                    for (let p of pattern)
-                        this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, use_color));
+                    for (let p of this.mirrored(pattern.map(p => [s[0] + p[0], s[1] + p[1]])))
+                        this.set_pixel(this.overlay_bitmap, p[0], p[1], Math.max(1, use_color));
                 }
             } else if (TWO_POINT_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
                 if (this.menu.get('tool') === 'tool/select-rect') {
@@ -859,11 +875,11 @@ class Canvas {
                         } else {
                             let line_pattern = this.patternForTool(this.mouse_down_point, s, this.menu.get('tool'));
                             let mask = this.mask_for_pen_and_pattern(pattern, line_pattern);
-                            this.set_pixels(this.overlay_bitmap, mask, Math.max(1, use_color));
+                            this.set_pixels(this.overlay_bitmap, this.mirrored(mask), Math.max(1, use_color));
                         }
                     } else {
-                        for (let p of pattern)
-                            this.set_pixel(this.overlay_bitmap, s[0] + p[0], s[1] + p[1], Math.max(1, use_color));
+                        for (let p of this.mirrored(pattern.map(p => [s[0] + p[0], s[1] + p[1]])))
+                            this.set_pixel(this.overlay_bitmap, p[0], p[1], Math.max(1, use_color));
                     }
                 }
             } else if (PEN_SHAPE_TOOLS.indexOf(this.menu.get('tool')) >= 0) {
@@ -1295,6 +1311,77 @@ class Canvas {
             $(this.backdrop).css('top', `${this.offset_y}px`);
         }
         this.update_selection_outline();
+        this.place_mirror_axis();
+    }
+
+    // ---------------------------------------- Spiegelnd zeichnen (M)
+    set_symmetric(flag) {
+        this.symmetric = !!flag;
+        try { localStorage.setItem('mirror_drawing', this.symmetric ? '1' : '0'); } catch { }
+        this.place_mirror_axis();
+        this.update_overlay_brush();
+    }
+
+    // The mask, and its mirror image while Spiegelnd zeichnen is on.
+    mirrored(mask) {
+        return this.symmetric ? mirror_points(mask, this.bitmap.width) : mask;
+    }
+
+    // A thin line over the middle of the sprite, where the mirror is.
+    place_mirror_axis() {
+        if (!this.symmetric) {
+            this.mirror_axis_div?.hide();
+            return;
+        }
+        if (!this.mirror_axis_div) this.mirror_axis_div = $('<div class="mirror-axis">').appendTo(this.element);
+        const top = Math.max(0, this.offset_y);
+        const bottom = Math.min(this.size, this.offset_y + this.bitmap.height * this.scale);
+        this.mirror_axis_div.css({ left: `${this.offset_x + mirror_axis(this.bitmap.width) * this.scale}px`,
+            top: `${top}px`, height: `${Math.max(0, bottom - top)}px` }).show();
+    }
+
+    // ---------------------------------------- Farbe ersetzen
+    // Every pixel of exactly `from` becomes `to`: in this frame, or (all_frames)
+    // in every frame of every state of the sprite. The other frames are loaded
+    // one by one; `working` keeps the undo history from taking half of it.
+    async replace_color(from, to, all_frames) {
+        if (from.every((v, i) => v === to[i])) return;
+        const context = this.bitmap.getContext('2d', { willReadFrequently: true });
+        const data = context.getImageData(0, 0, this.bitmap.width, this.bitmap.height);
+        let count = replace_color_in(data.data, from, to);
+        context.putImageData(data, 0, 0);
+        if (!all_frames) return;
+        const si = this.sprite_index, sti = this.state_index, fi = this.frame_index;
+        const sprite = this.game.data.sprites[si];
+        this.working = true;
+        try {
+            const temp = document.createElement('canvas');
+            temp.width = this.bitmap.width;
+            temp.height = this.bitmap.height;
+            const temp_context = temp.getContext('2d', { willReadFrequently: true });
+            for (let s = 0; s < sprite.states.length; s++) {
+                for (let f = 0; f < sprite.states[s].frames.length; f++) {
+                    if (s === sti && f === fi) continue;
+                    const frame = sprite.states[s].frames[f];
+                    const image = await loadImage(frame.src);
+                    temp_context.clearRect(0, 0, temp.width, temp.height);
+                    temp_context.drawImage(image, 0, 0);
+                    const pixels = temp_context.getImageData(0, 0, temp.width, temp.height);
+                    const changed = replace_color_in(pixels.data, from, to);
+                    if (!changed) continue;
+                    count += changed;
+                    temp_context.putImageData(pixels, 0, 0);
+                    frame.src = temp.toDataURL('image/png');
+                }
+            }
+        } finally {
+            this.working = false;
+        }
+        this.write_frame_to_game_data();
+        this.game.update_material_for_sprite?.(si);
+        this.game.refresh_frames_on_screen();
+        window.sprite_history?.observe?.();
+        if (typeof show_state_notice === 'function') show_state_notice(count ? `${count} Pixel umgefärbt – in allen Frames des Sprites.` : 'Diese Farbe kommt sonst nirgends vor.');
     }
 
     setModifierCtrl(flag) {

@@ -16,7 +16,7 @@ The level editor should move beyond placing individual sprites and become a prop
 
 Implemented (`level_selection.js`, select tool): selecting many (rectangle, Shift adds), dragging the selection in grid steps (Shift: pixel by pixel; its lower left corner snaps to the grid, so an off-grid selection comes back onto it), arrow-key nudging (to the next grid position), Strg+C/X/V/D (paste at the mouse, also into another layer or level; Strg+D and a paste without the mouse put the copies half a grid step to the right and up, so they never replace a sprite), deleting, moving the selection to another layer ("In Ebene"; between layers with different Parallaxe the sprites are shifted by whole grid steps so they stay where they are on screen), and Strg + drag with the pen to fill a rectangle (with Shift only its edge, with Alt a line of cells, also diagonal), selecting every copy of the selected sprites ("Alle gleichen") and replacing the selection with another sprite ("Ersetzen durch").
 
-Undo and redo exist (Strg+Z / Strg+Y, per level, `level_history.js`; in the sprite editor per sprite, `sprite_history.js`); levels themselves and whole sprites (adding, deleting, reordering them in their lists) are not part of it yet.
+Undo and redo exist (Strg+Z / Strg+Y, per level, `level_history.js`; in the sprite editor per sprite, `sprite_history.js`); levels themselves and whole sprites (adding, reordering them in their lists) are not part of it yet; a level or sprite dragged into the trash can be brought back right afterwards ("Rückgängig" in a notice, or Strg+Z, until the next click: `trash_undo.js`).
 
 The goal is that constructing and restructuring a level should remain comfortable even after the level has become fairly large.
 
@@ -246,9 +246,9 @@ Focus on workflow improvements rather than redesigning it.
 Useful additions include:
 
 - dragging several selected frames at once (the right-click menu works on them already)
-- undo for whole sprites (added, deleted, reordered in the sprite list)
+- undo for adding and reordering whole sprites (deleting one can be undone right afterwards: `trash_undo.js`)
 
-Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste frames (also between sprites of the same size), move a frame to another state, swap two states' animations, copy a state into another sprite; Onion Skinning (O); Strg+Z / Strg+Y for everything inside a sprite – pixels, frames and states added, moved, duplicated or deleted, Framerate, Titel, traits (`sprite_history.js`); the Vorschau (V): the current state's animation plays in a corner of the drawing area, with play/pause, Framerate − / + and a mirrored view, and marks the frame it shows (`sprite_preview.js`); several frames selected with Shift / Strg + click, and a right-click menu for them (duplicate, reverse the order, copy, cut, delete, move to another state; `sprite_actions.js`).
+Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste frames (also between sprites of the same size), move a frame to another state, swap two states' animations, copy a state into another sprite; Onion Skinning (O); Strg+Z / Strg+Y for everything inside a sprite – pixels, frames and states added, moved, duplicated or deleted, Framerate, Titel, traits (`sprite_history.js`); the Vorschau (P, off at first): the current state's animation plays in a corner of the drawing area, with play/pause, Framerate − / + and a mirrored view (`sprite_preview.js`); Spiegelnd zeichnen (M: pen, shapes and fill draw mirrored at the middle) and Farbe ersetzen (fill tool with Shift: in the frame, with Strg: in every frame of the sprite; `pixel_tools.js`); several frames selected with Shift / Strg + click, and a right-click menu for them (duplicate, reverse the order, copy, cut, delete, move to another state; `sprite_actions.js`).
 
 ---
 

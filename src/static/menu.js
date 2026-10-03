@@ -212,7 +212,11 @@ class Menu {
             hints.push({ key: 'O', type: 'toggle', label: 'Onion Skinning',
                 get: () => !!canvas?.onion_skin,
                 callback: (value) => canvas?.set_onion_skin?.(value) });
-            hints.push({ key: 'V', type: 'toggle', label: 'Vorschau',
+            // M: next to B and N (spiegeln) in the keyboard row of the tool buttons
+            hints.push({ key: 'M', type: 'toggle', label: 'Spiegelnd zeichnen',
+                get: () => !!canvas?.symmetric,
+                callback: (value) => canvas?.set_symmetric?.(value) });
+            hints.push({ key: 'P', type: 'toggle', label: 'Vorschau',
                 get: () => !!window.sprite_preview?.shown,
                 callback: (value) => window.sprite_preview?.set_shown?.(value) });
         }

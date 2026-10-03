@@ -56,7 +56,8 @@ class SpriteHistory {
     }
 
     observe() {
-        if (!this.active()) return;
+        // the editor is still changing several frames (Farbe ersetzen): wait for all of it
+        if (!this.active() || window.canvas?.working) return;
         const current = this.current();
         if (!current) return;
         this.steps().observe(current.id, JSON.stringify(current.sprite));

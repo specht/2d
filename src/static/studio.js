@@ -329,7 +329,13 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 { key: 'Shift', label: 'Klonen', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
             ]
         },
-        { group: 'tool', command: 'fill', image: 'color-fill-44', shortcut: 'A', label: 'Fläche füllen' },
+        {
+            group: 'tool', command: 'fill', image: 'color-fill-44', shortcut: 'A', label: 'Fläche füllen', hints: [
+                // canvas.js replace_color: every pixel of exactly the clicked colour
+                { key: 'Shift', label: 'Farbe im ganzen Frame ersetzen', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
+                { key: 'Control', label: 'Farbe in allen Frames ersetzen', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
+            ]
+        },
         {
             group: 'tool', command: 'gradient', image: 'color-gradient', shortcut: 'S', label: 'Farbverlauf', hints: [
                 { key: 'Control', label: 'Helligkeit variiieren', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },

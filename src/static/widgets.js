@@ -375,6 +375,8 @@ class DragAndDropWidget {
             if (select_item_at_end < 0) select_item_at_end = 0;
             this._move_add_div_to_end();
             $(this.options.trash).removeClass('showing');
+            // trash_undo.js: a deleted sprite or level can come back
+            const trash_undo = delete_at_end !== null ? window.trash_undo?.before?.(this.options, delete_at_end) : null;
             if (delete_at_end !== null)
                 this.options.delete_item(delete_at_end);
             if (swap_later !== null)
@@ -383,6 +385,7 @@ class DragAndDropWidget {
                 this.options.onclick(this.options.container.children().eq(select_item_at_end).children().eq(0)[0], select_item_at_end);
             if (delete_at_end !== null || swap_later !== null)
                 this.options.game.refresh_frames_on_screen();
+            if (trash_undo) window.trash_undo.after(trash_undo);
         }
         body.data('_dnd_moving', false);
         body.off('mousemove._dnd touchmove._dnd');
