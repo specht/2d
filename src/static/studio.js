@@ -644,6 +644,16 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                     label: 'Bilder öffnen …',
                     callback: () => choose_image_files(),
                 },
+                {
+                    // canvas.js outline_frames: one pixel in the current colour around everything drawn
+                    label: 'Umriss zeichnen',
+                    hint: 'Zeichnet einen Rand von einem Pixel in der gewählten Farbe um alles, was im Bild ist – gut gegen Figuren, die im Hintergrund verschwinden. Strg+Z nimmt ihn wieder weg.',
+                    children: [
+                        { label: 'in diesem Frame', callback: () => canvas.outline_frames('frame') },
+                        { label: 'in allen Frames dieses Zustands', callback: () => canvas.outline_frames('state') },
+                        { label: 'in allen Frames des Sprites', callback: () => canvas.outline_frames('sprite') },
+                    ],
+                },
                 // {
                 //     label: 'Spritekatalog',
                 //     callback: () => {
@@ -741,6 +751,17 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     ]);
 
     game = new Game();
+
+    // The lists explain themselves when the mouse rests on them (their items
+    // have no title of their own, except sprites: their names).
+    const list_titles = {
+        '#menu_frames': 'Klick: Frame bearbeiten · Shift oder Strg + Klick: mehrere Frames auswählen · Rechtsklick: Duplizieren, Kopieren, Umkehren … · Ziehen: Reihenfolge ändern oder in den Papierkorb – ausgewählte Frames gehen alle mit',
+        '#menu_states': 'Klick: Zustand bearbeiten · Rechtsklick: Duplizieren, Animation kopieren oder tauschen … · Ziehen: in den Papierkorb',
+        '#menu_levels': 'Klick: Level bearbeiten · Rechtsklick: Duplizieren · Ziehen: Reihenfolge ändern oder in den Papierkorb (gleich danach mit Strg+Z zurückholen)',
+        '#menu_layers': 'Klick: Ebene bearbeiten · Auge: zeigen/verstecken · Schloss: vor Änderungen schützen · Rechtsklick: Duplizieren · Ziehen: Reihenfolge ändern oder in den Papierkorb',
+        '#trash': 'Hierher ziehen, um es zu löschen. Ein gelöschtes Sprite oder Level holst du gleich danach mit Strg+Z zurück.',
+    };
+    for (const [selector, title] of Object.entries(list_titles)) $(selector).attr('title', title);
 
     // game.load('6imgi0t');
     // game.load('skkmhwy');

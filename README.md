@@ -14,7 +14,7 @@ A game consists of animated sprites, behaviours and one or more levels.
 
 The Studio lets you:
 
-- draw pixel-art sprites and animations (with onion skinning, a live animation preview, mirrored drawing, recolouring a colour in every frame, and undo/redo), or paste and drop pictures: background, pixel size and the frames of a strip or a numbered series of files are detected
+- draw pixel-art sprites and animations (with onion skinning, a live animation preview, mirrored drawing, recolouring a colour in every frame, outlines, and undo/redo), or paste and drop pictures: background, pixel size and the frames of a strip or a numbered series of files are detected
 - define animation states, and duplicate, copy and move sprites, states and frames by right-click – several frames at once, too (Shift / Strg + click), also reversing their order
 - borrow sprites from other games or recipe scenes (Sprite-Korb)
 - convert a sprite or a whole game, backgrounds included, to a pixel-art palette
@@ -511,10 +511,14 @@ The server can be restarted while a class is working (for example to apply a fix
 To see what went wrong:
 
 ```bash
-./config.rb exec ruby ruby show-client-errors.rb        # today, grouped, most frequent first
-./config.rb exec ruby ruby show-client-errors.rb 3      # the last three days
+./config.rb exec ruby ruby errors.rb                  # today, grouped, most frequent first
+./config.rb exec ruby ruby errors.rb list 7           # the last seven days (list all: everything)
+./config.rb exec ruby ruby errors.rb show 3f2a1c      # one group: stack, the clicks before, the games
+./config.rb exec ruby ruby errors.rb watch            # new reports as they come in, during a lesson
+./config.rb exec ruby ruby errors.rb resolve 3f2a1c   # fixed: hidden until it happens again
+./config.rb exec ruby ruby errors.rb prune 30         # delete days older than 30 days
 ```
 
-Each group shows the message, where it happened, what the child did just before, and `/?<code>` to open the child's game as it was at that moment – reproduce the bug there, fix it and add a regression test.
+Each group has a short code. `show` gives the message, where it happened, what the child did just before, and `/?<code>` to open the child's game as it was at that moment – reproduce the bug there, fix it and add a regression test, then `resolve` it.
 
 When the Ruby container is recreated rather than restarted, nginx may keep the old address and answer 502 until it is restarted as well (`./config.rb restart nginx`).

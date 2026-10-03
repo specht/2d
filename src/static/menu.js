@@ -7,6 +7,27 @@ const KEY_TR = {
     'ArrowUp': '▲',
     'ArrowDown': '▼'
 };
+// Shortcuts are matched by the key's position (e.code), so the tool buttons
+// follow the rows of the keyboard. What is printed on that key depends on
+// the layout – on a German keyboard the key at "Y" says Z. Where the browser
+// tells (navigator.keyboard.getLayoutMap), the labels show the printed letter.
+let KEYBOARD_LAYOUT = null;
+function printed_key(letter) {
+    if (typeof letter !== 'string' || !/^[A-Z]$/.test(letter)) return letter;
+    const printed = KEYBOARD_LAYOUT?.get?.(`Key${letter}`);
+    return printed && printed.length === 1 ? printed.toUpperCase() : letter;
+}
+if (typeof navigator !== 'undefined' && navigator.keyboard?.getLayoutMap) {
+    navigator.keyboard.getLayoutMap().then((map) => {
+        KEYBOARD_LAYOUT = map;
+        if (typeof menus === 'undefined') return;
+        for (const menu of Object.values(menus)) {
+            menu.refresh_key_labels?.();
+            if (typeof current_pane !== 'undefined' && menu.pane === current_pane) menu.refresh_status_bar?.();
+        }
+    }).catch(() => { });
+}
+
 class Menu {
     constructor(element, pane, info, canvas, callback) {
         this.element = element;
@@ -41,8 +62,10 @@ class Menu {
             button.data('key', key);
             this.element.append(button);
             this.commands[key] = { button: button, hints: item.hints, label: item.label, key: key };
+            this.commands[key].shortcut = item.shortcut;
+            this.commands[key].title = item.title;
             if (item.shortcut) {
-                button.append($('<div>').addClass('tooltip').addClass('key').text(item.shortcut));
+                button.append($('<div>').addClass('tooltip').addClass('key').text(printed_key(item.shortcut)));
                 this.shortcuts[item.shortcut] = key;
             }
             if (item.group) {
@@ -65,6 +88,7 @@ class Menu {
                 }
             }
         }
+        this.refresh_key_labels();
         let self = this;
         $(window).keydown(function (e) {
             if (e.ctrlKey && (e.key === 'o' || e.key === 's')) {
@@ -126,6 +150,17 @@ class Menu {
                 k = k.substr(5);
             parts.push(k);
             return parts.join('+');
+        }
+    }
+
+    // Hovering a tool says what it is and which key it has (printed_key);
+    // item.title may explain more.
+    refresh_key_labels() {
+        for (const command of Object.values(this.commands)) {
+            if (!command.label) continue;
+            const key = command.shortcut ? printed_key(command.shortcut) : null;
+            command.button.attr('title', [`${command.label}${key ? ` (Taste ${KEY_TR[key] || key})` : ''}`, command.title].filter(Boolean).join(' – '));
+            if (key) command.button.children('.tooltip.key').text(key);
         }
     }
 
@@ -192,12 +227,20 @@ class Menu {
         // Level editor (level_editor.js): right after the tool, before the general keys
         if (this.pane === 'level') {
             hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'level-history-undo',
+                title: 'Macht die letzte Änderung an diesem Level rückgängig – Sprites, Ebenen, Einstellungen.',
                 callback: () => game.level_editor?.undo() });
             hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'level-history-redo',
+                title: 'Holt zurück, was du gerade rückgängig gemacht hast.',
                 callback: () => game.level_editor?.redo() });
             // the view settings of the level editor (also under Werkzeuge)
+            const titles = {
+                show_grid: 'Zeigt das Gitter, an dem die Sprites einrasten.',
+                show_signal_overview: 'Zeigt rechts alle Signale dieses Levels als Regeln: Wenn das passiert – dann das.',
+                show_minimap: 'Zeigt unten links das ganze Level klein. Klick oder zieh auf der Karte, um dorthin zu springen.',
+                animate_level: 'Sprites und Effekte bewegen sich schon hier im Editor, so wie im Spiel.',
+            };
             for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['S', 'show_signal_overview', 'Signale'], ['M', 'show_minimap', 'Karte'], ['A', 'animate_level', 'Level animieren']]) {
-                hints.push({ key, type: 'toggle', label,
+                hints.push({ key, type: 'toggle', label, title: titles[option],
                     get: () => !!game.level_editor?.[option],
                     callback: (value) => game.level_editor?.set_view_option?.(option, value) });
             }
@@ -206,17 +249,22 @@ class Menu {
         // letter there), Onion Skinning (canvas.js), Vorschau (sprite_preview.js)
         if (this.pane === 'sprites') {
             hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'sprite-history-undo',
+                title: 'Macht die letzte Änderung an diesem Sprite rückgängig – Pixel, Frames, Zustände, Framerate, Eigenschaften.',
                 callback: () => window.sprite_history?.undo() });
             hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'sprite-history-redo',
+                title: 'Holt zurück, was du gerade rückgängig gemacht hast.',
                 callback: () => window.sprite_history?.redo() });
             hints.push({ key: 'O', type: 'toggle', label: 'Onion Skinning',
+                title: 'Der Frame davor (rötlich) und danach (bläulich) scheinen durch – so zeichnest du eine Bewegung Schritt für Schritt.',
                 get: () => !!canvas?.onion_skin,
                 callback: (value) => canvas?.set_onion_skin?.(value) });
             // M: next to B and N (spiegeln) in the keyboard row of the tool buttons
             hints.push({ key: 'M', type: 'toggle', label: 'Spiegelnd zeichnen',
+                title: 'Was du mit Stift, Formen oder Füllen zeichnest, erscheint auch gespiegelt auf der anderen Seite. Die gestrichelte Linie ist der Spiegel.',
                 get: () => !!canvas?.symmetric,
                 callback: (value) => canvas?.set_symmetric?.(value) });
             hints.push({ key: 'P', type: 'toggle', label: 'Vorschau',
+                title: 'Spielt die Animation des Zustands oben rechts ab – mit Framerate (− / +) und gespiegelter Ansicht.',
                 get: () => !!window.sprite_preview?.shown,
                 callback: (value) => window.sprite_preview?.set_shown?.(value) });
         }
@@ -226,7 +274,9 @@ class Menu {
         //     }
         // });
 
-        hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', callback: function (flag) {
+        hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe',
+            title: 'Gedrückt halten: jeder Knopf zeigt seine Taste, und bei vielen Einstellungen erklärt ein ? (anklicken), was sie tut.',
+            callback: function (flag) {
             if (flag) {
                 $('.tooltip').show();
                 for (let t of $('.tooltip')) {
@@ -334,6 +384,7 @@ class Menu {
             } else if (typeof (hint) === 'object') {
                 if (hint.type === 'group') {
                     let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
+                    if (hint.title) button.attr('title', hint.title);
                     for (let key of hint.keys) {
                         let span = $(`<span class='key longkey'>${KEY_TR[key] || key}</span>`);
                         if (key !== hint.keys[hint.keys.length - 1])
@@ -353,13 +404,16 @@ class Menu {
                 } else {
                     let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
                     if (hint.class) button.addClass(hint.class);
+                    // hovering an entry explains it (the UI explains itself)
+                    if (hint.title) button.attr('title', hint.title);
                     // key_label: shown like a key, but handled elsewhere (e.g. by the
                     // printed letter instead of the key's position, see level_editor.js)
                     const shown_key = hint.key ?? hint.key_label;
                     if (shown_key) {
                         let key_parts = shown_key.split('+');
                         for (let i = 0; i < key_parts.length; i++) {
-                            let part = key_parts[i];
+                            // hint.key goes by position: show what is printed there
+                            let part = hint.key ? printed_key(key_parts[i]) : key_parts[i];
                             let style = '';
                             if (i > 0)
                                 style = 'margin-left: -0.5em;'

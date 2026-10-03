@@ -5,7 +5,7 @@
 //   1. the game is copied into the browser (rescue.js), so a reload loses
 //      nothing;
 //   2. a Fehlerbericht goes to the server (/api/report_error, written to
-//      /raw/client-errors, see client_errors.rb and show-client-errors.rb):
+//      /raw/client-errors, see client_errors.rb and errors.rb):
 //      the message and stack, the studio version, which pane and tool were in
 //      use, the last clicks and keys (never what was typed into a field) and,
 //      for the first error of a page, the code of a temporary copy of the game
