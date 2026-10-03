@@ -5,9 +5,9 @@
 // The box has play/pause, the Framerate (− and +, the same value as the
 // state's "Framerate" field), and a mirror button: a figure drawn facing
 // right walks left in the game mirrored, so both directions can be checked.
-// While it plays, the frame being shown is marked in the frame list.
-// V (or the status bar) shows and hides it; remembered per browser. It only
-// reads the game; Framerate is the one thing it changes.
+// P (next to O for Onion Skinning) or the status bar shows and hides it; off
+// at first, remembered per browser. It only reads the game; Framerate is the
+// one thing it changes.
 
 const SPRITE_PREVIEW_MAX = 128;   // the picture fits into this many pixels
 
@@ -31,8 +31,8 @@ function sprite_preview_fps(fps, delta) {
 
 class SpritePreview {
     constructor() {
-        let shown = true;
-        try { shown = localStorage.getItem('sprite_preview') !== '0'; } catch (e) { }
+        let shown = false;
+        try { shown = localStorage.getItem('sprite_preview') === '1'; } catch (e) { }
         this.shown = shown;
         this.playing = true;
         this.mirrored = false;
@@ -109,7 +109,6 @@ class SpritePreview {
         const visible = this.shown && typeof current_pane !== 'undefined' && current_pane === 'sprites' && !!this.current_state();
         if (!visible) {
             this.box?.hide();
-            this.mark_frame(null);
             if (this.raf) { cancelAnimationFrame(this.raf); this.raf = null; }
             return;
         }
@@ -146,7 +145,6 @@ class SpritePreview {
         const scale = sprite_preview_scale(sprite.width, sprite.height);
         const w = Math.max(1, Math.round(sprite.width * scale)), h = Math.max(1, Math.round(sprite.height * scale));
         const key = `${fi}|${src?.length}|${src?.slice(-24)}|${w}x${h}|${this.mirrored}`;
-        this.mark_frame(this.playing && n > 1 ? fi : null);
         if (key === this.last_frame) return;
         const image = src ? this.image(src) : null;
         if (!image?.complete) return;
@@ -160,15 +158,6 @@ class SpritePreview {
         ctx.drawImage(image, 0, 0, w, h);
         ctx.restore();
         this.last_frame = key;
-    }
-
-    // the frame being shown, in the frame list below the drawing area
-    mark_frame(fi) {
-        if (fi === this.marked) return;
-        this.marked = fi;
-        const items = $('#menu_frames ._dnd_item');
-        items.removeClass('preview-frame');
-        if (fi !== null) items.eq(fi).addClass('preview-frame');
     }
 }
 

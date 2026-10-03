@@ -14,7 +14,7 @@ A game consists of animated sprites, behaviours and one or more levels.
 
 The Studio lets you:
 
-- draw pixel-art sprites and animations (with onion skinning, a live animation preview and undo/redo), or paste and drop pictures: background, pixel size and the frames of a strip or a numbered series of files are detected
+- draw pixel-art sprites and animations (with onion skinning, a live animation preview, mirrored drawing, recolouring a colour in every frame, and undo/redo), or paste and drop pictures: background, pixel size and the frames of a strip or a numbered series of files are detected
 - define animation states, and duplicate, copy and move sprites, states and frames by right-click – several frames at once, too (Shift / Strg + click), also reversing their order
 - borrow sprites from other games or recipe scenes (Sprite-Korb)
 - convert a sprite or a whole game, backgrounds included, to a pixel-art palette
