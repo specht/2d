@@ -89,6 +89,8 @@ class ServerWatch {
             if (response.ok) {
                 const data = await response.json();
                 if (data?.pong) result = { type: 'up', version: data.version ?? null };
+                // the teacher switches playtesting on and off in the terminal
+                if (data?.playtest !== undefined) window.playtesting?.set_enabled?.(data.playtest);
             } else if (server_unavailable_status(response.status)) {
                 result = { type: 'down' };
             } else {

@@ -72,6 +72,7 @@
     <script defer src="ditherjs.dist.js?#{@@cache_buster}"></script>
     <script defer src="interval_tree.js?#{@@cache_buster}"></script>
     <script defer src="avl.js?#{@@cache_buster}"></script>
+    <script defer src="playtesting.js?#{@@cache_buster}"></script>
 </head>
 
 <body>
@@ -82,7 +83,8 @@
         <div id='mi_settings' class='main-nav-item'>Einstellungen</div>
         <div id='mi_play' class='main-nav-item'>Spielen</div>
         <div id='mi_help' class='main-nav-item'>Hilfe</div>
-        <div id='mi_playtesting' style='#{PLAYTESTING_CODES.empty? ? 'display: none;' : ''}' class='main-nav-item'>Playtesting</div>
+        <!-- shown while playtesting is switched on (playtesting.js) -->
+        <div id='mi_playtesting' style='display: none;' class='main-nav-item' title='Spiele der anderen testen und dein eigenes Spiel testen lassen'>Playtesting</div>
     </div>
     <div id='main_div_game' class="main_div" style="margin-top: 40px;">
         <button id="bu_save_game">Spiel speichern</button>
@@ -396,23 +398,9 @@
                     src="https://img.youtube.com/vi/uDqjIdI4bF4/hqdefault.jpg" style="width: 100%;" /></a>
         </div>
     </div>
+    <!-- Playtesting (playtesting.js): shown while the teacher has it switched on -->
     <div id='main_div_playtesting' class="main_div scroll_helper scroll_helper_vertical">
-        <div style="text-align: center;">
-            <h2>Playtesting</h2>
-            <p style="padding-bottom: 1em;">Bitte teste dieses Spiel und schreib dein Feedback auf den Zettel:</p>
-            <p>
-                <a id='btn_playtesting' style='font-size: 120%;' class="link_button" href="" target="_blank"></a>
-            </p>
-            <p style="margin-top: 2em;">
-                <a id='btn_playtesting_refresh' class="link_button" href="#">Neues Spiel vorschlagen</a>
-            </p>
-            <div style="margin-top: 2em; display: none;" id="all_games_div">
-                <hr style="margin-bottom: 2em;">
-                <div id="all_games_here">
-
-                </div>
-            </div>
-        </div>
+        <div id="playtesting_here"></div>
     </div>
     <div id='status-bar' class='__disabled__scroll_helper
             scroll_helper_horizontal'></div>
