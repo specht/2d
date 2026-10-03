@@ -1,7 +1,8 @@
 // Working with a selection of placed sprites in the level editor: moving,
 // copying, pasting, duplicating, deleting, moving to another layer, filling a
-// rectangle, selecting all copies of a sprite, replacing the selected
-// sprites with another one and finding what is under a point in any layer.
+// rectangle (or drawing just its edge, or a line), selecting all copies of a
+// sprite, replacing the selected sprites with another one and finding what
+// is under a point in any layer.
 // Pure functions on a layer's `sprites` array (placed
 // sprites: [sprite id, x, y, placed properties?]); the editor shows the result.
 //
@@ -76,28 +77,78 @@ function paste_placed(sprites, clipboard, x, y) {
     }));
 }
 
-// Moves the selected sprites from one layer's array to another's.
-function move_placed_to_layer(from_sprites, indices, to_sprites) {
+// Moves the selected sprites from one layer's array to another's, shifted by
+// (dx, dy): the level editor passes the difference in parallax offset so the
+// sprites stay where they are on screen.
+function move_placed_to_layer(from_sprites, indices, to_sprites, dx = 0, dy = 0) {
     const { selected, rest } = split_selection(from_sprites, indices);
-    const merged = merge_placed(to_sprites, selected);
+    const merged = merge_placed(to_sprites, (dx || dy) ? selected.map(placed => {
+        const moved = clone_placed(placed);
+        moved[1] = placed[1] + dx;
+        moved[2] = placed[2] + dy;
+        return moved;
+    }) : selected);
     return { from: rest, to: merged.sprites, selection: merged.selection };
 }
 
-// Fills the grid cells of a rectangle (corners included) with a sprite.
-// grid: { width, height, x, y } as the level editor snaps to it.
-function fill_placed(sprites, sprite_id, x0, y0, x1, y1, grid, max_cells = 4096) {
+// How far a sprite has to move when it goes from a layer with parallax
+// p_from into one with p_to, so it stays where it is on screen: a layer is
+// drawn shifted by camera × parallax. Rounded to whole grid steps, so the
+// sprites stay on the grid (and to whole pixels without a grid).
+function parallax_layer_offset(camera_x, camera_y, p_from, p_to, grid_width = 1, grid_height = 1) {
+    const d = (p_from || 0) - (p_to || 0);
+    const step = (v, g) => (g > 0 ? Math.round(v / g) * g : Math.round(v)) || 0;
+    return [step(camera_x * d, grid_width), step(camera_y * d, grid_height)];
+}
+
+// The grid cells of a shape dragged from (x0, y0) to (x1, y1), both on the
+// grid: 'rect' every cell of the rectangle (corners included), 'frame' only
+// its edge, 'line' a straight line of cells (Bresenham, one cell per column
+// or row, diagonal steps where needed). grid: { width, height } as the level
+// editor snaps to it. null when there would be more than max_cells.
+function shape_cells(shape, x0, y0, x1, y1, grid, max_cells = 4096) {
     const gw = grid.width, gh = grid.height;
-    if (!(gw > 0) || !(gh > 0)) return { sprites, selection: [] };
+    if (!(gw > 0) || !(gh > 0)) return [];
+    const cells = [];
+    if (shape === 'line') {
+        const nx = Math.round((x1 - x0) / gw), ny = Math.round((y1 - y0) / gh);
+        const steps = Math.max(Math.abs(nx), Math.abs(ny));
+        if (steps + 1 > max_cells) return null;
+        let cx = 0, cy = 0, err = Math.abs(nx) - Math.abs(ny);
+        const sx = Math.sign(nx), sy = Math.sign(ny);
+        for (let i = 0; i <= steps; i++) {
+            cells.push([Math.round(x0 + cx * gw), Math.round(y0 + cy * gh)]);
+            const e2 = 2 * err;
+            if (e2 > -Math.abs(ny)) { err -= Math.abs(ny); cx += sx; }
+            if (e2 < Math.abs(nx)) { err += Math.abs(nx); cy += sy; }
+        }
+        return cells;
+    }
     const [xa, xb] = [Math.min(x0, x1), Math.max(x0, x1)];
     const [ya, yb] = [Math.min(y0, y1), Math.max(y0, y1)];
-    const incoming = [];
-    for (let y = ya; y <= yb + 1e-9; y += gh) {
-        for (let x = xa; x <= xb + 1e-9; x += gw) {
-            incoming.push([sprite_id, Math.round(x), Math.round(y)]);
-            if (incoming.length > max_cells) return { sprites, selection: [] };
+    const columns = Math.round((xb - xa) / gw) + 1, rows = Math.round((yb - ya) / gh) + 1;
+    for (let row = 0; row < rows; row++) {
+        // the edge: inside rows only have their first and last cell
+        const inside = shape === 'frame' && row > 0 && row < rows - 1;
+        for (let column = 0; column < columns; column += (inside && column === 0) ? Math.max(1, columns - 1) : 1) {
+            cells.push([Math.round(xa + column * gw), Math.round(ya + row * gh)]);
+            if (cells.length > max_cells) return null;
         }
     }
-    return merge_placed(sprites, incoming);
+    return cells;
+}
+
+// Fills the cells of a shape (see shape_cells) with a sprite. Nothing
+// happens when there are too many cells.
+function place_shape(sprites, sprite_id, shape, x0, y0, x1, y1, grid, max_cells = 4096) {
+    const cells = shape_cells(shape, x0, y0, x1, y1, grid, max_cells);
+    if (!cells?.length) return { sprites, selection: [] };
+    return merge_placed(sprites, cells.map(([x, y]) => [sprite_id, x, y]));
+}
+
+// Fills the grid cells of a rectangle (corners included) with a sprite.
+function fill_placed(sprites, sprite_id, x0, y0, x1, y1, grid, max_cells = 4096) {
+    return place_shape(sprites, sprite_id, 'rect', x0, y0, x1, y1, grid, max_cells);
 }
 
 // "Gleiche auswählen": every placed sprite of the layer that shows one of
@@ -173,7 +224,7 @@ function next_pick(hits, last) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         placed_position_key, merge_placed, move_placed, remove_placed, copy_placed, paste_placed,
-        move_placed_to_layer, fill_placed, same_sprite_indices, replace_placed,
+        move_placed_to_layer, parallax_layer_offset, shape_cells, place_shape, fill_placed, same_sprite_indices, replace_placed,
         placed_sprites_at, next_pick,
     };
 }

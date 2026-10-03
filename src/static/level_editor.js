@@ -274,13 +274,15 @@ class LevelEditor {
         this.signal_highlight = null;
         // Signale-Übersicht (S): every Code of the level as a rule card
         try { this.show_signal_overview = localStorage.getItem('signal_overview') === '1'; } catch { this.show_signal_overview = false; }
+        // Übersichtskarte (M): the whole level small, in a corner (level_minimap.js)
+        try { this.show_minimap = localStorage.getItem('level_minimap') === '1'; } catch { this.show_minimap = false; }
         this.signal_focus_code = null;
 
         this.texture_loader = new THREE.TextureLoader();
         this.refresh_sprite_widget();
 
         $('#tool_menu_level_settings').empty();
-        // View settings: also in the status bar, with G / S / A (set_view_option)
+        // View settings: also in the status bar, with G / S / M / A (set_view_option)
         this.view_option_widgets = {};
         this.view_option_widgets.show_grid = new CheckboxWidget({
             container: $('#tool_menu_level_settings'),
@@ -296,6 +298,14 @@ class LevelEditor {
             hint: 'Zeigt rechts im Level alle Signale als Regeln: Wenn das passiert – dann das. Fährst du mit der Maus über eine Regel, siehst du ihre Verbindungen. Ein Klick auf eine Zeile wählt aus, was dort steht, ein Klick auf den Code zeigt alles mit diesem Code. Was du im Level auswählst, zeigt seine Verbindungen auch ohne Übersicht.',
             get: () => self.show_signal_overview,
             set: (x) => self.set_view_option('show_signal_overview', x),
+        });
+        this.view_option_widgets.show_minimap = new CheckboxWidget({
+            container: $('#tool_menu_level_settings'),
+            label: 'Übersichtskarte',
+            key: 'M',
+            hint: 'Zeigt unten links das ganze Level klein, mit einem Rahmen um das, was du gerade siehst. Klick oder zieh auf der Karte, um dorthin zu springen.',
+            get: () => self.show_minimap,
+            set: (x) => self.set_view_option('show_minimap', x),
         });
         this.view_option_widgets.animate_level = new CheckboxWidget({
             container: $('#tool_menu_level_settings'),
@@ -956,7 +966,10 @@ class LevelEditor {
             this.refresh();
             return;
         }
-        const moved = move_placed_to_layer(from.sprites, this.selection, to.sprites);
+        // the layers may scroll differently (parallax): the sprites stay where they are on screen
+        const [dx, dy] = parallax_layer_offset(this.camera_x, this.camera_y,
+            from.properties?.parallax, to.properties?.parallax, this.grid_width, this.grid_height);
+        const moved = move_placed_to_layer(from.sprites, this.selection, to.sprites, dx, dy);
         from.sprites = moved.from;
         this.layer_structs[this.layer_index]?.apply_layer(from);
         to.sprites = moved.to;
@@ -970,11 +983,34 @@ class LevelEditor {
         this.render();
     }
 
-    fill_rectangle(x0, y0, x1, y1) {
+    // Strg + drag with the pen: 'rect' fills the rectangle, 'frame' (with
+    // Shift) only its edge, 'line' (with Alt) a line of cells.
+    static shape_for_event(e) {
+        return e.altKey ? 'line' : e.shiftKey ? 'frame' : 'rect';
+    }
+
+    // While dragging: the rectangle as a box, the edge and the line as the
+    // sprites they will place.
+    preview_shape(shape, x0, y0, x1, y1) {
+        const cells = shape === 'rect' ? null : shape_cells(shape, x0, y0, x1, y1,
+            { width: this.grid_width, height: this.grid_height }, 1024);
+        if (cells && this.sheets[this.sprite_index]) {
+            this.clear_rect_group();
+            for (const [x, y] of cells)
+                this.sheets[this.sprite_index].add_sprite_to_group(this.rect_group, 'sprite', x, y);
+        } else {
+            const half_w = this.grid_width / 2;
+            this.prepare_rect_group(Math.min(x0, x1) - half_w, Math.min(y0, y1),
+                Math.max(x0, x1) + half_w, Math.max(y0, y1) + this.grid_height);
+        }
+        this.rect_group.visible = true;
+    }
+
+    draw_shape(shape, x0, y0, x1, y1) {
         const layer = this.current_sprite_layer();
         const sprite = this.game.data.sprites[this.sprite_index];
         if (!layer || !sprite || layer.properties.visible === false || this.read_only_level() || this.refuse_locked_layer()) return;
-        const filled = fill_placed(layer.sprites, sprite.id, x0, y0, x1, y1,
+        const filled = place_shape(layer.sprites, sprite.id, shape, x0, y0, x1, y1,
             { width: this.grid_width, height: this.grid_height });
         // new Schalter and Druckplatten: each its own free Code (signals.js)
         give_new_senders_codes(this.game.data.levels[this.level_index],
@@ -1599,8 +1635,8 @@ class LevelEditor {
         this.render();
     }
 
-    // Gitter anzeigen / Signale-Übersicht / Level animieren: the checkboxes
-    // under Werkzeuge and the toggles in the status bar (G / S / A).
+    // Gitter anzeigen / Signale-Übersicht / Übersichtskarte / Level animieren:
+    // the checkboxes under Werkzeuge and the toggles in the status bar (G / S / M / A).
     set_view_option(option, value) {
         value = !!value;
         this[option] = value;
@@ -1609,6 +1645,9 @@ class LevelEditor {
             try { localStorage.setItem('signal_overview', value ? '1' : '0'); } catch { }
             if (!value) this.signal_focus_code = null;
             this.build_signal_links();
+        }
+        if (option === 'show_minimap') {
+            try { localStorage.setItem('level_minimap', value ? '1' : '0'); } catch { }
         }
         if (option === 'animate_level') {
             if (value) this.start_level_animation();
@@ -2901,17 +2940,24 @@ class LevelEditor {
         this.y1 = this.mouse_down_position_no_snap[1];
 
         if (e.touches) this.mouse_down_button = 0;
+        // the middle mouse button, or the left one while the Leertaste is held:
+        // drag the view, whichever tool is active
+        if (!e.touches && (e.button === 1 || (e.button === 0 && this.space_pan))) {
+            this.grab_panning = true;
+            this.old_camera_position = [this.camera_x, this.camera_y];
+            $(this.element).addClass('grab-panning');
+            return;
+        }
         if (menus.level.active_key === 'tool/connect') {
             this.handle_connect_down(e);
         } else if (menus.level.active_key === 'tool/pen' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
             if (this.refuse_locked_layer()) {
                 // locked: neither paint, erase nor fill (the notice says why)
             } else if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
-                // Strg + ziehen: fill a rectangle with the chosen sprite
-                this.filling_rectangle = true;
-                this.prepare_rect_group(this.mouse_down_position[0], this.mouse_down_position[1],
-                    this.mouse_down_position[0], this.mouse_down_position[1]);
-                this.rect_group.visible = true;
+                // Strg + ziehen: fill a rectangle with the chosen sprite (+ Shift: its edge, + Alt: a line)
+                this.drawing_shape = LevelEditor.shape_for_event(e);
+                const [x0, y0] = this.mouse_down_position;
+                this.preview_shape(this.drawing_shape, x0, y0, x0, y0);
             } else if (e.button === 0) {
                 if (this.modifier_shift) {
                     this.add_sprite_to_level(this.mouse_down_position_no_snap);
@@ -2946,6 +2992,11 @@ class LevelEditor {
     handle_up(e) {
         if (current_pane !== 'level') return;
         this.mouse_down = false;
+        if (this.grab_panning) {
+            this.grab_panning = false;
+            $(this.element).removeClass('grab-panning');
+            return;
+        }
         this.backdrop_move_point = null;
         // let p_no_snap = this.ui_to_world(this.get_touch_point(e), false);
         // if (menus.level.active_key === 'tool/fill-rect') {
@@ -2971,10 +3022,11 @@ class LevelEditor {
             if ((dx || dy) && !this.read_only_level()) this.nudge_selection(dx, dy);
             else this.set_layer_sprites(this.layer_index, this.current_sprite_layer()?.sprites ?? [], this.selection);
         }
-        if (this.filling_rectangle) {
-            this.filling_rectangle = false;
+        if (this.drawing_shape) {
+            const shape = e.touches ? this.drawing_shape : LevelEditor.shape_for_event(e);
+            this.drawing_shape = null;
             const p = this.ui_to_world(this.get_touch_point(e), true);
-            this.fill_rectangle(this.mouse_down_position[0], this.mouse_down_position[1], p[0], p[1]);
+            this.draw_shape(shape, this.mouse_down_position[0], this.mouse_down_position[1], p[0], p[1]);
         }
         if (this.updating_selection && menus.level.active_key === 'tool/select') {
             let sx0 = this.x0;
@@ -2995,7 +3047,11 @@ class LevelEditor {
 
     handle_move(e) {
         if (current_pane !== 'level') return;
-        if (!this.mouse_down && $(e.target).closest('.signal-overview').length) return;
+        if (this.grab_panning) {
+            if (this.mouse_down) this.pan_view_to(this.get_touch_point(e));
+            return;
+        }
+        if (!this.mouse_down && $(e.target).closest('.signal-overview, .level-minimap').length) return;
         if (this.is_double_touch) {
             if ((e.touches ?? []).length < 2) return;
             let this_touch_points = [
@@ -3045,12 +3101,11 @@ class LevelEditor {
             }
             return;
         }
-        if (this.filling_rectangle && this.mouse_down) {
+        if (this.drawing_shape && this.mouse_down) {
+            // Shift and Alt can still change the shape while dragging
+            if (!e.touches) this.drawing_shape = LevelEditor.shape_for_event(e);
             const [x0, y0] = this.mouse_down_position;
-            const half_w = this.grid_width / 2;
-            this.prepare_rect_group(Math.min(x0, p[0]) - half_w, Math.min(y0, p[1]),
-                Math.max(x0, p[0]) + half_w, Math.max(y0, p[1]) + this.grid_height);
-            this.rect_group.visible = true;
+            this.preview_shape(this.drawing_shape, x0, y0, p[0], p[1]);
             this.render();
             return;
         }
@@ -3083,13 +3138,7 @@ class LevelEditor {
         }
         if (menus.level.active_key === 'tool/pan') {
             // $(this.element).css('cursor', 'url(icons/move-hand.png) 11 4, auto');
-            if (this.mouse_down && this.mouse_down_button === 0) {
-                this.camera_x = this.old_camera_position[0] - (touch[0] - this.mouse_down_position_raw[0]) / this.scale;
-                this.camera_y = this.old_camera_position[1] + (touch[1] - this.mouse_down_position_raw[1]) / this.scale;
-                if (this.backdrop_index !== null) this.backdrop_controls_setup_for = null;
-                this.refresh();
-                this.render();
-            }
+            if (this.mouse_down && this.mouse_down_button === 0) this.pan_view_to(touch);
         }
 
         if (this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
@@ -3203,8 +3252,13 @@ class LevelEditor {
         // this.render();
     }
 
-    prepare_rect_group(x0, y0, x1, y1) {
+    clear_rect_group() {
+        for (const child of this.rect_group.children) child.geometry?.dispose();
         this.rect_group.remove.apply(this.rect_group, this.rect_group.children);
+    }
+
+    prepare_rect_group(x0, y0, x1, y1) {
+        this.clear_rect_group();
         let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.0, transparent: true });
 
         let points = [];
@@ -3272,6 +3326,117 @@ class LevelEditor {
         if (this.scale > 8)
             this.scale = 8;
         this.visible_pixels = this.height / this.scale;
+    }
+
+    // ------------------------------------------------ Übersichtskarte (M)
+    // level_minimap.js has the geometry. The picture is the level scene drawn
+    // a second time, small, into the map's corner of the same canvas (layers
+    // with Parallaxe where the view's camera puts them); a div on top gives
+    // the border, the frame of the view and the mouse.
+    minimap_size_of(ref) {
+        const sprite = this.game.data.sprites[this.game.sprite_index_for_ref(ref)];
+        return sprite ? { width: sprite.width, height: sprite.height } : null;
+    }
+
+    render_minimap() {
+        const level = this.game.data.levels?.[this.level_index];
+        const bounds = (this.show_minimap && !this.camera_mode && level) ?
+            minimap_bounds(level.layers, (ref) => this.minimap_size_of(ref), Math.max(this.grid_width, this.grid_height)) : null;
+        let box = $(this.element).children('.level-minimap');
+        if (!bounds || this.width < 320 || this.height < 240) {
+            box.remove();
+            this.minimap = null;
+            return;
+        }
+        if (!box.length) box = this.make_minimap_box();
+        const layout = minimap_layout(bounds, Math.min(240, this.width * 0.3), Math.min(150, this.height * 0.3));
+        this.minimap = { bounds, layout };
+        box.css({ width: `${layout.width}px`, height: `${layout.height}px` });
+        const view = {
+            x0: this.camera_x - this.width * 0.5 / this.scale, x1: this.camera_x + this.width * 0.5 / this.scale,
+            y0: this.camera_y - this.height * 0.5 / this.scale, y1: this.camera_y + this.height * 0.5 / this.scale,
+        };
+        const frame = minimap_view_frame(bounds, layout, view);
+        box.children('.level-minimap-view').css({ left: `${frame.left}px`, top: `${frame.top}px`,
+            width: `${frame.width}px`, height: `${frame.height}px`, display: frame.width > 0 && frame.height > 0 ? '' : 'none' });
+
+        // the picture: everything but the editor's helpers, inside the box's
+        // border (styles.css: 8 px from the corner, 1 px border)
+        const cx = (bounds.x0 + bounds.x1) / 2, cy = (bounds.y0 + bounds.y1) / 2;
+        this.minimap_camera ??= new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 1000);
+        const camera = this.minimap_camera;
+        camera.left = cx - layout.width / 2 / layout.scale;
+        camera.right = cx + layout.width / 2 / layout.scale;
+        camera.top = cy + layout.height / 2 / layout.scale;
+        camera.bottom = cy - layout.height / 2 / layout.scale;
+        camera.position.set(0, 0, 10);
+        camera.updateProjectionMatrix();
+        const helpers = [this.grid_group, this.cursor_group, this.rect_group, this.selection_group,
+            this.backdrop_cursor, this.signal_links_group].filter(Boolean);
+        const shown = helpers.map(group => group.visible);
+        helpers.forEach(group => { group.visible = false; });
+        const corner = 8 + 1;   // from the bottom left of the canvas
+        this.renderer.setScissorTest(true);
+        this.renderer.setScissor(corner, corner, layout.width, layout.height);
+        this.renderer.setViewport(corner, corner, layout.width, layout.height);
+        this.renderer.render(this.scene, camera);
+        this.renderer.setScissorTest(false);
+        this.renderer.setViewport(0, 0, this.width, this.height);
+        helpers.forEach((group, i) => { group.visible = shown[i]; });
+    }
+
+    make_minimap_box() {
+        const box = $('<div class="level-minimap">').attr('title', 'Übersichtskarte (M): klicken oder ziehen, um dorthin zu springen')
+            .append($('<div class="level-minimap-view">')).appendTo(this.element);
+        // the view's middle goes to the point under the mouse
+        const jump = (e) => {
+            if (!this.minimap) return;
+            const offset = box.offset();
+            const [x, y] = minimap_map_to_world(this.minimap.bounds, this.minimap.layout,
+                e.pageX - offset.left - 1, e.pageY - offset.top - 1);
+            this.camera_x = x;
+            this.camera_y = y;
+            if (this.backdrop_index !== null) this.backdrop_controls_setup_for = null;
+            this.refresh();
+            this.render();
+        };
+        box.on('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.button !== 0) return;
+            jump(e);
+            $(window).on('mousemove.level_minimap', jump).on('mouseup.level_minimap', () => $(window).off('.level_minimap'));
+        });
+        // the pen's sprite does not wait at the map's edge
+        box.on('mouseenter', () => {
+            if (this.cursor_group.visible) { this.cursor_group.visible = false; this.render(); }
+        });
+        // the level view must neither paint, nor zoom, nor open a menu through the map
+        box.on('touchstart dblclick contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); });
+        box.on('wheel', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.zoom_at_point(e.originalEvent.deltaY, this.camera_x, this.camera_y);
+            this.refresh();
+            this.render();
+        });
+        return box;
+    }
+
+    // The hand tool, the middle mouse button and Leertaste + drag: the point
+    // grabbed at mouse down follows the mouse.
+    pan_view_to(touch) {
+        this.camera_x = this.old_camera_position[0] - (touch[0] - this.mouse_down_position_raw[0]) / this.scale;
+        this.camera_y = this.old_camera_position[1] + (touch[1] - this.mouse_down_position_raw[1]) / this.scale;
+        if (this.backdrop_index !== null) this.backdrop_controls_setup_for = null;
+        this.refresh();
+        this.render();
+    }
+
+    // Leertaste held: the next drag moves the view (the cursor shows a hand).
+    set_space_pan(on) {
+        this.space_pan = !!on;
+        $(this.element).toggleClass('space-pan', this.space_pan);
     }
 
     zoom_at_point(delta, cx, cy) {
@@ -3396,6 +3561,7 @@ class LevelEditor {
         this.renderer.setSize(this.width, this.height);
         this.renderer.sortObjects = false;
         this.renderer.render(this.scene, this.camera);
+        this.render_minimap();
         this.place_signal_link_labels();
         // let data = {};
         // if (this.layer_structs.length > 0) {
@@ -4104,6 +4270,19 @@ class LevelEditor {
         e.preventDefault();
         e.stopPropagation();
     }, true);
+
+    // Leertaste held: drag the view with any tool (handle_down), like the
+    // middle mouse button. Swallowed, so it neither scrolls nor presses a button.
+    window.addEventListener('keydown', (e) => {
+        const level_editor = editor();
+        if (!level_editor || e.code !== 'Space' || e.ctrlKey || e.metaKey || e.altKey || is_field(e.target)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (!e.repeat) level_editor.set_space_pan(true);
+    }, true);
+    const end_space_pan = () => { if (window.game?.level_editor?.space_pan) window.game.level_editor.set_space_pan(false); };
+    window.addEventListener('keyup', (e) => { if (e.code === 'Space') end_space_pan(); }, true);
+    window.addEventListener('blur', end_space_pan);
 
     // Strg+Z / Strg+Y (or Strg+Umschalt+Z) by the printed letter: on a German
     // keyboard Z and Y swap places, so the key's position (e.code) would be wrong.

@@ -40,6 +40,22 @@ test('removing and moving to another layer', () => {
     assert.deepEqual(moved.selection, [1, 2]);
 });
 
+test('moving to a layer with another parallax keeps the sprites where they are on screen', () => {
+    // camera at x 480: the background (parallax 0.5) is drawn 240 further right than the world (0)
+    assert.deepEqual(sel.parallax_layer_offset(480, 0, 0, 0.5, 24, 24), [-240, 0]);
+    assert.deepEqual(sel.parallax_layer_offset(480, 96, 0.5, 0, 24, 24), [240, 48]);
+    // whole grid steps, so the sprites stay on the grid
+    assert.deepEqual(sel.parallax_layer_offset(100, 0, 0, 0.5, 24, 24), [-48, 0]);
+    // without a grid: whole pixels; the same parallax: no offset (and never -0)
+    assert.deepEqual(sel.parallax_layer_offset(101, 0, 0, 0.5, 0, 0), [-50, 0]);
+    assert.deepEqual(sel.parallax_layer_offset(480, 96, 0.5, 0.5, 24, 24), [0, 0]);
+    assert.deepEqual(sel.parallax_layer_offset(480, 96, undefined, 0, 24, 24), [0, 0]);
+    const moved = sel.move_placed_to_layer(layer(), [2], [['x', 0, 0]], -24, 24);
+    assert.deepEqual(moved.to, [['x', 0, 0], ['c', 24, 24, { key: { signal_code: 3 } }]]);
+    // a moved sprite lands on another one: it wins
+    assert.deepEqual(sel.move_placed_to_layer(layer(), [1], [['x', 0, 0]], -24, 0).to, [['b', 0, 0]]);
+});
+
 test('filling a rectangle on the grid, corners included', () => {
     const grid = { width: 24, height: 24 };
     const { sprites, selection } = sel.fill_placed([['old', 24, 0]], 's1', 0, 0, 48, 24, grid);
@@ -51,6 +67,44 @@ test('filling a rectangle on the grid, corners included', () => {
     assert.deepEqual(sel.fill_placed([], 's1', 48, 24, 0, 0, grid).sprites.length, 6);
     // far too big: nothing happens
     assert.equal(sel.fill_placed([], 's1', 0, 0, 24 * 1000, 24 * 1000, grid).sprites.length, 0);
+});
+
+test('the edge of a rectangle: only its outer cells', () => {
+    const grid = { width: 24, height: 24 };
+    const cells = sel.shape_cells('frame', 0, 0, 72, 48, grid);
+    assert.equal(cells.length, 10);   // 4 × 3 cells, without the 2 inside
+    assert.ok(!cells.some(([x, y]) => y === 24 && (x === 24 || x === 48)));
+    // one row or column thick: every cell, each once
+    assert.deepEqual(sel.shape_cells('frame', 48, 0, 0, 0, grid), [[0, 0], [24, 0], [48, 0]]);
+    assert.deepEqual(sel.shape_cells('frame', 0, 0, 0, 0, grid), [[0, 0]]);
+    // what was inside stays
+    const { sprites, selection } = sel.place_shape([['old', 24, 24]], 's1', 'frame', 0, 0, 48, 48, grid);
+    assert.equal(sprites.length, 9);
+    assert.deepEqual(sprites[0], ['old', 24, 24]);
+    assert.deepEqual(selection, [1, 2, 3, 4, 5, 6, 7, 8]);
+    // a big edge is fine where the filled rectangle would be too big
+    assert.equal(sel.shape_cells('frame', 0, 0, 24 * 1000, 24 * 1000, grid).length, 4000);
+    assert.equal(sel.shape_cells('rect', 0, 0, 24 * 1000, 24 * 1000, grid), null);
+});
+
+test('a line of cells: straight, diagonal or in between', () => {
+    const grid = { width: 24, height: 24 };
+    assert.deepEqual(sel.shape_cells('line', 0, 0, 72, 0, grid), [[0, 0], [24, 0], [48, 0], [72, 0]]);
+    assert.deepEqual(sel.shape_cells('line', 0, 48, 0, 0, grid), [[0, 48], [0, 24], [0, 0]]);
+    assert.deepEqual(sel.shape_cells('line', 0, 0, 72, 72, grid), [[0, 0], [24, 24], [48, 48], [72, 72]]);
+    assert.deepEqual(sel.shape_cells('line', 72, 0, 0, 72, grid), [[72, 0], [48, 24], [24, 48], [0, 72]]);
+    // shallow: one cell per column, from the start to the end
+    const shallow = sel.shape_cells('line', 0, 0, 96, 48, grid);
+    assert.equal(shallow.length, 5);
+    assert.deepEqual(shallow[0], [0, 0]);
+    assert.deepEqual(shallow[4], [96, 48]);
+    assert.deepEqual(shallow.map(([x]) => x), [0, 24, 48, 72, 96]);
+    // on an offset grid and with a 16 × 32 grid
+    assert.deepEqual(sel.shape_cells('line', 8, 4, 40, 68, { width: 16, height: 32 }), [[8, 4], [24, 36], [40, 68]]);
+    assert.deepEqual(sel.shape_cells('line', 0, 0, 0, 0, grid), [[0, 0]]);
+    assert.equal(sel.shape_cells('line', 0, 0, 24 * 5000, 0, grid), null);
+    const { sprites } = sel.place_shape([['old', 24, 24]], 's1', 'line', 0, 0, 48, 48, grid);
+    assert.deepEqual(sprites, [['s1', 0, 0], ['s1', 24, 24], ['s1', 48, 48]]);
 });
 
 test('"Gleiche auswählen": every copy of the selected sprites in the layer', () => {

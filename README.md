@@ -20,7 +20,7 @@ The Studio lets you:
 - convert a sprite or a whole game, backgrounds included, to a pixel-art palette
 - assign behaviours to sprites
 - create player characters and enemies
-- build layered levels
+- build layered levels: select, move, copy and fill many sprites at once (rectangles, their edges, lines), undo and redo, and find your way around large levels with an overview map
 - configure collision and movement
 - use slopes, ladders, conveyors and moving environments
 - create doors, keys and checkpoints

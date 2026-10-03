@@ -196,7 +196,7 @@ class Menu {
             hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'level-history-redo',
                 callback: () => game.level_editor?.redo() });
             // the view settings of the level editor (also under Werkzeuge)
-            for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['S', 'show_signal_overview', 'Signale'], ['A', 'animate_level', 'Level animieren']]) {
+            for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['S', 'show_signal_overview', 'Signale'], ['M', 'show_minimap', 'Karte'], ['A', 'animate_level', 'Level animieren']]) {
                 hints.push({ key, type: 'toggle', label,
                     get: () => !!game.level_editor?.[option],
                     callback: (value) => game.level_editor?.set_view_option?.(option, value) });
