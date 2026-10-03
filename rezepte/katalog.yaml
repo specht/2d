@@ -868,6 +868,75 @@ sprites:
     states:
       - { strip: katze/stehen, fps: 3, traits: { baddie: [right] } }
       - { strip: katze/laufen, fps: 10, traits: { baddie: [walk_right] } }
+  # Begleiter (companion_ai.js): characters that follow Pip with their own way
+  # of moving. Only the settings that differ from a new Begleiter are given.
+  # Fully animated, so children can take them into their own games
+  # ("Sprites aus einem anderen Spiel holen" from a recipe scene).
+  hund:
+    label: Hund
+    traits:
+      companion: {}
+    states:
+      - { strip: hund/stehen, fps: 5, traits: { companion: [right] } }
+      - { strip: hund/laufen, fps: 12, traits: { companion: [walk_right] } }
+      - { strip: hund/springen, traits: { companion: [jump_right] } }
+      - { strip: hund/fallen, traits: { companion: [fall_right] } }
+  otter:
+    label: Otter
+    traits:
+      companion: { can_swim: true, vjump: 5 }
+    states:
+      - { strip: otter/stehen, fps: 3, traits: { companion: [right] } }
+      - { strip: otter/laufen, fps: 10, traits: { companion: [walk_right] } }
+      - { strip: otter/springen, traits: { companion: [jump_right, fall_right] } }
+      - { strip: otter/schwimmen, fps: 8, traits: { companion: [swim_right] } }
+  vogel:
+    label: Vogel
+    traits:
+      companion: { can_fly: true }
+    states:
+      - { strip: vogel/fliegen, fps: 12, traits: { companion: [right, fly_right] } }
+  fee:
+    label: Fee
+    traits:
+      companion: { can_fly: true, vrun: 3.5 }
+    states:
+      - { strip: fee/fliegen, fps: 10, traits: { companion: [right, fly_right] } }
+  roboter:
+    label: Roboter
+    traits:
+      companion: { can_jump: false, vrun: 2.5 }
+    states:
+      - { strip: roboter/stehen, fps: 3, traits: { companion: [right] } }
+      - { strip: roboter/rollen, fps: 10, traits: { companion: [walk_right] } }
+  # people as Begleiter – each with its own way of moving
+  abenteurerin:
+    label: Abenteurerin
+    traits:
+      # jumps as high as Pip and swims
+      companion: { vjump: 7, can_swim: true }
+    states:
+      - { strip: abenteurerin/stehen, fps: 3, traits: { companion: [right] } }
+      - { strip: abenteurerin/laufen, fps: 8, traits: { companion: [walk_right] } }
+      - { strip: abenteurerin/springen, traits: { companion: [jump_right] } }
+      - { strip: abenteurerin/fallen, traits: { companion: [fall_right] } }
+  ritter:
+    label: Ritter
+    traits:
+      # heavy armour: slower, a weak jump, no swimming
+      companion: { vrun: 2.5, vjump: 5 }
+    states:
+      - { strip: ritter/stehen, fps: 3, traits: { companion: [right] } }
+      - { strip: ritter/laufen, fps: 8, traits: { companion: [walk_right] } }
+      - { strip: ritter/springen, traits: { companion: [jump_right] } }
+      - { strip: ritter/fallen, traits: { companion: [fall_right] } }
+  zauberin:
+    label: Zauberin
+    traits:
+      # she floats along
+      companion: { can_fly: true, vrun: 2.5 }
+    states:
+      - { strip: zauberin/schweben, fps: 4, traits: { companion: [right, fly_right] } }
   keiler:
     label: Keiler (Lauerer)
     traits:

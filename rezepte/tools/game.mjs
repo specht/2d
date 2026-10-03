@@ -324,7 +324,8 @@ export async function build_game(catalog, recipe, repo) {
             if (!('signal_code' in placed[3][role])) placed[3][role].signal_code = null;
         }
         // figuren: true keeps characters in their own map layer (e.g. behind a window)
-        if (('actor' in traits || 'baddie' in traits) && !layer_defs[li].figuren) figures.push(placed);
+        // (a Begleiter is a character, too)
+        if (('actor' in traits || 'baddie' in traits || 'companion' in traits) && !layer_defs[li].figuren) figures.push(placed);
         else tile_layers[li].push(placed);
     })));
 

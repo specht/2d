@@ -113,6 +113,7 @@ export async function record(browser, repo, game, recipe) {
     const duration = Number(recipe.dauer ?? 4);
     const frames = [];
     const foes = [];
+    const pals = [];      // every Begleiter's way through the recording
     let ei = 0;
     const steps = recipe.schritte ?? 1;             // simulation steps per GIF frame
     for (let i = 0; i * steps / 60 < duration - 1e-9; i++) {
@@ -151,11 +152,16 @@ export async function record(browser, repo, game, recipe) {
             const pc = g.player_character;
             const player_x = pc ? Math.round((pc.mesh.position.x - view.x0) * sx) : null;
             const dbg = pc ? `${pc.mesh.position.x.toFixed(1)},${pc.mesh.position.y.toFixed(1)} ${pc.state}/${pc.direction} keys=${Object.keys(g.pressed_keys).filter(k => g.pressed_keys[k]).join('+')}` +
-                g.baddies.map(b => ` | gegner ${b.mesh.position.x.toFixed(0)},${b.mesh.position.y.toFixed(0)} e=${b.energy}${b.hit_paused?.() ? ' pause' : ''}${b.ai_memory?.mode ? ' ' + b.ai_memory.mode : ''}`).join('') : '';
+                g.baddies.map(b => ` | gegner ${b.mesh.position.x.toFixed(0)},${b.mesh.position.y.toFixed(0)} e=${b.energy}${b.hit_paused?.() ? ' pause' : ''}${b.ai_memory?.mode ? ' ' + b.ai_memory.mode : ''}`).join('') +
+                (g.companions ?? []).map(c => ` | begleiter ${c.mesh.position.x.toFixed(0)},${c.mesh.position.y.toFixed(0)} ${c.state}${c.fluid_mode ? ' ' + c.fluid_mode : ''} ${c.companion_memory?.state ?? ''}`).join('') : '';
+            // where each Begleiter is (companion_ai.js), for the begleiter_* checks
+            const pals = (g.companions ?? []).map(c => ({ name: c.sprite?.properties?.name ?? '', x: c.mesh.position.x, y: c.mesh.position.y,
+                swim: c.fluid_mode === 'swim', lost: c.companion_stats?.lost ?? 0, returned: c.companion_stats?.returned ?? 0,
+                dist: pc ? Math.hypot(pc.mesh.position.x - c.mesh.position.x, pc.mesh.position.y - c.mesh.position.y) : null }));
             // what each enemy did: position, behaviour mode, "!" shown
             const foes = g.baddies.map(b => ({ x: b.mesh.position.x, y: b.mesh.position.y,
                 mode: b.ai_memory?.mode ?? null, alert: b.alert_mesh?.visible === true }));
-            return { w, h, data: btoa(bin), dbg, player_x, foes };
+            return { w, h, data: btoa(bin), dbg, player_x, foes, pals };
         }, { t, due, view: game.view });
         if (process.env.REZEPT_DEBUG && i % (process.env.REZEPT_DEBUG === 'alle' ? 1 : 6) === 0) console.log(`  t=${t.toFixed(2)} ${shot.dbg}`);
         const raw = Buffer.from(shot.data, 'base64');
@@ -165,6 +171,7 @@ export async function record(browser, repo, game, recipe) {
         for (let y = 0; y < shot.h; y++) raw.copy(flipped, (shot.h - 1 - y) * row, y * row, (y + 1) * row);
         for (let p = 3; p < flipped.length; p += 4) flipped[p] = 255;
         frames.push({ w: shot.w, h: shot.h, data: flipped, player_x: shot.player_x });
+        shot.pals.forEach((c, k) => (pals[k] ??= []).push({ t, ...c }));
         shot.foes.forEach((f, k) => {
             const t = (foes[k] ??= { modes: new Set(), alert: false, x0: f.x, x1: f.x, y0: f.y, y1: f.y });
             if (f.mode) t.modes.add(f.mode);
@@ -195,8 +202,10 @@ export async function record(browser, repo, game, recipe) {
                 return 'checkpoint' in (sp.traits ?? {}) && 'active' in (st?.traits?.checkpoint ?? {});
             }).length,
             baddies: g.baddies.map(b => ({ energy: b.energy, active: b.active })),
+            companions: (g.companions ?? []).length,
         };
     });
+    state.companions = pals;
     await context.close();
     state.baddies.forEach((b, k) => {
         const t = foes[k];
@@ -304,6 +313,53 @@ function u32(n) {
     return b;
 }
 
+// Begleiter (companion_ai.js): what the recipe promises about them. Each check
+// passes if some Begleiter in the scene did it (most scenes have one).
+// trace: [{ t, x, y, swim, lost, returned, dist }] per Begleiter, one per frame.
+function check_companions(e, traces) {
+    const fail = [];
+    // begleiter_einzeln: { Hund: { schwimmt: false }, Otter: { schwimmt: true } } – the same
+    // checks for the Begleiter whose sprite Titel starts with that name only
+    for (const [name, checks] of Object.entries(e.begleiter_einzeln ?? {})) {
+        const mine = traces.filter(tr => tr[0]?.name?.startsWith(name));
+        if (!mine.length) { fail.push(`Kein Begleiter „${name}“ in der Szene`); continue; }
+        const prefixed = Object.fromEntries(Object.entries(checks).map(([k, v]) => [`begleiter_${k}`, v]));
+        fail.push(...check_companions(prefixed, mine).map(f => `${name}: ${f}`));
+    }
+    const keys = Object.keys(e).filter(k => k.startsWith('begleiter_') && k !== 'begleiter_einzeln');
+    if (!keys.length) return fail;
+    if (!traces.length) return ['Kein Begleiter in der Szene'];
+    const some = test => traces.some(tr => tr.length && test(tr));
+    const last = tr => tr[tr.length - 1];
+    const range = (tr, k) => Math.max(...tr.map(s => s[k])) - Math.min(...tr.map(s => s[k]));
+    // it moved from its start and ends close to the player
+    if (e.begleiter_folgt !== undefined && !some(tr => Math.hypot(last(tr).x - tr[0].x, last(tr).y - tr[0].y) >= 48 && last(tr).dist <= e.begleiter_folgt))
+        fail.push(`Begleiter ist nicht mitgekommen (Abstand am Ende ${traces.map(tr => last(tr)?.dist?.toFixed(0)).join(', ')} px, erwartet höchstens ${e.begleiter_folgt})`);
+    if (e.begleiter_weg !== undefined && !some(tr => range(tr, 'x') >= e.begleiter_weg))
+        fail.push(`Begleiter ist nur ${Math.max(...traces.map(tr => range(tr, 'x'))).toFixed(0)} px zur Seite gekommen, erwartet ${e.begleiter_weg}`);
+    if (e.begleiter_hub !== undefined && !some(tr => range(tr, 'y') >= e.begleiter_hub))
+        fail.push(`Begleiter ist nur ${Math.max(...traces.map(tr => range(tr, 'y'))).toFixed(0)} px auf und ab gekommen, erwartet ${e.begleiter_hub}`);
+    // { links_von: column, bis: seconds } – it stayed behind (e.g. below a ledge) at least until then
+    if (e.begleiter_bleibt_zurueck !== undefined) {
+        const { links_von, bis } = e.begleiter_bleibt_zurueck;
+        if (!some(tr => tr.filter(s => s.t <= bis).every(s => s.x < links_von * 24 - 12)))
+            fail.push(`Begleiter war vor ${bis} s schon rechts von Spalte ${links_von} – er sollte zurückbleiben`);
+    }
+    // it got lost and found the player again (at least so many times)
+    if (e.begleiter_verloren !== undefined && !some(tr => last(tr).lost >= e.begleiter_verloren && last(tr).returned >= e.begleiter_verloren))
+        fail.push(`Begleiter hat ${traces.map(tr => `${last(tr).lost}× verloren, ${last(tr).returned}× wiedergefunden`).join('; ')}, erwartet ${e.begleiter_verloren}×`);
+    if (e.begleiter_nie_verloren && some(tr => last(tr).lost > 0))
+        fail.push('Begleiter hat den Anschluss verloren, sollte aber mitkommen');
+    if (e.begleiter_schwimmt !== undefined && some(tr => tr.some(s => s.swim)) !== e.begleiter_schwimmt)
+        fail.push(`Begleiter schwimmt: ${!e.begleiter_schwimmt} statt ${e.begleiter_schwimmt}`);
+    if (e.begleiter_rechts_von !== undefined && !some(tr => last(tr).x > e.begleiter_rechts_von * 24 - 12))
+        fail.push(`Begleiter steht am Ende bei x=${traces.map(tr => last(tr).x.toFixed(0)).join(', ')}, erwartet rechts von Spalte ${e.begleiter_rechts_von}`);
+    // a flyer never came down into the gap: always at least so many tiles high
+    if (e.begleiter_immer_hoeher_als !== undefined && !some(tr => tr.every(s => s.y >= e.begleiter_immer_hoeher_als * 24)))
+        fail.push(`Begleiter war tiefer als Höhe ${e.begleiter_immer_hoeher_als} (y=${Math.min(...traces.flat().map(s => s.y)).toFixed(0)})`);
+    return fail;
+}
+
 // Checks from the recipe's "erwartet" block. Returns a list of failures.
 export function check(expect, state) {
     const fail = [];
@@ -359,5 +415,6 @@ export function check(expect, state) {
         fail.push(`Gegner sind nur ${weg.toFixed(0)} px zur Seite gekommen, erwartet ${e.gegner_weg}`);
     if (e.gegner_hub !== undefined && !(hub >= e.gegner_hub))
         fail.push(`Gegner sind nur ${hub.toFixed(0)} px auf und ab gekommen, erwartet ${e.gegner_hub}`);
+    fail.push(...check_companions(e, state.companions ?? []));
     return fail;
 }

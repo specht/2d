@@ -1004,6 +1004,7 @@ class Game {
         let title = $(`<h4>`).append($('<span>').text(SPRITE_TRAITS[trait].label)).append(bu_delete).appendTo(div);
         let info = SPRITE_TRAITS[trait] ?? {};
         if (trait === 'baddie' && typeof BADDIE_BEHAVIORS !== 'undefined') this.add_behavior_controls(div, si);
+        if (trait === 'companion') this.add_companion_help(div, si);
         // Rarely needed settings (hitbox, screen shake …) sit in a folded "Erweitert" section.
         let advanced = null;
         for (let key in info.properties ?? {}) {
@@ -1050,6 +1051,8 @@ class Game {
                     get: () => self.data.sprites[si].traits[trait][key],
                     set: (x) => {
                         self.data.sprites[si].traits[trait][key] = x;
+                        // other settings appear or go (e.g. Sprungkraft with "kann springen")
+                        if (property.rebuilds_panel) setTimeout(() => self.build_sprite_traits_menu(), 0);
                     },
                 });
             } else if (property.type === 'select') {
@@ -1071,6 +1074,18 @@ class Game {
         if (trait === 'baddie') this.add_drop_controls?.(div, si);
         if (trait === 'door') this.add_door_state_help(div, si);
         div.insertAfter(element);
+    }
+
+    // Begleiter (companion_ai.js): what it does, in one sentence – the
+    // movement settings below say how it can follow.
+    add_companion_help(div, si) {
+        const traits = this.data.sprites[si].traits;
+        this.add_trait_help(div, 'Was macht ein Begleiter?',
+            'Folgt der Spielfigur und bleibt in ihrer Nähe. Wie er folgen kann, bestimmen die Einstellungen darunter: Er springt nur so hoch, wie er kann, und schwimmt nur, wenn er es kann. Schafft er einen Weg nicht, bleibt er zurück. Wenn der Begleiter den Anschluss verliert, findet er dich nach einer Weile wieder.');
+        if (traits.actor || traits.baddie)
+            $('<p>').addClass('trait-warning').text(traits.actor ?
+                'Dieses Sprite ist auch die Spielfigur – dann zählt es als Spielfigur. Ein Begleiter braucht ein eigenes Sprite.' :
+                'Dieses Sprite ist auch ein Gegner – dann zählt es als Gegner. Entferne „Gegner“, damit es dein Begleiter wird.').appendTo(div);
     }
 
     // "Verhalten": one select with named enemy types, each with only its own

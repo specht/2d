@@ -128,7 +128,7 @@ The recorder relies on these runtime entry points: `window.game`,
 `Game.load(tag)`, `reset()`, `setup()`, `render()`, `clock.getElapsedTime()`,
 `camera`, `renderer`, `handle_key_down/up`, `player_character`, `baddies`,
 `found_keys`, `signals.sent`, `speech.log`, `speech_fonts_ready()`, `active_level_sprites`, `reached_flag`,
-`ts_zoom_actor`. If one of them changes, adjust
+`ts_zoom_actor`, `companions` (`companion_stats`, `companion_memory`, `fluid_mode`). If one of them changes, adjust
 `record.mjs`.
 
 ## Writing a recipe
@@ -136,7 +136,7 @@ The recorder relies on these runtime entry points: `window.game`,
 ```yaml
 ---
 titel: Leitern hochklettern
-kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Türen & Schlüssel | Signale | Kampf | Gegner | Wasser & Weltall
+kategorie: Welt bauen          # Loslegen | Figuren animieren | Welt bauen | Level gestalten | Türen & Schlüssel | Signale | Kampf | Gegner | Begleiter | Wasser & Weltall
 # entwurf: true                # hide this recipe (not built, not shown)
 stufe: 1                       # difficulty 1–3 (kept in rezepte.json, not shown)
 kurz: Pip klettert eine Leiter hoch und läuft oben weiter.
@@ -266,6 +266,14 @@ erwartet:                      # outcome checks
   # Enemy behaviours (some enemy in the scene): gegner_modi: [chase, idle] (modes of
   # baddie_ai.js: chase/idle, wait/windup/charge/rest, shake/drop/bottom/rise/cool/done) ·
   # gegner_ausrufezeichen: true · gegner_weg: 96 (px sideways) · gegner_hub: 24 (px up/down)
+  # Begleiter (companion_ai.js; some Begleiter in the scene): begleiter_folgt: 64 (moved from its
+  # start and ends at most 64 px from the player) · begleiter_weg / begleiter_hub (px) ·
+  # begleiter_bleibt_zurueck: { links_von: 12, bis: 7 } (left of column 12 until 7 s – it really
+  # could not follow) · begleiter_verloren: 1 (lost and found again at least once) ·
+  # begleiter_nie_verloren: true · begleiter_schwimmt: true|false · begleiter_rechts_von: 16 ·
+  # begleiter_immer_hoeher_als: 2 (a flyer never came down into a gap)
+  # begleiter_einzeln: { Hund: { schwimmt: false }, Otter: { schwimmt: true } } – the same checks
+  # (without "begleiter_") for the Begleiter whose sprite Titel starts with that name
 # ohne:                        # optional: the same world without decoration. The recording shows
 #   szene: { ebenen: [ … ] }   # the finished world left of Pip and this one right of him –
 #                              # he "paints" the level as he walks. Same size required.
@@ -374,6 +382,14 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   klettert*). `strohpuppe` (24×32 training dummy, *Steht still*: `stehen`,
   `treffer`, `tot` – its bullseye sits exactly at arrow height, 10 px
   above the ground). `strohballen` (solid hay bale for the training ground).
+* **Begleiter** (`traits.companion`, recipes in the category *Begleiter*), fully
+  animated so children can take them into their own games: `hund` (`stehen` 4 with a
+  wagging tail and a blink, `laufen` 6, `springen`, `fallen`), `otter` (`stehen`, `laufen`,
+  `springen`, `schwimmen` – *kann schwimmen*), `vogel` and `fee` (`fliegen`, state *Begleiter
+  fliegt* – *kann fliegen*), `roboter` (`stehen` with a blinking antenna, `rollen` – *kann
+  springen* off), and people: `abenteurerin` (`stehen`, `laufen` 4, `springen`, `fallen` – jumps
+  like Pip, swims), `ritter` (the same states – slower, a weak jump) and `zauberin`
+  (`schweben` – *kann fliegen*). Sprite titles are their names (`begleiter_einzeln` uses them).
 * **Meer** (`meer/`, recipes *Pip taucht*, *Ein Fisch als Spielfigur*, *Das
   U-Boot und der Sog*, *Ein Hai, der dich jagt*): `pip_taucher` (Pip with
   `pip/schwimmen`, `treiben`, `abtauchen`, `auftauchen` – states *Spielfigur
