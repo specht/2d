@@ -5,6 +5,7 @@ stufe: 2
 skala: 2
 kurz: Erst den Schlüssel holen – dann öffnet sich die Tür in der Mauer von selbst.
 szene:
+  signale: { 7: Schatzkammer }
   legende:
     L: { sprite: schlosstuer, platziert: { door: { signal_code: 7 } } }
     k: { sprite: schluessel, platziert: { key: { signal_code: 7 } } }
@@ -26,7 +27,7 @@ erwartet:
 ## Kurz gesagt
 
 1. Eine Tür mit **ist verschließbar** öffnet sich nur mit einem Schlüssel.
-2. Schlüssel und Tür bekommen im Level **denselben Code**.
+2. Schlüssel und Tür bekommen im Level **dasselbe Signal** (denselben Code).
 3. Schlüssel einsammeln – und die Tür geht auf.
 
 ## Das brauchst du
@@ -41,20 +42,20 @@ erwartet:
 1. Tür wie im Rezept *Eine Tür mit F öffnen*, aber lass **ist verschließbar** an. Pips Tür ist außerdem eine **automatische Tür**: Sie geht auf, sobald man davor steht.
 2. Zeichne den Schlüssel: **Eigenschaft hinzufügen → Schlüssel → ist ein Schlüssel**.
 3. Setz die Tür ins **Level** in eine Mauer, die höher ist als ein Sprung, und leg den Schlüssel davor.
-4. Klicke im Level auf die Tür und trage bei **Code** eine Zahl ein, z. B. **7**.
-5. Klicke auf den Schlüssel und trage **denselben Code** ein.
+4. Klicke im Level auf die Tür. Neben **Code** wählst du **Neues Signal …** und gibst ihm einen Namen, zum Beispiel **Schatzkammer**.
+5. Klicke auf den Schlüssel und wähle neben **Code** aus der Liste dasselbe Signal **Schatzkammer**.
 
 > **Achtung:** Der Code wird am **platzierten** Sprite im Level eingestellt, nicht beim Zeichnen. So kann derselbe Schlüssel-Sprite mehrmals mit verschiedenen Codes vorkommen.
 
 ## Tipps
 
-- Mehrere Türen und Schlüssel? Gib jedem Paar einen anderen Code: rote Tür 1, blaue Tür 2 …
+- Mehrere Türen und Schlüssel? Gib jedem Paar ein eigenes Signal: **Rote Tür**, **Blaue Tür** …
 - Ohne automatische Tür erscheint nach dem Einsammeln ein F – dann öffnet man die Tür selbst.
 
 ## Wenn's nicht klappt
 
 - **Man kommt auch ohne Schlüssel vorbei:** Die Mauer um die Tür ist zu niedrig oder hat eine Lücke. Man darf weder drüber springen noch drumherum laufen.
-- **Die Tür bleibt trotz Schlüssel zu:** Die Codes sind verschieden. Prüfe Tür *und* Schlüssel im Level.
+- **Die Tür bleibt trotz Schlüssel zu:** Tür und Schlüssel haben nicht dasselbe Signal. Prüfe beide im Level – oder schau in die Signale-Übersicht (Taste S).
 - **Die Tür geht auch ohne Schlüssel auf:** **ist verschließbar** ist aus.
 - **Der Schlüssel lässt sich nicht einsammeln:** Er liegt in einem Layer ohne Kollisionen, oder ihm fehlt **ist ein Schlüssel**.
 

@@ -5,6 +5,7 @@ stufe: 2
 skala: 2
 kurz: Pip legt einen Schalter um – und weiter hinten fährt ein Gittertor hoch.
 szene:
+  signale: { 3: Tor auf }
   legende:
     S: { sprite: schalter, platziert: { switch: { signal_code: 3 } } }
     G: { sprite: gittertor, platziert: { door: { signal_code: 3, door_reaction: open } } }
@@ -47,10 +48,10 @@ erwartet:
 2. Leg zwei Zustände an und gib ihnen **Schalter ist aus** und **Schalter ist an**.
 3. Zeichne das Tor wie eine Tür (**ist eine Tür**, Zustände **geschlossen** und **geöffnet**). Schalte **ist verschließbar** und **automatische Tür** an – so kommt man nur mit dem Schalter hinein, nicht mit F.
 4. Setz das Tor ins **Level** in eine Mauer, die höher ist als ein Sprung. Den Schalter stellst du davor.
-5. Klicke im Level auf den Schalter. Er hat schon einen **Code** bekommen, den sonst nichts im Level hat. Du kannst ihn ändern, z. B. in **3**.
-6. Klicke auf das Tor: **Code** auch **3**, und unter **Bei Signal** wählst du **öffnen**.
+5. Klicke im Level auf den Schalter. Er hat schon einen **Code** bekommen, den sonst nichts im Level hat. Gib diesem Signal einen Namen: Klicke neben dem Code auf **ohne Namen** → **Namen geben …**, zum Beispiel **Tor auf**.
+6. Klicke auf das Tor. Neben **Code** wählst du aus der Liste dein Signal **Tor auf** – und unter **Bei Signal** **öffnen**.
 
-Unter dem Code steht, was im Level noch denselben Code hat: *Code 3 in diesem Level – sendet: 1 Schalter · reagiert: 1 Tür*. Steht dort „noch nichts reagiert darauf“, stimmt ein Code nicht.
+Unter dem Code steht, was im Level noch dasselbe Signal hat: *»Tor auf« (Code 3) in diesem Level – sendet: 1 Schalter · reagiert: 1 Tür*. Steht dort „noch nichts reagiert darauf“, haben Schalter und Tor nicht dasselbe Signal.
 
 > **Achtung:** Wie beim Schlüssel stellst du den Code am **platzierten** Sprite im Level ein, nicht beim Zeichnen.
 
@@ -58,7 +59,8 @@ Unter dem Code steht, was im Level noch denselben Code hat: *Code 3 in diesem Le
 
 ## Tipps
 
-- Schneller geht's mit dem Werkzeug **Verbinden** (Taste R): erst den Schalter anklicken, dann das Tor. Beide bekommen denselben Code.
+- Schneller geht's mit dem Werkzeug **Verbinden** (Taste R): erst den Schalter anklicken, dann das Tor. Beide bekommen dasselbe Signal, und du kannst ihm gleich einen Namen geben.
+- Alle Signale des Levels auf einen Blick: die **Signale-Übersicht (Taste S)**. Dort steht deine Regel als Satz: *Wenn »Schalter« umgelegt wird, dann öffnet sich »Gittertor«*. Mit dem × an einer Zeile nimmst du etwas wieder aus dem Signal heraus – oder du löschst die Zahl im Feld **Code** (**Kein Signal**).
 - **Bei Signal** kann noch mehr: **schließen**, **offen, solange an** (der Schalter macht das Tor auf und wieder zu) oder **wechseln** (jedes Umlegen macht es auf oder zu).
 - Mehrere Tore mit demselben Code gehen alle gleichzeitig auf.
 - Ein Tor, das nach ein paar Sekunden von selbst wieder zugeht, baust du am besten mit einer Druckplatte – siehe *Ein Tor, das nur kurz offen bleibt*.
@@ -67,7 +69,7 @@ Unter dem Code steht, was im Level noch denselben Code hat: *Code 3 in diesem Le
 ## Wenn's nicht klappt
 
 - **Über dem Schalter erscheint kein F:** Er liegt in einer Ebene ohne **Kollisionen erkennen**, oder ihm fehlt **ist ein Schalter**.
-- **Der Schalter bewegt sich, aber das Tor nicht:** Die Codes sind verschieden, oder beim Tor steht unter **Bei Signal** noch **aufschließen** – dann wartet das Tor, bis die Figur davorsteht.
+- **Der Schalter bewegt sich, aber das Tor nicht:** Schalter und Tor haben nicht dasselbe Signal (schau in die Signale-Übersicht (Taste S)), oder beim Tor steht unter **Bei Signal** noch **aufschließen** – dann wartet das Tor, bis die Figur davorsteht.
 - **Das Tor geht auch mit F auf:** **ist verschließbar** ist aus – beim Zeichnen oder bei diesem einen Tor im Level.
 - **Der Schalter zeigt kein „an“:** Der zweite Zustand heißt nicht **Schalter ist an**.
 

@@ -96,7 +96,7 @@ erwartet:
 
 > **Tipp:** Düster heißt nicht, dass man nichts mehr erkennt. Die Figur und der Boden, auf dem sie läuft, müssen gut zu sehen sein – dunkel werden darf vor allem, was weit weg ist. Nimm für die Abdunkeln-Ebene helle Farben: Weiß ändert gar nichts, Schwarz macht alles schwarz.
 
-- Soll die düstere Welt erst auftauchen, wenn die Figur an eine bestimmte Stelle kommt? Leg dort einen **Bereich** an (**+ → Bereich**) und stell bei Staub, Tönung und Wolken **Bei Signal: erscheint** mit dem Code des Bereichs und etwas **Überblendung** ein – dann kippt die Welt ganz langsam um.
+- Soll die düstere Welt erst auftauchen, wenn die Figur an eine bestimmte Stelle kommt? Leg dort einen **Bereich** an (**+ → Bereich**) und stell bei Staub, Tönung und Wolken **Bei Signal: erscheint** mit dem Signal des Bereichs und etwas **Überblendung** ein – dann kippt die Welt ganz langsam um.
 - Der Staub liegt über der Tönung, damit er hell bleibt. Liegt er darunter, wird er mit abgedunkelt und ist kaum noch zu sehen.
 - Mit warmem Orange und dem **Mischmodus: Leuchten** bei der Staub-Ebene werden aus dem Staub Funken über einem Feuer.
 - Staub hat keine Kollisionen – die Figur läuft einfach hindurch.

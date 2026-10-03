@@ -6,6 +6,7 @@ skala: 2
 kurz: Ein Glibber bewacht das Tor. Erst wenn Pip ihn besiegt hat, fährt das Gitter hoch.
 szene:
   anpassen: { glibber: { baddie: { hit_pause: 0.5 } } }
+  signale: { 5: Wächter besiegt }
   legende:
     P: pip_schwert
     g: { sprite: glibber, platziert: { baddie: { signal_on_defeat: true, signal_code: 5 } } }
@@ -32,7 +33,7 @@ erwartet:
 ## Kurz gesagt
 
 1. Ein Gegner kann ein **Signal** senden, wenn er besiegt ist.
-2. Ein Tor mit **demselben Code** geht dann auf.
+2. Ein Tor mit **demselben Signal** geht dann auf.
 3. Im Spiel: Gegner besiegen – und durch das Tor.
 
 ## Das brauchst du
@@ -47,22 +48,22 @@ erwartet:
 1. Gib deiner Figur einen Angriff wie im Rezept *Schwertkampf*.
 2. Zeichne das Tor wie im Rezept *Ein Schalter öffnet das Tor*: **ist eine Tür**, **ist verschließbar** und **automatische Tür** an.
 3. Setz das Tor ins **Level** in eine hohe Mauer und den Gegner davor.
-4. Klicke im Level auf den Gegner und schalte **sendet, wenn besiegt** an. Er bekommt einen eigenen **Code**; du kannst ihn ändern, z. B. in **5**.
-5. Klicke auf das Tor: **Code** auch **5**, und unter **Bei Signal** wählst du **öffnen**.
+4. Klicke im Level auf den Gegner und schalte **sendet, wenn besiegt** an. Er bekommt einen eigenen **Code**. Gib dem Signal einen Namen: neben dem Code **ohne Namen** → **Namen geben …**, zum Beispiel **Wächter besiegt**.
+5. Klicke auf das Tor. Neben **Code** wählst du aus der Liste **Wächter besiegt** – und unter **Bei Signal** **öffnen**.
 
-Unter dem Code steht, was zusammengehört: *Code 5 in diesem Level – sendet: 1 Gegner · reagiert: 1 Tür*.
+Unter dem Code steht, was zusammengehört: *»Wächter besiegt« (Code 5) in diesem Level – sendet: 1 Gegner · reagiert: 1 Tür*.
 
 ## Tipps
 
 - Mehrere Wächter, die **alle** besiegt sein müssen? Dafür gibt es bei den **Level-Eigenschaften** **sendet, wenn alle Gegner besiegt** – siehe *Die Falle schnappt zu*, dort auch mit einer zweiten Welle.
-- Ein besiegter Gegner kann auch eine Brücke erscheinen oder eine Wand verschwinden lassen – alles, was auf seinen Code hört.
+- Ein besiegter Gegner kann auch eine Brücke erscheinen oder eine Wand verschwinden lassen – alles, was auf sein Signal hört.
 
 ## Wenn's nicht klappt
 
-- **Das Tor bleibt zu:** Beim Gegner ist **sendet, wenn besiegt** aus, oder die Codes sind verschieden.
-- **Das Tor geht auf, bevor der Gegner besiegt ist:** Etwas anderes sendet denselben Code – ein Schlüssel oder Schalter. Unter dem Code siehst du, wer sendet.
+- **Das Tor bleibt zu:** Beim Gegner ist **sendet, wenn besiegt** aus, oder Gegner und Tor haben nicht dasselbe Signal (schau in die Signale-Übersicht (Taste S)).
+- **Das Tor geht auf, bevor der Gegner besiegt ist:** Etwas anderes sendet dasselbe Signal – ein Schlüssel oder Schalter. Unter dem Code siehst du, wer sendet.
 - **Man kommt auch ohne Kampf durch:** Die Mauer hat eine Lücke, oder das Tor ist nicht **verschließbar**.
 
 ## Mach mehr draus
 
-Lass nach dem Sieg nicht nur das Tor aufgehen, sondern auch eine Brücke über einen Graben erscheinen – beide mit demselben Code.
+Lass nach dem Sieg nicht nur das Tor aufgehen, sondern auch eine Brücke über einen Graben erscheinen – beide mit demselben Signal.

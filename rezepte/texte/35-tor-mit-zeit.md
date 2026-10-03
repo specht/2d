@@ -5,6 +5,7 @@ stufe: 2
 skala: 2
 kurz: Pip tritt auf eine Druckplatte, rennt los – und hinter ihm fährt das Gittertor wieder herunter.
 szene:
+  signale: { 3: Tor kurz auf }
   legende:
     p: { sprite: druckplatte, platziert: { pressure_plate: { signal_code: 3 } } }
     G: { sprite: gittertor, platziert: { door: { signal_code: 3, door_reaction: open, close_after: 1.5 } } }
@@ -44,7 +45,7 @@ erwartet:
 ## Schritt für Schritt
 
 1. Zeichne die Druckplatte (**Eigenschaft hinzufügen → Schalter → ist eine Druckplatte**) und das Tor (**ist eine Tür**, mit **ist verschließbar** und **automatische Tür**). Wie das geht, steht in *Eine Druckplatte baut eine Brücke* und *Ein Schalter öffnet das Tor*.
-2. Setz beide ins **Level**. Die Druckplatte hat schon einen eigenen **Code** bekommen – gib dem Tor denselben (oder verbinde beide mit dem Werkzeug **Verbinden**, Taste R).
+2. Setz beide ins **Level** und verbinde sie mit dem Werkzeug **Verbinden** (Taste R): erst die Druckplatte anklicken, dann das Tor. Gib dem neuen Signal einen Namen, zum Beispiel **Tor kurz auf**. (Ohne das Werkzeug: Die Druckplatte hat schon einen eigenen **Code** – wähl ihn beim Tor neben **Code** aus der Liste.)
 3. Klicke auf das Tor und wähle unter **Bei Signal** **öffnen**.
 4. Trag bei **schließt wieder nach** ein, wie viele Sekunden das Tor offen bleibt, z. B. **1,5**.
 5. Teste mit **Level testen** (Taste T): Schaffst du es durch das Tor? Ist es zu leicht, nimm weniger Sekunden – ist es zu schwer, mehr.
@@ -61,14 +62,14 @@ Die Zeit läuft ab dem Moment, in dem das Tor **ganz offen** ist. Bei **0** blei
 - Niemand wird eingeklemmt: Steht die Spielfigur oder ein Gegner gerade **in** dem Tor, wartet es, bis der Weg frei ist.
 - Eine **automatische Tür** bleibt offen, solange die Spielfigur davorsteht. Die Zeit läuft erst los, wenn sie weggeht.
 - Ein **Schalter** passt hier weniger gut: Er bleibt auf „an“ stehen, auch wenn das Tor längst wieder zu ist, und man müsste ihn zweimal umlegen, bis das Tor wieder aufgeht.
-- **Verzögerung:** Schalter, Druckplatten, Schlüssel, Bereiche und Gegner können ihren Code auch erst später senden. Klicke im Level auf den Sender und stell **Verzögerung** ein. Eine Druckplatte mit **1 s** Verzögerung lässt eine Brücke (Ebene mit **verschwindet**) erst kurz nach dem Drauftreten einstürzen.
+- **Verzögerung:** Schalter, Druckplatten, Schlüssel, Bereiche und Gegner können ihr Signal auch erst später senden. Klicke im Level auf den Sender und stell **Verzögerung** ein. Eine Druckplatte mit **1 s** Verzögerung lässt eine Brücke (Ebene mit **verschwindet**) erst kurz nach dem Drauftreten einstürzen.
 
 ## Wenn's nicht klappt
 
 - **Das Tor bleibt offen:** Bei **schließt wieder nach** steht **0**, oder du hast den Wert bei einem anderen Tor eingetragen.
 - **Das Tor geht zu, sobald die Figur von der Platte steigt:** Unter **Bei Signal** steht **offen, solange an** – nimm **öffnen**.
 - **Das Tor geht nicht zu, obwohl die Zeit um ist:** Die Spielfigur oder ein Gegner steht noch im Tor – oder die Figur steht noch direkt vor einer automatischen Tür.
-- **Das Tor geht gar nicht erst auf:** Die Codes von Platte und Tor sind verschieden, oder die Druckplatte liegt in einer Ebene ohne **Kollisionen erkennen**.
+- **Das Tor geht gar nicht erst auf:** Platte und Tor haben nicht dasselbe Signal (schau in die Signale-Übersicht (Taste S)), oder die Druckplatte liegt in einer Ebene ohne **Kollisionen erkennen**.
 
 ## Mach mehr draus
 
