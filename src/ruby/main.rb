@@ -11,6 +11,7 @@ require "sinatra/base"
 require "sinatra/cookies"
 require 'vips'
 require_relative "collaboration"
+require_relative "client_errors"
 
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 DEVELOPMENT = ENV['DEVELOPMENT'] == '1'
@@ -19,6 +20,9 @@ COLLABORATION_ENABLED = ENV['COLLABORATION'] != '0'
 # Private: holds session codes and reconnect tokens. /raw is not served by nginx
 # (unlike /gen), so this file never reaches a browser.
 COLLABORATION_SESSIONS_PATH = "/raw/collaboration/sessions.json"
+# Fehlerberichte from the studio (client_errors.rb, crash_report.js), one file
+# per day. Private like the sessions: /raw is not served.
+CLIENT_ERRORS_PATH = "/raw/client-errors"
 
 # PLAYTESTING_CODES = %w(julsvqy 1jbz4p0 qgwoy5f i4m59yz lmj7an3 8xhq8j1 8dstqjr 9qm3dia 1xmrz1a 2nr282i 87ptg6p bxxrg3y batpvl1 3a0bjsj 63n5ctg fca36s9 6r5s9la)
 # PLAYTESTING_CODES =  %w(ecl2n33 p27pvol h584cqf lb2672t qlwiuc3 okykj2a l7ve07z nf1erli tddzhot i5twcj9 n2kddt3 5awyxio qhrphxd njwb0dj 3n89o25)
@@ -158,8 +162,28 @@ class Main < Sinatra::Base
         $neo4j.wait_for_neo4j
     end
 
+    # The studio's version: a digest of its code (scripts, styles, pages,
+    # shaders, JSON such as rezepte.json). It is the cache buster of every
+    # versioned URL, and /api/ping tells it to open pages (server_watch.js):
+    # after a restart with changed files they offer to reload, after a restart
+    # without changes nothing happens and browsers keep their caches. Falls
+    # back to a random tag if the files cannot be read.
+    def self.static_digest(root = "/static")
+        files = Dir.glob(File.join(root, "**", "*.{js,css,html,fs,vs,json}")).reject { |path| path.include?("/node_modules/") }.sort
+        return nil if files.empty?
+        digest = Digest::SHA1.new
+        files.each do |path|
+            digest << path.sub(root, "") << "\0" << File.binread(path) << "\0"
+        end
+        digest.hexdigest.to_i(16).to_s(36)[0, 12]
+    rescue => e
+        STDERR.puts "Could not compute the studio's version: #{e}"
+        nil
+    end
+
     configure do
-        @@cache_buster = RandomTag.generate()
+        @@cache_buster = Main.static_digest || RandomTag.generate()
+        @@client_error_limiter = ClientErrors::Limiter.new
         self.collect_data() unless defined?(SKIP_COLLECT_DATA) && SKIP_COLLECT_DATA
         if ENV["SERVICE"] == "ruby" && (File.basename($0) == "thin" || File.basename($0) == "pry.rb")
             setup = SetupDatabase.new()
@@ -272,8 +296,25 @@ class Main < Sinatra::Base
         @respond_filename = filename
     end
 
+    # server_watch.js asks every few seconds: is the server there, and which
+    # version of the studio does it serve?
     post "/api/ping" do
-        respond(:pong => "yay")
+        respond(:pong => "yay", :version => @@cache_buster)
+    end
+
+    # A Fehlerbericht from the studio (crash_report.js): appended to the day's
+    # file under /raw/client-errors (client_errors.rb, show-client-errors.rb).
+    post "/api/report_error" do
+        data = parse_request_data(:required_keys => [:report], :types => { :report => Hash }, :max_body_length => 64 * 1024)
+        client = request.env["HTTP_X_CLIENT_IP"] || request.ip || "unknown"
+        if @@client_error_limiter.allow?(client)
+            begin
+                ClientErrors.append(CLIENT_ERRORS_PATH, ClientErrors.entry(data[:report]))
+            rescue => e
+                STDERR.puts "Could not write a client error report: #{e}"
+            end
+        end
+        respond(:ok => true)
     end
 
     if COLLABORATION_ENABLED

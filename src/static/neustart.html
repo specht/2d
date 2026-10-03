@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!-- nginx shows this page instead of the studio while the app restarts
+     (config.rb: error_page 502 503 504). It asks the server every few
+     seconds and reloads the page the child wanted as soon as it answers.
+     Unsaved work in the studio is kept in the browser (rescue.js) and comes
+     back after the reload. Self-contained: nothing else can be loaded now. -->
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gleich geht's weiter – 2D Game Studio</title>
+    <style>
+        html, body { margin: 0; height: 100%; background: #1a1c2c; color: #f4f4f4;
+            font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+        main { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+            width: min(460px, 86vw); text-align: center; line-height: 1.5; }
+        h1 { font-size: 26px; margin: 0 0 12px; color: #ffcd75; }
+        p { margin: 0 0 10px; color: #c8c8d0; }
+        .pixels { display: flex; justify-content: center; gap: 8px; margin: 26px 0 20px; }
+        .pixels span { width: 14px; height: 14px; background: #73eff7; animation: hop 1.2s ease-in-out infinite; }
+        .pixels span:nth-child(2) { animation-delay: 0.15s; background: #a7f070; }
+        .pixels span:nth-child(3) { animation-delay: 0.3s; background: #ffcd75; }
+        .pixels span:nth-child(4) { animation-delay: 0.45s; background: #ef7d57; }
+        @keyframes hop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-12px); } }
+        @media (prefers-reduced-motion: reduce) { .pixels span { animation: none; } }
+        .later { display: none; color: #ffcd75; }
+        .later.showing { display: block; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Gleich geht's weiter!</h1>
+        <div class="pixels" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <p>Der Server des Game Studios startet gerade neu. Das dauert meistens nur ein paar Sekunden.</p>
+        <p>Die Seite lädt von selbst neu, sobald er wieder da ist. Was du im Studio noch nicht gespeichert hattest, ist im Browser gesichert und kommt wieder.</p>
+        <p class="later">Das dauert länger als sonst. Sag deiner Lehrkraft Bescheid.</p>
+    </main>
+    <script>
+        (function () {
+            var started = Date.now();
+            function check() {
+                if (Date.now() - started > 90000) document.querySelector('.later').classList.add('showing');
+                fetch('/api/ping', { method: 'POST', body: '{}', cache: 'no-store',
+                    headers: { 'Content-Type': 'application/json' } })
+                    .then(function (response) {
+                        if (response.ok) {
+                            // the same tab: the studio brings unsaved work back without asking (rescue.js)
+                            try { sessionStorage.setItem('2d-restore-after-reload', '1'); } catch (e) { }
+                            window.location.reload();
+                        }
+                        else setTimeout(check, 3000);
+                    })
+                    .catch(function () { setTimeout(check, 3000); });
+            }
+            setTimeout(check, 2000);
+        })();
+    </script>
+</body>
+</html>
