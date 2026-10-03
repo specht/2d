@@ -522,3 +522,29 @@ To see what went wrong:
 Each group has a short code. `show` gives the message, where it happened, what the child did just before, and `/?<code>` to open the child's game as it was at that moment – reproduce the bug there, fix it and add a regression test, then `resolve` it.
 
 When the Ruby container is recreated rather than restarted, nginx may keep the old address and answer 502 until it is restarted as well (`./config.rb restart nginx`).
+
+### Playtesting in class
+
+Children test each other's games and give feedback; the teacher prints it per game. It is run from the terminal:
+
+```bash
+./config.rb exec ruby ruby playtest.rb              # how the round stands
+./config.rb exec ruby ruby playtest.rb on 3         # switch on, a test runs 3 minutes (the default)
+./config.rb exec ruby ruby playtest.rb minutes 4    # change how long a test runs
+./config.rb exec ruby ruby playtest.rb games        # the submitted games: tests, fun, versions
+./config.rb exec ruby ruby playtest.rb testers      # who has tested how many games
+./config.rb exec ruby ruby playtest.rb remove 3fa2  # take a game out of the round (its feedback stays)
+./config.rb exec ruby ruby playtest.rb off          # switch off (surveys being filled in still arrive)
+./config.rb exec ruby ruby playtest.rb pdf          # the feedback as a PDF to print
+./config.rb exec ruby ruby playtest.rb reset        # a new round; the old one goes to archive/
+```
+
+While it is on, the studio shows a **Playtesting** tab (within half a minute: the studio's ping carries it):
+
+- **Dein Spiel:** a child gives the game a title and their name and submits it; it is saved first. From then on every save of that game is the version that gets tested (also saves made while playtesting is off).
+- **Spiele der anderen testen:** the child enters their first name and gets the next game – nobody chooses: the server hands out the game tested least so far (finished and running tests), never one's own, never one tested before. The game runs for the set time in the tab; after half of it "Fertig – zur Umfrage" may end it early. A reload during a test continues it.
+- **The survey:** seven categories rated with five faces (Spaß, Aussehen, Animationen, Steuerung, Fair und ausgeglichen, Storytelling, Atmosphäre), three quick choices (difficulty, how far, bugs), and two required sentences – what was really good, what could be better – plus bugs. "Das Spiel ließ sich gar nicht spielen" skips the rest. The tester's first name is printed with the answers.
+
+`pdf` writes `data/raw/playtesting/rueckmeldungen-<date>.pdf`: one handout per game (sorted by author) with the player character, the ratings as bars, what was liked most and where most is left, the choices, every comment with its tester's name (marked when it was about an older version) and a "Mein Plan" box for three next steps; the last page is an overview for the teacher. `pdf archive/<file>.json` prints an earlier round. The PDF needs the `prawn` gem: rebuild the Ruby container once (`./config.rb build ruby`).
+
+There are no accounts: a browser is recognised by a random id in its localStorage, which keeps a child from testing their own game or one game twice. Everything is in `data/raw/playtesting/state.json` (not served by nginx).

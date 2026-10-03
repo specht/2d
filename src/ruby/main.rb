@@ -12,6 +12,7 @@ require "sinatra/cookies"
 require 'vips'
 require_relative "collaboration"
 require_relative "client_errors"
+require_relative "playtesting"
 
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 DEVELOPMENT = ENV['DEVELOPMENT'] == '1'
@@ -24,9 +25,9 @@ COLLABORATION_SESSIONS_PATH = "/raw/collaboration/sessions.json"
 # per day. Private like the sessions: /raw is not served.
 CLIENT_ERRORS_PATH = "/raw/client-errors"
 
-# PLAYTESTING_CODES = %w(julsvqy 1jbz4p0 qgwoy5f i4m59yz lmj7an3 8xhq8j1 8dstqjr 9qm3dia 1xmrz1a 2nr282i 87ptg6p bxxrg3y batpvl1 3a0bjsj 63n5ctg fca36s9 6r5s9la)
-# PLAYTESTING_CODES =  %w(ecl2n33 p27pvol h584cqf lb2672t qlwiuc3 okykj2a l7ve07z nf1erli tddzhot i5twcj9 n2kddt3 5awyxio qhrphxd njwb0dj 3n89o25)
-PLAYTESTING_CODES = []
+# Playtesting in the classroom (playtesting.rb, switched on and off with
+# playtest.rb in the terminal). Private like the sessions: /raw is not served.
+PLAYTESTING_PATH = "/raw/playtesting"
 
 Neo4jBolt.bolt_host = "neo4j"
 Neo4jBolt.bolt_port = 7687
@@ -189,17 +190,7 @@ class Main < Sinatra::Base
             setup = SetupDatabase.new()
             setup.setup(self)
         end
-        PLAYTESTING_CODES.each do |tag|
-            path = "/gen/games/#{tag}.json"
-            STDERR.puts "Testing #{path}: #{File.exist?(path) ? 'OK' : 'MISSING'}"
-        end
-        PLAYTESTING_CODES.each do |tag|
-            path = "/gen/games/#{tag}.json"
-            if File.exist?(path)
-                game = JSON.parse(File.read(path))
-                STDERR.puts "#{game['properties']['title']} (#{game['properties']['author']})"
-            end
-        end
+        @@playtesting = Playtesting::Store.new(PLAYTESTING_PATH)
         if ["thin", "rackup"].include?(File.basename($0))
             debug("Server is up and running!")
         end
@@ -299,7 +290,7 @@ class Main < Sinatra::Base
     # server_watch.js asks every few seconds: is the server there, and which
     # version of the studio does it serve?
     post "/api/ping" do
-        respond(:pong => "yay", :version => @@cache_buster)
+        respond(:pong => "yay", :version => @@cache_buster, :playtest => @@playtesting.enabled?)
     end
 
     # A Fehlerbericht from the studio (crash_report.js): appended to the day's
@@ -747,19 +738,47 @@ class Main < Sinatra::Base
         ANIMALS[tag.to_i(36) % ANIMALS.size]
     end
 
-    post "/api/get_playtesting_code" do
-        tag = PLAYTESTING_CODES.sample
-        game = JSON.parse(File.read("/gen/games/#{tag}.json"))
-        respond({:tag => tag, :author => game['properties']['author'], :title => game['properties']['title']})
+    # ------------------------------------------------ Playtesting
+    # (playtesting.rb; the studio side is src/static/playtesting.js)
+
+    def playtest_request(*keys)
+        data = parse_request_data(:required_keys => [:browser], :optional_keys => keys,
+                                  :types => { :answers => Hash }, :max_body_length => 16 * 1024,
+                                  :max_value_lengths => { :name => 80, :tag => 16, :assignment => 32 })
+        assert(data[:browser].is_a?(String) && data[:browser] =~ /\A[a-z0-9]{8,40}\z/, "bad_browser")
+        data
     end
 
-    post "/api/get_all_playtesting_codes" do
-        games = []
-        PLAYTESTING_CODES.each do |tag|
-            game = JSON.parse(File.read("/gen/games/#{tag}.json"))
-            games << {:tag => tag, :author => game['properties']['author'], :title => game['properties']['title']}
+    post "/api/playtest/status" do
+        data = playtest_request
+        respond(Playtesting.status(@@playtesting.read, data[:browser]))
+    end
+
+    # The game with this tag (just saved by the studio) is submitted.
+    post "/api/playtest/submit" do
+        data = playtest_request(:tag)
+        tag = data[:tag].to_s
+        assert(tag =~ /\A[a-z0-9]{7}\z/ && File.exist?("/gen/games/#{tag}.json"), "unknown_game")
+        game = JSON.parse(File.read("/gen/games/#{tag}.json"))
+        submission, error = @@playtesting.transaction { |state| Playtesting.submit(state, tag, game, data[:browser]) }
+        respond(error ? { :error => error } : { :submission => submission.slice("id", "title", "tag") })
+    end
+
+    post "/api/playtest/next" do
+        data = playtest_request(:name)
+        result = @@playtesting.transaction do |state|
+            assignment = Playtesting.next_assignment(state, data[:browser], data[:name].to_s)
+            assignment ? Playtesting.assignment_for_client(state, assignment) : nil
         end
-        respond({:games => games})
+        respond(:assignment => result)
+    end
+
+    post "/api/playtest/feedback" do
+        data = playtest_request(:assignment, :answers)
+        _, error = @@playtesting.transaction do |state|
+            Playtesting.give_feedback(state, data[:assignment], data[:browser], data[:answers])
+        end
+        respond(error ? { :error => error } : Playtesting.status(@@playtesting.read, data[:browser]))
     end
 
     def get_graph(tag)
@@ -998,7 +1017,14 @@ class Main < Sinatra::Base
 
     post "/api/save_game" do
         data = parse_request_data(:required_keys => [:game], :types => { :game => Hash }, :max_body_length => 1024 * 1024 * 20)
+        game_info = { "properties" => data[:game]["properties"], "parent" => data[:game]["parent"] }
         tag = save_game(data[:game], true)
+        # a submitted game: this version is the one tested from now on
+        begin
+            @@playtesting.after_save(tag, game_info)
+        rescue => e
+            STDERR.puts "Playtesting after save: #{e}"
+        end
         respond(:tag => tag, :icon => icon_for_tag(tag))
     end
 

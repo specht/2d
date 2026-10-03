@@ -235,26 +235,6 @@ function close_modal() {
     // }});
 }
 
-function refresh_playtesting_code() {
-    api_call('/api/get_playtesting_code', {}, function (data) {
-        if (data.success) {
-            $('#btn_playtesting').html(`<b>${data.title}</b> (${data.author})`);
-            $('#btn_playtesting').attr('href', `https://2d.hackschule.de/play/${data.tag}`);
-            console.log(data);
-        }
-    });
-    api_call('/api/get_all_playtesting_codes', {}, function (data) {
-        if (data.success) {
-            console.log(data);
-            $('#all_games_here').empty();
-            for (let game of data.games) {
-                let game_entry = $(`<div style="margin-bottom: 1em;"><a class="link_button" href="https://2d.hackschule.de/play/${game.tag}"><b>${game.title}</b> (${game.author})</a></div>`);
-                $('#all_games_here').append(game_entry);
-            }
-        }
-    });
-}
-
 /*
  ├─e7a7qmp
  ├─5nqrh5b
@@ -550,9 +530,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 $('#play_iframe')[0].contentWindow.yt_player.pauseVideo();
             } catch { }
         }
-        if (current_pane === 'playtesting') {
-            refresh_playtesting_code();
-        }
+        if (current_pane === 'playtesting') window.playtesting?.show();
         return changed;
     }
 
@@ -1091,12 +1069,6 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         $('#load_games_sublist').parent().css('pointer-events', 'none');
         $('#load_games_sublist').empty();
         $('#games_sublist_graph').hide().attr('src', '');
-    });
-
-    $('#btn_playtesting_refresh').click(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        refresh_playtesting_code();
     });
 
     window.resizeCanvasModal = new ModalDialog({

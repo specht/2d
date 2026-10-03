@@ -4299,3 +4299,440 @@ select.dropdown-native {
         scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
     }
 }
+
+/* ------------------------------------------------ Playtesting (playtesting.js) */
+
+#main_div_playtesting.pt-wide {
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-bottom: 20px;
+}
+
+#playtesting_here {
+    font-size: 15px;
+    line-height: 1.45;
+}
+
+#playtesting_here h2 {
+    font-size: 30px;
+    margin: 0 0 6px 0;
+    letter-spacing: 0.02em;
+    background: linear-gradient(90deg, #ffcd75, #ef7d57 45%, #73eff7);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+#playtesting_here h3 {
+    margin: 0 0 8px 0;
+    font-size: 19px;
+}
+
+.pt-muted {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.pt-class {
+    margin: 0 0 18px 0;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.pt-class b {
+    color: #a7f070;
+    font-size: 120%;
+}
+
+.pt-card {
+    position: relative;
+    margin: 0 0 18px 0;
+    padding: 18px 20px 20px 20px;
+    border-radius: 14px;
+    background: rgba(26, 28, 44, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
+.pt-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 14px;
+    bottom: 14px;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: #41a6f6;
+}
+
+.pt-test::before {
+    background: #a7f070;
+}
+
+.pt-mine::before {
+    background: #ffcd75;
+}
+
+.pt-thanks::before {
+    background: #ef7d57;
+}
+
+.pt-note {
+    color: rgba(255, 255, 255, 0.75);
+    margin: 0 0 12px 0;
+}
+
+.pt-message {
+    min-height: 1.2em;
+    margin: 6px 0;
+    color: #ffcd75;
+}
+
+.pt-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.pt-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.pt-field input[type='text'] {
+    font-size: 16px;
+    padding: 8px 10px;
+    font-family: inherit;
+}
+
+.pt-name {
+    max-width: 320px;
+    margin-bottom: 4px;
+}
+
+/* every button has its border, so hovering never moves anything */
+button.pt-button {
+    font-family: inherit;
+    font-size: 15px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    transition: transform 0.08s, background-color 0.15s;
+}
+
+button.pt-primary {
+    background: #38b764;
+    border-color: #a7f070;
+    color: #fff;
+    font-weight: bold;
+}
+
+button.pt-primary:hover {
+    background: #45cc73;
+    border-color: #d4ffb0;
+}
+
+button.pt-primary:active {
+    transform: translateY(1px);
+}
+
+button.pt-primary:disabled {
+    background: #333c57;
+    border-color: #566c86;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: default;
+}
+
+button.pt-big {
+    font-size: 19px;
+    padding: 12px 26px;
+    border-radius: 12px;
+    box-shadow: 0 4px 0 #257179;
+}
+
+button.pt-big:active {
+    box-shadow: 0 2px 0 #257179;
+    transform: translateY(2px);
+}
+
+button.pt-quiet {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.pt-tested {
+    margin: 0 0 12px 0;
+    color: #a7f070;
+}
+
+.pt-submission {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    background: rgba(255, 205, 117, 0.08);
+}
+
+.pt-submission-title {
+    font-weight: bold;
+    color: #ffcd75;
+}
+
+.pt-submission-stats {
+    color: rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+}
+
+/* a test running */
+.pt-run {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pt-run-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(26, 28, 44, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.pt-run-title {
+    font-size: 17px;
+    flex: 1 1 auto;
+    min-width: 160px;
+}
+
+.pt-run-title b {
+    color: #ffcd75;
+}
+
+.pt-run-title span {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.pt-clock {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 26px;
+    font-weight: bold;
+    color: #73eff7;
+    min-width: 72px;
+    text-align: right;
+}
+
+.pt-progress {
+    flex: 0 0 140px;
+    height: 10px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+}
+
+.pt-progress > div {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #a7f070, #ffcd75, #ef7d57);
+    transition: width 0.5s linear;
+}
+
+.pt-frame {
+    width: 100%;
+    height: calc(100vh - 250px);
+    min-height: 300px;
+    border: none;
+    border-radius: 10px;
+    background: #000;
+}
+
+.pt-hint {
+    margin: 0;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 13px;
+}
+
+/* the survey */
+.pt-survey {
+    padding-bottom: 40px;
+}
+
+.pt-broken {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+}
+
+.pt-question {
+    margin: 0 0 14px 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(26, 28, 44, 0.85);
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.pt-question.pt-missing {
+    border-color: #b13e53;
+    background: rgba(177, 62, 83, 0.15);
+}
+
+.pt-question-label {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* a game that would not run needs no answers – only the texts stay */
+.pt-is-broken .pt-question.pt-scale,
+.pt-is-broken .pt-question.pt-choice,
+.pt-is-broken .pt-section-scale,
+.pt-is-broken .pt-section-choice {
+    display: none;
+}
+
+#playtesting_here h3.pt-section {
+    margin: 22px 0 10px 2px;
+    font-size: 17px;
+    color: #ffcd75;
+}
+
+/* a category and a quick question: what it is on the left, the answers on the right */
+.pt-question.pt-scale,
+.pt-question.pt-choice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-bottom: 8px;
+    padding: 10px 14px;
+}
+
+.pt-question.pt-choice .pt-question-label {
+    margin-bottom: 0;
+}
+
+.pt-category {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1 1 260px;
+}
+
+.pt-category-icon {
+    font-size: 28px;
+    width: 40px;
+    text-align: center;
+}
+
+.pt-category-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.pt-category-text span {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.pt-scale, .pt-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+button.pt-face {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 64px;
+    padding: 6px 2px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.75);
+    font-family: inherit;
+}
+
+button.pt-face:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+}
+
+.pt-face-icon {
+    font-size: 26px;
+    line-height: 1.1;
+    filter: grayscale(0.6);
+    transition: transform 0.12s;
+}
+
+.pt-face-label {
+    font-size: 11px;
+}
+
+button.pt-face.chosen {
+    background: rgba(115, 239, 247, 0.16);
+    border: 2px solid #73eff7;
+    color: #fff;
+}
+
+button.pt-face.chosen .pt-face-icon {
+    filter: none;
+    transform: scale(1.2);
+}
+
+button.pt-choice {
+    font-family: inherit;
+    font-size: 15px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+button.pt-choice:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+}
+
+button.pt-choice.chosen {
+    background: rgba(255, 205, 117, 0.2);
+    border: 2px solid #ffcd75;
+    color: #fff;
+}
+
+.pt-question textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 64px;
+    resize: vertical;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 15px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    user-select: text;
+}
+
+.pt-thanks {
+    text-align: center;
+}
+
+.pt-thanks-big {
+    font-size: 48px;
+    animation: pt-pop 0.5s ease-out;
+}

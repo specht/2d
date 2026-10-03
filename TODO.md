@@ -139,8 +139,11 @@ Roughly in order of usefulness (each must stay an understandable choice in the e
 
 "Level testen" exists (▶ in the level editor's tools, key T): the Spielen pane runs the level being edited straight away, without the start screen; with the mouse over the level, the figure starts on the grid cell under it (lifted onto the floor if that cell is solid). R restarts the level, Esc goes back to the level editor exactly as it was. Nothing is saved or changed by a test run.
 
+Playtesting in class is implemented (`playtesting.rb`, `playtesting.js`, `playtest.rb`, `playtest_pdf.rb`; see README): children submit their game, test games handed out evenly for a fixed time, answer a survey, and the teacher prints the feedback per game.
+
 Still open:
 
+- from classroom use: whether the survey's categories and the default of 3 minutes fit, and whether children should see their feedback in the studio, not only on paper
 - remembering game state between test runs (keys, switches) or starting with chosen items
 - a quick way to test while somebody else edits in a live session (today the test uses the local copy)
 
