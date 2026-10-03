@@ -267,6 +267,8 @@ class LevelEditor {
         this.camera_mode = false;
         // Signale: connections (build_signal_links)
         this.signal_links_group = new THREE.Group();
+        // Bewegte Plattformen (platforms.js): their Weg (build_platform_paths)
+        this.platform_paths_group = new THREE.Group();
         this.signal_link_curves = [];
         this.signal_link_frames = [];
         this.connect_from = null;
@@ -1188,6 +1190,7 @@ class LevelEditor {
         this.signal_link_curves = [];
         this.signal_link_frames = [];
         this.signal_link_labels = [];
+        this.build_platform_paths();
         this.refresh_signal_overview();
         this.refresh_signal_code_widgets();
         if (!this.game.data.levels?.[this.level_index]) return;
@@ -3365,7 +3368,7 @@ class LevelEditor {
         camera.position.set(0, 0, 10);
         camera.updateProjectionMatrix();
         const helpers = [this.grid_group, this.cursor_group, this.rect_group, this.selection_group,
-            this.backdrop_cursor, this.signal_links_group].filter(Boolean);
+            this.backdrop_cursor, this.signal_links_group, this.platform_paths_group].filter(Boolean);
         const shown = helpers.map(group => group.visible);
         helpers.forEach(group => { group.visible = false; });
         const corner = 8 + 1;   // from the bottom left of the canvas
@@ -3985,8 +3988,10 @@ class LevelEditor {
                             }
                             // "spricht bei Signal" / "sendet, wenn eingesammelt": a free Code, so it does
                             // not start with the keys and doors on 0
-                            if (((trait === 'text' && key === 'speaks_on_signal') || (trait === 'pickup' && key === 'signal_on_collect')) &&
-                                value === true && !('signal_code' in props))
+                            // a platform "bei Signal" (platforms.js) as well
+                            if (((trait === 'text' && key === 'speaks_on_signal') || (trait === 'pickup' && key === 'signal_on_collect') ||
+                                (trait === 'moving' && key === 'start' && value === 'signal')) &&
+                                (value === true || value === 'signal') && !('signal_code' in props))
                                 props.signal_code = free_signal_code(level);
                             // a setting that shows or hides others ("Wer spricht" → Textfarbe)
                             if (property.rebuilds_panel) {
@@ -3994,6 +3999,11 @@ class LevelEditor {
                                 setTimeout(() => this.refresh(), 0);
                             }
                             this.update_signal_links?.();
+                            // the Weg of a platform is drawn in the level
+                            if (trait === 'moving') {
+                                this.build_platform_paths();
+                                this.render();
+                            }
                         };
                         let widget = null;
                         if (key === 'signal_code' || key === 'drop_code') {
@@ -4183,7 +4193,47 @@ class LevelEditor {
         }
     */
         this.scene.add(this.signal_links_group);
+        this.scene.add(this.platform_paths_group);
         this.build_signal_links();
+    }
+
+    // Bewegte Plattformen (platforms.js): the Weg of every copy as a dashed
+    // line from where it stands to where it goes, and a dashed frame at the
+    // end. Only in layers where the game moves them (with collisions, no
+    // Parallaxe). Rebuilt with the signal links, i.e. after every change.
+    build_platform_paths() {
+        const group = this.platform_paths_group;
+        for (const child of [...group.children]) {
+            group.remove(child);
+            child.geometry?.dispose?.();
+        }
+        const level = this.game.data.levels?.[this.level_index];
+        if (!level || typeof platform_settings !== 'function') return;
+        this.platform_path_material ??= new THREE.LineDashedMaterial({ color: 0x73eff7, dashSize: 4, gapSize: 3, transparent: true, opacity: 0.9, depthTest: false });
+        this.platform_path_shadow ??= new THREE.LineBasicMaterial({ color: 0x1a1c2c, transparent: true, opacity: 0.5, depthTest: false });
+        level.layers.forEach((layer) => {
+            if (layer?.type !== 'sprites' || layer.properties?.visible === false || !layer.properties?.collision_detection ||
+                Math.abs(layer.properties?.parallax ?? 0) >= 0.0001) return;
+            for (const placed of layer.sprites ?? []) {
+                const sprite = this.game.data.sprites[this.game.sprite_index_for_ref(placed[0])];
+                if (!sprite?.traits || !('moving' in sprite.traits)) continue;
+                const settings = platform_settings(sprite.traits.moving, placed[3]?.moving);
+                if (!(settings.length > 0)) continue;
+                const end = platform_end(placed[1], placed[2], settings);
+                const h = sprite.height / 2, w = sprite.width / 2;
+                const line = [new THREE.Vector3(placed[1], placed[2] + h, 3), new THREE.Vector3(end.x, end.y + h, 3)];
+                const frame = [[-w, 0], [w, 0], [w, 2 * h], [-w, 2 * h], [-w, 0]].map(([x, y]) => new THREE.Vector3(end.x + x, end.y + y, 3));
+                for (const points of [line, frame]) {
+                    // dark between the dashes: visible on a light sky and on dark walls
+                    const shadow = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), this.platform_path_shadow);
+                    shadow.renderOrder = 8;
+                    const dashed = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), this.platform_path_material);
+                    dashed.computeLineDistances();
+                    dashed.renderOrder = 9;
+                    group.add(shadow, dashed);
+                }
+            }
+        });
     }
 
     refresh_sprite_widget() {

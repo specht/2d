@@ -153,7 +153,9 @@ export async function record(browser, repo, game, recipe) {
             const player_x = pc ? Math.round((pc.mesh.position.x - view.x0) * sx) : null;
             const dbg = pc ? `${pc.mesh.position.x.toFixed(1)},${pc.mesh.position.y.toFixed(1)} ${pc.state}/${pc.direction} keys=${Object.keys(g.pressed_keys).filter(k => g.pressed_keys[k]).join('+')}` +
                 g.baddies.map(b => ` | gegner ${b.mesh.position.x.toFixed(0)},${b.mesh.position.y.toFixed(0)} e=${b.energy}${b.hit_paused?.() ? ' pause' : ''}${b.ai_memory?.mode ? ' ' + b.ai_memory.mode : ''}`).join('') +
-                (g.companions ?? []).map(c => ` | begleiter ${c.mesh.position.x.toFixed(0)},${c.mesh.position.y.toFixed(0)} ${c.state}${c.fluid_mode ? ' ' + c.fluid_mode : ''} ${c.companion_memory?.state ?? ''}`).join('') : '';
+                (g.companions ?? []).map(c => ` | begleiter ${c.mesh.position.x.toFixed(0)},${c.mesh.position.y.toFixed(0)} ${c.state}${c.fluid_mode ? ' ' + c.fluid_mode : ''} ${c.companion_memory?.state ?? ''}`).join('') +
+                (g.moving_platforms ?? []).map(p => { const m = g.active_level_sprites[p.entry_index].mesh.position;
+                    return ` | plattform ${m.x.toFixed(0)},${m.y.toFixed(0)}${p.waiting ? ' wartet' : ''}`; }).join('') : '';
             // where each Begleiter is (companion_ai.js), for the begleiter_* checks
             const pals = (g.companions ?? []).map(c => ({ name: c.sprite?.properties?.name ?? '', x: c.mesh.position.x, y: c.mesh.position.y,
                 swim: c.fluid_mode === 'swim', lost: c.companion_stats?.lost ?? 0, returned: c.companion_stats?.returned ?? 0,
@@ -203,6 +205,9 @@ export async function record(browser, repo, game, recipe) {
             }).length,
             baddies: g.baddies.map(b => ({ energy: b.energy, active: b.active })),
             companions: (g.companions ?? []).length,
+            // Bewegte Plattformen (platforms.js): how far each went, how far the player rode
+            // on it, how many steps it waited for somebody
+            platforms: (g.moving_platforms ?? []).map(p => ({ weg: p.travelled, mitgefahren: p.player_ridden, gewartet: p.waited })),
         };
     });
     state.companions = pals;
@@ -416,5 +421,17 @@ export function check(expect, state) {
     if (e.gegner_hub !== undefined && !(hub >= e.gegner_hub))
         fail.push(`Gegner sind nur ${hub.toFixed(0)} px auf und ab gekommen, erwartet ${e.gegner_hub}`);
     fail.push(...check_companions(e, state.companions ?? []));
+    // Bewegte Plattformen (platforms.js): some platform went at least so far (px),
+    // the player rode at least so far on platforms (px), some platform had to wait
+    const platforms = state.platforms ?? [];
+    const weg_max = Math.max(0, ...platforms.map(p => p.weg));
+    if (e.plattform_weg !== undefined && !(weg_max >= e.plattform_weg))
+        fail.push(`Plattformen sind nur ${weg_max.toFixed(0)} px gefahren, erwartet ${e.plattform_weg}`);
+    const ridden = platforms.reduce((sum, p) => sum + p.mitgefahren, 0);
+    if (e.figur_mitgefahren !== undefined && !(ridden >= e.figur_mitgefahren))
+        fail.push(`Figur ist nur ${ridden.toFixed(0)} px mitgefahren, erwartet ${e.figur_mitgefahren}`);
+    const waited = platforms.some(p => p.gewartet > 0);
+    if (e.plattform_wartet !== undefined && waited !== e.plattform_wartet)
+        fail.push(`Plattform hat gewartet: ${waited} statt ${e.plattform_wartet}`);
     return fail;
 }

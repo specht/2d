@@ -33,6 +33,31 @@ class SpriteHistory {
     constructor() {
         this.data = null;
         this.history = null;
+        // when each step happened (next_undo_seq, shared with the sprite
+        // list's history): Strg+Z undoes whatever happened last
+        this.seqs = new Map();   // id → { undo: [], redo: [] }
+    }
+
+    seq_entry(id) {
+        if (!this.seqs.has(id)) this.seqs.set(id, { undo: [], redo: [] });
+        const entry = this.seqs.get(id);
+        // the history drops its oldest steps; so do the numbers
+        const kept = this.history?.levels?.get(id);
+        if (kept) {
+            while (entry.undo.length > kept.undo.length) entry.undo.shift();
+            while (entry.redo.length > kept.redo.length) entry.redo.shift();
+        }
+        return entry;
+    }
+
+    last_undo_seq() {
+        const id = this.current()?.id;
+        return id && this.history?.can_undo(id) ? (this.seq_entry(id).undo.at(-1) ?? 0) : 0;
+    }
+
+    last_redo_seq() {
+        const id = this.current()?.id;
+        return id && this.history?.can_redo(id) ? (this.seq_entry(id).redo.at(-1) ?? 0) : 0;
     }
 
     // a new game (or another session's copy) starts a new history
@@ -41,6 +66,7 @@ class SpriteHistory {
         if (!this.history || this.data !== data) {
             this.history = new LevelHistory({ max_steps: SPRITE_HISTORY_MAX_STEPS, max_chars: SPRITE_HISTORY_MAX_CHARS });
             this.data = data;
+            this.seqs = new Map();
         }
         return this.history;
     }
@@ -60,7 +86,11 @@ class SpriteHistory {
         if (!this.active() || window.canvas?.working) return;
         const current = this.current();
         if (!current) return;
-        this.steps().observe(current.id, JSON.stringify(current.sprite));
+        if (this.steps().observe(current.id, JSON.stringify(current.sprite)) === 'step') {
+            const entry = this.seq_entry(current.id);
+            entry.undo.push(typeof next_undo_seq === 'function' ? next_undo_seq() : 0);
+            entry.redo = [];
+        }
         this.update_buttons();
     }
 
@@ -72,8 +102,30 @@ class SpriteHistory {
         this.update_buttons();
     }
 
-    undo() { this.step('undo'); }
-    redo() { this.step('redo'); }
+    // Strg+Z / Strg+Y: whatever happened last – a step of this sprite, or a
+    // change of the sprite list (sprite_list_history.js)
+    undo() {
+        this.observe();
+        const list = window.sprite_list_history;
+        if (list && !window.collaboration?.code && list.last_undo_seq(window.game?.data) > this.last_undo_seq()) this.list_step('undo');
+        else this.step('undo');
+    }
+
+    redo() {
+        this.observe();
+        const list = window.sprite_list_history;
+        if (list && !window.collaboration?.code && list.last_redo_seq(window.game?.data) > this.last_redo_seq()) this.list_step('redo');
+        else this.step('redo');
+    }
+
+    list_step(direction) {
+        if (window.canvas?.mouse_down) return;
+        const game = window.game;
+        const text = window.sprite_list_history[direction](game_sprite_list_ops(game), game.data);
+        if (text) window.studio_rescue?.notice?.(text);
+        this.rebase();
+        this.update_buttons();
+    }
 
     step(direction) {
         const current = this.current();
@@ -82,6 +134,12 @@ class SpriteHistory {
         if (window.collaboration?.can_edit_current?.() === false) return;
         const serialized = this.steps()[direction](current.id, JSON.stringify(current.sprite));
         if (serialized !== null) {
+            // its number goes with it to the other side (undone now: redone first)
+            const entry = this.seq_entry(current.id);
+            const from = direction === 'undo' ? entry.undo : entry.redo;
+            const to = direction === 'undo' ? entry.redo : entry.undo;
+            from.pop();
+            to.push(typeof next_undo_seq === 'function' ? next_undo_seq() : 0);
             this.restore(current.index, JSON.parse(serialized));
             // the shown version is the step's version (nothing tidied on the way)
             this.steps().rebase(current.id, JSON.stringify(window.game.data.sprites[current.index]));
@@ -146,8 +204,10 @@ class SpriteHistory {
     update_buttons() {
         if (typeof $ === 'undefined') return;
         const id = this.current()?.id;
-        $('#status-bar .sprite-history-undo').toggleClass('disabled', !this.history?.can_undo(id));
-        $('#status-bar .sprite-history-redo').toggleClass('disabled', !this.history?.can_redo(id));
+        const list = window.collaboration?.code ? null : window.sprite_list_history;
+        const data = window.game?.data;
+        $('#status-bar .sprite-history-undo').toggleClass('disabled', !this.history?.can_undo(id) && !(list?.last_undo_seq(data) > 0));
+        $('#status-bar .sprite-history-redo').toggleClass('disabled', !this.history?.can_redo(id) && !(list?.last_redo_seq(data) > 0));
     }
 }
 

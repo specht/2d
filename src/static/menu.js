@@ -249,7 +249,7 @@ class Menu {
         // letter there), Onion Skinning (canvas.js), Vorschau (sprite_preview.js)
         if (this.pane === 'sprites') {
             hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'sprite-history-undo',
-                title: 'Macht die letzte Änderung an diesem Sprite rückgängig – Pixel, Frames, Zustände, Framerate, Eigenschaften.',
+                title: 'Macht die letzte Änderung rückgängig – an diesem Sprite (Pixel, Frames, Zustände, Framerate, Eigenschaften) oder in der Sprite-Liste (ein neues, dupliziertes oder geholtes Sprite, ein verschobenes Sprite).',
                 callback: () => window.sprite_history?.undo() });
             hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'sprite-history-redo',
                 title: 'Holt zurück, was du gerade rückgängig gemacht hast.',

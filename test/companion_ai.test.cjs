@@ -322,3 +322,23 @@ test('old games are unaffected: fix_game_data adds no Begleiter to sprites witho
     const fresh = ctx.__fix({ sprites: [{ traits: { companion: {} }, states: [{ frames: [{ src: 'x' }] }] }] });
     assert.deepEqual(JSON.parse(JSON.stringify(fresh.sprites[0].traits.companion)), { vrun: 3, can_fly: false, can_jump: true, vjump: 6, can_swim: false });
 });
+
+test('companion states: every menu entry has a label, and the figure states a companion can show are all offered', () => {
+    const fs = require('node:fs');
+    const vm = require('node:vm');
+    const { STATE_TRAITS_ORDER, STATE_TRAITS } = vm.runInNewContext(
+        fs.readFileSync(require.resolve('../src/static/traits.js'), 'utf8') + '\n({ STATE_TRAITS_ORDER, STATE_TRAITS });');
+    const keys = (order) => order.flatMap(entry => typeof entry === 'string' ? [entry]
+        : entry[1].flatMap(sub => typeof sub === 'string' ? [sub] : Array.isArray(sub) ? sub[1] : []));
+    for (const role of ['actor', 'baddie', 'companion']) {
+        for (const key of keys(STATE_TRAITS_ORDER[role])) {
+            assert.ok(STATE_TRAITS[role][key]?.label, `${role}.${key} has a label`);
+        }
+    }
+    const companion = new Set(keys(STATE_TRAITS_ORDER.companion));
+    const actor = new Set(keys(STATE_TRAITS_ORDER.actor));
+    // what a companion does not have: no ladders, no combat, no health
+    const missing = [...actor].filter(key => !companion.has(key)).map(key => key.replace(/_(front|back|left|right)$/, ''));
+    assert.deepEqual([...new Set(missing)].sort(), ['attack', 'climb', 'dead', 'hit']);
+    for (const dir of ['front', 'back', 'left', 'right']) assert.ok(companion.has(`fly_${dir}`));
+});

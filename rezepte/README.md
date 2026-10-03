@@ -128,7 +128,8 @@ The recorder relies on these runtime entry points: `window.game`,
 `Game.load(tag)`, `reset()`, `setup()`, `render()`, `clock.getElapsedTime()`,
 `camera`, `renderer`, `handle_key_down/up`, `player_character`, `baddies`,
 `found_keys`, `signals.sent`, `speech.log`, `speech_fonts_ready()`, `active_level_sprites`, `reached_flag`,
-`ts_zoom_actor`, `companions` (`companion_stats`, `companion_memory`, `fluid_mode`). If one of them changes, adjust
+`ts_zoom_actor`, `companions` (`companion_stats`, `companion_memory`, `fluid_mode`), `moving_platforms`
+(`travelled`, `player_ridden`, `waited`, `waiting`). If one of them changes, adjust
 `record.mjs`.
 
 ## Writing a recipe
@@ -276,6 +277,9 @@ erwartet:                      # outcome checks
   # begleiter_immer_hoeher_als: 2 (a flyer never came down into a gap)
   # begleiter_einzeln: { Hund: { schwimmt: false }, Otter: { schwimmt: true } } – the same checks
   # (without "begleiter_") for the Begleiter whose sprite Titel starts with that name
+  # Bewegte Plattformen (platforms.js): plattform_weg: 168 (some platform went so many px) ·
+  # figur_mitgefahren: 250 (the player rode so many px on platforms) · plattform_wartet: true|false
+  # (some platform had to wait for somebody in its way or under a ceiling)
 # ohne:                        # optional: the same world without decoration. The recording shows
 #   szene: { ebenen: [ … ] }   # the finished world left of Pip and this one right of him –
 #                              # he "paints" the level as he walks. Same size required.
@@ -367,6 +371,11 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   with `mauer_fenster`, `lichtkegel` (*Leuchten*) + `laterne` (48×72), the
   ghost enemy `geist` (*Aufhellen*), `leuchtschein` (120×120, glows through
   its layer's Mischmodus) and `schatten` (*Abdunkeln*).
+* **Bewegte Plattformen** (`traits.moving`, recipe *Bewegte Plattformen und Aufzüge*): `plattform`
+  (72×24, *Schwebeplattform*: the deck in the top rows, two jets flickering below, 4 frames) and
+  `aufzug` (48×24, a lift plate with a blinking lamp and a turning gear, 4 frames). Both only *von
+  oben*; the Weg and how they start are set per placed copy (`platziert: { moving: { path_x, path_y,
+  start } }`).
 * **Gentle slopes**: `hang_flach`, `hang_flach_ab` (48×24).
 * **Conveyors**: `band`, `band_anfang`, `band_ende` (8 frames, moving right),
   `band_links…` (the mirror images, moving left), `rolltreppe` (6 frames,

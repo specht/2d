@@ -16,7 +16,7 @@ The level editor should move beyond placing individual sprites and become a prop
 
 Implemented (`level_selection.js`, select tool): selecting many (rectangle, Shift adds), dragging the selection in grid steps (Shift: pixel by pixel; its lower left corner snaps to the grid, so an off-grid selection comes back onto it), arrow-key nudging (to the next grid position), Strg+C/X/V/D (paste at the mouse, also into another layer or level; Strg+D and a paste without the mouse put the copies half a grid step to the right and up, so they never replace a sprite), deleting, moving the selection to another layer ("In Ebene"; between layers with different Parallaxe the sprites are shifted by whole grid steps so they stay where they are on screen), and Strg + drag with the pen to fill a rectangle (with Shift only its edge, with Alt a line of cells, also diagonal), selecting every copy of the selected sprites ("Alle gleichen") and replacing the selection with another sprite ("Ersetzen durch").
 
-Undo and redo exist (Strg+Z / Strg+Y, per level, `level_history.js`; in the sprite editor per sprite, `sprite_history.js`); levels themselves and whole sprites (adding, reordering them in their lists) are not part of it yet; a level or sprite dragged into the trash can be brought back right afterwards ("Rückgängig" in a notice, or Strg+Z, until the next click: `trash_undo.js`).
+Undo and redo exist (Strg+Z / Strg+Y, per level, `level_history.js`; in the sprite editor per sprite, `sprite_history.js`); adding and reordering whole sprites in the sprite list is undoable too (`sprite_list_history.js`), levels themselves (adding, reordering) are not part of it yet; a level or sprite dragged into the trash can be brought back right afterwards ("Rückgängig" in a notice, or Strg+Z, until the next click: `trash_undo.js`).
 
 The goal is that constructing and restructuring a level should remain comfortable even after the level has become fairly large.
 
@@ -121,14 +121,14 @@ Examples include:
 
 Develop a small, understandable trigger/action system rather than implementing each of these as a separate special case.
 
-**Signale exist** (`src/static/signals.js`; how they work is in AGENTS.md). Senders send their Code with *an* or *aus*, each optionally later (Verzögerung): a collected key or any collected sprite ("sendet, wenn eingesammelt"), a Schalter, a Druckplatte (player only), a Bereich (the player enters / leaves rectangles), a defeated enemy, "alle Gegner besiegt" and the level's start ("sendet beim Start" – with a Verzögerung a timer). Receivers: doors (`door_reaction`, "schließt wieder nach"), sprite or backdrop layers that appear or disappear, signs that speak ("spricht bei Signal") and the level itself ("geschafft bei Signal"). A Code can have a name per level; an emptied Code field means "Kein Signal". In the level editor: the Verbinden tool (R), connection lines (with the Verzögerung on them), a Code menu on every Code field, and the Signale-Übersicht (S): one "Wenn … dann …" card per Code, with renaming, removing a line or a whole rule, and "+ Neue Regel"; during "Level testen" the cards light up beside the game. Sichtbarkeitsbereiche and door codes of older games are promoted to this on load.
+**Signale exist** (`src/static/signals.js`; how they work is in AGENTS.md). Senders send their Code with *an* or *aus*, each optionally later (Verzögerung): a collected key or any collected sprite ("sendet, wenn eingesammelt"), a Schalter, a Druckplatte (player only), a Bereich (the player enters / leaves rectangles), a defeated enemy, "alle Gegner besiegt" and the level's start ("sendet beim Start" – with a Verzögerung a timer). Receivers: doors (`door_reaction`, "schließt wieder nach"), sprite or backdrop layers that appear or disappear, signs that speak ("spricht bei Signal"), moving platforms "bei Signal" and the level itself ("geschafft bei Signal"). A Code can have a name per level; an emptied Code field means "Kein Signal". In the level editor: the Verbinden tool (R), connection lines (with the Verzögerung on them), a Code menu on every Code field, and the Signale-Übersicht (S): one "Wenn … dann …" card per Code, with renaming, removing a line or a whole rule, and "+ Neue Regel"; during "Level testen" the cards light up beside the game. Sichtbarkeitsbereiche and door codes of older games are promoted to this on load.
 
 ## Still open for Signale
 
 Roughly in order of usefulness (each must stay an understandable choice in the editor, not scripting):
 
 - more senders: enemies pressing a Druckplatte (opt-in per Druckplatte, or old levels change); a timer that shows how much time is left (today a "sendet beim Start" timer is invisible to the player)
-- more receivers: a moving platform or lift that starts, spawn / remove a single sprite, a trap that switches on and off, enable / disable an object, set a simple game flag
+- more receivers: spawn / remove a single sprite, a trap that switches on and off, enable / disable an object, set a simple game flag
 - "und" and counters: a receiver that waits for two Codes, or a Code that has to arrive three times ("drei Schalter umlegen")
 - names: a name whose Code nothing uses any more is invisible (no card) and keeps its number taken – offer a way to see or remove such names if children run into it
 - signals across levels only with an explicit design (flags), never implicitly: keys and Codes are per level
@@ -248,7 +248,6 @@ Focus on workflow improvements rather than redesigning it.
 
 Useful additions include:
 
-- undo for adding and reordering whole sprites (deleting one can be undone right afterwards: `trash_undo.js`)
 
 Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste frames (also between sprites of the same size), move a frame to another state, swap two states' animations, copy a state into another sprite; Onion Skinning (O); Strg+Z / Strg+Y for everything inside a sprite – pixels, frames and states added, moved, duplicated or deleted, Framerate, Titel, traits (`sprite_history.js`); the Vorschau (P): the current state's animation plays in a corner of the drawing area, with play/pause, Framerate − / + and a mirrored view (`sprite_preview.js`); Spiegelnd zeichnen (M: pen, shapes and fill draw mirrored at the middle) and Farbe ersetzen (fill tool with Shift: in the frame, with Strg: in every frame of the sprite) and Umriss zeichnen (Funktionen → Sprite: a one-pixel outline in the current colour, in a frame, a state or the whole sprite; `pixel_tools.js`); several frames selected with Shift / Strg + click, a right-click menu for them (duplicate, reverse the order, copy, cut, delete, move to another state) and dragging them together – to another place or into the trash (`sprite_actions.js`).
 
@@ -314,10 +313,15 @@ Still open:
 
 Add mechanics when they enable clearly useful kinds of games.
 
+Moving platforms and lifts exist (`platforms.js`, trait *bewegt sich*; see AGENTS.md). Open ideas for them:
+
+- dragging the end of a Weg in the level editor (today it is typed in; the editor draws it)
+- a Weg with more than one stretch, or a circle
+- moving decoration in layers without collisions (today only sprites in a layer with collisions move)
+- a lift that can be called from the other end (today it comes back alone after its pause)
+
 Promising additions include:
 
-- moving platforms
-- lifts
 - trampoline / bounce surfaces
 - timers and time limits
 - generic sprite spawning
@@ -483,7 +487,7 @@ In particular:
 6. Make game lineage understandable (the independent-fork action exists: Als eigenes Spiel weiterführen).
 7. Make deliberate, named multi-browser collaboration practical without introducing accounts.
 8. Polish sprite-animation workflows.
-9. Extend the Signale: new receivers (moving platforms), then "und"/counters (see Triggers and Actions).
+9. Extend the Signale: "und"/counters (see Triggers and Actions).
 10. Build new gameplay systems on those foundations.
 
 The central question for new work should be:

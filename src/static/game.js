@@ -388,6 +388,8 @@ class Game {
                 self.fix_game_data();
                 self.create_geometry_and_material_for_sprite(self.data.sprites.length - 1);
                 window.collaboration?.structure_changed?.('sprite', 'insert', sprite.id);
+                // Strg+Z takes it out again (sprite_list_history.js; not in a live session)
+                if (!window.collaboration?.code) window.sprite_list_history?.record_insert([sprite.id], self.data.sprites.length - 1, self.data);
                 return self.data.sprites[self.data.sprites.length - 1];
             },
             can_delete_index: (index) => window.collaboration?.can_delete?.('sprite', self.data.sprites[index]?.id) ?? true,
@@ -414,6 +416,7 @@ class Game {
                 // Sprite IDs travel with their sprite: no references change.
                 move_item_helper(self.data.sprites, from, to);
                 window.collaboration?.structure_changed?.('sprite', 'move', self.data.sprites[to]?.id);
+                if (!window.collaboration?.code) window.sprite_list_history?.record_move(self.data.sprites[to]?.id, from, to, self.data);
                 self.refresh_sprite_reference_pickers();
                 setTimeout(() => self.refresh_sprite_titles(), 0);
                 this.refresh_frames_on_screen();
@@ -846,6 +849,8 @@ class Game {
         for (let si = first; si < this.data.sprites.length; si++)
             this.create_geometry_and_material_for_sprite(si);
         for (const sprite of sprites) window.collaboration?.structure_changed?.('sprite', 'insert', sprite.id);
+        // Strg+Z takes them out again (sprite_list_history.js; not in a live session)
+        if (!window.collaboration?.code) window.sprite_list_history?.record_insert(sprites.map(s => s.id), first, this.data);
         if (first + sprites.length === this.data.sprites.length) this.sprites_widget?.append_items(first);
         else this.sprites_widget?.rebuild();
         // the sprite shown may have moved: show it again (or the new one)

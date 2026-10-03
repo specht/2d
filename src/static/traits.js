@@ -41,6 +41,12 @@ var SPRITE_TRAITS_ORDER = [
         ],
     ],
     [
+        'Plattformen',
+        [
+            'moving',
+        ],
+    ],
+    [
         'Türen',
         [
             'door',
@@ -146,7 +152,12 @@ var STATE_TRAITS_ORDER = {
         ['Schwimmen und Schweben', [
             ['Schwimmt', ['swim_front', 'swim_back', 'swim_left', 'swim_right']],
             ['Schwebt', ['float_front', 'float_back', 'float_left', 'float_right']],
+            ['Treibt', ['drift_front', 'drift_back', 'drift_left', 'drift_right']],
+            ['Taucht ab', ['dive_front', 'dive_back', 'dive_left', 'dive_right']],
+            ['Taucht auf', ['rise_front', 'rise_back', 'rise_left', 'rise_right']],
         ]],
+        // no Klettern (a Begleiter does not climb ladders), no Angriff, Treffer
+        // or tot (no combat, no health)
     ],
     checkpoint: [
         'active',
@@ -643,6 +654,78 @@ var SPRITE_TRAITS = {
                 hint: 'Sollen auch Gegner mitfahren? Dann kann ein Band sie zum Beispiel in eine Falle tragen.',
                 type: 'bool',
                 default: true,
+            },
+        },
+    },
+    // Bewegte Plattformen und Aufzüge (platforms.js): the drawing has the
+    // speed and the pause, every placed copy its own Weg and start
+    moving: {
+        label: 'bewegt sich (Plattform, Aufzug)',
+        properties: {
+            speed: {
+                label: 'Geschwindigkeit',
+                hint: 'So schnell fährt das Sprite seinen Weg entlang. Zum Vergleich: Eine Spielfigur läuft meistens mit 3. Wer obendrauf steht, fährt mit – gib dem Sprite dazu „Block von oben“.',
+                type: 'float',
+                min: 0.1,
+                max: 10.0,
+                step: 0.1,
+                decimalPlaces: 1,
+                default: 1.0,
+            },
+            pause: {
+                label: 'Pause am Ende',
+                hint: 'So lange wartet es an jedem Ende seines Wegs, bevor es zurückfährt. Ein Aufzug wartet so lange, bevor er leer wieder nach unten fährt.',
+                type: 'float',
+                suffix: 's',
+                min: 0,
+                max: 10,
+                step: 0.5,
+                decimalPlaces: 1,
+                default: 1.0,
+            },
+        },
+        // absent = the defaults in platforms.js (PLATFORM)
+        placed_properties: {
+            path_x: {
+                label: 'Weg nach rechts',
+                hint: 'So weit fährt dieses Sprite von hier aus nach rechts (24 Pixel sind ein Block). Eine Zahl mit Minus fährt nach links. Im Level siehst du den Weg als gestrichelte Linie und das Ende als Rahmen.',
+                type: 'int',
+                suffix: 'px',
+                min: -4800,
+                max: 4800,
+                step: 24,
+                width: '3.5em',
+                default: 96,
+            },
+            path_y: {
+                label: 'Weg nach oben',
+                hint: 'So weit fährt dieses Sprite von hier aus nach oben – zum Beispiel ein Aufzug. Eine Zahl mit Minus fährt nach unten. Beide Wege zusammen: Es fährt schräg.',
+                type: 'int',
+                suffix: 'px',
+                min: -4800,
+                max: 4800,
+                step: 24,
+                width: '3.5em',
+                default: 0,
+            },
+            start: {
+                label: 'Fährt',
+                hint: '„immer hin und her“: zum Ende, Pause, zurück, Pause … „wenn die Spielfigur draufsteht (Aufzug)“: Es wartet, bis die Spielfigur draufsteigt, und bringt sie ans andere Ende. Bleibt es dort leer, kommt es nach der Pause zurück. „bei Signal“: Ein Signal „an“ mit seinem Code schickt es ans Ende, „aus“ wieder zurück.',
+                type: 'select',
+                options: typeof PLATFORM_START_MODES !== 'undefined' ? PLATFORM_START_MODES : { always: 'immer hin und her' },
+                default: 'always',
+                entry_key: 'platform_start',
+                rebuilds_panel: true,   // Code appears or goes
+            },
+            signal_code: {
+                label: 'Code',
+                hint: 'Schalter, Druckplatten, Schlüssel, Bereiche und Gegner mit demselben Code schicken es los: „an“ ans Ende, „aus“ zurück an den Anfang.',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 1000,
+                entry_key: 'platform_code',
+                visible: (traits, traits_of, props) => props?.start === 'signal',
             },
         },
     },
@@ -1295,6 +1378,18 @@ var STATE_TRAITS = {
         float_back: { label: 'Begleiter schwebt nach hinten' },
         float_left: { label: 'Begleiter schwebt nach links' },
         float_right: { label: 'Begleiter schwebt nach rechts' },
+        drift_front: { label: 'Begleiter treibt, schaut nach vorn' },
+        drift_back: { label: 'Begleiter treibt, schaut nach hinten' },
+        drift_left: { label: 'Begleiter treibt, schaut nach links' },
+        drift_right: { label: 'Begleiter treibt, schaut nach rechts' },
+        dive_front: { label: 'Begleiter taucht ab nach vorn' },
+        dive_back: { label: 'Begleiter taucht ab nach hinten' },
+        dive_left: { label: 'Begleiter taucht ab nach links' },
+        dive_right: { label: 'Begleiter taucht ab nach rechts' },
+        rise_front: { label: 'Begleiter taucht auf nach vorn' },
+        rise_back: { label: 'Begleiter taucht auf nach hinten' },
+        rise_left: { label: 'Begleiter taucht auf nach links' },
+        rise_right: { label: 'Begleiter taucht auf nach rechts' },
     },
     checkpoint: {
         active: { label: 'Checkpoint aktiviert' },

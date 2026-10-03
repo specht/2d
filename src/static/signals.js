@@ -17,6 +17,8 @@
 // - a door: placed property door_reaction (default: unlock, exactly what a
 //   key has always done)
 // - a sign (Hinweistext) with placed text.speaks_on_signal: it speaks on "an"
+// - a moving platform (platforms.js) with placed moving.start "signal": "an"
+//   sends it to the end of its Weg, "aus" back to where it was placed
 // - the level with properties.signal_level_complete: "an" completes it, like
 //   the exit (absent = no such Code, as in every older game)
 // - a layer: properties.signal_code and properties.signal_reaction (it can
@@ -337,6 +339,9 @@ const SIGNAL_SPRITE_ROLES = [
     // a sign that speaks on "an" (placed text.speaks_on_signal; absent = only with F, as always)
     { trait: 'text', sends: false, one: 'Hinweistext', many: 'Hinweistexte',
         active: (props) => props?.speaks_on_signal === true },
+    // a moving platform that waits for a signal (placed moving.start, platforms.js)
+    { trait: 'moving', sends: false, one: 'Plattform', many: 'Plattformen',
+        active: (props) => props?.start === 'signal' },
     // anything collected (placed pickup.signal_on_collect; absent = sends nothing, as always).
     // Last: a key that is also a pickup is a key here.
     { trait: 'pickup', sends: true, one: 'Sammelobjekt', many: 'Sammelobjekte',
@@ -649,6 +654,7 @@ function set_signal_object_code(level, object, code, sender) {
         if (object.trait === 'baddie') props.signal_on_defeat = true;
         if (object.trait === 'text') props.speaks_on_signal = true;
         if (object.trait === 'pickup') props.signal_on_collect = true;
+        if (object.trait === 'moving') props.start = 'signal';
         if (object.trait === 'door' && sender && (props.door_reaction ?? 'unlock') === 'unlock') {
             const reaction = sender.kind === 'area' || ['switch', 'pressure_plate'].includes(sender.trait) ? 'follow' :
                 sender.trait === 'baddie' ? 'open' : null;
@@ -667,7 +673,7 @@ function set_signal_object_code(level, object, code, sender) {
 // label ("Schalter", "Sprite 3"). A card: { code, name, senders, receivers, problem }
 // with lines { text, count, objects } (objects: { kind: 'sprite', layer_index,
 // placed_index, role } with the role's id – key, switch, pressure_plate, baddie,
-// loot, door, text –, { kind: 'layer' | 'area', layer_index } or { kind: 'level',
+// loot, door, text, moving –, { kind: 'layer' | 'area', layer_index } or { kind: 'level',
 // setting } for the level settings), problem 'no_receiver' | 'no_sender' | null. Doors that only
 // open like a plain door (not verschließbar, Bei Signal: aufschließen) are no
 // receivers here: they do not wait for anything.
@@ -740,6 +746,12 @@ function signal_rules(level, traits_of, name_of) {
                     if (found.role.trait === 'text') {
                         add(card(found.code).receivers, props.speaker === 'self' ? `spricht »${name}«` :
                             `liest die Spielfigur »${name}« vor`, object);
+                        continue;
+                    }
+                    if (found.role.trait === 'moving') {
+                        const target = card(found.code);
+                        add(target.receivers, `fährt »${name}« ans Ende (bei „aus“ zurück)`, object);
+                        target.reacts_to_off = true;
                         continue;
                     }
                     // a door

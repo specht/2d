@@ -2156,6 +2156,8 @@ class Game {
 		this.action_key_targets = {};
 		this.falling_sprite_indices = {};
 		this.future_event_list = new FutureEventList();
+		// Bewegte Plattformen und Aufzüge (platforms.js)
+		this.moving_platforms = [];
 
 		this.ts_zoom_actor = -1;
 		this.reached_flag = false;
@@ -2417,6 +2419,8 @@ class Game {
 		this.update_touch_buttons();
 		// Bewegungsbereiche: swimming, floating, other gravity, currents (player and walking enemies)
 		this.movement_regions = typeof MovementRegions !== 'undefined' ? MovementRegions.resolve(level) : null;
+		// Bewegte Plattformen und Aufzüge (platforms.js; old games have none)
+		this.moving_platforms = typeof MovingPlatforms !== 'undefined' ? MovingPlatforms.setup(this) : [];
 		// Signale (signals.js): who listens to which Code in this level
 		this.setup_signals(level);
 		// nothing is being said when a level starts; its font is loaded now
@@ -2581,6 +2585,9 @@ class Game {
 			// a sign that speaks on "an" (absent = only with the action key, as always)
 			if ('text' in traits && entry.speaks_on_signal === true)
 				this.signals.connect(stored_signal_code(entry.signal_code), (value) => { if (value) this.signal_speech(entry_index); });
+			// a platform "bei Signal": "an" to the end of its Weg, "aus" back (platforms.js)
+			if (entry.platform?.settings.start === 'signal')
+				this.signals.connect(stored_signal_code(entry.platform_code), (value) => MovingPlatforms.signal(entry.platform, value));
 		});
 		// "geschafft bei Signal" (level setting; absent = only the exit completes the level)
 		const complete = level.properties?.signal_level_complete;
@@ -3512,6 +3519,8 @@ class Game {
 
 	// handle simulation at fixed rate
 	simulation_step(t) {
+		// platforms first: whoever stands on one goes along, then moves itself
+		if (this.moving_platforms?.length) MovingPlatforms.step(this, t);
 		if (this.player_character !== null)
 			this.player_character.simulation_step(t);
 		// enemies on a layer that is away (Signale) wait

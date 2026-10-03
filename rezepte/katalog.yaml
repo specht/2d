@@ -291,6 +291,20 @@ sprites:
     # Only "von oben": you can jump through from below and stand on top.
     traits: { block_above: {} }
     states: [{ strip: welt/brett }]
+  # Bewegte Plattformen und Aufzüge (src/static/platforms.js): the deck is drawn at
+  # the top of the sprite – figures stand on its top edge – and only "von oben", so
+  # one jumps on from below. Speed and pause belong to the drawing, the Weg and how
+  # it starts to each placed copy (platziert: { moving: { path_x, path_y, start } }).
+  plattform:
+    label: Schwebeplattform
+    groesse: [72, 24]
+    traits: { block_above: {}, moving: { speed: 1.5, pause: 1.0 } }
+    states: [{ strip: welt/plattform, fps: 12 }]
+  aufzug:
+    label: Aufzug
+    groesse: [48, 24]
+    traits: { block_above: {}, moving: { speed: 1.5, pause: 1.5 } }
+    states: [{ strip: welt/aufzug, fps: 6 }]
   eis:
     label: Eis
     traits: { block_above: {}, block_sides: {}, block_below: {} }

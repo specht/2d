@@ -14,7 +14,7 @@ A game consists of animated sprites, behaviours and one or more levels.
 
 The Studio lets you:
 
-- draw pixel-art sprites and animations (with onion skinning, a live animation preview, mirrored drawing, recolouring a colour in every frame, outlines, and undo/redo), or paste and drop pictures: background, pixel size and the frames of a strip or a numbered series of files are detected
+- draw pixel-art sprites and animations (with onion skinning, a live animation preview, mirrored drawing, recolouring a colour in every frame, outlines, and undo/redo – also for adding, duplicating and reordering whole sprites), or paste and drop pictures: background, pixel size and the frames of a strip or a numbered series of files are detected
 - define animation states, and duplicate, copy and move sprites, states and frames by right-click – several frames at once, too (Shift / Strg + click), also reversing their order
 - borrow sprites from other games or recipe scenes (Sprite-Korb)
 - convert a sprite or a whole game, backgrounds included, to a pixel-art palette
@@ -23,7 +23,7 @@ The Studio lets you:
 - give the player companions (Begleiter: pets, robots, friends) that follow with their own way of moving
 - build layered levels: select, move, copy and fill many sprites at once (rectangles, their edges, lines), undo and redo, and find your way around large levels with an overview map
 - configure collision and movement
-- use slopes, ladders, conveyors and moving environments
+- use slopes, ladders, conveyors, moving platforms and lifts, and moving environments
 - create doors, keys and checkpoints
 - connect switches, pressure plates, keys, collectibles, Bereiche, defeated enemies and the start of a level (a timer) to doors, layers, speaking signs and the end of a level by a shared, nameable Code (Signale), and see every rule of a level in one overview
 - let signs and characters speak in pixel-font speech bubbles
@@ -84,12 +84,19 @@ The engine supports, among other things:
 - slippery surfaces
 - ladders
 - conveyors
+- moving platforms and lifts
 - swimming
 - floating
 - currents
 - movement regions with different gravity and movement parameters
 
 Player characters and supported enemy behaviours use the same underlying movement systems where practical.
+
+### Moving platforms and lifts
+
+Any sprite with the trait **bewegt sich (Plattform, Aufzug)** travels along a straight Weg and back. The drawing has the Geschwindigkeit and the Pause at the ends; each placed copy has its own Weg (*Weg nach rechts*, *Weg nach oben*, in pixels) and says when it moves (*Fährt*): *immer hin und her*, *wenn die Spielfigur draufsteht (Aufzug)* – it takes the player to the other end and comes back alone after the pause – or *bei Signal* (a receiver in the Signale: "an" to the end, "aus" back). The level editor draws every Weg as a dashed line with a dashed frame at its end.
+
+With *man kann nicht von oben reinfallen* the platform carries whoever stands on it: the player, enemies and companions; a rising platform also picks up a figure whose feet it passes. It never squashes anybody: a lift waits rather than push a rider's head into a ceiling, and a solid platform waits for somebody in its way. Only the player starts a lift. The logic is in `src/static/platforms.js` (a pure plan per platform and `MovingPlatforms.step`, which runs before the characters each simulation step and keeps the collision trees where the platform is drawn). Old games have no such trait and play exactly as before. The recipe *Bewegte Plattformen und Aufzüge* shows a platform over spikes, a lift, a bridge a Schalter slides out of a cliff and a slanting platform.
 
 ### Combat and enemies
 
@@ -115,7 +122,7 @@ A sprite with the trait **Begleiter** is a character the game controls that trie
 
 *Begleiter* says that it follows; its own movement settings say **how**: Geschwindigkeit, *kann springen* with its own Sprungkraft, *kann schwimmen* (into a Bewegungsbereich "Schwimmen"; otherwise it waits at the shore) and *kann fliegen* (through the air, over gaps and water). It never takes over the player's abilities, so a weak jumper genuinely stays below a ledge the player jumped onto. When it has really lost the player – far away, out of sight and getting no closer for a few seconds – the game helps a little later: it comes back from just outside the screen behind the player and walks or flies in. When the player loses a life, companions come along to where it starts again.
 
-Walking, jumping, slopes, Bewegungsbereiche and animation are the same engine code as for the player and the enemies (`app.js` `Character`); `src/static/companion_ai.js` only decides which keys a companion presses and when it is lost. Companions have the usual optional states (Stehen, Laufen, Springen, Fallen, Schwimmen und Schweben) plus *Begleiter fliegt*. The recipe *Ein Begleiter kommt mit* shows the dog and, in its text, the robot, a bird and a fairy, the otter and three people; all eight are in its scene, ready for the sprite basket.
+Walking, jumping, slopes, Bewegungsbereiche and animation are the same engine code as for the player and the enemies (`app.js` `Character`); `src/static/companion_ai.js` only decides which keys a companion presses and when it is lost. Companions have the usual optional states (Stehen, Laufen, Springen, Fallen, and Schwimmen und Schweben: schwimmt, schwebt, treibt, taucht ab, taucht auf) plus *Begleiter fliegt*; there is no Klettern, Angriff, Treffer or tot, because a companion climbs no ladders, does not fight and has no energy. The recipe *Ein Begleiter kommt mit* shows the dog and, in its text, the robot, a bird and a fairy, the otter and three people; all eight are in its scene, ready for the sprite basket.
 
 ### Saved games and versions
 
