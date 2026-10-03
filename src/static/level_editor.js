@@ -902,6 +902,16 @@ class LevelEditor {
         this.render();
     }
 
+    // The grid as level_selection.js expects it (sprites stand on its points).
+    selection_grid() {
+        return { width: this.grid_width, height: this.grid_height, x: this.grid_x, y: this.grid_y };
+    }
+
+    // Half a grid step: where duplicates and pasted copies go (duplicate_offset).
+    duplicate_step() {
+        return [Math.max(1, Math.round(this.grid_width / 2)), Math.max(1, Math.round(this.grid_height / 2))];
+    }
+
     nudge_selection(dx, dy) {
         const layer = this.current_sprite_layer();
         if (!layer || !this.selection.length || this.read_only_level() || this.refuse_locked_layer()) return;
@@ -926,12 +936,14 @@ class LevelEditor {
     }
 
     // At the mouse (its lower left corner on the grid cell under the
-    // pointer), or one grid step beside the original when the mouse is elsewhere.
+    // pointer), or where it was copied from when the mouse is elsewhere –
+    // half a grid step beside it if something is there (duplicate_offset).
     paste_clipboard() {
         const clipboard = window.level_clipboard;
         const layer = this.current_sprite_layer();
         if (!clipboard || !layer || this.read_only_level() || this.refuse_locked_layer()) return;
-        let x = clipboard.x + this.grid_width, y = clipboard.y;
+        const [dx, dy] = duplicate_offset(layer.sprites, clipboard.items, ...this.duplicate_step(), 0);
+        let x = clipboard.x + dx, y = clipboard.y + dy;
         if (this.pointer_inside && this.pointer_world_raw)
             [x, y] = this.ui_to_world(this.pointer_world_raw, true);
         if (menus.level.active_key !== 'tool/select') menus.level.handle_click('tool/select');
@@ -951,7 +963,10 @@ class LevelEditor {
         const layer = this.current_sprite_layer();
         if (!layer || !this.selection.length || this.read_only_level() || this.refuse_locked_layer()) return;
         const clipboard = copy_placed(layer.sprites, this.selection);
-        const pasted = paste_placed(layer.sprites, clipboard, clipboard.x + this.grid_width, clipboard.y);
+        // half a grid step to the right and up: on top of the originals, never
+        // replacing a sprite; dragging them puts them back on the grid
+        const [dx, dy] = duplicate_offset(layer.sprites, clipboard.items, ...this.duplicate_step());
+        const pasted = paste_placed(layer.sprites, clipboard, clipboard.x + dx, clipboard.y + dy);
         this.set_layer_sprites(this.layer_index, pasted.sprites, pasted.selection);
     }
 
@@ -1076,7 +1091,7 @@ class LevelEditor {
         const button = (label, title, action, row = buttons) => $('<button type="button">').text(label).attr('title', title)
             .on('click', (e) => { e.preventDefault(); action(); }).appendTo(row);
         button('Kopieren', 'Strg+C – einfügen mit Strg+V, auch in einem anderen Level', () => this.copy_selection());
-        button('Duplizieren', 'Strg+D – eine Kopie gleich daneben', () => this.duplicate_selection());
+        button('Duplizieren', 'Strg+D – eine Kopie, halb versetzt über dem Original; zieh sie an ihren Platz', () => this.duplicate_selection());
         button('Löschen', 'Entf', () => this.delete_selection());
         // a row of its own: the panel is narrow
         const more = $('<div class="selection-buttons">').appendTo(box);
@@ -3109,10 +3124,10 @@ class LevelEditor {
         if (this.moving_selection && this.mouse_down) {
             let dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
             let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
-            if (!e.shiftKey) {
-                dx = Math.round(dx / this.grid_width) * this.grid_width;
-                dy = Math.round(dy / this.grid_height) * this.grid_height;
-            }
+            // the selection's lower left corner lands on the grid (back onto
+            // it when it was off, e.g. a duplicate); with Shift pixel by pixel
+            if (!e.shiftKey)
+                [dx, dy] = snapped_selection_delta(this.current_sprite_layer()?.sprites ?? [], this.selection, dx, dy, this.selection_grid());
             if (dx !== this.moving_selection.dx || dy !== this.moving_selection.dy) {
                 this.moving_selection = { dx, dy };
                 this.preview_selection_move(dx, dy);
@@ -4257,9 +4272,11 @@ class LevelEditor {
         else if (ctrl && key === 'v') level_editor.paste_clipboard();
         else if (ctrl && key === 'd') level_editor.duplicate_selection();
         else if (!ctrl && selecting && e.key.startsWith('Arrow')) {
-            const step_x = e.shiftKey ? 1 : level_editor.grid_width;
-            const step_y = e.shiftKey ? 1 : level_editor.grid_height;
-            const [dx, dy] = { ArrowLeft: [-step_x, 0], ArrowRight: [step_x, 0], ArrowUp: [0, step_y], ArrowDown: [0, -step_y] }[e.key] ?? [0, 0];
+            const [ax, ay] = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key] ?? [0, 0];
+            // with Shift one pixel; else to the next grid position (a whole
+            // step on the grid, less when the selection is off it)
+            const [dx, dy] = e.shiftKey ? [ax, ay] : grid_step_delta(level_editor.current_sprite_layer()?.sprites ?? [],
+                level_editor.selection, ax, ay, level_editor.selection_grid());
             level_editor.nudge_selection(dx, dy);
         } else if (!ctrl && selecting && e.key === 'Escape') level_editor.clear_selection();
         else handled = false;
