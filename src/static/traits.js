@@ -6,6 +6,12 @@ var SPRITE_TRAITS_ORDER = [
         ],
     ],
     [
+        'Begleiter',
+        [
+            'companion',
+        ],
+    ],
+    [
         'Kampf',
         [
             'melee_attack',
@@ -122,6 +128,17 @@ var STATE_TRAITS_ORDER = {
         ['Taucht ab (Bewegungsbereich)', ['dive_front', 'dive_back', 'dive_left', 'dive_right']],
         ['Taucht auf (Bewegungsbereich)', ['rise_front', 'rise_back', 'rise_left', 'rise_right']],
         'dead',
+    ],
+    // Begleiter (companion_ai.js): the same pictures as a figure – optional
+    // "fliegt", "schwimmt", "schwebt"; without them it walks and stands
+    companion: [
+        ['Stehen', ['front', 'back', 'left', 'right']],
+        ['Laufen', ['walk_front', 'walk_back', 'walk_left', 'walk_right']],
+        ['Springen', ['jump_front', 'jump_back', 'jump_left', 'jump_right']],
+        ['Fallen', ['fall_front', 'fall_back', 'fall_left', 'fall_right']],
+        ['Fliegen', ['fly_front', 'fly_back', 'fly_left', 'fly_right']],
+        ['Schwimmen (Bewegungsbereich)', ['swim_front', 'swim_back', 'swim_left', 'swim_right']],
+        ['Schweben (Bewegungsbereich)', ['float_front', 'float_back', 'float_left', 'float_right']],
     ],
     checkpoint: [
         'active',
@@ -279,6 +296,56 @@ var SPRITE_TRAITS = {
                 hint: 'Kann deine Spielfigur gegen die Kraft in X-Richtung ankämpfen?',
                 type: 'bool',
                 default: true,
+            },
+        },
+    },
+    // Begleiter: follows the player with its own way of moving (companion_ai.js).
+    // Only what a child needs; distances, timers and the way back are internal.
+    companion: {
+        label: 'Begleiter',
+        properties: {
+            vrun: {
+                label: 'Geschwindigkeit',
+                hint: 'So schnell läuft (oder fliegt) dein Begleiter. Ist er weit weg, rennt er ein bisschen schneller, um dich einzuholen.',
+                type: 'float',
+                min: 0.0,
+                max: 100.0,
+                default: 3.0,
+                decimalPlaces: 1,
+                step: 0.1,
+            },
+            can_fly: {
+                label: 'kann fliegen',
+                hint: 'Ein fliegender Begleiter folgt dir durch die Luft – über Lücken und Wasser hinweg, ohne zu springen. Gut für einen Vogel, eine Fee, eine Drohne oder einen Geist.',
+                type: 'bool',
+                default: false,
+                rebuilds_panel: true,
+            },
+            can_jump: {
+                visible: (t) => t?.can_fly !== true,
+                label: 'kann springen',
+                hint: 'Ohne Sprung bleibt dein Begleiter vor jeder Stufe stehen – wie ein Roboter auf Rädern.',
+                type: 'bool',
+                default: true,
+                rebuilds_panel: true,
+            },
+            vjump: {
+                visible: (t) => t?.can_fly !== true && t?.can_jump !== false,
+                label: 'Sprungkraft',
+                hint: 'So kräftig springt dein Begleiter. Er springt nur so hoch, wie er kann – ist er schwächer als deine Spielfigur, bleibt er an hohen Kanten zurück.',
+                type: 'float',
+                default: 6.0,
+                min: 0.0,
+                max: 100.0,
+                decimalPlaces: 1,
+                step: 0.1,
+            },
+            can_swim: {
+                visible: (t) => t?.can_fly !== true,
+                label: 'kann schwimmen',
+                hint: 'Ein Begleiter, der schwimmen kann, folgt dir ins Wasser (einen Bewegungsbereich „Schwimmen“). Alle anderen warten am Ufer.',
+                type: 'bool',
+                default: false,
             },
         },
     },
@@ -1188,6 +1255,38 @@ var STATE_TRAITS = {
         rise_left: { label: 'Gegner taucht auf nach links' },
         rise_right: { label: 'Gegner taucht auf nach rechts' },
         dead: { label: 'Gegner tot' }
+    },
+    companion: {
+        front: { label: 'Begleiter schaut nach vorn' },
+        back: { label: 'Begleiter schaut nach hinten' },
+        left: { label: 'Begleiter schaut nach links' },
+        right: { label: 'Begleiter schaut nach rechts' },
+        walk_front: { label: 'Begleiter läuft nach vorn' },
+        walk_back: { label: 'Begleiter läuft nach hinten' },
+        walk_left: { label: 'Begleiter läuft nach links' },
+        walk_right: { label: 'Begleiter läuft nach rechts' },
+        jump_front: { label: 'Begleiter springt nach vorn' },
+        jump_back: { label: 'Begleiter springt nach hinten' },
+        jump_left: { label: 'Begleiter springt nach links' },
+        jump_right: { label: 'Begleiter springt nach rechts' },
+        fall_front: { label: 'Begleiter fällt nach vorn' },
+        fall_back: { label: 'Begleiter fällt nach hinten' },
+        fall_left: { label: 'Begleiter fällt nach links' },
+        fall_right: { label: 'Begleiter fällt nach rechts' },
+        // only shown when the Begleiter "kann fliegen"; without them: Laufen / Stehen
+        fly_front: { label: 'Begleiter fliegt nach vorn' },
+        fly_back: { label: 'Begleiter fliegt nach hinten' },
+        fly_left: { label: 'Begleiter fliegt nach links' },
+        fly_right: { label: 'Begleiter fliegt nach rechts' },
+        // in a Bewegungsbereich (movement_regions.js), like the player character
+        swim_front: { label: 'Begleiter schwimmt nach vorn' },
+        swim_back: { label: 'Begleiter schwimmt nach hinten' },
+        swim_left: { label: 'Begleiter schwimmt nach links' },
+        swim_right: { label: 'Begleiter schwimmt nach rechts' },
+        float_front: { label: 'Begleiter schwebt nach vorn' },
+        float_back: { label: 'Begleiter schwebt nach hinten' },
+        float_left: { label: 'Begleiter schwebt nach links' },
+        float_right: { label: 'Begleiter schwebt nach rechts' },
     },
     checkpoint: {
         active: { label: 'Checkpoint aktiviert' },

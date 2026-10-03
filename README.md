@@ -20,6 +20,7 @@ The Studio lets you:
 - convert a sprite or a whole game, backgrounds included, to a pixel-art palette
 - assign behaviours to sprites
 - create player characters and enemies
+- give the player companions (Begleiter: pets, robots, friends) that follow with their own way of moving
 - build layered levels: select, move, copy and fill many sprites at once (rectangles, their edges, lines), undo and redo, and find your way around large levels with an overview map
 - configure collision and movement
 - use slopes, ladders, conveyors and moving environments
@@ -107,6 +108,14 @@ It supports:
 - dropped items
 
 Enemies can use different behaviours such as guarding, hunting, fleeing, lurking, hopping, fluttering and stomping. Additional traits can allow suitable enemies to deal with slopes, obstacles, gaps and ladders.
+
+### Companions (Begleiter)
+
+A sprite with the trait **Begleiter** is a character the game controls that tries to stay with the player character – a dog, a robot, a fairy, a friend. It is not an enemy: it deals no damage, is never attacked, has no health, collects nothing and does not count for "alle Gegner besiegt". Several companions line up behind the player.
+
+*Begleiter* says that it follows; its own movement settings say **how**: Geschwindigkeit, *kann springen* with its own Sprungkraft, *kann schwimmen* (into a Bewegungsbereich "Schwimmen"; otherwise it waits at the shore) and *kann fliegen* (through the air, over gaps and water). It never takes over the player's abilities, so a weak jumper genuinely stays below a ledge the player jumped onto. When it has really lost the player – far away, out of sight and getting no closer for a few seconds – the game helps a little later: it comes back from just outside the screen behind the player and walks or flies in. When the player loses a life, companions come along to where it starts again.
+
+Walking, jumping, slopes, Bewegungsbereiche and animation are the same engine code as for the player and the enemies (`app.js` `Character`); `src/static/companion_ai.js` only decides which keys a companion presses and when it is lost. Companions have the usual optional states (Stehen, Laufen, Springen, Fallen, Schwimmen, Schweben) plus *Begleiter fliegt*.
 
 ### Saved games and versions
 

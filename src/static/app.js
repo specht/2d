@@ -86,10 +86,23 @@ class Character {
 			this.traits.ex_right ??= 1.0;
 			this.simulate_this = !this.traits.wait_until_seen;
 		}
+		else if ('companion' in this.sprite.traits && typeof companion_abilities === 'function') {
+			// Begleiter (companion_ai.js): follows the player with its own way of
+			// moving. Not an enemy: it is kept in game.companions, never in baddies.
+			this.character_trait = 'companion';
+			this.companion = companion_abilities(this.sprite.traits.companion);
+			// a runtime view; the saved traits stay as they are
+			this.traits = { ...this.sprite.traits.companion, vrun: this.companion.vrun, vjump: this.companion.vjump,
+				can_jump: this.companion.jump, affected_by_gravity: true, ex_left: 0.7, ex_right: 0.7, ex_top: 1.0 };
+			this.companion_memory = {};
+			// what happened, for the recipes' checks (rezepte/tools/record.mjs)
+			this.companion_stats = { lost: 0, returned: 0 };
+			this.simulate_this = true;
+		}
 
         // Normalize the new optional melee trait only in this character's
         // runtime view, alongside the ranged trait. Legacy JSON stays unchanged.
-        if (this.character_trait && (this.sprite.traits.melee_attack?.attack ||
+        if (this.character_trait && this.character_trait !== 'companion' && (this.sprite.traits.melee_attack?.attack ||
             this.sprite.traits.ranged_attack?.attack)) {
             this.traits = {
                 ...this.traits,
@@ -161,7 +174,8 @@ class Character {
         // hunt / flee / stunned / landed: poses of enemy behaviours (baddie_ai.js).
         // swim / float / drift / dive / rise: the figure in a Bewegungsbereich
         // (movement_regions.js)
-        for (let kind of ['attack', 'hit', 'hunt', 'flee', 'stunned', 'landed', 'swim', 'float', 'drift', 'dive', 'rise']) {
+        // fly: a Begleiter that "kann fliegen" (companion_ai.js)
+        for (let kind of ['attack', 'hit', 'hunt', 'flee', 'stunned', 'landed', 'swim', 'float', 'drift', 'dive', 'rise', 'fly']) {
             let poses = {};
             for (let sti = 0; sti < this.sprite.states.length; sti++) {
                 let tags = this.sprite.states[sti].traits?.[this.character_trait] ?? {};
@@ -741,6 +755,169 @@ void main() {
 		}
 	}
 
+	// ------------------------------------------------ Begleiter (companion_ai.js)
+
+	// One step of a companion: it decides its keys like an enemy does, with its
+	// own abilities; the movement below is the shared Character code.
+	simulate_companion(t) {
+		this.ai_speed = 1.0;
+		this.ai_dy = 0;
+		this.ai_no_gravity = false;
+		this.ai_face = null;
+		this.ai_pose = null;
+		const player = this.game.player_character;
+		// while the player is dead or the curtain is down, it waits
+		const alive = player && player !== this && !player.dead() && this.game.running !== false &&
+			!this.game.curtain?.showing;
+		const out = companion_decide(this.companion, this.companion_memory, this.companion_perception(alive ? player : null));
+		this.ai_no_gravity = Boolean(out.no_gravity);
+		this.pressed_keys[KEY_LEFT] = Boolean(out.keys?.left);
+		this.pressed_keys[KEY_RIGHT] = Boolean(out.keys?.right);
+		this.pressed_keys[KEY_JUMP] = Boolean(out.keys?.jump);
+		this.pressed_keys[KEY_UP] = Boolean(out.keys?.up);
+		this.pressed_keys[KEY_DOWN] = Boolean(out.keys?.down);
+		this.ai_speed = out.speed ?? 1.0;
+		this.ai_dy = out.dy ?? 0;
+		this.ai_face = out.face ?? null;
+		if (alive) this.update_companion_lost(t, player);
+	}
+
+	// What a companion perceives (see companion_decide).
+	companion_perception(player) {
+		const w2 = this.sprite.width * 0.5, h = this.sprite.height;
+		const gravity = Number(this.game.data.properties.gravity) || 0.5;
+		const side = dir => (dir === 'left' ? -1 : 1);
+		const regions = this.game.movement_regions;
+		const swim_at = (x, y) => typeof MovementRegions !== 'undefined' &&
+			MovementRegions.at(regions, x, y)?.mode === 'swim';
+		return {
+			now: this.game.clock.getElapsedTime(),
+			on_ground: this.touching_ground(),
+			fluid: this.fluid_mode ?? null,
+			slot: this.companion_slot ?? 0,
+			near_surface: this.fluid_surface !== null && this.fluid_surface !== undefined &&
+				this.fluid_surface - (this.mesh.position.y + h * 0.5) < h * 0.6,
+			player: player ? {
+				dx: player.mesh.position.x - this.mesh.position.x,
+				dy: player.mesh.position.y - this.mesh.position.y,
+				facing: player.last_horizontal_facing ?? 'right',
+			} : null,
+			wall: dir => Boolean(dir === 'left' ?
+				this.has_trait_at(['block_sides'], -w2 - 1, -w2, 0.1, h - 0.1) :
+				this.has_trait_at(['block_sides'], w2, w2 + 1, 0.1, h - 0.1)),
+			// its own jump decides – never the player's
+			clearable: dir => this.can_jump_over(dir),
+			ground: dir => Boolean(dir === 'left' ?
+				this.has_trait_at(['block_above', 'slope'], -w2, -w2 + 1, -1.0, 0.0) :
+				this.has_trait_at(['block_above', 'slope'], w2 - 1, w2, -1.0, 0.0)),
+			// where its own jump lands (at this speed): ground at the same height
+			landing: (dir, speed = 1) => {
+				const hop = this.traits.vrun * speed * 2 * this.traits.vjump / gravity;
+				return Boolean(this.has_trait_at(['block_above', 'slope'], side(dir) * hop - 2, side(dir) * hop + 2, -1.0, 0.0));
+			},
+			safe_drop: dir => this.safe_drop(dir),
+			// water right ahead, or below the ledge ahead
+			water: dir => {
+				const x = this.mesh.position.x + side(dir) * (w2 + 6), y = this.mesh.position.y;
+				return [h * 0.5, -6, -30, -54].some(dy => swim_at(x, y + dy));
+			},
+		};
+	}
+
+	// Lost and found (companion_lost_step): far, out of sight and getting no
+	// closer for a while → lost; a little later it comes back near the player.
+	update_companion_lost(t, player) {
+		const dx = player.mesh.position.x - this.mesh.position.x;
+		const dy = player.mesh.position.y - this.mesh.position.y;
+		const c = this.game.camera;
+		const w2 = this.sprite.width * 0.5, h = this.sprite.height;
+		const x = this.mesh.position.x, y = this.mesh.position.y;
+		const visible = Boolean(c) && x + w2 >= c.left && x - w2 <= c.right && y + h >= c.bottom && y <= c.top;
+		const result = companion_lost_step(this.companion_memory, {
+			now: t, distance: Math.hypot(dx, dy), visible,
+			busy: !this.companion.fly && !this.fluid_mode && !this.touching_ground(),
+			// fallen out of the level (into a pit)
+			fell_out: y < this.game.miny - 2 * 24,
+		});
+		if (result === 'lost' && !this.companion_counted_lost) {
+			this.companion_counted_lost = true;
+			this.companion_stats.lost += 1;
+		}
+		if (result === 'following') this.companion_counted_lost = false;
+		if (result === 'return') this.return_to_player(player, t);
+	}
+
+	// The companion's body at (x, y) would be free of walls and blocks.
+	companion_box_free(x, y) {
+		const old_x = this.mesh.position.x, old_y = this.mesh.position.y;
+		this.mesh.position.x = x;
+		this.mesh.position.y = y;
+		const w2 = this.sprite.width * 0.5 * 0.7, h = this.sprite.height;
+		const blocked = this.has_trait_at(['block_sides', 'block_above', 'block_below', 'slope'], -w2, w2, 1, h - 1);
+		this.mesh.position.x = old_x;
+		this.mesh.position.y = old_y;
+		return !blocked;
+	}
+
+	// Heights at x where the companion could come back: on ground (and in the
+	// water for a swimmer), in the air for a flyer.
+	companion_spots_at(x, player) {
+		const h = this.sprite.height;
+		const py = player.mesh.position.y;
+		const swim_at = (yy) => typeof MovementRegions !== 'undefined' &&
+			MovementRegions.at(this.game.movement_regions, x, yy + h * 0.5)?.mode === 'swim';
+		const ys = [];
+		if (this.companion.fly) {
+			for (const dy of [COMPANION.FLY_ABOVE, 48, 0, 72, -24]) ys.push(py + dy);
+		} else {
+			for (const i of this.game.collision_candidates(x - 1, x + 1, py - 160, py + 96)) {
+				const entry = this.game.active_level_sprites[i];
+				const sprite = this.game.data.sprites[entry.sprite_index];
+				if ('block_above' in sprite.traits) ys.push(entry.mesh.position.y + sprite.height);
+				else if ('slope' in sprite.traits) {
+					let tx = (x - (entry.mesh.position.x - sprite.width * 0.5)) / sprite.width;
+					if (sprite.traits.slope.direction === 'negative') tx = 1.0 - tx;
+					ys.push(entry.mesh.position.y + tx.clamp(0.0, 1.0) * sprite.height);
+				}
+			}
+			// a swimmer may also come back in the water the player is in
+			if (this.companion.swim && player.fluid_mode === 'swim')
+				for (let dy = -48; dy <= 48; dy += 12) if (swim_at(py + dy)) ys.push(py + dy);
+		}
+		return ys.filter(yy => this.companion_box_free(x, yy) && (this.companion.swim || this.companion.fly || !swim_at(yy)));
+	}
+
+	// The game helps a lost companion: it comes back just outside the screen,
+	// behind the player (or ahead), and walks or flies in. Only if there is no
+	// such place, it appears right beside the player.
+	return_to_player(player, t, nearby = false) {
+		const c = this.game.camera;
+		const facing = player.last_horizontal_facing ?? 'right';
+		const behind = facing === 'left' ? 'right' : 'left';
+		let spot = null;
+		if (!nearby && c) {
+			const xs = companion_return_xs({ left: c.left, right: c.right }, player.mesh.position.x, behind, this.sprite.width);
+			const spots = [];
+			xs.forEach((x, order) => { for (const y of this.companion_spots_at(x, player)) spots.push({ x, y, order }); });
+			spot = companion_pick_spot(spots, player.mesh.position.y);
+		}
+		if (!spot) {
+			const px = player.mesh.position.x, py = player.mesh.position.y;
+			const back = behind === 'left' ? -1 : 1;
+			const lift = this.companion.fly ? COMPANION.FLY_ABOVE : 0;
+			spot = [[px + back * 20, py + lift], [px, py + lift], [px, py]].map(([x, y]) => ({ x, y }))
+				.find(s => this.companion_box_free(s.x, s.y)) ?? { x: px, y: py };
+		}
+		this.mesh.position.x = spot.x;
+		this.mesh.position.y = spot.y;
+		this.vx = 0;
+		this.vy = 0;
+		this.update_state_and_direction(this.state, spot.x < player.mesh.position.x ? 'right' : 'left');
+		companion_returned(this.companion_memory, t, Math.hypot(player.mesh.position.x - spot.x, player.mesh.position.y - spot.y));
+		this.companion_counted_lost = false;
+		if (!nearby) this.companion_stats.returned += 1;
+	}
+
 	// Speed added by a conveyor belt or escalator under the character (0 = none).
 	conveyor_push() {
 		// Not while jumping off (vy > 0); touching_ground() has no side effects.
@@ -921,6 +1098,9 @@ void main() {
 			this.game.curtain.show(`${this.game.continue_prompt?.() ?? 'Drück eine Taste'}, um fortzufahren`, 0.5, 1.0, function () {
 				self.mesh.position.x = self.initial_position[0];
 				self.mesh.position.y = self.initial_position[1];
+				// Begleiter come along to the place where the figure starts again
+				for (const companion of self.game.companions ?? [])
+					companion.return_to_player(self, self.game.clock.getElapsedTime(), true);
 				if (sprite !== null) {
 					self.invincible_until = self.game.clock.getElapsedTime() + sprite.traits[trait].damage_cool_down;
 				}
@@ -1018,6 +1198,9 @@ void main() {
 			}
 			this.update_alert_icon();
 		}
+		else if (this.character_trait === 'companion') {
+			this.simulate_companion(t);
+		}
 
 		if (this.character_trait === 'actor') {
 			this.pressed_keys = this.game.pressed_keys;
@@ -1028,7 +1211,8 @@ void main() {
 		let entry = this.has_trait_at(['falls_down'], -0.5, 0.5, -1.0, -0.1);
 		if (entry) {
 			let sprite = this.game.data.sprites[entry.sprite_index];
-			if (!(this.character_trait === 'baddie' && (!sprite.traits.falls_down.falls_on_baddie))) {
+			// a Begleiter never breaks the player's way
+			if (this.character_trait !== 'companion' && !(this.character_trait === 'baddie' && (!sprite.traits.falls_down.falls_on_baddie))) {
 				// this.falling_sprite_indices
 				if (!entry.falling) {
 					for (let sti = 0; sti < sprite.states.length; sti++) {
@@ -1060,7 +1244,7 @@ void main() {
 		let dx = 0;
 		let factor = 1;
 		if (this.character_trait === 'baddie' && this.pressed_keys[KEY_JUMP]) factor = this.traits.jump_vfactor;
-		if (this.character_trait === 'baddie') factor *= this.ai_speed;
+		if (this.character_trait === 'baddie' || this.character_trait === 'companion') factor *= this.ai_speed;
 		if (this.pressed_keys[KEY_RIGHT]) dx += this.traits.vrun * factor * this.vrun_factor();
 		if (this.pressed_keys[KEY_LEFT]) dx -= this.traits.vrun * factor * this.vrun_factor();
 
@@ -1077,13 +1261,17 @@ void main() {
 		// Bewegungsbereiche (movement_regions.js): swimming, floating, a different
 		// gravity or a current. The player character and every enemy that walks
 		// (flying and stomping behaviours move themselves); old games have none.
-		const move = (this.character_trait === 'actor' || (this.character_trait === 'baddie' && !this.ai_no_gravity)) &&
+		let move = (this.character_trait === 'actor' || ((this.character_trait === 'baddie' || this.character_trait === 'companion') && !this.ai_no_gravity)) &&
 			typeof MovementRegions !== 'undefined' ?
 			MovementRegions.at(this.game.movement_regions, this.mesh.position.x,
 				this.mesh.position.y + this.sprite.height * 0.5) : null;
+		// A Begleiter that cannot swim does not swim: water is no Bewegungsbereich
+		// for it (it waits at the shore; companion_ai.js). A flyer flies over it.
+		if (move?.mode === 'swim' && this.character_trait === 'companion' && !this.companion.swim) move = null;
 		const fluid = move && (move.mode === 'swim' || move.mode === 'float') ? move : null;
 		// the enemy AI looks at this in the next step (swims after the player)
 		this.fluid_mode = fluid ? fluid.mode : null;
+		this.fluid_surface = fluid ? fluid.surface : null;
 		const fluid_from = [this.mesh.position.x, this.mesh.position.y];
 		let fluid_input_x = 0, fluid_input_y = 0;
 		if (fluid) {
@@ -1101,8 +1289,8 @@ void main() {
 					vrun: this.traits.vrun * (actor ? this.vrun_factor() : (this.ai_speed || 1)),
 					vjump: this.traits.vjump * (actor ? this.vjump_factor() : 1),
 					gravity: this.traits.affected_by_gravity === false ? 0 : this.game.data.properties.gravity,
-					// only the player leaps out of the water; enemies stay in it
-					near_surface: actor && fluid.surface - (this.mesh.position.y + this.sprite.height * 0.5) < this.sprite.height * 0.6,
+					// the player (and a Begleiter following it) leaps out of the water; enemies stay in it
+					near_surface: (actor || this.character_trait === 'companion') && fluid.surface - (this.mesh.position.y + this.sprite.height * 0.5) < this.sprite.height * 0.6,
 				});
 			this.stroke_held = jump;
 			if (stroke && fluid.mode === 'swim' && fluid.stroke > 0) this.stroke_at = this.game.clock.getElapsedTime();
@@ -1162,6 +1350,8 @@ void main() {
 			this.vy = 0;
 			state = (this.behavior?.type === 'stomper' && this.ai_dy < -0.1) ? 'fall' :
 				(Math.abs(dx) > 0.1 ? 'walk' : 'stand');
+			// a flying Begleiter with "fliegt" pictures shows them, moving or hovering
+			if (this.character_trait === 'companion' && this.sti_for_state.fly) state = 'fly';
 		} else if (fluid) {
 			// in the water / in space: on the bottom walk and stand, else jump / fall poses
 			state = this.touching_ground() && this.vy <= 0.01 ?
@@ -1283,7 +1473,7 @@ void main() {
 			}
 		} else {
 		// if we're standing, we can jump
-		if (this.character_trait === 'baddie' || this.sprite.traits[this.character_trait].can_jump) {
+		if (this.character_trait === 'baddie' || this.traits.can_jump) {
 			if (this.standing_on_ground()) {
 				this.vy = 0;
 				if (this.pressed_keys[KEY_JUMP])
@@ -1291,7 +1481,7 @@ void main() {
 			}
 		}
 
-		if (this.sprite.traits[this.character_trait].affected_by_gravity && !this.ai_no_gravity) {
+		if (this.traits.affected_by_gravity && !this.ai_no_gravity) {
 			let dy = this.try_move_y(this.vy);
 			if (Math.abs(dy) < 0.01) this.vy = 0;
 		}
@@ -1935,6 +2125,8 @@ class Game {
 		this.meshes_for_sprite = [];
 		this.player_character = null;
 		this.baddies = [];
+		// Begleiter (companion_ai.js): characters that follow the player – never enemies
+		this.companions = [];
 		this.geometry_and_material_for_frame = [];
 		this.animated_sprites = [];
 		this.transitioning_sprites = {};
@@ -2057,7 +2249,7 @@ class Game {
 						this.mesh_catalogue.push(mesh);
 						this.meshes_for_sprite.push([]);
 						if (sprite.states[0].frames.length > 1 || sprite.states.length > 1) {
-							if (!('actor' in sprite.traits || 'baddie' in sprite.traits))
+							if (!('actor' in sprite.traits || 'baddie' in sprite.traits || 'companion' in sprite.traits))
 								this.animated_sprites.push(si);
 						}
 					}
@@ -2125,7 +2317,7 @@ class Game {
 						if (y0 < this.miny) this.miny = y0;
 						if (y1 > this.maxy) this.maxy = y1;
 						let active_entry = null;
-						if (!('actor' in sprite.traits || 'baddie' in sprite.traits)) {
+						if (!('actor' in sprite.traits || 'baddie' in sprite.traits || 'companion' in sprite.traits)) {
 							this.interval_tree_x.insert([x0, x1], this.active_level_sprites.length);
 							this.interval_tree_y.insert([y0, y1], this.active_level_sprites.length);
 							active_entry = { layer_index: li, sprite_index: si, mesh: mesh };
@@ -2171,6 +2363,15 @@ class Game {
 						// and the Code of a key it leaves behind (drop_code)
 						baddie.placed_signal = placed[3]?.baddie ?? null;
 						this.baddies.push(baddie);
+					}
+					else if ('companion' in sprite.traits) {
+						const companion = new Character(this, si, mesh);
+						companion.layer_index = li;
+						if (companion.character_trait === 'companion') {
+							// its place in the line behind the player (flyers and walkers apart)
+							companion.companion_slot = this.companions.filter(o => o.companion.fly === companion.companion.fly).length;
+							this.companions.push(companion);
+						}
 					}
 					let fx = sprite.states[0].properties.phase_x;
 					let fy = sprite.states[0].properties.phase_y;
@@ -2395,7 +2596,7 @@ class Game {
 				seconds: layer_fade_seconds(layer.properties),
 				materials: LayerFade.materials(this.layers[li], 'signalOpacity') });
 			// enemies on it switch their material every frame (material_for_frame)
-			for (const baddie of this.baddies) if (baddie.layer_index === li) baddie.mesh.userData.signal_layer = li;
+			for (const baddie of [...this.baddies, ...(this.companions ?? [])]) if (baddie.layer_index === li) baddie.mesh.userData.signal_layer = li;
 			let visible = layer_visible_at_start(reaction);
 			this.set_layer_signal_visible(li, visible, true);
 			this.signals.connect(stored_signal_code(layer.properties.signal_code), (value) => {
@@ -2463,7 +2664,7 @@ class Game {
 		else this.signal_hidden_layers.add(li);
 		for (const entry of this.active_level_sprites)
 			if (entry.layer_index === li) entry.signal_hidden = !visible;
-		for (const baddie of this.baddies ?? [])
+		for (const baddie of [...(this.baddies ?? []), ...(this.companions ?? [])])
 			if (baddie.layer_index === li) baddie.signal_hidden = !visible;
 		this.dynamic_interval_frame = -1;
 		const fade = this.signal_layer_fades?.get(li);
@@ -3316,6 +3517,9 @@ class Game {
 		// enemies on a layer that is away (Signale) wait
 		for (let baddie of this.baddies)
 			if (!baddie.signal_hidden) baddie.simulation_step(t);
+		// Begleiter after the player: they go where it is now
+		for (const companion of this.companions ?? [])
+			if (!companion.signal_hidden) companion.simulation_step(t);
 		this.update_signal_areas(t);
 		// signals with a Verzögerung that are due now, then doors that close again
 		this.signals?.deliver_due(t);

@@ -475,6 +475,12 @@ body {
     content: '▾';
 }
 
+.menu .trait-warning {
+    margin: 4px 0 8px 0;
+    color: #ffcd75;
+    font-size: 0.9em;
+}
+
 .menu .trait-help > p {
     margin: 5px 5px 3px;
 }
