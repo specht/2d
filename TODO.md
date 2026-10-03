@@ -423,6 +423,18 @@ Persistence should only be added after deciding whether data belongs to:
 
 ---
 
+## Classroom robustness
+
+Implemented: the rescue copy of unsaved work (`rescue.js`), the server banner and reload offer (`server_watch.js`, `neustart.html`), the robot with Fehlerberichte (`crash_report.js`, `client_errors.rb`, `show-client-errors.rb`).
+
+Still open:
+
+- errors inside the game frame (Spielen, Level testen) are not reported yet – `standalone.html` and `app.js` are part of the recipe build's engine fingerprint, so this needs a careful, separate change
+- a report that cannot be sent (the server is away at that moment) is lost; it could wait in the rescue store and go out when the server is back
+- a small page for the teacher with the day's reports, instead of the command line
+
+---
+
 # Large or Experimental Features
 
 Keep these outside the core roadmap unless a concrete project requires them:

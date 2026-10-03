@@ -23,6 +23,11 @@
     <script defer src="coloris.min.js"></script>
     <script defer src="misc.js?#{@@cache_buster}"></script>
     <script defer src="api.js?#{@@cache_buster}"></script>
+    <!-- classroom safety nets: the robot and Fehlerberichte, the rescue copy of
+         unsaved work, the server banner (crash_report.js, rescue.js, server_watch.js) -->
+    <script defer src="crash_report.js?#{@@cache_buster}"></script>
+    <script defer src="rescue.js?#{@@cache_buster}"></script>
+    <script defer src="server_watch.js?#{@@cache_buster}"></script>
     <script defer src="widgets.js?#{@@cache_buster}"></script>
     <script defer src="canvas.js?#{@@cache_buster}"></script>
     <script defer src="signals.js?#{@@cache_buster}"></script>
@@ -440,7 +445,14 @@
     </div>
     <div id="error_curtain" style="display: none;">
         <div class="robot"></div>
-        <p>Leider ist ein Fehler passiert. Um sicherzustellen, dass nichts schiefgeht, lade bitte die Seite neu.</p>
+        <div class="error-box">
+            <p class="error-text">Hoppla, da ist etwas schiefgegangen.</p>
+            <p class="error-reported"></p>
+            <div class="error-buttons">
+                <button class="error-continue">Weiterarbeiten</button>
+                <button class="error-reload green">Neu laden</button>
+            </div>
+        </div>
     </div>
 
 </body>

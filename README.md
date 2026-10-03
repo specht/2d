@@ -287,6 +287,7 @@ Among other things it handles:
 - game search
 - version relationships
 - generated spritesheets and other assets
+- the studio's version (`/api/ping`, a digest of the files in `src/static/`) and Fehlerberichte from the studio (`/api/report_error`)
 
 ### Neo4j
 
@@ -442,7 +443,7 @@ They cover systems such as:
 - stable IDs, sprite copying between games and level undo/selection
 - the collaboration client and session store
 
-Run them with `node --test test/*.cjs` (and `ruby test/collaboration_store_test.rb` for the backend store).
+Run them with `node --test test/*.cjs` (and `ruby test/collaboration_store_test.rb` and `ruby test/client_errors_test.rb` for the backend store and the Fehlerberichte).
 
 These tests are useful for protecting engine contracts, but they are not a substitute for actually trying changes in the Studio and playing affected games in a browser.
 
@@ -497,3 +498,23 @@ Production uses the same generated Docker Compose setup but with `DEVELOPMENT = 
 The production configuration enables the configured virtual host and Let's Encrypt settings rather than exposing the development port directly.
 
 Do not use the values from `env.template.rb` unchanged for a real deployment.
+
+### Restarting during a lesson, crashes and Fehlerberichte
+
+The server can be restarted while a class is working (for example to apply a fix):
+
+- **While it is away**, nginx answers with `src/static/neustart.html` ("Gleich geht's weiter!") instead of a page, which reloads by itself once the server is back. Open studios show a banner: the server is restarting, keep working, only saving waits (`server_watch.js`); a save that failed is offered again when it is back.
+- **After a restart with changed files** (the version is a digest of `src/static/`), open studios offer "Neu laden". Nothing is lost: the studio keeps a copy of unsaved work in the browser (IndexedDB, `rescue.js`) and brings it back after the reload by itself – also for a game without title or author, which never has to be saved for this. A restart without changes offers nothing.
+- **A copy found otherwise** (the tab was closed, the browser crashed) is offered when the studio opens, naming the game and the time.
+- **When something goes wrong** in the studio, the robot appears: the work is copied first, then it offers "Neu laden" (everything comes back) or "Weiterarbeiten". The error is reported to the server with the last clicks and keys, the pane and tool, the studio version and the code of a temporary copy of the game (`crash_report.js`), and appended to `data/raw/client-errors/<date>.jsonl` (not served by nginx).
+
+To see what went wrong:
+
+```bash
+./config.rb exec ruby ruby show-client-errors.rb        # today, grouped, most frequent first
+./config.rb exec ruby ruby show-client-errors.rb 3      # the last three days
+```
+
+Each group shows the message, where it happened, what the child did just before, and `/?<code>` to open the child's game as it was at that moment – reproduce the bug there, fix it and add a regression test.
+
+When the Ruby container is recreated rather than restarted, nginx may keep the old address and answer 502 until it is restarted as well (`./config.rb restart nginx`).

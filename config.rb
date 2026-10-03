@@ -104,6 +104,11 @@ nginx_config = <<~eos
         }
 
         location @ruby {
+            # While the app restarts, a page tells the children to wait and
+            # reloads by itself once it is back (src/static/neustart.html). The
+            # status stays 502–504, so the studio's requests still see that the
+            # server is away (server_watch.js).
+            error_page 502 503 504 /neustart.html;
             proxy_pass http://#{PROJECT_NAME}_ruby_1:3000;
             proxy_set_header Host $host;
             proxy_http_version 1.1;
@@ -184,6 +189,8 @@ FileUtils::cp('src/ruby/Gemfile', 'docker/ruby/')
 FileUtils::mkpath(File::join(RAW_FILES_PATH, 'uploads'))
 # collaboration sessions across restarts (private: /raw is not served)
 FileUtils::mkpath(File::join(RAW_FILES_PATH, 'collaboration'))
+# Fehlerberichte from the studio (src/ruby/client_errors.rb; private as well)
+FileUtils::mkpath(File::join(RAW_FILES_PATH, 'client-errors'))
 FileUtils::mkpath(GEN_FILES_PATH)
 FileUtils::mkpath(File.join(GEN_FILES_PATH, 'png'))
 FileUtils::mkpath(File.join(GEN_FILES_PATH, 'games'))

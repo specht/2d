@@ -737,9 +737,13 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     // game.load('skkmhwy');
 
     let tag = window.location.search.replace('?', '');
-    if (tag.length === 7) {
-        game.load(tag);
-    }
+    // rescue.js: unsaved work from before the reload comes first; the game
+    // from the address only when it does not come back
+    const load_from_address = (restored) => {
+        if (!restored && tag.length === 7) game.load(tag);
+    };
+    if (window.studio_rescue) window.studio_rescue.check_on_start(load_from_address);
+    else load_from_address(false);
 
     // document.oncopy = function (copyEvent) {
     //     // TODO: not working yet, maybe ask for permissions?
@@ -1404,16 +1408,4 @@ function delete_item_helper(list, index) {
     return tr;
 }
 
-window.onerror = function (event, source, lineno, colno, error) {
-    let data = {
-        event: event,
-        source: source,
-        lineno: lineno,
-        colno: colno,
-        error: error
-    };
-    console.log(JSON.stringify(data));
-    $('#error_curtain').fadeIn();
-    $('#error_curtain .robot').css('transform', 'scale(1)');
-    $('#error_curtain p').css('transform', 'translate(0, 0)').css('opacity', 1);
-};
+// Uncaught errors: crash_report.js (the robot, the rescue copy and a Fehlerbericht).
