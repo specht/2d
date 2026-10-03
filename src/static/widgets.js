@@ -429,12 +429,17 @@ function show_context_menu(x, y, entries, options = {}) {
                 const sub = $('<div>').addClass('context-menu context-menu-sub').appendTo(item);
                 if (entry.children.length) build(sub, entry.children);
                 else $('<div>').addClass('context-menu-item disabled').append($('<span>').text(entry.empty ?? '–')).appendTo(sub);
-                // keep the submenu inside the window (menus near the bottom open upwards)
+                // A submenu is placed on the screen (position: fixed) beside its
+                // entry: a long submenu scrolls (overflow), and that would clip a
+                // deeper level sticking out of it – the third level never showed.
+                // It opens to the right, or to the left without room there, and
+                // stays inside the window (near the bottom it opens upwards).
                 item.on('mouseenter', () => {
-                    sub.css('top', '-5px');
-                    const rect = sub[0].getBoundingClientRect();
-                    const overflow = rect.bottom - (window.innerHeight - 4);
-                    if (overflow > 0) sub.css('top', `${-5 - overflow}px`);
+                    const at = item[0].getBoundingClientRect();
+                    const box = sub[0].getBoundingClientRect();
+                    const left = at.right + box.width <= window.innerWidth - 4 ? at.right : Math.max(4, at.left - box.width);
+                    const top = Math.max(4, Math.min(at.top - 5, window.innerHeight - 4 - box.height));
+                    sub.css({ position: 'fixed', left: `${left}px`, top: `${top}px`, right: 'auto' });
                 });
                 continue;
             }

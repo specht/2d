@@ -210,6 +210,17 @@ test('Begleiter is its own role: not an enemy, saved traits untouched, no health
     assert.ok(traits.STATE_TRAITS_ORDER.companion);
 });
 
+test('Begleiter never acts on the level: crumbling blocks under it stay where they are', () => {
+    // a crumbling block (falls_down) under the companion's way: only the player
+    // (and enemies that may) make it fall – the game's state for it is never touched
+    const { c, game, run } = world({ blocks: ground(-5, 20), player: [300, 24] });
+    game.data.sprites[0].traits.falls_down = { timeout: 0.5, accumulates: false, falls_on_baddie: true, damage: 0 };
+    game.future_event_list = { insert() { throw new Error('a Begleiter made a block fall'); } };
+    run(3);
+    assert.ok(c.mesh.position.x > 200);
+    assert.ok(game.active_level_sprites.every(e => !e.falling));
+});
+
 test('Begleiter on flat ground: follows, stops at a comfortable distance, stays put for small moves', () => {
     const { c, p, run, trace } = world({ blocks: ground(-5, 40), player: [300, 24] });
     run(4);

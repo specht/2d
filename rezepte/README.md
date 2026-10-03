@@ -146,6 +146,8 @@ szene:
     L: { sprite: schlosstuer, platziert: { door: { signal_code: 7 } } }
   anpassen:                    # optional trait overrides for this recipe only
     glibber: { baddie: { patrols: false } }
+  zusaetzlich: [vogel, fee]    # optional: sprites in the scene's game without being placed –
+                               # children find them in the opened scene and in the sprite basket
   karte: |                     # one character = one 24×24 tile, '.' = empty
     ..........
     ....H###..
@@ -382,8 +384,9 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   klettert*). `strohpuppe` (24×32 training dummy, *Steht still*: `stehen`,
   `treffer`, `tot` – its bullseye sits exactly at arrow height, 10 px
   above the ground). `strohballen` (solid hay bale for the training ground).
-* **Begleiter** (`traits.companion`, recipes in the category *Begleiter*), fully
-  animated so children can take them into their own games: `hund` (`stehen` 4 with a
+* **Begleiter** (`traits.companion`, recipe *Ein Begleiter kommt mit*: the dog in the
+  recording, the others as variants in its text, and all of them in its scene through
+  `szene.zusaetzlich`), fully animated so children can take them into their own games: `hund` (`stehen` 4 with a
   wagging tail and a blink, `laufen` 6, `springen`, `fallen`), `otter` (`stehen`, `laufen`,
   `springen`, `schwimmen` – *kann schwimmen*), `vogel` and `fee` (`fliegen`, state *Begleiter
   fliegt* – *kann fliegen*), `roboter` (`stehen` with a blinking antenna, `rollen` – *kann
