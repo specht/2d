@@ -217,3 +217,32 @@ test('arrow keys go to the next grid position in their direction', () => {
     assert.deepEqual(sel.grid_step_delta([['a', 12, 12]], [0], 0, 1, grid), [0, 12]);
     assert.deepEqual(sel.grid_step_delta([['a', -12, -12]], [0], 0, -1, grid), [0, -12]);
 });
+
+test('Rastergröße: 24 unless chosen; an older game drawn in 16 × 16 keeps its grid', () => {
+    const { game_grid_size, valid_grid_size, fits_grid } = require('../src/static/level_selection.js');
+    assert.equal(game_grid_size({ sprites: [] }), 24);
+    assert.equal(game_grid_size({ properties: { grid_size: 16 }, sprites: [{ width: 24, height: 24 }] }), 16);
+    assert.equal(game_grid_size({ sprites: [{ width: 24, height: 48 }, { width: 72, height: 24 }, { width: 20, height: 20 }] }), 24);
+    assert.equal(game_grid_size({ sprites: [{ width: 16, height: 16 }, { width: 16, height: 32 }, { width: 24, height: 24 }] }), 16);
+    assert.equal(game_grid_size({ properties: { grid_size: 'x' } }), 24);
+    assert.ok(!valid_grid_size(2) && valid_grid_size(16));
+    assert.ok(fits_grid(48, 72, 24) && !fits_grid(30, 24, 24));
+});
+
+test('the pen puts a sprite on whole cells: its lower left corner on the grid, as before for one cell', () => {
+    const { sprite_grid_point, sprite_grid_step } = require('../src/static/level_selection.js');
+    const grid = { width: 24, height: 24, x: 0, y: 0 };
+    // one cell: the centre on the grid point of the cell under the pointer (what the editor always did)
+    for (const x of [-12, 0, 11.9, 12, 30, -13]) {
+        const old = Math.round(Math.floor((x + 12) / 24) * 24);
+        assert.deepEqual(sprite_grid_point(x, 30, 24, 24, grid), [old, 24]);
+    }
+    // two cells wide: its left edge on a grid line, so it lines up with the blocks
+    assert.deepEqual(sprite_grid_point(0, 5, 48, 24, grid), [12, 0]);
+    assert.deepEqual(sprite_grid_point(13, 5, 48, 24, grid), [36, 0]);
+    // a Gitteroffset moves the lines
+    assert.deepEqual(sprite_grid_point(0, 5, 24, 24, { ...grid, x: 12 }), [12, 0]);
+    // shapes step by whole cells of the sprite
+    assert.deepEqual(sprite_grid_step(48, 24, grid), { width: 48, height: 24 });
+    assert.deepEqual(sprite_grid_step(30, 20, grid), { width: 48, height: 24 });
+});

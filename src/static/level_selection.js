@@ -279,11 +279,63 @@ function next_pick(hits, last) {
     return hits[at < 0 ? 0 : (at + 1) % hits.length];
 }
 
+// ---------------------------------------------------------------- the Raster
+// Rastergröße of a game (Einstellungen → Spiel, properties.grid_size): the
+// size of one cell of the level editor's grid, and of a new sprite. Absent:
+// 24, unless most sprites do not fit a 24 grid (an older game drawn in 16 × 16
+// pixels): then the size most sprites have, as the editor's grid used to
+// follow the sprite. Editor-only – the game never reads it.
+const GRID_SIZE_DEFAULT = 24;
+const GRID_SIZE_CHOICES = [8, 12, 16, 24, 32, 48];
+
+function valid_grid_size(value) {
+    return Number.isInteger(value) && value >= 4 && value <= 256;
+}
+
+function game_grid_size(data) {
+    const stored = data?.properties?.grid_size;
+    if (valid_grid_size(stored)) return stored;
+    const sizes = (data?.sprites ?? []).map(s => [s.width ?? GRID_SIZE_DEFAULT, s.height ?? GRID_SIZE_DEFAULT]);
+    const fits = (n) => sizes.filter(([w, h]) => w % n === 0 && h % n === 0).length;
+    if (!sizes.length || fits(GRID_SIZE_DEFAULT) * 2 >= sizes.length) return GRID_SIZE_DEFAULT;
+    // the smallest side most sprites share
+    const counts = new Map();
+    for (const [w, h] of sizes) counts.set(Math.min(w, h), (counts.get(Math.min(w, h)) ?? 0) + 1);
+    const [best] = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+    return valid_grid_size(best) ? best : GRID_SIZE_DEFAULT;
+}
+
+// Whether a sprite of this size fills whole grid cells.
+function fits_grid(width, height, grid_size) {
+    return width % grid_size === 0 && height % grid_size === 0;
+}
+
+// Where the pen puts a sprite (its centre x and bottom y, as placed sprites
+// store them): its lower left corner on a grid point, its lower left cell the
+// cell under the pointer. A sprite as big as a cell sits in that cell (as
+// always); a bigger one covers whole cells to the right and up, so sprites of
+// 48 × 24 and 24 × 24 line up on one grid. grid: { width, height, x, y }
+// (lines at x − width / 2 + grid.x + k · width, y + k · height).
+function sprite_grid_point(wx, wy, sprite_width, sprite_height, grid) {
+    const gw = grid.width, gh = grid.height;
+    const left0 = (grid.x ?? 0) % gw - gw / 2, bottom0 = (grid.y ?? 0) % gh;
+    const left = Math.floor((wx - left0) / gw) * gw + left0;
+    const bottom = Math.floor((wy - bottom0) / gh) * gh + bottom0;
+    return [Math.round(left + sprite_width / 2), Math.round(bottom)];
+}
+
+// The step of a line, frame or filled rectangle of this sprite: whole cells.
+function sprite_grid_step(sprite_width, sprite_height, grid) {
+    return { width: Math.max(1, Math.ceil(sprite_width / grid.width - 1e-9)) * grid.width,
+        height: Math.max(1, Math.ceil(sprite_height / grid.height - 1e-9)) * grid.height };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         placed_position_key, merge_placed, move_placed, remove_placed, copy_placed, paste_placed,
         move_placed_to_layer, parallax_layer_offset, duplicate_offset, selection_anchor, grid_point,
         snapped_selection_delta, grid_step_delta, shape_cells, place_shape, fill_placed, same_sprite_indices, replace_placed,
         placed_sprites_at, next_pick,
+        GRID_SIZE_DEFAULT, GRID_SIZE_CHOICES, valid_grid_size, game_grid_size, fits_grid, sprite_grid_point, sprite_grid_step,
     };
 }

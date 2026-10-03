@@ -13,7 +13,7 @@ szene:
   legende: { h: hund }
   kamera: { bildhoehe: 144 }
   # every Begleiter of this recipe is in the scene's game, so children can take
-  # them into their own games ("Sprites aus einem anderen Spiel holen")
+  # them into their own games (scene opened from the recipe; the Sprite-Katalog has them, too)
   zusaetzlich: [roboter, vogel, fee, otter, abenteurerin, ritter, zauberin]
   karte: |
     ..........................................
@@ -200,7 +200,7 @@ Ein Begleiter muss kein Tier sein. Die **Abenteurerin** springt so hoch wie Pip 
 
 ## Tipps
 
-> **Tipp:** Alle Begleiter aus diesem Rezept stecken in seiner Szene. Hol sie dir mit **Sprites aus einem anderen Spiel holen** (der Korb neben dem + in der Sprite-Liste) in dein eigenes Spiel – fertig animiert.
+> **Tipp:** Alle Begleiter aus diesem Rezept stecken in seiner Szene. Hol sie dir mit **Sprites holen** (der Korb neben dem + in der Sprite-Liste) aus dem **Sprite-Katalog** in dein eigenes Spiel – fertig animiert.
 
 - Gib deinem Begleiter seinen Namen als **Titel**. Dann findest du ihn in der Sprite-Liste sofort.
 - Ein Begleiter, der zurückbleiben kann, macht dein Level spannender: Baust du für den Hund eine Treppe neben die hohe Kante?

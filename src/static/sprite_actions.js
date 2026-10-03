@@ -74,7 +74,7 @@ function sprite_context_menu(si) {
         { label: 'Duplizieren', icon: 'fa-clone', callback: () => duplicate_sprite(si),
             hint: 'Eine Kopie mit allen Zuständen, Frames und Eigenschaften – gleich dahinter in der Liste.' },
         '-',
-        { label: 'Sprites aus anderem Spiel holen …', icon: 'fa-shopping-basket', callback: () => { if (typeof show_sprite_basket === 'function') show_sprite_basket(); } },
+        { label: 'Sprites holen (Katalog oder anderes Spiel) …', icon: 'fa-shopping-basket', callback: () => { if (typeof show_sprite_basket === 'function') show_sprite_basket(); } },
     ];
 }
 

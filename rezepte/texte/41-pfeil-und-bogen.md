@@ -66,7 +66,7 @@ varianten:
 4. Pip schießt mit **Schaden 15** und **Cooldown 0,6 s**.
 5. Bei **Projektilsprite** wählst du den Pfeil.
 6. **Der Bogenschuss:** **Winkel 45°** (schräg nach oben), **Schwerkraft 380 px/s²**, **Geschwindigkeit 240 px/s** und **Reichweite 260 px**. Der Pfeil steigt, wird langsamer, kippt und fällt wieder – und dreht sich dabei immer in Flugrichtung.
-7. **Das Ziel:** Eine Strohpuppe, 24 × 32 Pixel groß, als **Gegner** mit **Verhalten: Steht still** und **Energie 45**. Gib ihr einen Zustand **Gegner: Treffer (rechts)**, in dem sie wackelt, und einen Zustand **Gegner tot**, in dem sie in sich zusammensackt.
+7. **Das Ziel:** Eine Strohpuppe, 24 × 48 Pixel groß (gemalt in den unteren 32 Pixeln), als **Gegner** mit **Verhalten: Steht still** und **Energie 45**. Gib ihr einen Zustand **Gegner: Treffer (rechts)**, in dem sie wackelt, und einen Zustand **Gegner tot**, in dem sie in sich zusammensackt.
 8. Stell die Puppe so weit weg, wie der Bogen reicht – hier sieben Felder. Dazwischen liegen zwei **Strohballen** mit *man kann nicht von den Seiten reinlaufen*: Geradeaus käme kein Pfeil hindurch, im Bogen fliegen sie einfach darüber.
 9. Probier es mit **K** aus: Drei Pfeile, drei Treffer – und die Puppe sackt zusammen.
 

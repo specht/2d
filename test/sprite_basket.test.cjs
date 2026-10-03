@@ -59,3 +59,53 @@ test('a reference to a sprite that is not copied: kept in the same game, dropped
     const other = copy({ sprites: [] }, [src.sprites[3]], { drop_other_references: true });
     assert.equal(other[0].traits.baddie.drop, undefined);
 });
+
+test('Sprite-Katalog: groups in their order, searched by Titel or group, empty groups left out', () => {
+    const ctx = sandbox();
+    const catalogue_groups = vm.runInContext('catalogue_groups', ctx);
+    const file = {
+        gruppen: [
+            { name: 'Spielfiguren', sprites: ['s0'] },
+            { name: 'Natur', sprites: ['s2', 's1', 'gone'] },
+        ],
+        spiel: { sprites: [
+            { id: 's0', properties: { name: 'Pip' } },
+            { id: 's1', properties: { name: 'Baum' } },
+            { id: 's2', properties: { name: 'Busch' } },
+        ] },
+    };
+    const names = (groups) => groups.map(g => `${g.name}: ${g.sprites.map(s => s.properties.name).join(',')}`);
+    assert.deepEqual(names(catalogue_groups(file)), ['Spielfiguren: Pip', 'Natur: Busch,Baum']);
+    assert.deepEqual(names(catalogue_groups(file, 'BAUM')), ['Natur: Baum']);
+    // the group's name counts, every word must match
+    assert.deepEqual(names(catalogue_groups(file, 'natur b')), ['Natur: Busch,Baum']);
+    assert.deepEqual(names(catalogue_groups(file, 'pip natur')), []);
+    assert.equal(catalogue_groups(null).length, 0);
+});
+
+// The catalogue the recipe build turns into katalog.json (rezepte/katalog.yaml)
+test('Sprite-Katalog: every catalogue sprite is in one group, and everything in it is a multiple of 24 × 24', async (t) => {
+    let YAML;
+    try {
+        const file = require('node:module').createRequire(path.join(__dirname, '../rezepte/tools/build.mjs')).resolve('yaml');
+        const mod = await import(require('node:url').pathToFileURL(file));
+        YAML = mod.default?.parse ? mod.default : mod;
+    } catch { return t.skip('yaml not installed (rezepte/tools: npm install)'); }
+    const katalog = YAML.parse(fs.readFileSync(path.join(__dirname, '../rezepte/katalog.yaml'), 'utf8'));
+    const grouped = (katalog.sammlung ?? []).flatMap(group => Object.values(group)[0]);
+    const left_out = katalog.nicht_in_sammlung ?? [];
+    assert.equal(new Set(grouped).size, grouped.length, 'no sprite in two groups');
+    assert.deepEqual([...grouped, ...left_out].sort(), Object.keys(katalog.sprites).sort());
+    const size = (id) => katalog.sprites[id].groesse ?? (katalog.sprites[id].extends ? size(katalog.sprites[id].extends) : [24, 24]);
+    const odd = grouped.filter(id => size(id).some(n => n % 24 !== 0));
+    assert.deepEqual(odd, []);
+    // the pictures have that size, too
+    for (const id of grouped) {
+        const [w, h] = size(id);
+        for (const state of katalog.sprites[id].states ?? []) {
+            const png = fs.readFileSync(path.join(__dirname, '../rezepte/sprites', `${state.strip}.png`));
+            const pw = png.readUInt32BE(16), ph = png.readUInt32BE(20);
+            assert.ok(ph === h && pw % w === 0, `${state.strip}.png is ${pw}×${ph}, ${id} is ${w}×${h}`);
+        }
+    }
+});

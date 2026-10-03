@@ -97,7 +97,31 @@ export function load_catalog(root) {
         return sprite;
     };
     for (const id of Object.keys(catalog.sprites)) resolve(id);
-    return { root, tile: catalog.tile ?? TILE, legend: catalog.legende ?? {}, sprites: resolved };
+    return { root, tile: catalog.tile ?? TILE, legend: catalog.legende ?? {}, sprites: resolved,
+        collection: catalogue_collection(catalog) };
+}
+
+// The Sprite-Katalog of the sprite basket (sprite_basket.js): every catalogue
+// sprite in exactly one group (`sammlung`), or named in `nicht_in_sammlung`
+// (sprites made for one recipe only, e.g. the palette demo). A new sprite that
+// is in neither stops the build, so nothing is forgotten.
+function catalogue_collection(catalog) {
+    const seen = new Map();
+    const groups = (catalog.sammlung ?? []).map(group => {
+        const [name, ids] = Object.entries(group ?? {})[0] ?? [];
+        if (!name || !Array.isArray(ids) || !ids.length) throw new Error(`Katalog: Gruppe der Sammlung ohne Namen oder Sprites`);
+        for (const id of ids) {
+            if (!catalog.sprites[id]) throw new Error(`Katalog: Sammlung „${name}“ nennt unbekannten Sprite "${id}"`);
+            if (seen.has(id)) throw new Error(`Katalog: "${id}" steht in „${seen.get(id)}“ und in „${name}“`);
+            seen.set(id, name);
+        }
+        return { name, ids };
+    });
+    const left_out = new Set(catalog.nicht_in_sammlung ?? []);
+    for (const id of left_out) if (seen.has(id)) throw new Error(`Katalog: "${id}" steht in der Sammlung und in nicht_in_sammlung`);
+    const missing = Object.keys(catalog.sprites).filter(id => !seen.has(id) && !left_out.has(id));
+    if (missing.length) throw new Error(`Katalog: nicht in der Sammlung: ${missing.join(', ')} (in eine Gruppe von sammlung oder in nicht_in_sammlung eintragen)`);
+    return groups;
 }
 
 const strip_cache = new Map();
@@ -533,7 +557,8 @@ export async function build_game(catalog, recipe, repo) {
     const sheet = await build_spritesheet(frames_by_key, sprites);
     const tag = 'rz' + crypto.createHash('sha1').update(JSON.stringify(data)).digest('hex').slice(0, 5);
     const pngs = new Map(frames_by_key.flat().map(f => [f.tag, f.png]));
-    return { tag, data, sheet, pngs, view: view_out, screen_pixel_height, rows, cols, camera_lift: follow ? lift : 0 };
+    // used: the catalogue id of every sprite, in the game's order
+    return { tag, data, sheet, pngs, view: view_out, screen_pixel_height, rows, cols, camera_lift: follow ? lift : 0, used };
 }
 
 // The recipe's scene as a game the studio can open (Hilfe → "Im Studio

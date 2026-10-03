@@ -362,20 +362,20 @@ sprites:
 
   # ----------------------- Parallaxe: große Hintergrund-Sprites (kachelbar)
   # The sky is not a sprite: it is the level's colour backdrop.
-  wolke: { label: Wolke, groesse: [64, 24], states: [{ strip: welt/wolke }] }
+  wolke: { label: Wolke, groesse: [72, 24], states: [{ strip: welt/wolke }] }
   berge_fern: { label: Ferne Berge, groesse: [192, 72], states: [{ strip: welt/berge_fern }] }
   berge: { label: Berge, groesse: [192, 72], states: [{ strip: welt/berge }] }
   wald: { label: Wald, groesse: [192, 48], states: [{ strip: welt/wald }] }
-  tannen: { label: Tannen, groesse: [192, 64], states: [{ strip: welt/tannen }] }
-  tannen_schnee: { label: Verschneite Tannen, groesse: [192, 64], states: [{ strip: welt/tannen_schnee }] }
+  tannen: { label: Tannen, groesse: [192, 72], states: [{ strip: welt/tannen }] }
+  tannen_schnee: { label: Verschneite Tannen, groesse: [192, 72], states: [{ strip: welt/tannen_schnee }] }
   schneemann: { label: Schneemann, states: [{ strip: welt/schneemann }] }
   # tall grass that sways a little – something can hide in it
   hohes_gras: { label: Hohes Gras, groesse: [48, 24], states: [{ strip: welt/hohes_gras, fps: 3 }] }
   toter_baum: { label: Toter Baum, groesse: [48, 72], states: [{ strip: welt/toter_baum }] }
   toter_baum_2: { label: Toter Baum (krumm), groesse: [48, 72], states: [{ strip: welt/toter_baum_2 }] }
   toter_baum_3: { label: Toter Baum (schmal), groesse: [48, 72], states: [{ strip: welt/toter_baum_3 }] }
-  tote_baeume_fern: { label: Toter Wald (fern), groesse: [192, 64], states: [{ strip: welt/tote_baeume_fern }] }
-  vordergrund: { label: Vordergrund, groesse: [192, 32], states: [{ strip: welt/vordergrund }] }
+  tote_baeume_fern: { label: Toter Wald (fern), groesse: [192, 72], states: [{ strip: welt/tote_baeume_fern }] }
+  vordergrund: { label: Vordergrund, groesse: [192, 48], states: [{ strip: welt/vordergrund }] }
 
   # ------------------------------------------------ große Schrägen (48x24)
   hang_flach:
@@ -800,7 +800,7 @@ sprites:
   # a straw training dummy – tall enough for arrows and stones, stands still
   strohpuppe:
     label: Strohpuppe (Übungsziel)
-    groesse: [24, 32]
+    groesse: [24, 48]
     traits:
       baddie:
         energy: 45
@@ -811,7 +811,8 @@ sprites:
         wait_until_seen: false
         ex_left: 0.5
         ex_right: 0.5
-        ex_top: 0.95
+        # the picture is 32 px high in a 48 px sprite: the same hitbox as before
+        ex_top: 0.6333333
         behavior: { type: still }
     states:
       - { strip: strohpuppe/stehen, traits: { baddie: [right] } }
@@ -1032,6 +1033,57 @@ sprites:
     label: Steinklotz (fällt nur einmal)
     traits: { baddie: { behavior: { type: stomper, once: true } } }
 
+  # ------------------------------ Extra: in keinem Rezept, aber im Sprite-Katalog
+  # (Sprites holen → Sprite-Katalog), damit Kinder schnell loslegen können
+  kiste:
+    label: Holzkiste
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: extra/kiste }]
+  wolkenplattform:
+    label: Wolke zum Draufstehen
+    groesse: [48, 24]
+    # only "von oben": one jumps through from below
+    traits: { block_above: {} }
+    states: [{ strip: extra/wolkenplattform, fps: 3 }]
+  lava:
+    label: Lava
+    traits: { trap: { damage: 100, damage_cool_down: 1.0 } }
+    states: [{ strip: extra/lava, fps: 6, phase_r: 0 }]
+  herz:
+    label: Herz (Extraleben)
+    traits: { pickup: { lives: 1 } }
+    states: [{ strip: extra/herz, fps: 6 }]
+  apfel:
+    label: Apfel (Energie)
+    traits: { pickup: { energy: 20 } }
+    states: [{ strip: extra/apfel, fps: 2 }]
+  trank:
+    label: Zaubertrank (schneller)
+    traits: { pickup: { speed_boost_duration: 5, speed_boost_vrun: 1.5, speed_boost_vjump: 1.2 } }
+    states: [{ strip: extra/trank, fps: 6 }]
+  schnecke:
+    label: Schnecke
+    traits:
+      baddie:
+        energy: 20
+        damage: 10
+        vrun: 0.3
+        patrols: true
+        start_dir: left
+        wait_until_seen: false
+        ex_left: 0.7
+        ex_right: 0.7
+        ex_top: 0.75
+    states:
+      - { strip: extra/schnecke_laufen, fps: 5, traits: { baddie: [right, walk_right] } }
+      - { strip: extra/schnecke_treffer, traits: { baddie: [hit_right] } }
+      - { strip: extra/schnecke_tot, fps: 6, traits: { baddie: [dead] } }
+  baum: { label: Baum, groesse: [48, 72], states: [{ strip: extra/baum, fps: 1 }] }
+  busch: { label: Busch, states: [{ strip: extra/busch }] }
+  blumen: { label: Blumen, states: [{ strip: extra/blumen, fps: 2 }] }
+  zaun: { label: Zaun, states: [{ strip: extra/zaun }] }
+  pilz: { label: Fliegenpilz, states: [{ strip: extra/pilz }] }
+
 # Map characters used by the recipe scenes (recipes may add their own).
 legende:
   '#': boden
@@ -1115,3 +1167,32 @@ legende:
   '3': toter_baum_3
   '4': tote_baeume_fern
   '5': boden_tot
+
+# The Sprite-Katalog of the studio (Sprites aus einem anderen Spiel holen →
+# Sprite-Katalog, sprite_basket.js): every sprite above in one group, in this
+# order. The build writes it as katalog.json (with every frame) and stops when a
+# sprite is in no group and not in nicht_in_sammlung.
+sammlung:
+  - Spielfiguren: [pip, pip_einfach, pip_schwert, pip_bogen, pip_bogen_schraeg, pip_wurf, pip_bombe, pip_taucher, astronaut, fisch, u_boot]
+  - Gegner: [glibber, schnecke, spuckpilz, kaefer, keiler, frosch, fledermaus, klotz, klotz_einmal, maus, waschbaer, katze, geist, strohpuppe, qualle, hai]
+  - Begleiter: [hund, otter, vogel, fee, roboter, abenteurerin, ritter, zauberin]
+  - Zum Einsammeln: [muenze, edelstein, herz, apfel, trank, perle, stern, schluessel]
+  - Fallen und Gefahren: [stacheln, lava, broeckel]
+  - Boden und Blöcke: [boden, erde, boden_schnee, boden_tot, wurzeln, mauer, mauer_fenster, dach, kiste, eis, strohballen, block_rot, block_gruen]
+  - Plattformen, Leitern und Schrägen: [brett, wolkenplattform, plattform, aufzug, leiter, schraege, treppe, eishang, hang_flach, hang_flach_ab, hang_fuss, hang_fuss_ab, huegel_steil, huegel_steil_ab, huegel_steil_fuss, huegel_steil_fuss_ab]
+  - Förderbänder: [band, band_anfang, band_ende, band_links, band_links_anfang, band_links_ende, rolltreppe, rolltreppe_gehaeuse, maschine]
+  - Türen und Schalter: [tuer, schlosstuer, haustuer, gittertor, schalter, druckplatte, umriss_rot, umriss_gruen]
+  - Schilder, Checkpoints und Ziel: [schild, fahne, ziel]
+  - Für Angriffe: [pfeil, stein, spore, bombe, treffer_funke]
+  - Natur: [baum, busch, blumen, pilz, grasbuesche, hohes_gras, moos, ranke, toter_baum, toter_baum_2, toter_baum_3, schneemann, zaun, pfosten, kette, pfeiler]
+  - Hintergründe: [wolke, berge_fern, berge, wald, tannen, tannen_schnee, tote_baeume_fern, vordergrund, sterne]
+  - Haus und Burg: [hausfront, hausfront_licht, fassade, fassade_fenster, innenwand, zimmer, bild, lampe, wandlampe, wandlampe_aus, tisch, pflanze, eingang, fackel, burgfenster, riss]
+  - Licht und Schatten: [lichtkegel, laterne, laternenlicht, leuchtschein, schatten, dachschatten, glas]
+  - Wasser und Regen: [wasser, wasser_oben, regenspritzer]
+  - Höhle: [hoehle_fels, hoehle_boden, hoehle_spalt, hoehle_wand, hoehle_uebergang_boden, hoehle_uebergang_erde, tropfstein_oben, tropfstein_unten, leuchtpilz, lichtschacht, pilzlicht, bergflanke, bergfront]
+  - Unter Wasser: [sand, riff, uferfels_oben, uferfels, seegras, seegras_decke, anemone, koralle, koralle_gruen, truhe, schlot, quallenlicht]
+  - Weltall: [station, station_boden, mondboden, mondgestein, mondstein, luke, bullauge, satellit, planet, erde_planet]
+  - Flughafen: [flughafen_boden, galerie, laufband, laufband_anfang, laufband_ende, rolltreppe_flughafen, rolltreppe_unter, rolltreppe_panel, rolltreppe_gelaender, rolltreppe_gelaender_oben, gelaender, gelaender_anfang, gelaender_ende, terminalfenster, vorfeld, abflugtafel, gate_schild, sitzbank, saeule]
+# made for one recipe only: the palette demo's coast (drawn in another palette on
+# purpose), Pip who keeps the fright picture longer, the colour wheel of Mischmodi
+nicht_in_sammlung: [pip_erschrickt, farbkreis, leuchtturm, klippe, fels, steg, stegpfosten, meer, boot, boot_im_wasser, sonne, schaefchenwolke]

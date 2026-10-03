@@ -3709,7 +3709,7 @@ details.trait-advanced[open] > summary {
     }
 }
 
-/* Sprites aus einem anderen Spiel holen (sprite_basket.js) */
+/* Sprites holen: Sprite-Katalog or another game (sprite_basket.js) */
 .basket {
     display: flex;
     flex-direction: column;
@@ -3754,8 +3754,93 @@ details.trait-advanced[open] > summary {
     background: #222;
 }
 
-.basket-recipe-field {
-    margin-left: auto;
+.basket-tabs {
+    display: flex;
+    gap: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* hover by background, never by a border (it would push the neighbours) */
+button.basket-tab {
+    padding: 0.5em 1em;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 6px 6px 0 0;
+    background: transparent;
+    color: #94b0c2;
+    font: inherit;
+    font-size: 15px;
+    margin-bottom: -1px;
+}
+
+button.basket-tab:hover {
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+}
+
+button.basket-tab.active, button.basket-tab.active:hover {
+    border-bottom-color: #a7f070;
+    color: #fff;
+}
+
+.basket-search-field input {
+    width: 16em;
+    font-family: inherit;
+    letter-spacing: 0;
+}
+
+.basket-group-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+button.basket-group-link {
+    padding: 2px 8px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #ddd;
+    font: inherit;
+    font-size: 12px;
+}
+
+button.basket-group-link:hover {
+    border: none;
+    background: rgba(167, 240, 112, 0.25);
+    outline: 1px solid rgba(167, 240, 112, 0.6);
+    color: #fff;
+}
+
+h3.basket-group {
+    grid-column: 1 / -1;
+    margin: 10px 0 0 0;
+    padding-bottom: 3px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+h3.basket-group:first-child {
+    margin-top: 0;
+}
+
+.basket-group-count {
+    margin-left: 0.5em;
+    color: #94b0c2;
+    font-size: 12px;
+    font-weight: normal;
+}
+
+.basket-empty {
+    grid-column: 1 / -1;
+    color: #94b0c2;
+    padding: 1em 0;
 }
 
 .basket-open {
@@ -3773,6 +3858,7 @@ details.trait-advanced[open] > summary {
 }
 
 .basket-grid {
+    position: relative;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -4741,4 +4827,58 @@ button.pt-choice.chosen {
 .pt-thanks-big {
     font-size: 48px;
     animation: pt-pop 0.5s ease-out;
+}
+
+/* Größe ändern: whole cells of the game's Raster (studio.js resizeCanvasModal) */
+.resize-cells {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin: 0.5em 0 1em 0;
+}
+
+button.resize-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    min-width: 54px;
+    height: 64px;
+    padding: 5px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #ddd;
+    font: inherit;
+    font-size: 12px;
+}
+
+button.resize-cell:hover {
+    border: none;
+    background: rgba(255, 255, 255, 0.12);
+    outline: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+button.resize-cell.active {
+    background: rgba(167, 240, 112, 0.18);
+    outline: 1px solid #a7f070;
+}
+
+.resize-cell-box {
+    display: block;
+    border: 1px solid #94b0c2;
+    background-image: linear-gradient(to right, rgba(148, 176, 194, 0.6) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 176, 194, 0.6) 1px, transparent 1px);
+}
+
+.resize-grid-hint {
+    text-align: center;
+    color: #a7f070;
+    font-size: 14px;
+}
+
+.resize-grid-hint.warn {
+    color: #ffcd75;
 }

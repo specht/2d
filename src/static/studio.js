@@ -615,7 +615,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                     },
                 },
                 {
-                    label: 'Sprites aus anderem Spiel holen …',
+                    label: 'Sprites holen (Katalog oder anderes Spiel) …',
                     callback: () => show_sprite_basket(),
                 },
                 {
@@ -1075,16 +1075,43 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         title: 'Größe ändern',
         width: '40vw',
         body: `
-        <p>Bitte gib die gewünschte Größe für das aktuelle Sprite an:</p>
+        <div>
+        <p>Wie viele Felder des Rasters soll das Sprite groß sein? Dann passt es im Level genau zu den anderen.</p>
+        <div class='resize-cells' id='resize_cells'></div>
+        <p>Oder gib die Größe in Pixeln ein:</p>
         <div style="text-align: center; font-size: 120%;">
             <input id='ti_sprite_width' type='text' style='width: 3em; font-size: 100%; text-align: center;'/>
             &times;
             <input id='ti_sprite_height' type='text' style='width: 3em; font-size: 100%; text-align: center;'/>
         </div>
+        <p class='resize-grid-hint' id='resize_grid_hint'></p>
+        </div>
         `,
         onshow: () => {
             $('#ti_sprite_width').val(canvas.bitmap.width);
             $('#ti_sprite_height').val(canvas.bitmap.height);
+            // whole cells of the game's Raster (Einstellungen → Spiel: Rastergröße)
+            const cell = typeof game_grid_size === 'function' ? game_grid_size(game.data) : 24;
+            const cells = $('#resize_cells').empty();
+            const hint = () => {
+                const w = parseInt($('#ti_sprite_width').val()), h = parseInt($('#ti_sprite_height').val());
+                const fits = w > 0 && h > 0 && w % cell === 0 && h % cell === 0;
+                $('#resize_grid_hint').toggleClass('warn', !fits).text(fits ? `${w / cell} × ${h / cell} Felder – passt ins Raster.` :
+                    `Passt nicht ins Raster von ${cell} × ${cell} Pixeln: Im Level steht es dann über den Rand der Felder hinaus.`);
+                cells.children().each((_, el) => $(el).toggleClass('active', $(el).data('w') === w && $(el).data('h') === h));
+            };
+            for (const [cw, ch] of [[1, 1], [2, 1], [3, 1], [4, 1], [1, 2], [2, 2], [3, 2], [4, 2], [1, 3], [2, 3], [3, 3], [4, 4]]) {
+                const w = cw * cell, h = ch * cell;
+                const button = $('<button>').attr('type', 'button').addClass('resize-cell').data('w', w).data('h', h)
+                    .attr('title', `${w} × ${h} Pixel`).appendTo(cells);
+                // a little picture of the cells
+                const box = $('<span>').addClass('resize-cell-box').css({ width: `${cw * 9}px`, height: `${ch * 9}px`,
+                    backgroundSize: '9px 9px' }).appendTo(button);
+                $('<span>').addClass('resize-cell-label').text(`${cw} × ${ch}`).appendTo(button);
+                button.on('click', () => { $('#ti_sprite_width').val(w); $('#ti_sprite_height').val(h); hint(); });
+            }
+            $('#ti_sprite_width, #ti_sprite_height').off('input.grid').on('input.grid', hint);
+            hint();
             $('#ti_sprite_width').focus();
         },
         footer: [

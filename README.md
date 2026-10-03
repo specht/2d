@@ -16,12 +16,12 @@ The Studio lets you:
 
 - draw pixel-art sprites and animations (with onion skinning, a live animation preview, mirrored drawing, recolouring a colour in every frame, outlines, and undo/redo – also for adding, duplicating and reordering whole sprites), or paste and drop pictures: background, pixel size and the frames of a strip or a numbered series of files are detected
 - define animation states, and duplicate, copy and move sprites, states and frames by right-click – several frames at once, too (Shift / Strg + click), also reversing their order
-- borrow sprites from other games or recipe scenes (Sprite-Korb)
+- start quickly with sprites from the Sprite-Katalog (everything from the recipes and more, grouped: Spielfiguren, Gegner, Natur …) or borrow them from other games by their code (Sprite-Korb)
 - convert a sprite or a whole game, backgrounds included, to a pixel-art palette
 - assign behaviours to sprites
 - create player characters and enemies
 - give the player companions (Begleiter: pets, robots, friends) that follow with their own way of moving
-- build layered levels: select, move, copy and fill many sprites at once (rectangles, their edges, lines), undo and redo, and find your way around large levels with an overview map
+- build layered levels on one grid (the game's Rastergröße, 24 × 24 unless a child chooses another on purpose; sprites of 1, 2 or 3 cells line up, and Größe ändern offers whole cells): select, move, copy and fill many sprites at once (rectangles, their edges, lines), undo and redo, and find your way around large levels with an overview map
 - configure collision and movement
 - use slopes, ladders, conveyors, moving platforms and lifts, and moving environments
 - create doors, keys and checkpoints

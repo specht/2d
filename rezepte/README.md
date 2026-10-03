@@ -13,6 +13,8 @@ rezepte/
   tools/              build + recorder (Node, Playwright, sharp)
 src/static/rezepte/   generated: <id>.webp|gif, katalog/*.png|webp, rezepte.json  (commit these)
   spiele/<id>.json    each recipe's scene as a game for the studio (embedded frame PNGs)
+  katalog.json        the Sprite-Katalog of the sprite basket: every catalogue sprite as one
+                      game, with its groups (katalog.yaml `sammlung`)
 src/static/rezepte.js gallery in the Hilfe tab (reads rezepte.json)
 ```
 
@@ -362,7 +364,7 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `ranke`, `riss`, `fackel` (3), `burgfenster`, `grasbuesche`, `innenwand`,
   `bild`, `lampe`, `tisch`, `pflanze`, `fassade`, `fassade_fenster`, `zimmer`
   (dark wallpaper), `toter_baum`, `toter_baum_2`, `toter_baum_3` (48×72,
-  bare trees), `tote_baeume_fern` (192×64, a dead forest silhouette that
+  bare trees), `tote_baeume_fern` (192×72, a dead forest silhouette that
   tiles), `boden_tot` (ground with dead grass),
   `hausfront` (192×72, transparent doorway), `eingang` (open door, no
   traits), `sterne`, and the supports `pfosten`, `pfeiler`, `kette`.
@@ -390,7 +392,7 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `klotz_einmal` falls only once); each with `treffer` and `tot`. `maus`
   (Angsthase: `stehen`, `laufen`, `fliehen`, `tot`). `waschbaer` (Jäger with Intelligenz: `stehen`,
   `laufen`, `jagen`, `springen`, `klettern` – back view, state *Gegner
-  klettert*). `strohpuppe` (24×32 training dummy, *Steht still*: `stehen`,
+  klettert*). `strohpuppe` (24×48 training dummy, drawn in the lower 32 px, with its hitbox kept there by `ex_top`, *Steht still*: `stehen`,
   `treffer`, `tot` – its bullseye sits exactly at arrow height, 10 px
   above the ground). `strohballen` (solid hay bale for the training ground).
 * **Begleiter** (`traits.companion`, recipe *Ein Begleiter kommt mit*: the dog in the
@@ -422,7 +424,7 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `sonne`, `schaefchenwolke` (48×24). Drawn in the studio's default palette
   *Cling*, so that converting them to other palettes shows the idea.
 * **Winter and rain:** `boden_schnee` (solid, a snow cap on frozen earth),
-  `tannen_schnee` (192×64, the firs with snow and cold colours), `schneemann`
+  `tannen_schnee` (192×72, the firs with snow and cold colours), `schneemann`
   (decoration), `regenspritzer` (8 frames at 14 fps, three splashes per tile;
   the default phase makes every copy start at another moment).
 * **Höhle** (`hoehle/`, recipe *Eine Höhle erkunden*): `hoehle_fels`,
@@ -493,14 +495,26 @@ abdunkeln` (the sprite's Mischmodus, saved as `sprite.blend`: `add`,
 `screen`, `multiply`); `extends` inherits it.
 
 Big sprites set `groesse: [w, h]` in `katalog.yaml`; their strips use frames
-of that size. The parallax backgrounds (`berge_fern`, `berge`, `wald`,
-`tannen`, `vordergrund` 192 px wide, `wolke` 64×24) tile horizontally and are
+of that size. Every sprite of the Sprite-Katalog is a multiple of 24 × 24 (a test checks it), so
+children can place it on the grid: art that is smaller is drawn at the bottom left of a bigger
+frame (transparent rows on top, columns on the right) – it is placed by its bottom left corner, so
+the recordings stay the same. The parallax backgrounds (`berge_fern`, `berge`, `wald`,
+`tannen`, `vordergrund` 192 px wide, `wolke` 72×24) tile horizontally and are
 shaded with ordered 4×4 Bayer dithering. A big sprite placed in a map starts
-at its cell and stands on the cell's bottom edge. (In the level editor a
-sprite hangs centred on the cursor. Sprites that are an even number of tiles
-wide therefore need *Gitteroffset 12 : 0* to line up with 24×24 tiles; the
-recipes say so.) The sky is never a sprite
+at its cell and stands on the cell's bottom edge. (In the level editor the
+pen puts a sprite with its lower left corner on the grid of the game's
+Rastergröße, so sprites of 48 × 24 and 24 × 24 line up.) The sky is never a sprite
 but the level's colour backdrop (`himmel`).
+
+**The Sprite-Katalog** (Sprites holen in the studio, `src/static/sprite_basket.js`): every
+build writes `katalog.json`, all sprites of `katalog.yaml` as one game (`spiel`, frames inside)
+with the groups of `sammlung` (`gruppen: [{ name, sprites: [sprite IDs in that game] }]`).
+Every catalogue sprite is in exactly one group of `sammlung`, or in `nicht_in_sammlung`
+(made for one recipe only: the palette demo's coast, the colour wheel); the build stops when a
+new sprite is in neither. Some sprites are there for children only and appear in no recipe
+(`extra/`: `kiste`, `wolkenplattform`, `lava`, `herz` – Extraleben, `apfel` – Energie,
+`trank` – schneller, `schnecke` – a slow enemy, `baum` 48×72, `busch`, `blumen`, `zaun`,
+`pilz`).
 
 `katalog.yaml` turns strips into game sprites: a list of states with `strip`,
 optional `frames: [i, …]`, `fps` and the engine's **state traits** (the keys of

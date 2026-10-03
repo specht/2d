@@ -1009,16 +1009,16 @@ class LevelEditor {
     // While dragging: the rectangle as a box, the edge and the line as the
     // sprites they will place.
     preview_shape(shape, x0, y0, x1, y1) {
-        const cells = shape === 'rect' ? null : shape_cells(shape, x0, y0, x1, y1,
-            { width: this.grid_width, height: this.grid_height }, 1024);
+        const step = this.pen_grid();
+        const cells = shape === 'rect' ? null : shape_cells(shape, x0, y0, x1, y1, step, 1024);
         if (cells && this.sheets[this.sprite_index]) {
             this.clear_rect_group();
             for (const [x, y] of cells)
                 this.sheets[this.sprite_index].add_sprite_to_group(this.rect_group, 'sprite', x, y);
         } else {
-            const half_w = this.grid_width / 2;
+            const half_w = step.width / 2;
             this.prepare_rect_group(Math.min(x0, x1) - half_w, Math.min(y0, y1),
-                Math.max(x0, x1) + half_w, Math.max(y0, y1) + this.grid_height);
+                Math.max(x0, x1) + half_w, Math.max(y0, y1) + step.height);
         }
         this.rect_group.visible = true;
     }
@@ -1027,8 +1027,7 @@ class LevelEditor {
         const layer = this.current_sprite_layer();
         const sprite = this.game.data.sprites[this.sprite_index];
         if (!layer || !sprite || layer.properties.visible === false || this.read_only_level() || this.refuse_locked_layer()) return;
-        const filled = place_shape(layer.sprites, sprite.id, shape, x0, y0, x1, y1,
-            { width: this.grid_width, height: this.grid_height });
+        const filled = place_shape(layer.sprites, sprite.id, shape, x0, y0, x1, y1, this.pen_grid());
         // new Schalter and Druckplatten: each its own free Code (signals.js)
         give_new_senders_codes(this.game.data.levels[this.level_index],
             filled.selection.map(i => filled.sprites[i]), () => sprite.traits);
@@ -2927,7 +2926,7 @@ class LevelEditor {
 
     handle_enter(e) {
         this.pointer_inside = true;
-        let p = this.ui_to_world(this.get_touch_point(e), true);
+        let p = this.pen_point(this.get_touch_point(e));
         this.cursor_group_inner.remove.apply(this.cursor_group_inner, this.cursor_group_inner.children);
         if (menus.level.active_key === 'tool/pen') {
             this.sheets[this.sprite_index].add_sprite_to_group(this.cursor_group_inner, 'sprite', 0, 0);
@@ -2966,7 +2965,7 @@ class LevelEditor {
         this.mouse_down = true;
         this.mouse_down_button = e.button;
         let touch = this.get_touch_point(e);
-        this.mouse_down_position = this.ui_to_world(touch, true);
+        this.mouse_down_position = menus.level.active_key === 'tool/pen' ? this.pen_point(touch) : this.ui_to_world(touch, true);
         this.mouse_down_position_no_snap = this.ui_to_world(touch, false);
         this.mouse_down_position_raw = touch;
         this.x0 = this.mouse_down_position_no_snap[0];
@@ -3061,7 +3060,7 @@ class LevelEditor {
         if (this.drawing_shape) {
             const shape = e.touches ? this.drawing_shape : LevelEditor.shape_for_event(e);
             this.drawing_shape = null;
-            const p = this.ui_to_world(this.get_touch_point(e), true);
+            const p = this.pen_point(this.get_touch_point(e));
             this.draw_shape(shape, this.mouse_down_position[0], this.mouse_down_position[1], p[0], p[1]);
         }
         if (this.updating_selection && menus.level.active_key === 'tool/select') {
@@ -3119,7 +3118,7 @@ class LevelEditor {
             return;
         }
         let touch = this.get_touch_point(e);
-        let p = this.ui_to_world(touch, true);
+        let p = menus.level.active_key === 'tool/pen' ? this.pen_point(touch) : this.ui_to_world(touch, true);
         let p_no_snap = this.ui_to_world(touch, false);
         this.pointer_world_raw = touch;
         this.pointer_world = p_no_snap;
@@ -3459,10 +3458,12 @@ class LevelEditor {
         return [wx, wy];
     }
 
-    ui_to_world(p, snap) {
+    // exact: the world point unrounded (for snapping it afterwards)
+    ui_to_world(p, snap, exact = false) {
         let layer = this.game.data.levels[this.level_index].layers[this.layer_index];
         let wx = this.camera_x + (p[0] - (this.width / 2)) / this.scale - this.camera_x * layer.properties.parallax;
         let wy = this.camera_y - (p[1] - (this.height / 2)) / this.scale - this.camera_y * layer.properties.parallax;
+        if (exact) return [wx, wy];
         if (snap) {
             wx = Math.round(Math.floor((wx + this.grid_width / 2) / this.grid_width) * this.grid_width + (this.grid_x % this.grid_width));
             wy = Math.round(Math.floor((wy) / this.grid_height) * this.grid_height + (this.grid_y % this.grid_height));
@@ -4236,7 +4237,38 @@ class LevelEditor {
         });
     }
 
+    // The grid is the game's Rastergröße (level_selection.js game_grid_size)
+    // – set again when that changes or another game is loaded; a size typed
+    // into Gittergröße stays until then.
+    sync_grid_to_game() {
+        const size = game_grid_size(this.game.data);
+        if (this.grid_synced_for?.data === this.game.data && this.grid_synced_for.size === size) return;
+        this.grid_synced_for = { data: this.game.data, size };
+        this.grid_width = size;
+        this.grid_height = size;
+        this.grid_x = 0;
+        this.grid_y = 0;
+        this.grid_size_widget?.refresh();
+        this.grid_offset_widget?.refresh();
+    }
+
+    // Where the pen puts the current sprite: whole grid cells from its lower
+    // left corner (sprite_grid_point); Shift: wherever the pointer is.
+    pen_point(touch, free = false) {
+        if (free) return this.ui_to_world(touch, false);
+        const sprite = this.game.data.sprites[this.sprite_index];
+        const [wx, wy] = this.ui_to_world(touch, false, true);
+        return sprite_grid_point(wx, wy, sprite?.width ?? this.grid_width, sprite?.height ?? this.grid_height, this.selection_grid());
+    }
+
+    // The cells of a line, frame or rectangle of the current sprite.
+    pen_grid() {
+        const sprite = this.game.data.sprites[this.sprite_index];
+        return sprite_grid_step(sprite?.width ?? this.grid_width, sprite?.height ?? this.grid_height, this.selection_grid());
+    }
+
     refresh_sprite_widget() {
+        this.sync_grid_to_game();
         $('#menu_level_sprites').empty();
         for (let si = 0; si < this.game.data.sprites.length; si++) {
             this.game.update_material_for_sprite(si);
@@ -4259,12 +4291,8 @@ class LevelEditor {
                 let button = $(e.target.closest('.button'));
                 button.addClass('active');
                 self.sprite_index = button.data('sprite_index');
-                self.grid_width = self.game.data.sprites[self.sprite_index].width;
-                self.grid_height = self.game.data.sprites[self.sprite_index].height;
-                self.grid_x = 0;
-                self.grid_y = 0;
-                self.grid_size_widget.refresh();
-                self.grid_offset_widget.refresh();
+                // the grid stays the game's Rastergröße (sprite_grid_point puts
+                // bigger sprites on whole cells), it does not follow the sprite
                 self.refresh();
                 self.render();
                 menus.level.handle_click('tool/pen');

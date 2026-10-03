@@ -255,7 +255,7 @@ Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste 
 
 # Sprites from Other Games
 
-"Sprites aus einem anderen Spiel holen" exists (sprite list: the basket tile next to +): a game code or a recipe scene, a basket across several games, and one import with states, animations, traits and everything a sprite refers to. A global sprite catalogue was tried before and is intentionally not the plan: there are too many similar versions; children pick a known good game instead. Ideas: remembering recently opened source games; a small list of recommended source games for a class.
+"Sprites holen" exists (sprite list: the basket tile next to +): the Sprite-Katalog (every sprite of the recipes and some extra ones, grouped and searchable; built from `rezepte/katalog.yaml`, not from children's games, so there are no near-duplicates) or another game by its code, a basket across several sources, and one import with states, animations, traits and everything a sprite refers to. Ideas: remembering recently opened source games; a small list of recommended source games for a class; more extra sprites for the catalogue (a second player character, more enemies, a few backgrounds).
 
 ---
 

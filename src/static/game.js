@@ -76,6 +76,37 @@ class Game {
         });
     }
 
+    // Rastergröße (Einstellungen → Spiel): 24 at once; another size only after
+    // saying yes – it is a choice for the whole game. Stored only when it is
+    // not what the game would have anyway (old games keep their JSON).
+    choose_grid_size(size, revert) {
+        if (!valid_grid_size(size) || size === game_grid_size(this.data)) return;
+        const apply = () => {
+            this.data.properties.grid_size = size;
+            const without = { ...this.data, properties: { ...this.data.properties } };
+            delete without.properties.grid_size;
+            if (game_grid_size(without) === size) delete this.data.properties.grid_size;
+            this.level_editor?.sync_grid_to_game();
+            this.level_editor?.refresh?.();
+            this.level_editor?.render?.();
+        };
+        if (size === GRID_SIZE_DEFAULT) return apply();
+        const dialog = new ModalDialog({
+            title: `Raster ${size} × ${size} Pixel?`,
+            width: '34em',
+            max_width: '92vw',
+            body: `<div>
+                <p>Ein Feld im Level ist dann ${size} × ${size} Pixel groß, und neue Sprites bekommen diese Größe.</p>
+                <p>Die Sprites aus dem Sprite-Katalog und den Rezepten sind für 24 × 24 gemacht – sie passen dann nicht mehr genau in dein Raster. Wähle das nur, wenn du dein ganzes Spiel in ${size} × ${size} zeichnest.</p>
+            </div>`,
+            footer: [
+                { type: 'button', label: 'Abbrechen', callback: (modal) => { modal.dismiss(); revert?.(); } },
+                { type: 'button', label: `Ja, ${size} × ${size}`, color: 'green', callback: (modal) => { modal.dismiss(); apply(); } },
+            ],
+        });
+        dialog.show();
+    }
+
     fix_game_data() {
         // console.log(`Fixing game data / before:`, JSON.stringify(this.data));
         this.data ??= {};
@@ -356,11 +387,11 @@ class Game {
         this.sprites_widget = new DragAndDropWidget({
             game: this,
             container: $('#menu_sprites'),
-            // sprite_basket.js: sprites from another game or a recipe
+            // sprite_basket.js: sprites from the Sprite-Katalog or another game
             // sprite_actions.js: Duplizieren …
             context_menu: (index) => typeof sprite_context_menu === 'function' ? sprite_context_menu(index) : [],
             extra_buttons: typeof show_sprite_basket === 'function' ? [{
-                icon: 'fa-shopping-basket', title: 'Sprites aus einem anderen Spiel holen',
+                icon: 'fa-shopping-basket', title: 'Sprites holen – aus dem Sprite-Katalog oder einem anderen Spiel',
                 callback: () => show_sprite_basket(),
             }] : [],
             trash: $('#trash'),
@@ -382,7 +413,9 @@ class Game {
                 return img;
             },
             gen_new_item: () => {
-                const sprite = {};
+                // as big as one cell of the game's Raster (Einstellungen → Spiel)
+                const size = typeof game_grid_size === 'function' ? game_grid_size(self.data) : DEFAULT_WIDTH;
+                const sprite = { width: size, height: size };
                 assign_new_game_id(self.data, 'sprites', sprite);
                 self.data.sprites.push(sprite);
                 self.fix_game_data();
@@ -532,6 +565,23 @@ class Game {
             set: (x) => {
                 self.data.properties.respawn_invincible = x;
             },
+        });
+        // Rastergröße (level_selection.js game_grid_size; absent = 24, or for an
+        // older game the size most of its sprites have). The level editor's grid
+        // and every new sprite take it. Another size than 24 is asked for first.
+        new SeparatorWidget({
+            container: $('#game-settings-here'),
+            label: 'Raster',
+        });
+        const grid_select = new SelectWidget({
+            container: $('#game-settings-here'),
+            label: 'Rastergröße:',
+            hint: `<p>So groß ist ein Feld im Level-Editor, und so groß ist ein neues Sprite. Sprites, die 1, 2 oder 3 Felder breit und hoch sind (24 × 24, 48 × 24, 72 × 48 …), lassen sich im Level genau aneinandersetzen.</p>
+            <p>24 × 24 passt zu allen Sprites aus dem Sprite-Katalog und den Rezepten. Wähle nur dann etwas anderes, wenn dein ganzes Spiel so gezeichnet ist.</p>`,
+            options: Object.fromEntries((typeof GRID_SIZE_CHOICES !== 'undefined' ? GRID_SIZE_CHOICES : [24]).map(n =>
+                [String(n), n === 24 ? '24 × 24 Pixel (empfohlen)' : `${n} × ${n} Pixel`])),
+            get: () => String(typeof game_grid_size === 'function' ? game_grid_size(self.data) : 24),
+            set: (x) => self.choose_grid_size(Number(x), () => grid_select.select.val(grid_select.data.get()).trigger('change')),
         });
         new SeparatorWidget({
             container: $('#game-settings-here'),

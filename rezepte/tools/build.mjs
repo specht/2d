@@ -322,9 +322,27 @@ function frame_difference(a, b) {
     return n / (a.data.length / 4);
 }
 
+// The Sprite-Katalog of the sprite basket (src/static/sprite_basket.js): every
+// sprite of katalog.yaml's `sammlung` as one game the studio can open (frames
+// inside, like spiele/<id>.json), and its groups by the sprites' IDs in that game.
+// Written by every build, also a partial one; it needs no browser.
+async function write_catalogue(catalog) {
+    const ids = catalog.collection.flatMap(group => group.ids);
+    const game = await build_game(catalog, { id: 'katalog', titel: 'Sprite-Katalog', szene: { karte: 'P\n#', zusaetzlich: ids } }, repo);
+    const data = JSON.parse(studio_game_file(game).toString());
+    const id_in_game = new Map(game.used.map((id, i) => [id, data.sprites[i].id]));
+    const file = {
+        gruppen: catalog.collection.map(group => ({ name: group.name, sprites: group.ids.map(id => id_in_game.get(id)) })),
+        spiel: data,
+    };
+    write_output('katalog.json', Buffer.from(JSON.stringify(file) + '\n'));
+    console.log(`✓ Sprite-Katalog (${ids.length} Sprites in ${catalog.collection.length} Gruppen)`);
+}
+
 async function main() {
     const catalog = load_catalog(root);
     catalog_for_strips = catalog;
+    await write_catalogue(catalog);
     const dir = path.join(root, 'texte');
     const files = fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort();
     // `entwurf: true` hides a recipe (kept in texte/, not built or shown).

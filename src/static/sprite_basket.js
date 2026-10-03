@@ -1,11 +1,13 @@
 // Sprites aus einem anderen Spiel holen (sprite editor: the basket tile next
 // to + in the sprite list, or Funktionen → Sprite).
 //
-// A child opens another game by its code (or a recipe's scene), puts sprites
-// into a basket – from as many games as they like – and brings them into
-// their own game in one go, with all states, frames, settings and Eigen-
-// schaften. Nothing in the other game changes, and nothing is shared between
-// the games afterwards: the copies are new sprites with new IDs.
+// Two places to take sprites from: the Sprite-Katalog – every sprite of the
+// recipes (and a few more), grouped (Spielfiguren, Gegner, Natur …), written
+// by the recipe build as /rezepte/katalog.json – and any other game, opened by
+// its code. A child puts sprites into a basket – from as many places as they
+// like – and brings them into their own game in one go, with all states,
+// frames, settings and Eigenschaften. Nothing at the source changes, and
+// nothing is shared afterwards: the copies are new sprites with new IDs.
 //
 // A sprite may refer to other sprites of its game (the picture of an attack,
 // a projectile, what an enemy leaves behind). Those come along by themselves
@@ -82,14 +84,33 @@ function normalized_source_game(data) {
     return holder.data;
 }
 
+// The catalogue's groups with their sprites (file: katalog.json, { gruppen:
+// [{ name, sprites: [ids] }], spiel }), only those whose Titel or group
+// contains every word of the search text. Empty groups are left out.
+function catalogue_groups(file, search = '') {
+    const by_id = new Map((file?.spiel?.sprites ?? []).map(sprite => [sprite.id, sprite]));
+    const plain = (text) => String(text ?? '').toLocaleLowerCase('de');
+    const words = plain(search).split(/\s+/).filter(Boolean);
+    return (file?.gruppen ?? []).map(group => ({
+        name: group.name,
+        sprites: (group.sprites ?? []).map(id => by_id.get(id)).filter(Boolean)
+            .filter(sprite => words.every(word => plain(`${sprite_title(sprite)} ${group.name}`).includes(word))),
+    })).filter(group => group.sprites.length);
+}
+
 // ------------------------------------------------------------ the studio
 
 const SPRITE_BASKET_CODE = /^[0-9a-z]{7}$/;
+const SPRITE_CATALOGUE_KEY = 'katalog';
 
 class SpriteBasket {
     constructor() {
-        this.source = null;          // { key, name, data }
-        this.items = [];             // { key, source_key, source_name, sprite_id, label, preview }
+        this.view = 'katalog';       // 'katalog' | 'code'
+        this.source = null;          // the game opened by its code: { key, name, data }
+        this.catalogue = null;       // { key, name, data, groups } once loaded
+        this.catalogue_loading = null;
+        this.search = '';
+        this.items = [];             // { source_key, source_name, sprite_id, label, sprite }
         this.sources = new Map();    // key → { name, data } of everything in the basket
         this.timer = null;
         this.build();
@@ -98,24 +119,31 @@ class SpriteBasket {
     build() {
         const self = this;
         this.modal = new ModalDialog({
-            title: 'Sprites aus einem anderen Spiel holen',
-            width: '920px',
+            title: 'Sprites holen',
+            width: '980px',
             max_width: '94vw',
-            height: '86vh',
+            height: '88vh',
             body: `
                 <div class="basket">
-                    <div class="basket-source">
+                    <div class="basket-tabs">
+                        <button type="button" class="basket-tab" data-view="katalog"><i class="fa fa-th-large"></i> Sprite-Katalog</button>
+                        <button type="button" class="basket-tab" data-view="code"><i class="fa fa-gamepad"></i> Aus einem anderen Spiel</button>
+                    </div>
+                    <div class="basket-source basket-view" data-view="katalog">
+                        <label class="basket-field basket-search-field">
+                            <span>Suchen</span>
+                            <input id="basket_search" type="search" autocomplete="off" spellcheck="false" placeholder="z. B. Baum, Münze, Hund">
+                        </label>
+                        <div class="basket-group-links" id="basket_group_links"></div>
+                    </div>
+                    <div class="basket-source basket-view" data-view="code">
                         <label class="basket-field">
                             <span>Code des Spiels</span>
                             <input id="basket_code" maxlength="7" autocomplete="off" spellcheck="false" placeholder="4n2zuhp">
                         </label>
                         <button type="button" id="basket_open" class="basket-open">Öffnen</button>
-                        <label class="basket-field basket-recipe-field">
-                            <span>oder aus einem Rezept</span>
-                            <select id="basket_recipe"><option value="">Rezept wählen …</option></select>
-                        </label>
                     </div>
-                    <div class="basket-info" id="basket_info">Öffne ein Spiel, aus dem du Sprites holen möchtest – zum Beispiel eins, das dir gut gefällt. Dann klickst du die Sprites an, die du haben willst.</div>
+                    <div class="basket-info" id="basket_info"></div>
                     <div class="basket-grid" id="basket_grid"></div>
                 </div>
             `,
@@ -128,11 +156,12 @@ class SpriteBasket {
         // the basket itself: above the buttons
         this.tray = $('<div>').addClass('basket-tray').insertBefore(this.modal.dialog.find('.modal-footer'));
         this.import_button = this.modal.dialog.find('.modal-footer button.green');
+        this.modal.dialog.find('.basket-tab').on('click', (e) => this.show_view($(e.currentTarget).data('view')));
         $('#basket_open').on('click', () => this.open_code());
         $('#basket_code').on('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.open_code(); } });
-        $('#basket_recipe').on('change', (e) => {
-            const id = e.target.value;
-            if (id) this.open_recipe(id);
+        $('#basket_search').on('input', (e) => {
+            this.search = e.target.value;
+            this.render_grid();
         });
         // stop animating while the dialog is closed
         const hide = this.modal.hide.bind(this.modal);
@@ -140,21 +169,60 @@ class SpriteBasket {
     }
 
     shown() {
-        const recipes = (window.recipe_gallery?.recipes ?? []).filter(r => window.recipe_gallery.scene_url?.(r));
-        const select = $('#basket_recipe');
-        if (select.children().length !== recipes.length + 1) {
-            select.find('option:not(:first)').remove();
-            for (const r of recipes) $('<option>').val(r.id).text(r.titel).appendTo(select);
-        }
-        select.closest('.basket-recipe-field').toggle(recipes.length > 0);
-        this.render_grid();
+        this.show_view(this.view);
         this.render_tray();
         this.start_animation();
-        if (!this.source) $('#basket_code').trigger('focus');
+    }
+
+    show_view(view) {
+        this.view = view === 'code' ? 'code' : 'katalog';
+        this.modal.dialog.find('.basket-tab').each((_, el) => $(el).toggleClass('active', $(el).data('view') === this.view));
+        this.modal.dialog.find('.basket-view').each((_, el) => $(el).toggle($(el).data('view') === this.view));
+        if (this.view === 'katalog') {
+            this.load_catalogue();
+            $('#basket_search').trigger('focus');
+        } else {
+            if (this.source) this.source_info(this.source);
+            else this.info('Öffne ein anderes Spiel mit seinem Code – zum Beispiel eins, das dir gut gefällt. Dann klickst du die Sprites an, die du haben willst.');
+            $('#basket_code').trigger('focus');
+        }
+        this.render_grid();
     }
 
     info(text, error = false) {
         $('#basket_info').text(text).toggleClass('error', error);
+    }
+
+    source_info(source) {
+        const count = source.data.sprites.length;
+        this.info(`${source.name}: ${count === 1 ? '1 Sprite' : `${count} Sprites`}. Klicke die Sprites an, die du in den Korb legen möchtest.`);
+    }
+
+    // The Sprite-Katalog (katalog.json, written by the recipe build), once.
+    load_catalogue() {
+        if (this.catalogue) {
+            this.info('Alle Sprites aus den Rezepten und noch ein paar mehr. Klicke an, was du in deinem Spiel haben möchtest.');
+            return;
+        }
+        if (this.catalogue_loading) return;
+        this.info('Der Sprite-Katalog wird geladen …');
+        this.catalogue_loading = fetch(`/rezepte/katalog.json?${window.CACHE_BUSTER || Date.now()}`)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(file => {
+                const data = normalized_source_game(file.spiel);
+                this.catalogue = { key: SPRITE_CATALOGUE_KEY, name: 'dem Sprite-Katalog', data, file: { ...file, spiel: data } };
+                if (this.view === 'katalog') {
+                    this.load_catalogue();
+                    this.render_grid();
+                }
+            })
+            .catch(() => {
+                if (this.view === 'katalog') this.info('Der Sprite-Katalog konnte nicht geladen werden.', true);
+            })
+            .finally(() => { this.catalogue_loading = null; });
     }
 
     open_code() {
@@ -163,7 +231,6 @@ class SpriteBasket {
             this.info('Ein Spielcode hat sieben Zeichen (Buchstaben und Ziffern), zum Beispiel 4n2zuhp.', true);
             return;
         }
-        $('#basket_recipe').val('');
         this.info('Das Spiel wird geöffnet …');
         api_call('/api/load_game', { tag: code }, (result) => {
             if (!result.success || !result.game) {
@@ -173,21 +240,6 @@ class SpriteBasket {
             const name = this.game_name(result.game, code);
             this.set_source(`game:${code}`, name, result.game);
         });
-    }
-
-    async open_recipe(id) {
-        const recipe = window.recipe_gallery?.recipes?.find(r => r.id === id);
-        const url = recipe && window.recipe_gallery.scene_url(recipe);
-        if (!url) return;
-        $('#basket_code').val('');
-        this.info('Das Rezept wird geöffnet …');
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            this.set_source(`recipe:${id}`, `Rezept „${recipe.titel}“`, await response.json());
-        } catch (e) {
-            this.info('Das Rezept konnte nicht geöffnet werden.', true);
-        }
     }
 
     game_name(data, code) {
@@ -200,9 +252,10 @@ class SpriteBasket {
 
     set_source(key, name, data) {
         this.source = { key, name, data: normalized_source_game(data) };
-        const count = this.source.data.sprites.length;
-        this.info(`${name}: ${count === 1 ? '1 Sprite' : `${count} Sprites`}. Klicke die Sprites an, die du in den Korb legen möchtest.`);
-        this.render_grid();
+        if (this.view === 'code') {
+            this.source_info(this.source);
+            this.render_grid();
+        }
     }
 
     in_basket(source_key, sprite_id) {
@@ -217,8 +270,7 @@ class SpriteBasket {
         return sprites_with_dependencies(source.data, chosen).needed;
     }
 
-    toggle(sprite) {
-        const source = this.source;
+    toggle(source, sprite) {
         if (this.in_basket(source.key, sprite.id)) {
             this.items = this.items.filter(i => !(i.source_key === source.key && i.sprite_id === sprite.id));
         } else {
@@ -248,23 +300,49 @@ class SpriteBasket {
         return `${sprite.width}×${sprite.height} · ${states === 1 ? '1 Zustand' : `${states} Zustände`} · ${frames === 1 ? '1 Frame' : `${frames} Frames`}`;
     }
 
+    card(source, sprite, needed) {
+        const chosen = this.in_basket(source.key, sprite.id);
+        const card = $('<button>').attr('type', 'button').addClass('basket-card')
+            .toggleClass('chosen', chosen).toggleClass('needed', needed.has(sprite.id))
+            .attr('title', chosen ? 'Aus dem Korb nehmen' : 'In den Korb legen')
+            .on('click', () => this.toggle(source, sprite));
+        $('<div>').addClass('basket-card-bild').append(this.preview(sprite)).appendTo(card);
+        $('<div>').addClass('basket-card-name').text(sprite_label(sprite, source.data.sprites.indexOf(sprite))).appendTo(card);
+        $('<div>').addClass('basket-card-info').text(this.describe(sprite)).appendTo(card);
+        if (chosen) $('<div>').addClass('basket-card-mark').html('<i class="fa fa-check"></i>').appendTo(card);
+        else if (needed.has(sprite.id)) $('<div>').addClass('basket-card-mark').text('kommt mit').appendTo(card);
+        return card;
+    }
+
     render_grid() {
         const grid = $('#basket_grid').empty();
-        if (!this.source) return;
-        const needed = new Set(this.needed(this.source.key));
-        this.source.data.sprites.forEach((sprite, index) => {
-            const chosen = this.in_basket(this.source.key, sprite.id);
-            const card = $('<button>').attr('type', 'button').addClass('basket-card')
-                .toggleClass('chosen', chosen).toggleClass('needed', needed.has(sprite.id))
-                .attr('title', chosen ? 'Aus dem Korb nehmen' : 'In den Korb legen')
-                .on('click', () => this.toggle(sprite))
-                .appendTo(grid);
-            $('<div>').addClass('basket-card-bild').append(this.preview(sprite)).appendTo(card);
-            $('<div>').addClass('basket-card-name').text(sprite_label(sprite, index)).appendTo(card);
-            $('<div>').addClass('basket-card-info').text(this.describe(sprite)).appendTo(card);
-            if (chosen) $('<div>').addClass('basket-card-mark').html('<i class="fa fa-check"></i>').appendTo(card);
-            else if (needed.has(sprite.id)) $('<div>').addClass('basket-card-mark').text('kommt mit').appendTo(card);
-        });
+        const links = $('#basket_group_links').empty();
+        if (this.view === 'code') {
+            if (!this.source) return;
+            const needed = new Set(this.needed(this.source.key));
+            for (const sprite of this.source.data.sprites) grid.append(this.card(this.source, sprite, needed));
+            return;
+        }
+        const catalogue = this.catalogue;
+        if (!catalogue) return;
+        const needed = new Set(this.needed(catalogue.key));
+        const groups = catalogue_groups(catalogue.file, this.search);
+        if (!groups.length) {
+            $('<div>').addClass('basket-empty').text(`Nichts gefunden für „${this.search.trim()}“.`).appendTo(grid);
+            return;
+        }
+        for (const group of groups) {
+            const heading = $('<h3>').addClass('basket-group').text(group.name).appendTo(grid);
+            $('<span>').addClass('basket-group-count').text(group.sprites.length).appendTo(heading);
+            // jump to a group
+            $('<button>').attr('type', 'button').addClass('basket-group-link').text(group.name)
+                .on('click', () => {
+                    // the grid is the headings' offsetParent (position: relative)
+                    grid[0].scrollTo({ top: heading[0].offsetTop - 4, behavior: 'smooth' });
+                })
+                .appendTo(links);
+            for (const sprite of group.sprites) grid.append(this.card(catalogue, sprite, needed));
+        }
     }
 
     render_tray() {
@@ -339,4 +417,4 @@ function show_sprite_basket() {
     window.sprite_basket.modal.show();
 }
 
-if (typeof module !== 'undefined') module.exports = { sprite_reference_ids, sprites_with_dependencies, copy_sprites_for };
+if (typeof module !== 'undefined') module.exports = { sprite_reference_ids, sprites_with_dependencies, copy_sprites_for, catalogue_groups };

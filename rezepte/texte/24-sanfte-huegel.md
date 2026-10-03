@@ -88,7 +88,7 @@ erwartet:
 2. Mal den Hang: unten links beginnt die Oberkante, oben rechts endet sie. Alle zwei Pixel nach rechts geht es einen Pixel nach oben. Die **Graskante** ist genau so dick wie beim Boden – dunkle Linie, zwei Reihen helles Gras, zwei Reihen Gras, Fransen – nur schräg. Darunter kommt Erde.
 3. Gib dem Sprite die Eigenschaft **Schräge / Treppe** mit **Richtung: nach rechts oben**.
 4. Den Hang nach unten bekommst du am schnellsten mit einer gespiegelten Kopie. Stell **Richtung: nach rechts unten** ein.
-5. Im Level-Editor: Wähl den Hang aus und stell **Gittergröße** auf **24 × 24** und **Gitteroffset** auf **12 : 0**. Jetzt sitzt der Hang genau zwischen den Blöcken.
+5. Im Level-Editor: Wähl den Hang aus und setz ihn mit dem Stift. Er ist zwei Blöcke breit und rastet mit seiner linken unteren Ecke im Gitter ein – genau zwischen den Blöcken.
 6. **Hangfuß:** Unten am Hang ist die Graskante zu dick für den Hang allein – sie reicht in den Block darunter. Mal deshalb einen Block, in dem die Graskante vom Hang weiterläuft und nach rechts in Erde übergeht. Er kommt **unter** das untere Ende des Hangs. Für den Hang abwärts spiegelst du ihn.
 7. Bau Hügel: Hang hoch, oben ein paar Böden, Hang runter. Unter jeden Hügel kommt **Erde ohne Gras** – nur unter dem Fuß des Hangs liegt der Hangfuß.
 8. Zwei Hänge direkt hintereinander, einer eine Reihe höher, ergeben einen doppelt so hohen Hügel ohne Knick.
@@ -113,7 +113,7 @@ erwartet:
 
 ## Wenn's nicht klappt
 
-- **Der Hang sitzt einen halben Block daneben:** Stell den **Gitteroffset** auf **12 : 0**. Beim Auswählen eines anderen Sprites setzt der Editor das Gitter zurück.
+- **Der Hang sitzt einen halben Block daneben:** Das Gitter ist verstellt. Setz **Gitteroffset** wieder auf **0 : 0** und die **Gittergröße** auf die Rastergröße deines Spiels (meistens **24 × 24**).
 - **Die Figur läuft in den Hang hinein oder schwebt darüber:** Die **Richtung** passt nicht zur Zeichnung.
 - **Die Figur bleibt oben an der Kante hängen:** Neben dem höchsten Punkt des Hangs muss ein Block mit derselben Höhe liegen.
 - **Unten am Hang ist die Graskante abgeschnitten:** Unter dem Fuß des Hangs fehlt der Hangfuß – dort liegt noch normaler Boden oder Erde.
