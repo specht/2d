@@ -202,11 +202,19 @@ class Menu {
                     callback: (value) => game.level_editor?.set_view_option?.(option, value) });
             }
         }
-        // Sprite editor: Onion Skinning (canvas.js)
+        // Sprite editor: undo/redo (sprite_history.js, matched by the printed
+        // letter there), Onion Skinning (canvas.js), Vorschau (sprite_preview.js)
         if (this.pane === 'sprites') {
+            hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'sprite-history-undo',
+                callback: () => window.sprite_history?.undo() });
+            hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'sprite-history-redo',
+                callback: () => window.sprite_history?.redo() });
             hints.push({ key: 'O', type: 'toggle', label: 'Onion Skinning',
                 get: () => !!canvas?.onion_skin,
                 callback: (value) => canvas?.set_onion_skin?.(value) });
+            hints.push({ key: 'V', type: 'toggle', label: 'Vorschau',
+                get: () => !!window.sprite_preview?.shown,
+                callback: (value) => window.sprite_preview?.set_shown?.(value) });
         }
         // hints.unshift({
         //     label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () {
@@ -372,6 +380,7 @@ class Menu {
         }
         window.collaboration?.append_status_control?.(statusBar);
         if (this.pane === 'level') game?.level_editor?.update_history_buttons?.();
+        if (this.pane === 'sprites') window.sprite_history?.update_buttons?.();
     }
 
     handle_click(key) {

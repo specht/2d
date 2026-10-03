@@ -287,6 +287,83 @@ body {
     object-fit: contain;
 }
 
+/* sprite_actions.js: frames selected with Shift / Strg + click */
+#menu_frames ._dnd_item.frame-selected>div {
+    background-color: rgba(255, 205, 117, 0.35);
+    box-shadow: inset 0 -4px 0 #ffcd75;
+}
+
+/* sprite_preview.js: the frame the preview is showing (an outline: no layout shift) */
+#menu_frames ._dnd_item.preview-frame>div {
+    outline: 2px solid #73eff7;
+    outline-offset: -2px;
+}
+
+/* sprite_preview.js: the animation, in the corner of the drawing area */
+.sprite-preview {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    padding: 8px;
+    border-radius: 8px;
+    background: rgba(26, 28, 44, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: default;
+}
+.sprite-preview-picture {
+    display: block;
+    image-rendering: pixelated;
+    cursor: pointer;
+    background-color: #c8c8c8;
+    background-image: linear-gradient(45deg, #9a9a9a 25%, transparent 25%, transparent 75%, #9a9a9a 75%),
+        linear-gradient(45deg, #9a9a9a 25%, transparent 25%, transparent 75%, #9a9a9a 75%);
+    background-size: 12px 12px;
+    background-position: 0 0, 6px 6px;
+}
+.sprite-preview-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #f4f4f4;
+}
+.sprite-preview-controls button {
+    min-width: 24px;
+    height: 22px;
+    padding: 0 5px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #f4f4f4;
+    font-size: 12px;
+    line-height: 22px;
+    cursor: pointer;
+}
+.sprite-preview-controls button:hover {
+    background: rgba(255, 255, 255, 0.25);
+    outline: none;
+    border: none;
+}
+.sprite-preview-controls button.active {
+    background: #73eff7;
+    color: #1a1c2c;
+}
+.sprite-preview-controls button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.sprite-preview-fps {
+    min-width: 3.6em;
+    text-align: center;
+    white-space: nowrap;
+}
+
 .menu_frame_item .drag_handle {
     display: block;
     width: 15px;

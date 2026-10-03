@@ -778,6 +778,8 @@ class CollaborationClient {
         if (index < 0) return false;
 
         if (target.kind === 'sprite') {
+            // somebody else's version: our undo steps of this sprite would undo theirs
+            window.sprite_history?.forget?.(target.id);
             this.apply_sprite_value(index, copied);
             return true;
         }
