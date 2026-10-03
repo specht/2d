@@ -3,6 +3,9 @@ uniform lowp vec4 ca, cb, cc, cd;
 uniform lowp vec2 pa, pb, pc, pd;
 uniform lowp vec2 na, nb, nc, nd;
 uniform lowp float la, lb, lc, ld;
+// two colours only: 1 = round (ca in the middle at pa, cb from the distance
+// pa–pb on), 0 = straight, as always (backdrops.js backdrop_gradient_radial)
+uniform int radial;
 varying vec2 vuv;
 // Optional crunchy pixel-art look (backdrops.js): 0 = smooth, 1 = noise, 2 = Bayer raster.
 // Like a pixel artist, the gradient is reduced to `dither_levels` colours between
@@ -40,6 +43,9 @@ float dithered(float x, vec2 offset) {
 void main() {
     if (n == 1) {
         gl_FragColor = ca;
+    } else if (n == 2 && radial == 1) {
+        float wb = clamp(length(vuv - pa) / max(la, 0.0001), 0.0, 1.0);
+        gl_FragColor = mix(ca, cb, dithered(wb, vec2(0.0)));
     } else if (n == 2) {
         float wa = clamp(1.0 - dot(vuv - pa, na) / la, 0.0, 1.0);
         float wb = clamp(1.0 - dot(vuv - pb, nb) / lb, 0.0, 1.0);

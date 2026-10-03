@@ -75,6 +75,7 @@ varianten:
 
 - Mit Dithering wird der Himmel automatisch **pixelig (wie Sprites)**: ein Farbpunkt pro Spielpixel. Das Häkchen kannst du auch ohne Dithering setzen – und bei jedem Effekt.
 - Unten am Horizont ist der Himmel **heller** als oben. Das sieht fast immer natürlicher aus.
+- Bei zwei Farben kannst du den **Verlauf** auf **rund** stellen: Farbe 1 liegt dann in der Mitte, und nach außen wird es immer mehr Farbe 2 – wie das Leuchten um die Sonne, den Mond oder eine Lampe. Der zweite Punkt bestimmt, wie groß der Kreis ist.
 - Pass die Berge an den Himmel an: Bei Sonnenuntergang dürfen sie lila und rötlich werden, in der Nacht fast schwarz.
 - Die Sterne funkeln von selbst und werden zum Horizont hin weniger. Die beiden weißen Punkte des Effekts bestimmen, wo sie ausblenden.
 - Die **Hintergrundfarbe** in den Level-Eigenschaften sieht man nur dort, wo kein Hintergrund liegt. Stell sie auf eine der Himmelsfarben, dann fällt ein zu kleines Rechteck nicht auf.

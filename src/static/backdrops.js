@@ -7,6 +7,9 @@
 //   dither: 'noise'|'bayer'  colour gradients only: reduce the gradient to a
 //   dither_levels: 8         few colour steps and dither between them
 //                            (always on the game-pixel grid)
+//   gradient: 'radial'       two colours only: a round gradient – the first
+//                            colour in the middle, the second where the
+//                            circle through its point ends (absent = straight)
 
 const BACKDROP_EFFECTS = {
     snow: 'Schnee',
@@ -120,6 +123,13 @@ function backdrop_density(backdrop) {
     const d = Number(backdrop?.density);
     if (!Number.isFinite(d)) return BACKDROP_DENSITY.default;
     return Math.min(BACKDROP_DENSITY.max, Math.max(BACKDROP_DENSITY.min, d));
+}
+
+const BACKDROP_GRADIENTS = { linear: 'gerade', radial: 'rund' };
+
+// 1 = round, 0 = straight (absent, or a layer that does not have two colours)
+function backdrop_gradient_radial(backdrop) {
+    return backdrop?.gradient === 'radial' && backdrop?.colors?.length === 2 ? 1 : 0;
 }
 
 const BACKDROP_DITHER = { none: 'aus', noise: 'Rauschen', bayer: 'Raster' };
@@ -255,6 +265,7 @@ function backdrop_material_plain(backdrop, rect0, { fill_default_points = false,
                 n: { value: 2 }, ca: c(0), cb: c(1), pa: p(0), pb: p(1),
                 na: { value: [d[0], d[1]] }, nb: { value: [-d[0], -d[1]] },
                 la: { value: l }, lb: { value: l },
+                radial: { value: backdrop_gradient_radial(backdrop) },
             };
         } else if (gradient_points.length === 4) {
             uniforms = { n: { value: 4 }, ca: c(0), cb: c(1), cc: c(2), cd: c(3), pa: p(0), pb: p(1), pc: p(2), pd: p(3) };
@@ -279,7 +290,7 @@ function backdrop_material_plain(backdrop, rect0, { fill_default_points = false,
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        BACKDROP_EFFECTS, BACKDROP_EFFECT_OPTIONS, backdrop_effect_option, BACKDROP_DITHER, BLEND_MODES, BACKDROP_DENSITY_EFFECTS, BACKDROP_DENSITY, backdrop_density,
+        BACKDROP_EFFECTS, BACKDROP_EFFECT_OPTIONS, backdrop_effect_option, BACKDROP_DITHER, BACKDROP_GRADIENTS, backdrop_gradient_radial, BLEND_MODES, BACKDROP_DENSITY_EFFECTS, BACKDROP_DENSITY, backdrop_density,
         blend_mode_of, premultiplied_shader, backdrop_stencil_ref, BACKDROP_DITHER_LEVELS,
         backdrop_dither_mode, backdrop_dither_levels, backdrop_pixel_size, backdrop_fragment_shader,
     };
