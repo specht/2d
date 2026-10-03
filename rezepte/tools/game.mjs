@@ -32,7 +32,39 @@ function deep_merge(base, extra) {
 
 // mischmodus: leuchten | aufhellen | abdunkeln (or the engine's add | screen | multiply)
 const BLEND = { leuchten: 'add', aufhellen: 'screen', abdunkeln: 'multiply', add: 'add', screen: 'screen', multiply: 'multiply' };
-export function blend_of(value, where = '') {
+export // A Code in a scene: a whole number 0 … 1000.
+function code_of(value, where) {
+    if (!Number.isInteger(value) || value < 0 || value > 1000) throw new Error(`${where}: ein Code ist eine ganze Zahl von 0 bis 1000, nicht ${JSON.stringify(value)}`);
+    return value;
+}
+
+// beim_start: { code, verzoegerung } → signal_level_start (+ _delay)
+function level_start_of(value, where) {
+    if (value === undefined) return {};
+    const code = code_of(value?.code, where);
+    const delay = value.verzoegerung ?? 0;
+    if (typeof delay !== 'number' || delay < 0 || delay > 60) throw new Error(`${where}: verzoegerung in Sekunden, 0 bis 60`);
+    return { signal_level_start: code, ...(delay > 0 ? { signal_level_start_delay: delay } : {}) };
+}
+
+// signale: { 3: Tor auf } → signal_names { "3": "Tor auf" } – as the studio stores them
+// (signals.js clean_signal_name: at most 24 characters; two Codes never share a name)
+function signal_names_of(value, where) {
+    if (value === undefined) return {};
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${where}: Code → Name, z. B. { 3: Tor auf }`);
+    const names = {}, seen = new Set();
+    for (const [key, raw] of Object.entries(value)) {
+        const code = code_of(Number(key), where);
+        const name = String(raw ?? '').replace(/\s+/g, ' ').trim();
+        if (!name || [...name].length > 24) throw new Error(`${where}: Name für Code ${code} fehlt oder ist länger als 24 Zeichen`);
+        if (seen.has(name.toLocaleLowerCase('de'))) throw new Error(`${where}: zwei Codes heißen »${name}«`);
+        seen.add(name.toLocaleLowerCase('de'));
+        names[String(code)] = name;
+    }
+    return { signal_names: names };
+}
+
+function blend_of(value, where = '') {
     if (value === undefined || value === null || value === 'normal') return undefined;
     if (!BLEND[value]) throw new Error(`${where}unbekannter Mischmodus "${value}" (leuchten, aufhellen, abdunkeln)`);
     return BLEND[value];
@@ -436,14 +468,21 @@ export async function build_game(catalog, recipe, repo) {
     })).reverse();
     const tile_layer_list = tile_layers.map((p, i) => ({
         vorne: Boolean(layer_defs[i].vorne),
-        layer: layer(layer_defs[i].name ?? `Ebene ${i + 1}`, p, layer_defs[i]),
+        // a scene with one map (karte) calls it "Welt", like the scenes with several layers do
+        layer: layer(layer_defs[i].name ?? (scene.ebenen ? `Ebene ${i + 1}` : 'Welt'), p, layer_defs[i]),
     })).reverse();
     const figure_layers = [layer('Figuren', figures)];
     const level = {
         properties: { name: recipe.titel, background_color: sky[1],
             ...(scene.bewegung ? { movement: movement_of(scene.bewegung, 'bewegung') } : {}),
             // alle_besiegt: 9 – the level sends Code 9 once no enemy is left
-            ...(Number.isInteger(scene.alle_besiegt) ? { signal_all_defeated: scene.alle_besiegt } : {}) },
+            ...(Number.isInteger(scene.alle_besiegt) ? { signal_all_defeated: scene.alle_besiegt } : {}),
+            // beim_start: { code: 3, verzoegerung: 30 } – the level sends Code 3 when it starts (a timer)
+            ...level_start_of(scene.beim_start, `${recipe.id}: beim_start`),
+            // geschafft_bei: 7 – Code 7 completes the level, like the exit
+            ...(scene.geschafft_bei !== undefined ? { signal_level_complete: code_of(scene.geschafft_bei, `${recipe.id}: geschafft_bei`) } : {}),
+            // signale: { 3: Tor auf } – names of the level's Codes (what the Code fields and the overview show)
+            ...signal_names_of(scene.signale, `${recipe.id}: signale`) },
         layers: [
             ...movement_regions,
             ...regions,

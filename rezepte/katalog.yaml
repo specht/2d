@@ -260,6 +260,11 @@ sprites:
     label: Münze
     traits: { pickup: { points: 10 } }
     states: [{ strip: welt/muenze, fps: 8 }]
+  # one special thing to collect (it can send a Signal: "sendet, wenn eingesammelt")
+  edelstein:
+    label: Edelstein
+    traits: { pickup: { points: 50 } }
+    states: [{ strip: welt/edelstein, fps: 6 }]
   # Hinweistext (speech.js): the figure reads it out with F
   schild:
     label: Schild
@@ -308,6 +313,11 @@ sprites:
     label: Stacheln
     traits: { trap: { damage: 25, damage_cool_down: 1.0 } }
     states: [{ strip: welt/stacheln }]
+  # the exit: touching it completes the level (Levelwechsel, traits.js level_complete)
+  ziel:
+    label: Ziel
+    traits: { level_complete: {} }
+    states: [{ strip: welt/ziel, fps: 4 }]
   fahne:
     label: Fahne
     traits: { checkpoint: {} }
@@ -950,6 +960,8 @@ legende:
   'L': schlosstuer
   'k': schluessel
   'o': muenze
+  '$': edelstein
+  '!': ziel
   'P': pip
   'g': glibber
   'm': spuckpilz

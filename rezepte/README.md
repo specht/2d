@@ -99,6 +99,11 @@ studio.
   and garbles frames beyond roughly 65,000 rows. `write_webp` therefore
   encodes chunks of at most 32,000 rows and joins their frames (`ANMF`
   chunks) into one file itself.
+* **A completed level** zooms onto the figure (the curtain with LEVEL COMPLETE! is HTML and
+  not part of the recording). While it zooms, the recorder keeps reading the same part of the
+  screen as just before, so the recording shows the zoom as a player sees it. Keep `dauer`
+  below 2.5 s after the moment the level is done: then the game stops (THE END) or loads the
+  next level.
 * Runs are deterministic: the same inputs give the same recording.
 * **Catalogue images** (`![…](katalog:…)`) are written at their native size
   with real transparency: a PNG for a single frame, otherwise an animated
@@ -122,7 +127,8 @@ studio.
 The recorder relies on these runtime entry points: `window.game`,
 `Game.load(tag)`, `reset()`, `setup()`, `render()`, `clock.getElapsedTime()`,
 `camera`, `renderer`, `handle_key_down/up`, `player_character`, `baddies`,
-`found_keys`, `signals.sent`, `speech.log`, `speech_fonts_ready()`, `active_level_sprites`. If one of them changes, adjust
+`found_keys`, `signals.sent`, `speech.log`, `speech_fonts_ready()`, `active_level_sprites`, `reached_flag`,
+`ts_zoom_actor`. If one of them changes, adjust
 `record.mjs`.
 
 ## Writing a recipe
@@ -146,6 +152,7 @@ szene:
     ....H.....
     .P..H.....
     ##########
+  # (a scene with one karte gets one layer "Welt", like the main layer of the scenes with ebenen)
   # ebenen:                    # instead of karte: several layers, back to front
   #   - name: Fassade          #   layer name shown in the editor
   #     id: fassade            #   optional stable layer id
@@ -167,6 +174,14 @@ szene:
   #   - { name: Haus, code: 4, rechtecke: [[4, 2, 6, 3]] }   # figure's centre is inside, else "aus"
   #                            # rectangles in tiles: column, row from top, width, height
   # alle_besiegt: 9            # the level sends Code 9 once no enemy is left
+  # beim_start: { code: 3, verzoegerung: 2 }   # the level sends Code 3 when it starts – with a
+  #                            # verzoegerung (seconds) a timer (Level-Eigenschaften: sendet beim Start)
+  # geschafft_bei: 7           # Code 7 completes the level, like the exit (geschafft bei Signal)
+  # signale: { 3: Tor auf, 7: Edelstein gefunden }
+  #                            # names of the level's Codes, as a child gives them in the studio
+  #                            # (at most 24 characters, two Codes never share one). Every scene
+  #                            # with Signale names them: the opened scene shows "Tor auf" in the
+  #                            # Code fields and the Signale-Übersicht, not a bare number.
   # bewegung: { art: schwimmen, schwerkraft: 0, gleiten: 85, tempo: 1.2, schwimmzug: 0 }
   #                            # how the player moves in the whole level (Level-Eigenschaften:
   #                            # "Bewegung im ganzen Level", src/static/movement_regions.js):
@@ -243,7 +258,8 @@ dauer: 3.0                     # length of the recording
 erwartet:                      # outcome checks
   figur_hoeher_als: 3          # player y ≥ 3 tiles
   figur_rechts_von: 5          # player x > 5 tiles
-  # gegner_besiegt: 1 · gegner_leben: 0 · schluessel: [7] · tuer_offen: true
+  # gegner_besiegt: 1 · gegner_leben: 0 · schluessel: [7] · tuer_offen: true · geschafft: true
+  # (geschafft: the level was completed – by the exit or by "geschafft bei Signal")
   # punkte: 60 · energie_unter: 100 · energie_gleich: 100 · lebt: true · checkpoint_aktiv: true
   # signale: ['4 an', '4 aus'] – exactly these signals were sent, in this order (signals.js)
   # gesagt: ['Hallo!', 'Tschüss!'] – exactly these sentences were said, in this order (speech.js)
@@ -318,7 +334,8 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `brett` (jump-through), `eis`, `eishang` (slope down, slippery),
   `broeckel` + `broeckel_zerfall` (6, crumbling bricks: irregular fragments
   that break off and fall – drawn from a Voronoi pattern), `stacheln`,
-  `fahne_aus` / `fahne_an` (2, checkpoint), `wurzeln`, `tuer_zu`, `tuer_auf`,
+  `fahne_aus` / `fahne_an` (2, checkpoint), `ziel` (2, the exit: a checkered flag with
+  *Levelwechsel*, legend `!`), `edelstein` (4, a gem to collect, 50 points, legend `$`), `wurzeln`, `tuer_zu`, `tuer_auf`,
   `tuer_uebergang` (3), `schlosstuer_zu`, `schluessel` (2), `muenze` (4),
   `pfeil`, `stein`, `spore` (2), `bombe_zuendschnur` (4), `bombe_explosion`
   (4), `treffer_funke` (3), `schalter_aus` / `schalter_an` (lever),
@@ -465,7 +482,7 @@ art).
 
 The map legend (`legende` in `katalog.yaml`) gives every sprite one
 character, e.g. `#` ground, `M` wall, `-` plank, `B` crumbling brick, `^`
-spikes, `f` flag, `h` house door, `F`/`V` facade, `z` moss, `t` torch, `|`
+spikes, `f` flag, `!` finish flag (exit), `o` coin, `$` gem, `h` house door, `F`/`V` facade, `z` moss, `t` torch, `|`
 post, `c` chain, `[` `>` `]` belt (start, middle, end), `<` belt to the left,
 `s` escalator, `_` machine, `K` beetle, `a` boar, `q` frog, `j` bat, `U`
 stone block, `8` stone block that falls once, `@` mouse, `y` dark room,

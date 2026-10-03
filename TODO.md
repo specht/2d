@@ -133,7 +133,7 @@ Roughly in order of usefulness (each must stay an understandable choice in the e
 - more senders: enemies pressing a Druckplatte (opt-in per Druckplatte, or old levels change); a timer that shows how much time is left (today a "sendet beim Start" timer is invisible to the player)
 - more receivers: a moving platform or lift that starts, spawn / remove a single sprite, a trap that switches on and off, enable / disable an object, set a simple game flag
 - "und" and counters: a receiver that waits for two Codes, or a Code that has to arrive three times ("drei Schalter umlegen")
-- names: the recipes still say "Code 4" (part of the titles pass under Recipe Scenes in the Studio); a name whose Code nothing uses any more is invisible (no card) and keeps its number taken – offer a way to see or remove such names if children run into it
+- names: a name whose Code nothing uses any more is invisible (no card) and keeps its number taken – offer a way to see or remove such names if children run into it
 - a door closed by a signal still closes onto whoever stands in it (see Doors and switches)
 - signals across levels only with an explicit design (flags), never implicitly: keys and Codes are per level
 
@@ -305,22 +305,13 @@ Possible extensions:
 
 ## Level completion
 
-The basic level exit works.
+A level is completed by the exit (*Levelwechsel*) or by a Signal ("geschafft bei Signal"), so defeated enemies, a collected item, a Schalter or a timer can end it; the recipe *So wird ein Level geschafft* explains both ways and when to use which.
 
-Additional completion conditions may include:
+Still open:
 
-- points
-- required items
-- defeated enemies
-- combinations of conditions
-
-Before expanding this, define:
-
-- how multiple conditions combine
-- how unmet conditions are communicated to the player
-- how old games remain compatible
-
-Once signals run properly and a level can be completed in different ways (the exit, and e.g. a "Level geschafft" receiver – see Further Signale extensions), add a recipe that explains how a level can be completed: the ways side by side, and how to choose between them.
+- points as a condition ("geschafft bei 100 Punkten")
+- combinations of conditions – this is the "und" of the Signale (see Still open for Signale)
+- telling the player what is still missing (an exit that does not open yet says nothing)
 
 ---
 
@@ -451,12 +442,12 @@ They can easily dominate the architecture while benefiting relatively few games.
 
 # Recipe Ideas: Signale
 
-The Signale recipes have their own category, in this order: Schalter → Tor, Druckplatte → Brücke, Rote und grüne Blöcke (one Schalter, two layers "da, solange an" / "weg, solange an"), Tor mit Zeit, Wächter-Tor, Die Falle schnappt zu (Bereich closes the gate behind, "alle Gegner besiegt" opens the exit). The smaller ideas live as tips in them instead of recipes of their own: Verzögerung (Tor mit Zeit, Falle), "wechseln" (Schalter, Blöcke), a key or Schalter building a bridge (Druckplatte), a second wave of enemies (Falle), a secret passage with a Bereich (Falle → Höhle), an enemy leaving a key behind (Angsthase). Ideas for more, possible with what exists today:
+The Signale recipes have their own category, in this order: Schalter → Tor, Druckplatte → Brücke, Rote und grüne Blöcke (one Schalter, two layers "da, solange an" / "weg, solange an"), Tor mit Zeit, Wächter-Tor, Die Falle schnappt zu (Bereich closes the gate behind, "alle Gegner besiegt" opens the exit), Der Edelstein baut die Brücke ("sendet, wenn eingesammelt"), Ein Schild, das von selbst spricht (Bereich → "spricht bei Signal"), Wettlauf gegen die Zeit ("sendet beim Start" with a Verzögerung), So wird ein Level geschafft (the exit, and "geschafft bei Signal"). Every Signale recipe names its signals. The smaller ideas live as tips in them instead of recipes of their own: Verzögerung (Tor mit Zeit, Falle), "wechseln" (Schalter, Blöcke), a key or Schalter building a bridge (Druckplatte), a second wave of enemies (Falle), a secret passage with a Bereich (Falle → Höhle), an enemy leaving a key behind (Angsthase). Ideas for more, possible with what exists today:
 
 - **Eine Falle mit Verzögerung** – a Druckplatte lets spikes appear a second later, so Pip can still run. Left out for now: it is the Druckplatte recipe with one more number (Verzögerung is a tip in Tor mit Zeit and Falle). Worth it once something can drop stones on a Signal.
 - **Licht an** – a Schalter that switches a dark colour layer (abdunkeln) off and a Lichtschein on: a room that becomes light. Could also fit "Level gestalten".
 
-Now possible: "Der Edelstein" (a collected gem builds the bridge: "sendet, wenn eingesammelt"), "Wettlauf gegen die Zeit" (the gate closes 30 s after the start: "sendet beim Start" with a Verzögerung), a sign that speaks when the figure walks past (Bereich → Hinweistext "spricht bei Signal"), a level that is done when all enemies are defeated ("alle Gegner besiegt" → "geschafft bei Signal"; then the recipe on completing a level, see Level completion). Would need new features: two senders that must both be active (AND), a counter ("drei Schalter umlegen").
+Would need new features: two senders that must both be active (AND), a counter ("drei Schalter umlegen").
 
 ---
 
@@ -466,7 +457,6 @@ Every recipe's scene can be opened in the studio (Hilfe → Selbst ausprobieren 
 
 - give a scene room outside the recorded frame (an optional extra map in the recipe that only the studio scene contains), so children have more space to explore and sprites to borrow for their own games
 - a short "look here" hint per recipe (which layer, which sprite, which setting matters)
-- **proper titles everywhere in the recipe scenes:** sprites (Titel, not "Sprite 3"), states, layers, levels and signals (names instead of bare Codes). Children open these scenes in the studio and borrow from them, so what they see in the lists, the Eigenschaften, the Signale-Übersicht and the Code fields should read like a well-kept game. Go through every recipe in `rezepte/` and check it in the studio; this includes giving the Signale recipes names instead of "Code 4" (see Still open for Signale).
 
 ---
 

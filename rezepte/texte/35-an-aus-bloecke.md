@@ -5,6 +5,7 @@ stufe: 2
 skala: 2
 kurz: Ein Schalter, zwei Ebenen – bei jedem Umlegen verschwinden die roten Blöcke und die grünen erscheinen. Oder umgekehrt.
 szene:
+  signale: { 1: Blöcke tauschen }
   legende:
     S: { sprite: schalter, platziert: { switch: { signal_code: 1 } } }
     R: block_rot
@@ -65,7 +66,7 @@ erwartet:
 ## Kurz gesagt
 
 1. Ein **Schalter** sendet beim Umlegen seinen **Code** – mit **an** oder **aus**.
-2. Zwei **Ebenen** hören auf denselben Code: Die eine ist **da, solange an**, die andere **weg, solange an**.
+2. Zwei **Ebenen** hören auf dasselbe Signal: Die eine ist **da, solange an**, die andere **weg, solange an**.
 3. Im Spiel: Jedes Umlegen tauscht die Blöcke. Mal ist der Weg versperrt, mal fehlt die Brücke.
 
 ## Das brauchst du
@@ -79,12 +80,12 @@ erwartet:
 
 1. Zeichne den Schalter wie im Rezept *Ein Schalter öffnet das Tor*.
 2. Zeichne einen roten und einen grünen Block. Beide bekommen **Eigenschaft hinzufügen → Blöcke** mit allen drei Eigenschaften – wie ein Boden.
-3. Bau im **Level** die Welt mit dem Schalter. Klicke ihn an und merk dir seinen **Code**, z. B. **1**.
-4. Leg eine **neue Ebene** an, nenne sie **Rote Blöcke** und lass **Kollisionen erkennen** an. Stell **Bei Signal** auf **weg, solange an** und den **Code** auf **1**. Setz die roten Blöcke hinein – hier eine Mauer, die den Weg versperrt.
-5. Leg noch eine Ebene an: **Grüne Blöcke**, **Bei Signal: da, solange an**, **Code 1**. Setz die grünen Blöcke hinein – hier eine Brücke über die Stacheln.
+3. Bau im **Level** die Welt mit dem Schalter. Klicke ihn an und gib seinem Signal einen Namen: neben dem **Code** **ohne Namen** → **Namen geben …**, zum Beispiel **Blöcke tauschen**.
+4. Leg eine **neue Ebene** an, nenne sie **Rote Blöcke** und lass **Kollisionen erkennen** an. Stell **Bei Signal** auf **weg, solange an** und wähle neben **Code** das Signal **Blöcke tauschen**. Setz die roten Blöcke hinein – hier eine Mauer, die den Weg versperrt.
+5. Leg noch eine Ebene an: **Grüne Blöcke**, **Bei Signal: da, solange an**, Signal **Blöcke tauschen**. Setz die grünen Blöcke hinein – hier eine Brücke über die Stacheln.
 6. Probier es aus: Am Anfang ist der Schalter aus. Die rote Mauer steht, die grüne Brücke fehlt. Legst du den Schalter um, ist es genau andersherum.
 
-Unter dem Code steht, was zusammengehört: *Code 1 in diesem Level – sendet: 1 Schalter · reagiert: Ebene »Rote Blöcke«, Ebene »Grüne Blöcke«*.
+Unter dem Code steht, was zusammengehört: *»Blöcke tauschen« (Code 1) in diesem Level – sendet: 1 Schalter · reagiert: Ebene »Rote Blöcke«, Ebene »Grüne Blöcke«*.
 
 > **Achtung:** Spielfigur, Schalter und Gegner gehören nicht in die Ebenen, die verschwinden. Die Ebene reagiert sonst gar nicht.
 
@@ -92,17 +93,17 @@ Unter dem Code steht, was zusammengehört: *Code 1 in diesem Level – sendet: 1
 
 - **Umrisse:** Eine Ebene ohne **Kollisionen erkennen** hinter den Blöcken, mit einem gestrichelten Umriss an jeder Stelle eines Blocks. Ist der Block da, verdeckt er seinen Umriss. Ist er weg, sieht man, wo er gleich wieder auftaucht.
 - **Überblendung** bei der Ebene macht das Erscheinen weich. Fest wird ein Block aber sofort – egal, wie lange er noch einblendet.
-- **Ein Schalter pro Code:** Jeder Schalter merkt sich selbst, ob er an oder aus ist. Ein zweiter Schalter mit demselben Code weiß nicht, wie der erste steht – dann passen Hebel und Blöcke nicht mehr zusammen.
+- **Ein Schalter pro Signal:** Jeder Schalter merkt sich selbst, ob er an oder aus ist. Ein zweiter Schalter mit demselben Signal weiß nicht, wie der erste steht – dann passen Hebel und Blöcke nicht mehr zusammen.
 - Mit einer **Druckplatte** statt des Schalters sind die grünen Blöcke nur da, solange jemand auf ihr steht.
 - Statt Blöcken kann auch ein Tor wechseln: **Bei Signal: wechseln** macht es bei jedem Umlegen auf oder zu.
 
 ## Wenn's nicht klappt
 
 - **Beide Blockfarben sind gleichzeitig da (oder beide weg):** Bei beiden Ebenen steht dasselbe unter **Bei Signal**. Eine braucht **da, solange an**, die andere **weg, solange an**.
-- **Nichts passiert beim Umlegen:** Die Codes von Schalter und Ebenen sind verschieden – oder die Spielfigur liegt in einer der Ebenen.
+- **Nichts passiert beim Umlegen:** Schalter und Ebenen haben nicht dasselbe Signal (schau in die Signale-Übersicht (Taste S)) – oder die Spielfigur liegt in einer der Ebenen.
 - **Man fällt durch die grünen Blöcke:** In der Ebene ist **Kollisionen erkennen** aus.
 - **Die Spielfigur steckt plötzlich in einer Mauer:** Sie stand dort, wo die Blöcke erscheinen. Stell den Schalter so, dass man ihn nicht mitten zwischen den Blöcken umlegt.
 
 ## Mach mehr draus
 
-Bau ein Rätsel: Die rote Mauer versperrt den Weg zum Schlüssel, die grüne Brücke führt zum Ausgang – und unterwegs muss man den Schalter mehrmals umlegen. Oder nimm zwei Schalter mit verschiedenen Codes und vier Farben.
+Bau ein Rätsel: Die rote Mauer versperrt den Weg zum Schlüssel, die grüne Brücke führt zum Ausgang – und unterwegs muss man den Schalter mehrmals umlegen. Oder nimm zwei Schalter mit zwei Signalen und vier Farben.

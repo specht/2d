@@ -133,11 +133,17 @@ export async function record(browser, repo, game, recipe) {
             if (view === 'kamera') view = { x0: left, x1: left + cw, y0: bottom, y1: bottom + ch };
             const sx = gl.drawingBufferWidth / cw;
             const sy = gl.drawingBufferHeight / ch;
-            const w = Math.round((view.x1 - view.x0) * sx);
-            const h = Math.round((view.y1 - view.y0) * sy);
+            let w = Math.round((view.x1 - view.x0) * sx);
+            let h = Math.round((view.y1 - view.y0) * sy);
             // fixed on the screen: where the area would be without the shake
-            const x = Math.max(0, Math.min(gl.drawingBufferWidth - w, Math.round((view.x0 - left) * sx)));
-            const y = Math.max(0, Math.min(gl.drawingBufferHeight - h, Math.round((view.y0 - bottom) * sy)));
+            let x = Math.max(0, Math.min(gl.drawingBufferWidth - w, Math.round((view.x0 - left) * sx)));
+            let y = Math.max(0, Math.min(gl.drawingBufferHeight - h, Math.round((view.y0 - bottom) * sy)));
+            // A completed level: the game zooms onto the figure (app.js complete_level,
+            // ts_zoom_actor). The recording keeps the same part of the screen as just
+            // before – what a player sees there – instead of the scene's world area,
+            // which no longer fits the zoomed picture.
+            if (g.reached_flag && g.ts_zoom_actor >= 0 && window.__last_shot_rect) ({ x, y, w, h } = window.__last_shot_rect);
+            else window.__last_shot_rect = { x, y, w, h };
             const buf = new Uint8Array(w * h * 4);
             gl.readPixels(x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
             let bin = '';
@@ -181,6 +187,8 @@ export async function record(browser, repo, game, recipe) {
             // every sentence that was said, in order (speech.js)
             spoken: [...(g.speech?.log ?? [])],
             doors_open: doors.map(d => d.door_closed === false),
+            // the level is done (the exit, or "geschafft bei Signal": app.js complete_level)
+            level_done: g.reached_flag === true,
             checkpoints_active: g.active_level_sprites.filter(e => {
                 const sp = g.data.sprites[e.sprite_index];
                 const st = sp.states[g.state_for_mesh[e.mesh.uuid]?.state_index ?? 0];
@@ -330,6 +338,7 @@ export function check(expect, state) {
     if (e.figur_hoeher_als !== undefined && !(state.player?.y >= e.figur_hoeher_als * 24))
         fail.push(`Figur steht bei y=${state.player?.y?.toFixed(1)}, erwartet mindestens auf Höhe ${e.figur_hoeher_als}`);
     if (e.checkpoint_aktiv && !state.checkpoints_active) fail.push('Checkpoint wurde nicht aktiviert');
+    if (e.geschafft !== undefined && state.level_done !== e.geschafft) fail.push(`geschafft: ${state.level_done} statt ${e.geschafft}`);
     if (e.energie_gleich !== undefined && state.energy !== e.energie_gleich)
         fail.push(`energie: ${state.energy} statt ${e.energie_gleich}`);
     if (e.punkte !== undefined && state.points < e.punkte) fail.push(`punkte: ${state.points} statt ${e.punkte}`);
