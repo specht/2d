@@ -426,7 +426,9 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   { door: { lockable: true, automatic: true } }` (absent = as drawn).
 * **Free Codes:** in the studio a newly placed Schalter or Druckplatte, and an
   enemy whose *sendet, wenn besiegt* is switched on, get a Code nothing else in
-  the level uses. Scenes in `legende` set their Codes themselves.
+  the level uses. Scenes in `legende` set their Codes themselves; a placed key,
+  door, Schalter or Druckplatte without one gets *Kein Signal* (`signal_code:
+  null`), so a plain door in an opened scene does not show Code 0.
 * **Intelligenz** (`traits.smart`, a sprite trait of its own next to
   `baddie`): `walks_slopes`, `jumps_obstacles`, `jumps_gaps`, `drops_down`,
   `climbs_ladders`, all off by default. Wächter, Jäger and Angsthase use the

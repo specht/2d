@@ -1388,17 +1388,11 @@ void main() {
 				if (door_setting(this.game.active_level_sprites[entry.entry_index].automatic, sprite.traits.door.automatic)) {
 					this.game.open_door_intent(entry.entry_index, t);
 				} else {
+					// an open door can be closed with F only while nobody stands in it
+					// (Game.door_occupied: the figure or an enemy overlapping the door)
 					let ok = true;
-					if (this.game.active_level_sprites[entry.entry_index].door_closed === false) {
-						ok = false;
-						if (this.has_trait_at(['door'],
-							-this.traits.ex_left * this.sprite.width * 0.25 - 0.1,
-							this.traits.ex_right * this.sprite.width * 0.25 + 0.1,
-							-0.1,
-							this.traits.ex_top * this.sprite.height + 0.1) === null) {
-							ok = true;
-						}
-					}
+					if (this.game.active_level_sprites[entry.entry_index].door_closed === false)
+						ok = !this.game.door_occupied(entry.entry_index);
 					if (ok) {
 						this.game.active_level_sprites[entry.entry_index].overlay_mesh.visible = true;
 						this.game.action_key_targets.door ??= [];
@@ -2366,8 +2360,10 @@ class Game {
 		this.signals = new SignalBus();
 		this.signal_hidden_layers = new Set();
 		this.signal_layer_fades = new Map();
-		// doors that close again by themselves ("schließt wieder nach")
+		// doors that close again by themselves ("schließt wieder nach"), and
+		// doors waiting for their doorway to be free before they close
 		this.auto_closing_doors = [];
+		this.doors_waiting_to_close = new Set();
 		this.active_level_sprites.forEach((entry, entry_index) => {
 			const traits = this.data.sprites[entry.sprite_index].traits;
 			if ('door' in traits) {
@@ -2643,13 +2639,22 @@ class Game {
 	}
 
 	// A door that is still moving does the last signal when it is done, so a
-	// quick step on and off a Druckplatte cannot leave it open.
+	// quick step on and off a Druckplatte cannot leave it open. A door that
+	// is to close while somebody stands in it waits until the doorway is free
+	// (update_waiting_doors), like "schließt wieder nach" does; a newer signal
+	// to open takes the waiting back.
 	move_door_by_signal(entry_index, action, t) {
 		const entry = this.active_level_sprites[entry_index];
 		if ((entry.door_state ?? 'idle') !== 'idle') {
 			entry.door_signal_pending = action;
 			return;
 		}
+		if (action === 'close' && entry.door_closed === false && this.door_occupied(entry_index)) {
+			entry.door_signal_pending = 'close';
+			this.doors_waiting_to_close.add(entry_index);
+			return;
+		}
+		this.doors_waiting_to_close?.delete(entry_index);
 		entry.door_signal_pending = null;
 		if (action === 'open') this.open_door_intent(entry_index, t, { force: true });
 		else this.close_door_intent(entry_index, t, { force: true });
@@ -2666,6 +2671,17 @@ class Game {
 				() => this.door_occupied(entry_index), t);
 			entry.close_at = step.close_at;
 			if (step.close) this.move_door_by_signal(entry_index, 'close', t);
+		}
+	}
+
+	// Doors that were told to close while somebody stood in them: they close
+	// as soon as the doorway is free (move_door_by_signal).
+	update_waiting_doors(t) {
+		for (const entry_index of [...(this.doors_waiting_to_close ?? [])]) {
+			const entry = this.active_level_sprites[entry_index];
+			if (entry?.door_signal_pending !== 'close') { this.doors_waiting_to_close.delete(entry_index); continue; }
+			if ((entry.door_state ?? 'idle') === 'idle' && !this.door_occupied(entry_index))
+				this.move_door_by_signal(entry_index, 'close', t);
 		}
 	}
 
@@ -3304,6 +3320,7 @@ class Game {
 		// signals with a Verzögerung that are due now, then doors that close again
 		this.signals?.deliver_due(t);
 		this.update_auto_closing_doors(t);
+		this.update_waiting_doors(t);
 		if (this.combat.game_allows_combat()) {
 			this.request_melee_attacks(t);
 			this.request_ranged_attacks(t);
@@ -3516,7 +3533,8 @@ class Game {
 			return;
 		if (entry.door_closed) {
 			this.open_door_intent(entry_index, t);
-		} else {
+		} else if (!this.door_occupied(entry_index)) {
+			// never onto somebody standing in the doorway
 			this.close_door_intent(entry_index, t);
 		}
 	}

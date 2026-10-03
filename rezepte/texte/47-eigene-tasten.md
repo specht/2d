@@ -1,6 +1,6 @@
 ---
 titel: Eigene Tasten festlegen
-kategorie: Loslegen
+kategorie: Kampf
 stufe: 3
 skala: 4
 kurz: Springen mit Pfeil hoch, Schwert mit Strg? In den Einstellungen legst du fest, welche Taste was macht.
@@ -33,7 +33,7 @@ erwartet:
 
 ## Das brauchst du
 
-- **Das musst du zeichnen:** nichts Neues. Die Steuerung gilt für dein ganzes Spiel.
+- **Das musst du zeichnen:** nichts Neues. Die Steuerung gilt für dein ganzes Spiel. Pip mit dem Schwert kennst du aus *Schwertkampf*.
 - **Das kannst du später dazumalen:** ein Schild am Anfang des Levels, auf dem steht, welche Tasten es gibt.
 
 ## Schritt für Schritt

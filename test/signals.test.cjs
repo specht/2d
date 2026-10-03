@@ -1170,3 +1170,56 @@ test('"sendet beim Start": at once without a Verzögerung, a timer with one', ()
     again.signals.deliver_due(2);
     assert.deepEqual(again.signals.sent, [[5, true]]);
 });
+
+test('a door told to close waits while somebody stands in it, then closes', () => {
+    const game = level_game([{ properties: {}, sprites: [
+        [5, 200, 0, {}],                                                          // the figure in the doorway
+        [1, 200, 0, { signal_code: 3, door_closed: false, door_reaction: 'follow' }],
+    ] }]);
+    const door = game.active_level_sprites[0];
+    game.signals.emit(3, false, 1);                // "aus": close – but the figure is in it
+    assert.equal(door.door_closed, false);
+    assert.equal(door.door_signal_pending, 'close');
+    game.update_waiting_doors(1.5);
+    assert.equal(door.door_closed, false);
+    game.player_character.mesh.position.x = 240;   // out of the doorway (the door spans 188 … 212)
+    game.update_waiting_doors(2);
+    assert.equal(door.door_closed, true);
+    assert.equal(door.door_signal_pending, null);
+    assert.equal(game.doors_waiting_to_close.size, 0);
+});
+
+test('a waiting door opens again on "an", and "wechseln" counts the waiting as closing', () => {
+    const follow = level_game([{ properties: {}, sprites: [
+        [5, 200, 0, {}], [1, 200, 0, { signal_code: 3, door_closed: false, door_reaction: 'follow' }]] }]);
+    const door = follow.active_level_sprites[0];
+    follow.signals.emit(3, false, 1);
+    follow.signals.emit(3, true, 1.2);             // open again before the doorway is free
+    follow.player_character.mesh.position.x = 240;
+    follow.update_waiting_doors(2);
+    assert.equal(door.door_closed, false);         // it does not close after all
+    assert.equal(door.door_signal_pending, null);
+    const toggle = level_game([{ properties: {}, sprites: [
+        [5, 200, 0, {}], [1, 200, 0, { signal_code: 3, door_closed: false, door_reaction: 'toggle' }]] }]);
+    const t_door = toggle.active_level_sprites[0];
+    toggle.signals.emit(3, true, 1);               // close: waits
+    toggle.signals.emit(3, true, 1.2);             // the next signal opens again (it was heading closed)
+    toggle.player_character.mesh.position.x = 240;
+    toggle.update_waiting_doors(2);
+    assert.equal(t_door.door_closed, false);
+});
+
+test('F never closes a door onto whoever stands in it', () => {
+    const game = level_game([{ properties: {}, sprites: [
+        [5, 205, 0, {}],                                                          // half in the doorway
+        [1, 200, 0, { door_closed: false }],
+    ] }]);
+    const door = game.active_level_sprites[0];
+    game.data.sprites[1].traits.door.closable = true;
+    game.toggle_door_intent(0, 1);
+    assert.equal(door.door_closed, false);
+    game.player_character.mesh.position.x = 240;
+    game.toggle_door_intent(0, 2);
+    assert.equal(door.door_closed, true);
+    game.data.sprites[1].traits.door.closable = false;
+});

@@ -134,7 +134,6 @@ Roughly in order of usefulness (each must stay an understandable choice in the e
 - more receivers: a moving platform or lift that starts, spawn / remove a single sprite, a trap that switches on and off, enable / disable an object, set a simple game flag
 - "und" and counters: a receiver that waits for two Codes, or a Code that has to arrive three times ("drei Schalter umlegen")
 - names: a name whose Code nothing uses any more is invisible (no card) and keeps its number taken – offer a way to see or remove such names if children run into it
-- a door closed by a signal still closes onto whoever stands in it (see Doors and switches)
 - signals across levels only with an explicit design (flags), never implicitly: keys and Codes are per level
 
 ---
@@ -283,7 +282,6 @@ Basic doors, locks, keys and automatic behaviour already exist.
 
 Remaining useful extensions include:
 
-- sensible behaviour when something occupies a closing door: "schließt wieder nach" waits until the door is free, but a door closed by a signal or the action key still closes onto whoever stands in it
 - trapdoors (a layer that disappears under the player already works through Signale)
 - paired or teleporting doors
 

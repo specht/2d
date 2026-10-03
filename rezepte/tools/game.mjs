@@ -314,6 +314,15 @@ export async function build_game(catalog, recipe, repo) {
         const placed = [si, c * TILE + X0 + sprites[si].width / 2, (rows - 1 - r) * TILE];
         if (entry.platziert) placed.push(clone(entry.platziert));
         const traits = sprites[si].traits;
+        // A key, door, Schalter or Druckplatte without a Code in the recipe takes
+        // no part in the Signale: "Kein Signal" (signal_code: null), not 0 – the
+        // opened scene shows "kein Signal" instead of a Code nothing else has.
+        for (const role of ['key', 'switch', 'pressure_plate', 'door']) {
+            if (!(role in traits)) continue;
+            placed[3] ??= {};
+            placed[3][role] ??= {};
+            if (!('signal_code' in placed[3][role])) placed[3][role].signal_code = null;
+        }
         // figuren: true keeps characters in their own map layer (e.g. behind a window)
         if (('actor' in traits || 'baddie' in traits) && !layer_defs[li].figuren) figures.push(placed);
         else tile_layers[li].push(placed);
