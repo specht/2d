@@ -77,6 +77,64 @@ function paste_placed(sprites, clipboard, x, y) {
     }));
 }
 
+// Where copies go: half a grid step to the right and up, so they lie
+// visibly on top of the originals without replacing any sprite (a layer
+// holds one sprite per position). If that spot is taken too (a copy of a
+// copy), the next half step, and so on. `layer`: the sprites already there,
+// `items`: the copies at their original positions, step: half the grid,
+// first: 1 for duplicating, 0 for pasting (the same spot when it is free).
+function duplicate_offset(layer, items, step_x, step_y, first = 1, tries = 8) {
+    const taken = new Set(layer.map(placed_position_key));
+    let offset = [first * step_x, first * step_y];
+    for (let k = first; k <= first + tries; k++) {
+        offset = [k * step_x, k * step_y];
+        const [dx, dy] = offset;
+        if (!items.some(placed => taken.has(`${placed[1] + dx}/${placed[2] + dy}`))) return offset;
+    }
+    return offset;
+}
+
+// The lower left corner of the selected sprites (their smallest x and y).
+function selection_anchor(sprites, indices) {
+    const { selected } = split_selection(sprites, indices);
+    if (!selected.length) return null;
+    return [Math.min(...selected.map(placed => placed[1])), Math.min(...selected.map(placed => placed[2]))];
+}
+
+// On the grid, sprites stand at x = k · width + offset (their middle) and
+// y = k · height + offset (their bottom), as the pen places them.
+function grid_point(v, size, offset) {
+    if (!(size > 0)) return Math.round(v);
+    const o = ((offset % size) + size) % size;
+    return Math.round((v - o) / size) * size + o;
+}
+
+// Dragging the selection by (dx, dy): its lower left corner lands on the
+// grid, so a selection that is off the grid (a duplicate, or sprites placed
+// with Shift) snaps back onto it. On the grid already: whole grid steps.
+// grid: { width, height, x, y }.
+function snapped_selection_delta(sprites, indices, dx, dy, grid) {
+    const anchor = selection_anchor(sprites, indices);
+    if (!anchor) return [dx, dy];
+    return [grid_point(anchor[0] + dx, grid.width, grid.x ?? 0) - anchor[0],
+        grid_point(anchor[1] + dy, grid.height, grid.y ?? 0) - anchor[1]];
+}
+
+// An arrow key (dir_x, dir_y: -1, 0 or 1): to the next grid position in that
+// direction – a whole step on the grid, less when the selection is off it.
+function grid_step_delta(sprites, indices, dir_x, dir_y, grid) {
+    const anchor = selection_anchor(sprites, indices);
+    if (!anchor) return [dir_x * grid.width, dir_y * grid.height];
+    const next = (v, dir, size, offset) => {
+        if (!dir || !(size > 0)) return 0;
+        const o = ((offset % size) + size) % size;
+        const k = (v - o) / size;
+        const target = dir > 0 ? (Math.floor(k + 1e-9) + 1) * size + o : (Math.ceil(k - 1e-9) - 1) * size + o;
+        return target - v;
+    };
+    return [next(anchor[0], dir_x, grid.width, grid.x ?? 0), next(anchor[1], dir_y, grid.height, grid.y ?? 0)];
+}
+
 // Moves the selected sprites from one layer's array to another's, shifted by
 // (dx, dy): the level editor passes the difference in parallax offset so the
 // sprites stay where they are on screen.
@@ -224,7 +282,8 @@ function next_pick(hits, last) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         placed_position_key, merge_placed, move_placed, remove_placed, copy_placed, paste_placed,
-        move_placed_to_layer, parallax_layer_offset, shape_cells, place_shape, fill_placed, same_sprite_indices, replace_placed,
+        move_placed_to_layer, parallax_layer_offset, duplicate_offset, selection_anchor, grid_point,
+        snapped_selection_delta, grid_step_delta, shape_cells, place_shape, fill_placed, same_sprite_indices, replace_placed,
         placed_sprites_at, next_pick,
     };
 }

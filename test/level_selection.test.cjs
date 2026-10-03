@@ -174,3 +174,46 @@ test('double-click again at the same spot reaches the sprite behind, and round a
     assert.deepEqual(sel.next_pick(hits, { layer_index: 9, placed_index: 9 }), hits[0]); // gone meanwhile
     assert.equal(sel.next_pick([], hits[0]), null);
 });
+
+test('copies go half a grid step beside the originals and never replace a sprite', () => {
+    const row = [['a', 0, 0], ['a', 24, 0], ['a', 48, 0]];
+    // a whole step would land on the neighbours: half a step does not
+    assert.deepEqual(sel.duplicate_offset(row, row, 12, 12), [12, 12]);
+    // the originals duplicated once more: the half step is taken by the
+    // first copies, the next one is free
+    const with_copy = [...row, ['a', 12, 12], ['a', 36, 12], ['a', 60, 12]];
+    assert.deepEqual(sel.duplicate_offset(with_copy, row, 12, 12), [24, 24]);
+    // a copy of the copy: half a step from the copy
+    assert.deepEqual(sel.duplicate_offset(with_copy, with_copy.slice(3), 12, 12), [12, 12]);
+    // pasting into a layer where the spot is free: the same spot
+    assert.deepEqual(sel.duplicate_offset([['x', 100, 100]], row, 12, 12, 0), [0, 0]);
+    assert.deepEqual(sel.duplicate_offset(row, row, 12, 12, 0), [12, 12]);
+});
+
+test('dragging puts the selection\'s lower left corner on the grid', () => {
+    const grid = { width: 24, height: 24, x: 0, y: 0 };
+    const copies = [['a', 12, 12], ['a', 36, 12]];
+    // a duplicate dragged by a little: back on the grid
+    assert.deepEqual(sel.snapped_selection_delta(copies, [0, 1], 3, -2, grid), [12, -12]);
+    assert.deepEqual(sel.snapped_selection_delta(copies, [0, 1], -2, -3, grid), [-12, -12]);
+    assert.deepEqual(sel.snapped_selection_delta(copies, [0, 1], 10, 9, grid), [12, 12]);
+    // on the grid already: whole steps, as before
+    const placed = [['a', 24, 48]];
+    assert.deepEqual(sel.snapped_selection_delta(placed, [0], 30, -13, grid), [24, -24]);
+    assert.deepEqual(sel.snapped_selection_delta(placed, [0], 11, 11, grid), [0, 0]);
+    // a grid with an offset (Gitteroffset) and another size
+    assert.deepEqual(sel.snapped_selection_delta([['a', 5, 3]], [0], 0, 0, { width: 16, height: 16, x: 4, y: -13 }), [-1, 0]);
+    assert.equal(sel.grid_point(-30, 24, 0), -24);
+    assert.equal(sel.grid_point(7, 0, 0), 7);
+});
+
+test('arrow keys go to the next grid position in their direction', () => {
+    const grid = { width: 24, height: 24, x: 0, y: 0 };
+    assert.deepEqual(sel.grid_step_delta([['a', 24, 0]], [0], 1, 0, grid), [24, 0]);
+    assert.deepEqual(sel.grid_step_delta([['a', 24, 0]], [0], 0, -1, grid), [0, -24]);
+    // off the grid: only as far as the next grid position
+    assert.deepEqual(sel.grid_step_delta([['a', 12, 12]], [0], 1, 0, grid), [12, 0]);
+    assert.deepEqual(sel.grid_step_delta([['a', 12, 12]], [0], -1, 0, grid), [-12, 0]);
+    assert.deepEqual(sel.grid_step_delta([['a', 12, 12]], [0], 0, 1, grid), [0, 12]);
+    assert.deepEqual(sel.grid_step_delta([['a', -12, -12]], [0], 0, -1, grid), [0, -12]);
+});
