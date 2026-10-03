@@ -342,3 +342,17 @@ test('companion states: every menu entry has a label, and the figure states a co
     assert.deepEqual([...new Set(missing)].sort(), ['attack', 'climb', 'dead', 'hit']);
     for (const dir of ['front', 'back', 'left', 'right']) assert.ok(companion.has(`fly_${dir}`));
 });
+
+test('Begleiter "kommt erst bei Signal mit": waits where it stands, looks at the player, then follows', () => {
+    const { c, p, run } = world({ blocks: ground(-5, 40), player: [120, 24], start: [0, 24] });
+    c.companion_waiting = true;
+    run(2);
+    assert.equal(c.mesh.position.x, 0);
+    assert.equal(c.direction, 'right', 'it looks at the player');
+    assert.equal(c.companion_stats.lost, 0);
+    // the signal arrives (Game.setup_signals sets the flag back)
+    c.companion_waiting = false;
+    run(2);
+    assert.ok(c.mesh.position.x > 60, `x ${c.mesh.position.x}`);
+    assert.ok(p.mesh.position.x - c.mesh.position.x <= COMPANION.FOLLOW);
+});

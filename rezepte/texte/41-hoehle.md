@@ -17,7 +17,7 @@ szene:
   legende: { F: hoehle_fels, b: hoehle_boden, w: hoehle_wand, Z: hoehle_spalt, '8': tropfstein_oben, '9': tropfstein_unten,
              p: leuchtpilz, g: pilzlicht, Y: lichtschacht, Q: bergflanke, X: bergfront, U: hoehle_uebergang_boden, E: hoehle_uebergang_erde }
   effekte:
-    # only inside does it get dark (the Bereich "Höhle" sends Code 1). The
+    # only inside does it get dark (the Signalbereich "Höhle" sends Code 1). The
     # darkness begins softly at the entrance (from no tint to blue) …
     - { effekt: farbe, name: Dämmerung, farben: [['#ffffff', 0.0, 1.0], ['#5a689e', 1.0, 1.0], ['#ffffff', 0.0, 0.0], ['#4a5890', 1.0, 0.0]], mischmodus: abdunkeln, bereich: [6, 0, 4, 6], hinter: Licht,
         signal: { code: 1, reaktion: solange_an, ueberblendung: 0.8 } }
@@ -95,11 +95,11 @@ szene:
         ........X.........................
         ..................................
         ..................................
-  # one Bereich over the whole cave: while Pip is inside, it sends Code 1 "an".
+  # one Signalbereich over the whole cave: while Pip is inside, it sends Code 1 "an".
   # The front of the mountain fades out, the darkness fades in (the eyes get used to it).
   bereiche:
     - { name: Höhle, code: 1, rechtecke: [[6.5, 0, 27.5, 6]] }
-# Pip walks up to the mountain and stops right in the mouth (x 165, the Bereich
+# Pip walks up to the mountain and stops right in the mouth (x 165, the Signalbereich
 # begins at 156) and waits there while the front fades out and the darkness fades in.
 # Then on into the pool (he stops there for a moment in the light), jumps out
 # and walks on to the end of the cave.
@@ -116,7 +116,7 @@ erwartet:
 ## Kurz gesagt
 
 1. Von außen sieht man einen **Berg**, der sanft aus der Wiese aufsteigt – mit einem dunklen Loch.
-2. Der Berg ist **ein Bild in zwei Teilen**: Die Flanke mit dem Eingang bleibt immer stehen. Der Teil über der Höhle verschwindet, sobald die Figur drin ist – ein **Bereich** über der Höhle sendet dann ein Signal. Dahinter wartet eine Höhle, die viel größer ist als der Bildschirm.
+2. Der Berg ist **ein Bild in zwei Teilen**: Die Flanke mit dem Eingang bleibt immer stehen. Der Teil über der Höhle verschwindet, sobald die Figur drin ist – ein **Signalbereich** über der Höhle sendet dann ein Signal. Dahinter wartet eine Höhle, die viel größer ist als der Bildschirm.
 3. Drinnen ist es dunkel. Nur leuchtende Pilze und ein Lichtstrahl durch einen Felsspalt machen Licht – und in einem Teich kann man sogar waten.
 
 ## Das brauchst du
@@ -150,7 +150,7 @@ erwartet:
    - **Berg von außen** (der Rest über der Höhle) in eine Ebene ganz oben in der Layer-Liste.
    Von außen passen beide Teile genau zusammen – man sieht einen einzigen Berg.
 8. **Übergänge am Boden:** Am Eingang geht die Wiese mit einem gemischten Stück in Höhlenboden über, die Erde darunter in Fels. So gibt es auch unten keine gerade Kante.
-9. Neue Ebene über **+ → Bereich**, neben **Code** aus der Liste **In der Höhle**. Zieh das Rechteck über die ganze Höhle – es beginnt mitten im Eingang. Solange die Figur darin ist, sendet der Bereich dieses Signal mit „an“. Bei der Ebene **Berg von außen** stellst du **Bei Signal: weg, solange an**, das Signal **In der Höhle** und **Überblendung 0,6 s** ein.
+9. Neue Ebene über **+ → Signalbereich**, neben **Code** aus der Liste **In der Höhle**. Zieh das Rechteck über die ganze Höhle – es beginnt mitten im Eingang. Solange die Figur darin ist, sendet der Signalbereich dieses Signal mit „an“. Bei der Ebene **Berg von außen** stellst du **Bei Signal: weg, solange an**, das Signal **In der Höhle** und **Überblendung 0,6 s** ein.
 10. Probier es aus: Pip geht auf den dunklen Eingang zu und bleibt mitten im Eingang stehen. Der Berg über der Höhle verschwindet, es wird langsam dunkel – und die Höhle öffnet sich. Dann watet Pip in den Teich, bleibt kurz im Lichtstrahl stehen, springt heraus und läuft weiter bis zum Ende der Höhle.
 
 ## So wird die Höhle geheimnisvoll
@@ -163,9 +163,9 @@ erwartet:
 
 ## Tipps
 
-> **Tipp:** Entscheidend ist die **Mitte der Spielfigur**: Liegt sie im Rechteck, sendet der Bereich „an“. Das Rechteck muss also nicht bis zum Boden reichen.
+> **Tipp:** Entscheidend ist die **Mitte der Spielfigur**: Liegt sie im Rechteck, sendet der Signalbereich „an“. Das Rechteck muss also nicht bis zum Boden reichen.
 
-> **Tipp:** Ein Bereich, drei Ebenen: Berg, Dämmerung und Höhlendunkel hören alle auf **In der Höhle**. In der Signale-Übersicht (Taste S) siehst du, wer sendet und wer reagiert.
+> **Tipp:** Ein Signalbereich, drei Ebenen: Berg, Dämmerung und Höhlendunkel hören alle auf **In der Höhle**. In der Signale-Übersicht (Taste S) siehst du, wer sendet und wer reagiert.
 
 - Weil der Eingang im Berg durchsichtig ist, sieht man schon von außen ins Dunkel hinein. Man weiß sofort, wo es reingeht – und ist neugierig.
 - Die Lichter liegen **vor** der Dunkelheit, das Wasser **dahinter**. So bleiben die Pilze hell, und das Wasser ist so dunkel wie die Höhle.
@@ -182,7 +182,7 @@ erwartet:
 - **Am Eingang ist eine harte Kante zwischen hell und dunkel:** Es fehlt das schmale Rechteck mit dem Farbverlauf von Weiß nach Blau.
 - **Die Pilze leuchten nicht:** Die Licht-Ebene liegt unter der Abdunkeln-Ebene, oder bei ihr fehlt der **Mischmodus: Leuchten**.
 - **Die Figur kommt aus dem Teich nicht heraus:** Die Mulde ist tiefer als ein Sprung. Mach sie nur einen Block tief.
-- **Der Berg verschwindet nicht:** Bereich und Ebene haben nicht dasselbe Signal, bei der Ebene steht nicht **weg, solange an**, oder das Rechteck liegt nicht dort, wo die Figur läuft.
+- **Der Berg verschwindet nicht:** Signalbereich und Ebene haben nicht dasselbe Signal, bei der Ebene steht nicht **weg, solange an**, oder das Rechteck liegt nicht dort, wo die Figur läuft.
 - **Draußen ist es dunkel, drinnen hell:** Bei den dunklen Ebenen steht **weg, solange an** statt **da, solange an**.
 
 ## Mach mehr draus

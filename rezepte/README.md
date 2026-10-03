@@ -76,7 +76,7 @@ studio.
   recipe's map. Map column *c* is centred on x = c × 24 (`X0`, the left edge
   of column 0, is −12), exactly where the level editor puts a 24-pixel sprite,
   so whatever a child paints into an opened recipe scene lines up with it;
-  Bereiche and other rectangles in tiles use the same grid. Defaults are filled in by running the studio's own
+  Signalbereiche and other rectangles in tiles use the same grid. Defaults are filled in by running the studio's own
   `Game.prototype.fix_game_data()` (`game.js`) in a Node VM, so the recorded
   game has exactly the fields a child's saved game would have. The sprite
   sheet uses the same layout as `Main.render_spritesheet_for_tag`.
@@ -175,7 +175,7 @@ szene:
   #                            #   ueberblendung in seconds (default 0.3). Effects take it, too.
   #     karte: |
   #       …
-  # bereiche:                  # Bereiche (signal_area layers): send their code "an" while the
+  # bereiche:                  # Signalbereiche (signal_area layers): send their code "an" while the
   #   - { name: Haus, code: 4, rechtecke: [[4, 2, 6, 3]] }   # figure's centre is inside, else "aus"
   #                            # rectangles in tiles: column, row from top, width, height
   # alle_besiegt: 9            # the level sends Code 9 once no enemy is left
@@ -359,7 +359,8 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `gitter_uebergang` (3, a portcullis rising; catalogue `gittertor` is locked
   and automatic, so only a signal opens it), `block_rot` / `block_gruen` (solid
   blocks in the colours of the Schalter's knob, for layers that swap) and
-  `umriss_rot` / `umriss_gruen` (their dashed outlines, decoration).
+  `umriss_rot` / `umriss_gruen` (their dashed outlines, decoration), `zaehler` and `zaehler_5` (a Zähler:
+  a panel whose 3 or 5 lamps light up one by one – states *Zähler wartet / zeigt n / erreicht*).
 * **Deko** (transparent, no traits, own layer without collisions): `moos`,
   `ranke`, `riss`, `fackel` (3), `burgfenster`, `grasbuesche`, `innenwand`,
   `bild`, `lampe`, `tisch`, `pflanze`, `fassade`, `fassade_fenster`, `zimmer`
@@ -504,7 +505,18 @@ shaded with ordered 4×4 Bayer dithering. A big sprite placed in a map starts
 at its cell and stands on the cell's bottom edge. (In the level editor the
 pen puts a sprite with its lower left corner on the grid of the game's
 Rastergröße, so sprites of 48 × 24 and 24 × 24 line up.) The sky is never a sprite
-but the level's colour backdrop (`himmel`).
+but the level's colour backdrop (`himmel`). The far mountains have broad, rounded caps;
+only the near ones are pointed.
+
+**Figures stand on the bottom row of their sprite:** the engine puts the bottom edge of a sprite
+on the ground, so every frame of a figure's standing and walking states (`right`, `front`,
+`walk_…`, `hunt_…`, `flee_…`, `landed_…` of `actor`, `baddie` or `companion`) must have a
+pixel in its last row, or the build stops (`catalogue_grounding_problems` in `game.mjs`) –
+otherwise the figure would hover in every game a child takes it into. Flyers (`can_fly`,
+`affected_by_gravity: false`) are exempt; figures that never stand (the fish, the submarine,
+the jellyfish) say `schwebt: true` in `katalog.yaml`. Jumping, falling and swimming frames may
+be anywhere, but keep them at the same height as the standing ones, so a figure does not jump
+by a pixel when it changes state.
 
 **The Sprite-Katalog** (Sprites holen in the studio, `src/static/sprite_basket.js`): every
 build writes `katalog.json`, all sprites of `katalog.yaml` as one game (`spiel`, frames inside)

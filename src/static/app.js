@@ -766,6 +766,15 @@ void main() {
 		this.ai_face = null;
 		this.ai_pose = null;
 		const player = this.game.player_character;
+		// "kommt erst bei Signal mit": it stays where it is (a flyer hovers) and
+		// looks at the player when it comes close
+		if (this.companion_waiting) {
+			for (const k of [KEY_LEFT, KEY_RIGHT, KEY_JUMP, KEY_UP, KEY_DOWN]) this.pressed_keys[k] = false;
+			this.ai_no_gravity = Boolean(this.companion.fly);
+			if (player?.mesh && Math.abs(player.mesh.position.x - this.mesh.position.x) < 6 * 24)
+				this.ai_face = player.mesh.position.x < this.mesh.position.x ? 'left' : 'right';
+			return;
+		}
 		// while the player is dead or the curtain is down, it waits
 		const alive = player && player !== this && !player.dead() && this.game.running !== false &&
 			!this.game.curtain?.showing;
@@ -1100,7 +1109,7 @@ void main() {
 				self.mesh.position.y = self.initial_position[1];
 				// Begleiter come along to the place where the figure starts again
 				for (const companion of self.game.companions ?? [])
-					companion.return_to_player(self, self.game.clock.getElapsedTime(), true);
+					if (!companion.companion_waiting) companion.return_to_player(self, self.game.clock.getElapsedTime(), true);
 				if (sprite !== null) {
 					self.invincible_until = self.game.clock.getElapsedTime() + sprite.traits[trait].damage_cool_down;
 				}
@@ -2369,6 +2378,9 @@ class Game {
 					else if ('companion' in sprite.traits) {
 						const companion = new Character(this, si, mesh);
 						companion.layer_index = li;
+						// "kommt erst bei Signal mit" (absent = follows from the start, as always)
+						companion.placed_signal = placed[3]?.companion ?? null;
+						companion.companion_waiting = companion.placed_signal?.waits_for_signal === true;
 						if (companion.character_trait === 'companion') {
 							// its place in the line behind the player (flyers and walkers apart)
 							companion.companion_slot = this.companions.filter(o => o.companion.fly === companion.companion.fly).length;
@@ -2585,6 +2597,13 @@ class Game {
 			// a sign that speaks on "an" (absent = only with the action key, as always)
 			if ('text' in traits && entry.speaks_on_signal === true)
 				this.signals.connect(stored_signal_code(entry.signal_code), (value) => { if (value) this.signal_speech(entry_index); });
+			// a Zähler: counts its Code, sends its own at its Anzahl (signals.js)
+			if ('counter' in traits) {
+				entry.counter_value = 0;
+				entry.counter_full = false;
+				this.show_counter_state(entry);
+				this.signals.connect(stored_signal_code(entry.counter_in), (value, t) => this.counter_signal(entry_index, value, t));
+			}
 			// a platform "bei Signal": "an" to the end of its Weg, "aus" back (platforms.js)
 			if (entry.platform?.settings.start === 'signal')
 				this.signals.connect(stored_signal_code(entry.platform_code), (value) => MovingPlatforms.signal(entry.platform, value));
@@ -2609,6 +2628,13 @@ class Game {
 			this.signals.connect(stored_signal_code(layer.properties.signal_code), (value) => {
 				visible = layer_visible_after(reaction, value, visible);
 				this.set_layer_signal_visible(li, visible, this.signals.immediate === true);
+			});
+		}
+		// a Begleiter that waits for its signal: "an" and it comes along, for good
+		for (const companion of this.companions ?? []) {
+			if (!companion.companion_waiting) continue;
+			this.signals.connect(stored_signal_code(companion.placed_signal?.signal_code), (value) => {
+				if (value) companion.companion_waiting = false;
 			});
 		}
 		// Bereiche: rectangles that send when the figure's centre enters or leaves them
@@ -2810,6 +2836,29 @@ class Game {
 		this.renderer.setRenderTarget(null);
 		this.renderer.render(this.speech_scene, this.speech_camera);
 		this.renderer.autoClear = auto_clear;
+	}
+
+	// Zähler: "an" +1, "aus" −1; at its Anzahl it sends its own Code "an",
+	// below it "aus" (only when that changes). A sender to itself is no loop:
+	// the bus stops deep chains (SIGNAL_MAX_DEPTH).
+	counter_signal(entry_index, value, t) {
+		const entry = this.active_level_sprites[entry_index];
+		const step = counter_step(entry.counter_value, value, counter_count({ count: entry.counter_count }));
+		entry.counter_value = step.count;
+		const changed = step.full !== entry.counter_full;
+		entry.counter_full = step.full;
+		this.show_counter_state(entry);
+		if (!changed) return;
+		this.signals?.send(stored_signal_code(entry.counter_out), step.full, t, { delay: entry.counter_delay, from: entry });
+	}
+
+	// "Zähler erreicht" when full, else "Zähler zeigt n" if that is drawn, else "Zähler wartet".
+	show_counter_state(entry) {
+		const sprite = this.data.sprites[entry.sprite_index];
+		const has = (name) => sprite.states.some(state => name in (state.traits?.counter ?? {}));
+		const name = entry.counter_full && has('done') ? 'done' :
+			(entry.counter_value > 0 && has(`count_${entry.counter_value}`) ? `count_${entry.counter_value}` : 'waiting');
+		this.show_trait_state(entry, 'counter', name);
 	}
 
 	flip_switch(entry_index, t) {

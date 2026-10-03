@@ -123,6 +123,29 @@ varianten:
         Abenteurerin: { folgt: 64, rechts_von: 13, nie_verloren: true }
         Ritter: { folgt: 96, rechts_von: 12, nie_verloren: true }
         Zauberin: { folgt: 72, rechts_von: 12, immer_hoeher_als: 2 }
+  # 5: a friend waits until Pip comes to her (kommt erst bei Signal mit, a Signalbereich)
+  - szene:
+      signale: { 3: Treffpunkt }
+      legende:
+        a: { sprite: abenteurerin, platziert: { companion: { waits_for_signal: true, signal_code: 3 } } }
+      bereiche:
+        - { name: Treffpunkt, code: 3, rechtecke: [[6, 2, 5, 3]] }
+      karte: |
+        ........................
+        ........................
+        ........................
+        ........................
+        .P......a...............
+        ########################
+        ========================
+    ablauf:
+      - { t: 0.3, halten: rechts, dauer: 0.5 }
+      - { t: 1.8, halten: rechts, dauer: 2.0 }
+    dauer: 5.4
+    erwartet:
+      signale: ['3 an', '3 aus']
+      begleiter_einzeln:
+        Abenteurerin: { bleibt_zurueck: { links_von: 9, bis: 1.8 }, folgt: 72, rechts_von: 13, nie_verloren: true }
 ---
 ## Kurz gesagt
 
@@ -205,10 +228,13 @@ Ein Begleiter muss kein Tier sein. Die **Abenteurerin** springt so hoch wie Pip 
 - Gib deinem Begleiter seinen Namen als **Titel**. Dann findest du ihn in der Sprite-Liste sofort.
 - Ein Begleiter, der zurückbleiben kann, macht dein Level spannender: Baust du für den Hund eine Treppe neben die hohe Kante?
 - Ist er weit weg, rennt er ein bisschen schneller, um dich einzuholen. Verlierst du ein Leben, ist er gleich wieder bei dir.
+- **Ein Freund, den man erst finden muss:** Klicke den Begleiter im Level an und schalte **kommt erst bei Signal mit** an. Dann wartet er, wo er steht. Leg einen **Signalbereich** um ihn herum und verbinde ihn mit dem Begleiter – sobald Pip zu ihm kommt, läuft er mit und bleibt bei dir:
+
+![Die Abenteurerin wartet am Treffpunkt](variante:5)
 
 ## Wenn's nicht klappt
 
-- **Er bewegt sich gar nicht:** Hat das Sprite die Eigenschaft **Begleiter**? Ist es gleichzeitig **Spielfigur** oder **Gegner**, zählt es als das – ein Begleiter braucht ein eigenes Sprite.
+- **Er bewegt sich gar nicht:** Ist bei ihm im Level **kommt erst bei Signal mit** an? Dann wartet er auf sein Signal. Hat das Sprite die Eigenschaft **Begleiter**? Ist es gleichzeitig **Spielfigur** oder **Gegner**, zählt es als das – ein Begleiter braucht ein eigenes Sprite.
 - **Er schafft eine Stufe, die er nicht schaffen soll (oder umgekehrt):** Ändere seine **Sprungkraft**.
 - **Er kommt nicht wieder:** Er kommt erst, wenn er weit weg und nicht mehr zu sehen ist – lauf weiter. Und er braucht neben dir Platz, auf dem er stehen kann.
 - **Er geht nicht ins Wasser:** Ist **kann schwimmen** an, und liegt über dem Wasser ein **Bewegungsbereich** mit **Schwimmen**?

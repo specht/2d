@@ -422,7 +422,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         // the buttons stand in the order of their keys on the keyboard: Q W E R T
         {
             group: 'tool', command: 'connect', image: 'connect-44', shortcut: 'R', label: 'Verbinden', hints: [
-                'Erst anklicken, was sendet (Schalter, Schlüssel, Druckplatte, Gegner, Bereich), dann, was reagieren soll (Tür, Brücke, Dach …)',
+                'Erst anklicken, was sendet (Schalter, Schlüssel, Druckplatte, Gegner, Signalbereich), dann, was reagieren soll (Tür, Brücke, Dach …)',
                 { key: 'Escape', label: 'Abbrechen', callback: function () { game.level_editor.cancel_connect(); } },
             ]
         },

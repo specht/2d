@@ -4882,3 +4882,27 @@ button.resize-cell.active {
 .resize-grid-hint.warn {
     color: #ffcd75;
 }
+
+/* Bewegte Plattformen: drag the end of the Weg (level_editor.js place_platform_handle) */
+.platform-end-handle {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid #73eff7;
+    background: rgba(18, 20, 32, 0.85);
+    color: #73eff7;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: move;
+    z-index: 5;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+.platform-end-handle:hover {
+    background: #73eff7;
+    color: #1a1c2c;
+}

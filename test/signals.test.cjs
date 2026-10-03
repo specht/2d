@@ -426,7 +426,7 @@ test('the editor line knows Bereiche, enemies and "alle Gegner besiegt"', () => 
         { type: 'signal_area', properties: { name: 'Haus', signal_code: 6 }, rects: [] },
     ] };
     assert.equal(describe_signal_partners(6, signal_partners(level, 6, ref => traits[ref])),
-        'Code 6 in diesem Level – sendet: 1 Gegner, Bereich »Haus«, alle Gegner besiegt · reagiert: 1 Tür');
+        'Code 6 in diesem Level – sendet: 1 Gegner, Signalbereich »Haus«, alle Gegner besiegt · reagiert: 1 Tür');
     assert.equal(free_signal_code(level), 1);
     level.layers[0].sprites.push(['d', 0, 0, { door: { signal_code: 1 } }]);
     assert.equal(free_signal_code(level), 2);
@@ -789,6 +789,8 @@ test('signal_rules: one card per Code, "Wenn … dann …", with warnings', () =
     assert.deepEqual(two.senders.map(l => l.text), ['alle Gegner besiegt sind']);
     assert.deepEqual(two.receivers.map(l => l.text), ['öffnet sich »Gittertor«']);
     assert.deepEqual(two.off, []);
+    // a Bereich is a Signalbereich for the children (Bewegungsbereiche are something else)
+    assert.equal(three.senders[0].text.startsWith('die Spielfigur in den Signalbereich »Arena« läuft'), true);
     assert.equal(three.problem, 'no_receiver');
     // two equal senders are one line, counted, both selectable
     assert.equal(five.senders.length, 1);
@@ -1222,4 +1224,68 @@ test('F never closes a door onto whoever stands in it', () => {
     game.toggle_door_intent(0, 2);
     assert.equal(door.door_closed, true);
     game.data.sprites[1].traits.door.closable = false;
+});
+
+// ------------------------------------------------------------ Zähler
+
+test('Zähler: "an" counts up, "aus" down (never below 0), full at the Anzahl', () => {
+    const { counter_step, counter_count, COUNTER_DEFAULT_COUNT } = signals;
+    assert.equal(counter_count({}), COUNTER_DEFAULT_COUNT);
+    assert.equal(counter_count({ count: 5 }), 5);
+    assert.equal(counter_count({ count: 0 }), COUNTER_DEFAULT_COUNT);
+    let state = { count: 0, full: false };
+    const seen = [];
+    for (const value of [true, true, false, true, true, true, false, false])
+        seen.push((state = counter_step(state.count, value, 3)).full);
+    assert.deepEqual(seen, [false, false, false, false, true, true, true, false]);
+    assert.deepEqual(counter_step(0, false, 3), { count: 0, full: false });
+});
+
+test('Zähler: three Schalter and a gate – it receives and sends, with its own sentences', () => {
+    const traits = { s: { switch: {} }, z: { counter: {} }, t: { door: { lockable: true } } };
+    const level = { layers: [{ type: 'sprites', sprites: [
+        ['s', 0, 0, { switch: { signal_code: 2 } }], ['s', 24, 0, { switch: { signal_code: 2 } }], ['s', 48, 0, { switch: { signal_code: 2 } }],
+        ['z', 96, 0, { counter: { signal_code: 2, count: 3, send_code: 5 } }],
+        ['t', 144, 0, { door: { signal_code: 5, door_reaction: 'follow' } }],
+    ] }] };
+    const roles = signals.placed_signal_roles(level.layers[0].sprites[3], traits.z);
+    assert.deepEqual(roles.map(r => [r.role.id ?? r.role.trait, r.code]), [['counter', 2], ['counter_out', 5]]);
+    const cards = signals.signal_rules(level, r => traits[r], r => ({ s: 'Schalter', z: 'Zähler', t: 'Tor' })[r]);
+    assert.deepEqual(cards.map(c => c.code), [2, 5]);
+    assert.equal(cards[0].receivers[0].text, 'zählt »Zähler« mit (bis 3; „aus“ zählt zurück)');
+    assert.equal(cards[0].senders[0].count, 3);
+    assert.equal(cards[1].senders[0].text, '»Zähler« bis 3 gezählt hat');
+    assert.ok(cards[1].off.length, 'the gate closes again: "aus" matters');
+    assert.equal(cards[0].problem, null);
+    assert.equal(cards[1].problem, null);
+    // the bus: three switches on → the gate's Code "an", one off → "aus"
+    const bus = new SignalBus();
+    let count = 0, full = false;
+    bus.connect(2, (value, t) => {
+        const step = signals.counter_step(count, value, 3);
+        count = step.count;
+        if (step.full !== full) { full = step.full; bus.send(5, full, t); }
+    });
+    for (const value of [true, true, true, false]) bus.send(2, value, 0);
+    assert.deepEqual(bus.sent.map(([c, v]) => `${c} ${v ? 'an' : 'aus'}`), ['2 an', '2 an', '2 an', '5 an', '2 aus', '5 aus']);
+});
+
+test('Zähler in the editor: a new one gets two free Codes; Verbinden finds what it counts and what it sends', () => {
+    const level = { layers: [{ type: 'sprites', sprites: [['s', 0, 0, { switch: { signal_code: 1 } }]] }] };
+    const placed = ['z', 48, 0];
+    signals.give_new_senders_codes(level, [placed], () => ({ counter: {} }));
+    assert.deepEqual(placed[3], { counter: { signal_code: 2, send_code: 3 } });
+    level.layers[0].sprites.push(placed);
+    const traits_of = r => ({ s: { switch: {} }, z: { counter: {} } })[r];
+    const size_of = () => ({ width: 24, height: 24 });
+    // looking for a sender at the Zähler: what it sends; looking for a receiver: what it counts
+    const as_sender = signals.pick_signal_object(level, 48, 5, traits_of, size_of, 0, 'sender');
+    const as_receiver = signals.pick_signal_object(level, 48, 5, traits_of, size_of, 0, 'receiver');
+    assert.equal(as_sender.role, 'counter_out');
+    assert.equal(as_receiver.sends, false);
+    signals.set_signal_object_code(level, as_sender, 9, null);
+    assert.equal(placed[3].counter.send_code, 9);
+    assert.equal(placed[3].counter.signal_code, 2);
+    // its Codes travel with names and count as taken
+    assert.ok(signals.signal_codes_in_level(level).has(9));
 });

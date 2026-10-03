@@ -81,10 +81,12 @@ export function load_catalog(root) {
         if (stack.includes(id)) throw new Error(`Katalog: Zyklus bei ${[...stack, id].join(' → ')}`);
         let sprite = { id, label: def.label ?? id, traits: clone(def.traits ?? {}), states: clone(def.states ?? []),
             ...(def.groesse ? { groesse: def.groesse } : {}),
+            ...(def.schwebt ? { schwebt: true } : {}),
             ...(def.mischmodus ? { mischmodus: blend_of(def.mischmodus, `Katalog ${id}: `) } : {}) };
         if (def.extends) {
             const parent = resolve(def.extends, [...stack, id]);
             if (parent.mischmodus && !('mischmodus' in def)) sprite.mischmodus = parent.mischmodus;
+            if (parent.schwebt && !('schwebt' in def)) sprite.schwebt = true;
             const states = clone(parent.states);
             for (const st of sprite.states) {
                 const i = states.findIndex(s => s.strip === st.strip);
@@ -122,6 +124,34 @@ function catalogue_collection(catalog) {
     const missing = Object.keys(catalog.sprites).filter(id => !seen.has(id) && !left_out.has(id));
     if (missing.length) throw new Error(`Katalog: nicht in der Sammlung: ${missing.join(', ')} (in eine Gruppe von sammlung oder in nicht_in_sammlung eintragen)`);
     return groups;
+}
+
+// Figures stand on the bottom row of their sprite (see katalog.yaml): the engine
+// puts the bottom of the sprite on the ground, so an empty last row makes a
+// figure hover in every game it is used in. Flyers and `schwebt: true` are exempt.
+const FIGURE_TRAITS = ['actor', 'baddie', 'companion'];
+const GROUND_ROLE = /^(right|left|front|back|walk_.*|hunt_.*|flee_.*|landed_.*)$/;
+export async function catalogue_grounding_problems(catalog) {
+    const problems = [];
+    for (const [id, sprite] of Object.entries(catalog.sprites)) {
+        const t = sprite.traits;
+        if (!FIGURE_TRAITS.some(name => t[name]) || sprite.schwebt) continue;
+        if (t.companion?.can_fly || t.baddie?.affected_by_gravity === false) continue;
+        const [w, h] = sprite.groesse ?? [TILE, TILE];
+        for (const st of sprite.states) {
+            const roles = FIGURE_TRAITS.flatMap(name => st.traits?.[name] ?? []);
+            if (!roles.some(role => GROUND_ROLE.test(role))) continue;
+            let frames = await load_strip(catalog.root, st.strip, w, h);
+            const picked = st.frames ?? frames.map((_, i) => i);
+            for (const i of picked) {
+                const raw = frames[i].raw;
+                let touches = false;
+                for (let x = 0; x < w && !touches; x++) touches = raw[((h - 1) * w + x) * 4 + 3] > 0;
+                if (!touches) problems.push(`${id}: ${st.strip} Bild ${i + 1} steht nicht auf der untersten Pixelreihe`);
+            }
+        }
+    }
+    return problems;
 }
 
 const strip_cache = new Map();
@@ -474,10 +504,10 @@ export async function build_game(catalog, recipe, repo) {
     // Bereiche (signals.js): rectangles in tiles [column, row from top, width,
     // height] that send their Code while the figure's centre is inside.
     const regions = (scene.bereiche ?? []).map((b, i) => {
-        if (b.ziel !== undefined) throw new Error(`${recipe.id}: Sichtbarkeitsbereiche gibt es nicht mehr – ein Bereich hat einen code, die Ebene bekommt signal: { code, reaktion: solange_aus }`);
-        if (!Number.isInteger(b.code)) throw new Error(`${recipe.id}: Bereich ${i + 1}: code fehlt`);
+        if (b.ziel !== undefined) throw new Error(`${recipe.id}: Sichtbarkeitsbereiche gibt es nicht mehr – ein Signalbereich hat einen code, die Ebene bekommt signal: { code, reaktion: solange_aus }`);
+        if (!Number.isInteger(b.code)) throw new Error(`${recipe.id}: Signalbereich ${i + 1}: code fehlt`);
         return {
-            type: 'signal_area', properties: { name: b.name ?? `Bereich ${i + 1}`, signal_code: b.code },
+            type: 'signal_area', properties: { name: b.name ?? `Signalbereich ${i + 1}`, signal_code: b.code },
             rects: b.rechtecke.map(([c, r, w, h]) => ({ left: c * TILE + X0, bottom: (rows - r - h) * TILE, width: w * TILE, height: h * TILE })),
         };
     });

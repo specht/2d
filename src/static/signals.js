@@ -19,6 +19,14 @@
 // - a sign (Hinweistext) with placed text.speaks_on_signal: it speaks on "an"
 // - a moving platform (platforms.js) with placed moving.start "signal": "an"
 //   sends it to the end of its Weg, "aus" back to where it was placed
+// - a Begleiter with placed companion.waits_for_signal: it waits where it
+//   stands until "an" arrives, then follows for good (companion_ai.js)
+// - a Zähler (placed sprite with the trait counter): it is a receiver and a
+//   sender at once – "an" with its Code (counter.signal_code) counts +1, "aus"
+//   −1 (never below 0); when the count reaches its Anzahl (counter.count) it
+//   sends its own Code (counter.send_code) "an", and "aus" when it falls below
+//   again. Three Schalter on one Code and Anzahl 3: "und". Five Münzen with
+//   "sendet, wenn eingesammelt" and Anzahl 5: a counter.
 // - the level with properties.signal_level_complete: "an" completes it, like
 //   the exit (absent = no such Code, as in every older game)
 // - a layer: properties.signal_code and properties.signal_reaction (it can
@@ -339,6 +347,12 @@ const SIGNAL_SPRITE_ROLES = [
     // a sign that speaks on "an" (placed text.speaks_on_signal; absent = only with F, as always)
     { trait: 'text', sends: false, one: 'Hinweistext', many: 'Hinweistexte',
         active: (props) => props?.speaks_on_signal === true },
+    // a Begleiter that waits until "an" arrives (placed companion.waits_for_signal)
+    { trait: 'companion', sends: false, one: 'Begleiter', many: 'Begleiter',
+        active: (props) => props?.waits_for_signal === true },
+    // a Zähler: counts what arrives with its Code (counter.signal_code); what it
+    // sends is SIGNAL_COUNTER_OUT_ROLE (counter.send_code)
+    { trait: 'counter', sends: false, one: 'Zähler', many: 'Zähler' },
     // a moving platform that waits for a signal (placed moving.start, platforms.js)
     { trait: 'moving', sends: false, one: 'Plattform', many: 'Plattformen',
         active: (props) => props?.start === 'signal' },
@@ -385,12 +399,33 @@ function effective_loot_code(placed_props, drop) {
     return Number.isInteger(drop?.signal_code) ? drop.signal_code : 0;
 }
 
+// What a Zähler sends when it reaches its Anzahl: its counter.send_code
+// (absent = 0, null = "kein Signal", like every Code).
+const SIGNAL_COUNTER_OUT_ROLE = { trait: 'counter', id: 'counter_out', sends: true, one: 'Zähler', many: 'Zähler' };
+
+// Anzahl of a placed Zähler: a whole number from 1 on (absent: COUNTER_DEFAULT_COUNT).
+const COUNTER_DEFAULT_COUNT = 3;
+function counter_count(props) {
+    const n = Math.round(Number(props?.count));
+    return Number.isFinite(n) && n >= 1 ? Math.min(n, 99) : COUNTER_DEFAULT_COUNT;
+}
+
+// One signal for a Zähler: { count, full } after it ("an" +1, "aus" −1, never below 0).
+function counter_step(count, value, needed) {
+    const next = Math.max(0, (Number(count) || 0) + (value ? 1 : -1));
+    return { count: next, full: next >= needed };
+}
+
 // Every role of a placed sprite (an enemy may send when defeated and also
-// leave a key behind), each with its Code.
+// leave a key behind, a Zähler receives and sends), each with its Code.
 function placed_signal_roles(placed, traits, traits_of = null) {
     const roles = [];
     const found = placed_signal_role(placed, traits);
     if (found) roles.push(found);
+    if (traits && 'counter' in traits) {
+        const code = stored_signal_code(placed?.[3]?.counter?.send_code);
+        if (code !== null) roles.push({ role: SIGNAL_COUNTER_OUT_ROLE, code });
+    }
     if (traits && 'baddie' in traits) {
         const code = loot_key_code(placed?.[3]?.baddie, traits.baddie, traits_of);
         if (code !== null) roles.push({ role: SIGNAL_LOOT_ROLE, code });
@@ -409,6 +444,16 @@ function give_new_senders_codes(level, placed_list, traits_of) {
     const taken = new Set();
     for (const placed of placed_list ?? []) {
         const traits = traits_of(placed?.[0]) ?? {};
+        // a new Zähler: a free Code to count and another one to send
+        if ('counter' in traits) {
+            if (!placed[3] || typeof placed[3] !== 'object') placed[3] = {};
+            const props = placed[3].counter ??= {};
+            for (const key of ['signal_code', 'send_code']) {
+                if (key in props) continue;
+                props[key] = free_signal_code(level, taken);
+                taken.add(props[key]);
+            }
+        }
         const trait = NEW_SENDER_TRAITS.find(trait => trait in traits);
         if (!trait) continue;
         if (!placed[3] || typeof placed[3] !== 'object') placed[3] = {};
@@ -456,7 +501,7 @@ function signal_partners(level, code, traits_of) {
             }
         }
         if (layer?.type === 'signal_area' && stored_signal_code(layer.properties?.signal_code) === wanted)
-            areas.push(layer.properties?.name || `Bereich ${li + 1}`);
+            areas.push(layer.properties?.name || `Signalbereich ${li + 1}`);
         else if (layer_reacts_to_signals(layer?.properties) && stored_signal_code(layer.properties.signal_code) === wanted)
             layers.push(name);
     });
@@ -472,13 +517,13 @@ function signal_partners(level, code, traits_of) {
 // "Code 7 in diesem Level – sendet: 1 Schalter · reagiert: 2 Türen, Ebene »Brücke«"
 // (with a name: "»Brücke« (Code 7) in diesem Level – …")
 function describe_signal_partners(code, partners, name = '') {
-    const list = (sends) => [...SIGNAL_SPRITE_ROLES, SIGNAL_LOOT_ROLE]
+    const list = (sends) => [...SIGNAL_SPRITE_ROLES, SIGNAL_LOOT_ROLE, SIGNAL_COUNTER_OUT_ROLE]
         .filter(role => role.sends === sends && partners.counts[role.id ?? role.trait])
         .map(role => {
             const count = partners.counts[role.id ?? role.trait];
             return `${count} ${count === 1 ? role.one : role.many}`;
         });
-    const senders = [...list(true), ...(partners.areas ?? []).map(name => `Bereich »${name}«`),
+    const senders = [...list(true), ...(partners.areas ?? []).map(name => `Signalbereich »${name}«`),
         ...(partners.all_defeated ? ['alle Gegner besiegt'] : []), ...(partners.level_start ? ['Levelstart'] : [])];
     const receivers = [...list(false), ...partners.layers.map(name => `Ebene »${name}«`),
         ...(partners.level_complete ? ['Level geschafft'] : [])];
@@ -609,6 +654,10 @@ function pick_signal_object(level, x, y, traits_of, size_of, current_layer = nul
             const rect = placed_signal_rect(placed, size);
             sprites.push({ kind: 'sprite', layer_index: li, placed_index: pi, trait: role.trait,
                 code: found ? found.code : null, sends: role.sends, rect, anchor: signal_rect_centre(rect) });
+            // a Zähler also sends
+            if (role.trait === 'counter')
+                sprites.push({ kind: 'sprite', layer_index: li, placed_index: pi, trait: 'counter', role: 'counter_out',
+                    code: stored_signal_code(placed?.[3]?.counter?.send_code), sends: true, rect, anchor: signal_rect_centre(rect) });
         }
         if (plain_hit === Infinity || (layer.sprites ?? []).some(placed => 'actor' in (traits_of(placed[0]) ?? {}))) continue;
         const box = layer_signal_box(layer, size_of);
@@ -650,10 +699,13 @@ function set_signal_object_code(level, object, code, sender) {
         const placed = layer.sprites[object.placed_index];
         if (!placed[3] || typeof placed[3] !== 'object') placed[3] = {};
         const props = placed[3][object.trait] ??= {};
+        // what a Zähler sends is its send_code
+        if (object.role === 'counter_out') { props.send_code = code; return; }
         props.signal_code = code;
         if (object.trait === 'baddie') props.signal_on_defeat = true;
         if (object.trait === 'text') props.speaks_on_signal = true;
         if (object.trait === 'pickup') props.signal_on_collect = true;
+        if (object.trait === 'companion') props.waits_for_signal = true;
         if (object.trait === 'moving') props.start = 'signal';
         if (object.trait === 'door' && sender && (props.door_reaction ?? 'unlock') === 'unlock') {
             const reaction = sender.kind === 'area' || ['switch', 'pressure_plate'].includes(sender.trait) ? 'follow' :
@@ -673,7 +725,7 @@ function set_signal_object_code(level, object, code, sender) {
 // label ("Schalter", "Sprite 3"). A card: { code, name, senders, receivers, problem }
 // with lines { text, count, objects } (objects: { kind: 'sprite', layer_index,
 // placed_index, role } with the role's id – key, switch, pressure_plate, baddie,
-// loot, door, text, moving –, { kind: 'layer' | 'area', layer_index } or { kind: 'level',
+// loot, door, text, moving, counter, counter_out –, { kind: 'layer' | 'area', layer_index } or { kind: 'level',
 // setting } for the level settings), problem 'no_receiver' | 'no_sender' | null. Doors that only
 // open like a plain door (not verschließbar, Bei Signal: aufschließen) are no
 // receivers here: they do not wait for anything.
@@ -688,12 +740,14 @@ const SIGNAL_SENDER_TEXT = {
     baddie: (n) => `»${n}« besiegt ist`,
     loot: (n) => `der Schlüssel von »${n}« eingesammelt wird`,
     pickup: (n) => `»${n}« eingesammelt wird`,
+    counter_out: (n, props) => `»${n}« bis ${counter_count(props)} gezählt hat`,
 };
 // what "aus" means for a sender that also sends it
 const SIGNAL_SENDER_OFF_TEXT = {
     switch: 'Zurücklegen schickt „aus“',
     pressure_plate: 'Heruntergehen schickt „aus“',
     area: 'Hinausgehen schickt „aus“',
+    counter_out: 'Fällt der Zähler darunter, schickt er „aus“',
 };
 const SIGNAL_DOOR_TEXT = {
     unlock: (n) => `ist »${n}« aufgeschlossen`,
@@ -739,13 +793,23 @@ function signal_rules(level, traits_of, name_of) {
                     const props = placed?.[3]?.[found.role.trait] ?? {};
                     if (found.role.sends) {
                         const target = card(found.code);
-                        add(target.senders, SIGNAL_SENDER_TEXT[id](name) + (id === 'loot' ? '' : delay_text(props.signal_delay)), object);
+                        add(target.senders, SIGNAL_SENDER_TEXT[id](name, props) + (id === 'loot' ? '' : delay_text(props.signal_delay)), object);
                         if (SIGNAL_SENDER_OFF_TEXT[id]) target.off.add(SIGNAL_SENDER_OFF_TEXT[id]);
                         continue;
                     }
                     if (found.role.trait === 'text') {
                         add(card(found.code).receivers, props.speaker === 'self' ? `spricht »${name}«` :
                             `liest die Spielfigur »${name}« vor`, object);
+                        continue;
+                    }
+                    if (found.role.trait === 'companion') {
+                        add(card(found.code).receivers, `kommt »${name}« mit`, object);
+                        continue;
+                    }
+                    if (found.role.trait === 'counter') {
+                        const target = card(found.code);
+                        add(target.receivers, `zählt »${name}« mit (bis ${counter_count(props)}; „aus“ zählt zurück)`, object);
+                        target.reacts_to_off = true;
                         continue;
                     }
                     if (found.role.trait === 'moving') {
@@ -767,7 +831,7 @@ function signal_rules(level, traits_of, name_of) {
         if (code === null) return;   // "kein Signal"
         if (layer?.type === 'signal_area') {
             const target = card(code);
-            add(target.senders, `die Spielfigur in den Bereich »${layer.properties?.name || `Bereich ${li + 1}`}« läuft` +
+            add(target.senders, `die Spielfigur in den Signalbereich »${layer.properties?.name || `Signalbereich ${li + 1}`}« läuft` +
                 delay_text(layer.properties?.signal_delay), { kind: 'area', layer_index: li });
             target.off.add(SIGNAL_SENDER_OFF_TEXT.area);
         } else if (layer_reacts_to_signals(layer?.properties)) {
@@ -809,7 +873,7 @@ function placed_signal_fields(placed) {
     if (!all || typeof all !== 'object') return fields;
     for (const props of Object.values(all)) {
         if (!props || typeof props !== 'object') continue;
-        for (const key of ['signal_code', 'drop_code'])
+        for (const key of ['signal_code', 'drop_code', 'send_code'])
             if (Number.isInteger(props[key])) fields.push([props, key]);
     }
     return fields;
@@ -881,6 +945,7 @@ function signal_codes_in_level(level) {
                 add(props[trait]?.signal_code);
                 add(props[trait]?.door_code);
                 add(props[trait]?.drop_code);
+                add(props[trait]?.send_code);
             }
         }
     }
@@ -976,6 +1041,7 @@ if (typeof module !== 'undefined' && module.exports) {
         door_signal_action, layer_reacts_to_signals, layer_visible_at_start, layer_visible_after,
         switch_flipped, SIGNAL_SPRITE_ROLES, placed_signal_role, valid_signal_rect, point_in_signal_rects,
         SIGNAL_LOOT_ROLE, loot_key_code, effective_loot_code, placed_signal_roles, NEW_SENDER_TRAITS,
+        SIGNAL_COUNTER_OUT_ROLE, COUNTER_DEFAULT_COUNT, counter_count, counter_step, set_signal_object_code,
         give_new_senders_codes, give_defeat_sender_code, door_setting,
         signal_partners, describe_signal_partners, signal_codes_in_level, free_signal_code,
         signal_objects, signal_links, same_signal_object, pick_signal_object, connect_signal_objects, stored_signal_code,

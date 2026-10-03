@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { marked } from 'marked';
 import sharp from 'sharp';
-import { load_catalog, load_strip, build_game, studio_game_file, TILE } from './game.mjs';
+import { load_catalog, load_strip, catalogue_grounding_problems, build_game, studio_game_file, TILE } from './game.mjs';
 import { launch, record, write_webp, write_gif, check, key_events } from './record.mjs';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
@@ -327,6 +327,8 @@ function frame_difference(a, b) {
 // inside, like spiele/<id>.json), and its groups by the sprites' IDs in that game.
 // Written by every build, also a partial one; it needs no browser.
 async function write_catalogue(catalog) {
+    const floating = await catalogue_grounding_problems(catalog);
+    if (floating.length) throw new Error(`Katalog: Figuren schweben über dem Boden:\n  ${floating.join('\n  ')}\n(Bilder nach unten schieben, oder schwebt: true bei Figuren, die nie stehen)`);
     const ids = catalog.collection.flatMap(group => group.ids);
     const game = await build_game(catalog, { id: 'katalog', titel: 'Sprite-Katalog', szene: { karte: 'P\n#', zusaetzlich: ids } }, repo);
     const data = JSON.parse(studio_game_file(game).toString());

@@ -121,7 +121,7 @@ Examples include:
 
 Develop a small, understandable trigger/action system rather than implementing each of these as a separate special case.
 
-**Signale exist** (`src/static/signals.js`; how they work is in AGENTS.md). Senders send their Code with *an* or *aus*, each optionally later (Verzögerung): a collected key or any collected sprite ("sendet, wenn eingesammelt"), a Schalter, a Druckplatte (player only), a Bereich (the player enters / leaves rectangles), a defeated enemy, "alle Gegner besiegt" and the level's start ("sendet beim Start" – with a Verzögerung a timer). Receivers: doors (`door_reaction`, "schließt wieder nach"), sprite or backdrop layers that appear or disappear, signs that speak ("spricht bei Signal"), moving platforms "bei Signal" and the level itself ("geschafft bei Signal"). A Code can have a name per level; an emptied Code field means "Kein Signal". In the level editor: the Verbinden tool (R), connection lines (with the Verzögerung on them), a Code menu on every Code field, and the Signale-Übersicht (S): one "Wenn … dann …" card per Code, with renaming, removing a line or a whole rule, and "+ Neue Regel"; during "Level testen" the cards light up beside the game. Sichtbarkeitsbereiche and door codes of older games are promoted to this on load.
+**Signale exist** (`src/static/signals.js`; how they work is in AGENTS.md). Senders send their Code with *an* or *aus*, each optionally later (Verzögerung): a collected key or any collected sprite ("sendet, wenn eingesammelt"), a Schalter, a Druckplatte (player only), a Signalbereich (the player enters / leaves rectangles), a defeated enemy, "alle Gegner besiegt" and the level's start ("sendet beim Start" – with a Verzögerung a timer). Receivers: doors (`door_reaction`, "schließt wieder nach"), sprite or backdrop layers that appear or disappear, signs that speak ("spricht bei Signal"), moving platforms "bei Signal", Zähler (count a Code, send their own at an Anzahl) and the level itself ("geschafft bei Signal"). A Code can have a name per level; an emptied Code field means "Kein Signal". In the level editor: the Verbinden tool (R), connection lines (with the Verzögerung on them), a Code menu on every Code field, and the Signale-Übersicht (S): one "Wenn … dann …" card per Code, with renaming, removing a line or a whole rule, and "+ Neue Regel"; during "Level testen" the cards light up beside the game. Sichtbarkeitsbereiche and door codes of older games are promoted to this on load.
 
 ## Still open for Signale
 
@@ -129,7 +129,7 @@ Roughly in order of usefulness (each must stay an understandable choice in the e
 
 - more senders: enemies pressing a Druckplatte (opt-in per Druckplatte, or old levels change); a timer that shows how much time is left (today a "sendet beim Start" timer is invisible to the player)
 - more receivers: spawn / remove a single sprite, a trap that switches on and off, enable / disable an object, set a simple game flag
-- "und" and counters: a receiver that waits for two Codes, or a Code that has to arrive three times ("drei Schalter umlegen")
+- "oder" between different Codes, and a Zähler that counts down or resets (the Zähler exists: it counts "an" +1 / "aus" −1 of one Code and sends its own Code at its Anzahl – "und" is several senders on its Code)
 - names: a name whose Code nothing uses any more is invisible (no card) and keeps its number taken – offer a way to see or remove such names if children run into it
 - signals across levels only with an explicit design (flags), never implicitly: keys and Codes are per level
 
@@ -304,7 +304,7 @@ A level is completed by the exit (*Levelwechsel*) or by a Signal ("geschafft bei
 Still open:
 
 - points as a condition ("geschafft bei 100 Punkten")
-- combinations of conditions – this is the "und" of the Signale (see Still open for Signale)
+- combinations of conditions – a Zähler does "und" (several senders on one Code) and "so viele" (see Still open for Signale)
 - telling the player what is still missing (an exit that does not open yet says nothing)
 
 ---
@@ -315,7 +315,6 @@ Add mechanics when they enable clearly useful kinds of games.
 
 Moving platforms and lifts exist (`platforms.js`, trait *bewegt sich*; see AGENTS.md). Open ideas for them:
 
-- dragging the end of a Weg in the level editor (today it is typed in; the editor draws it)
 - a Weg with more than one stretch, or a circle
 - moving decoration in layers without collisions (today only sprites in a layer with collisions move)
 - a lift that can be called from the other end (today it comes back alone after its pause)
@@ -371,7 +370,7 @@ Ammunition should wait until there is a clearer inventory model.
 
 Companions (Begleiter) are implemented: characters that follow the player with their own movement settings, get genuinely left behind and find the player again (`companion_ai.js`, recipe *Ein Begleiter kommt mit*). They never act on the level – the player cannot control them – so they press, collect, open and send nothing. Deliberately not part of them: commands, combat, health, inventories, conversations and quests. Ideas for later, only when real games ask for them:
 
-- a companion that waits until a signal arrives, or starts following at one (the level acts on the companion, never the other way round)
+- a companion that stops following again (today "kommt erst bei Signal mit" is one-way: it waits until "an", then follows for good)
 - companions that climb ladders (today a walker waits below a ladder and finds the player again)
 
 Once triggers/actions exist, build higher-level systems on top of them.
@@ -455,7 +454,7 @@ They can easily dominate the architecture while benefiting relatively few games.
 
 # Recipe Ideas: Signale
 
-The Signale recipes have their own category, in this order: Schalter → Tor, Druckplatte → Brücke, Rote und grüne Blöcke (one Schalter, two layers "da, solange an" / "weg, solange an"), Tor mit Zeit, Wächter-Tor, Die Falle schnappt zu (Bereich closes the gate behind, "alle Gegner besiegt" opens the exit), Der Edelstein baut die Brücke ("sendet, wenn eingesammelt"), Ein Schild, das von selbst spricht (Bereich → "spricht bei Signal"), Wettlauf gegen die Zeit ("sendet beim Start" with a Verzögerung), So wird ein Level geschafft (the exit, and "geschafft bei Signal"). Every Signale recipe names its signals. The smaller ideas live as tips in them instead of recipes of their own: Verzögerung (Tor mit Zeit, Falle), "wechseln" (Schalter, Blöcke), a key or Schalter building a bridge (Druckplatte), a second wave of enemies (Falle), a secret passage with a Bereich (Falle → Höhle), an enemy leaving a key behind (Angsthase). Ideas for more, possible with what exists today:
+The Signale recipes have their own category, in this order: Schalter → Tor, Druckplatte → Brücke, Rote und grüne Blöcke (one Schalter, two layers "da, solange an" / "weg, solange an"), Tor mit Zeit, Wächter-Tor, Die Falle schnappt zu (Signalbereich closes the gate behind, "alle Gegner besiegt" opens the exit), Der Edelstein baut die Brücke ("sendet, wenn eingesammelt"), Ein Schild, das von selbst spricht (Signalbereich → "spricht bei Signal"), Wettlauf gegen die Zeit ("sendet beim Start" with a Verzögerung), So wird ein Level geschafft (the exit, and "geschafft bei Signal"). Every Signale recipe names its signals. The smaller ideas live as tips in them instead of recipes of their own: Verzögerung (Tor mit Zeit, Falle), "wechseln" (Schalter, Blöcke), a key or Schalter building a bridge (Druckplatte), a second wave of enemies (Falle), a secret passage with a Signalbereich (Falle → Höhle), an enemy leaving a key behind (Angsthase). Ideas for more, possible with what exists today:
 
 - **Eine Falle mit Verzögerung** – a Druckplatte lets spikes appear a second later, so Pip can still run. Left out for now: it is the Druckplatte recipe with one more number (Verzögerung is a tip in Tor mit Zeit and Falle). Worth it once something can drop stones on a Signal.
 - **Licht an** – a Schalter that switches a dark colour layer (abdunkeln) off and a Lichtschein on: a room that becomes light. Could also fit "Level gestalten".
@@ -487,7 +486,7 @@ In particular:
 6. Make game lineage understandable (the independent-fork action exists: Als eigenes Spiel weiterführen).
 7. Make deliberate, named multi-browser collaboration practical without introducing accounts.
 8. Polish sprite-animation workflows.
-9. Extend the Signale: "und"/counters (see Triggers and Actions).
+9. Extend the Signale further (the Zähler exists; see Triggers and Actions).
 10. Build new gameplay systems on those foundations.
 
 The central question for new work should be:

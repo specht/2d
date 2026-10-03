@@ -484,7 +484,7 @@ class LevelEditor {
                     gen_new_item_options: [
                         ['Sprites', 'sprites'],
                         ['Hintergrund', 'backdrop'],
-                        ['Bereich (sendet ein Signal)', 'signal_area'],
+                        ['Signalbereich', 'signal_area'],
                         ['Bewegungsbereich', 'movement_region'],
                         // ['Text', 'text'],
                     ],
@@ -546,7 +546,7 @@ class LevelEditor {
                         } else if (type === 'backdrop') {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Hintergrund · '));
                         } else if (type === 'signal_area') {
-                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Bereich · '));
+                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Signalbereich · '));
                         } else if (type === 'movement_region') {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Bewegungsbereich · '));
                         } else if (type === 'text') {
@@ -582,7 +582,7 @@ class LevelEditor {
                             const level = self.game.data.levels[self.level_index];
                             let count = level.layers.filter(x => x.type === type).length + 1;
                             // a Code nothing else uses yet, so it does not start anything by itself
-                            layer.properties = { name: `Bereich ${count}`, signal_code: free_signal_code(level) };
+                            layer.properties = { name: `Signalbereich ${count}`, signal_code: free_signal_code(level) };
                         }
                         if (type === 'movement_region') {
                             let count = self.game.data.levels[self.level_index].layers.filter(x => x.type === type).length + 1;
@@ -1419,11 +1419,16 @@ class LevelEditor {
             return true;
         }
         const placed = layer.sprites?.[object.placed_index];
-        const trait = { loot: null, baddie: 'baddie', text: 'text' }[object.role] ?? object.role;
+        const trait = { loot: null, baddie: 'baddie', text: 'text', counter_out: 'counter' }[object.role] ?? object.role;
         if (!placed || !trait) return false;
         if (!placed[3] || typeof placed[3] !== 'object') placed[3] = {};
         const props = placed[3][trait] ??= {};
-        const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal', pickup: 'signal_on_collect' }[trait];
+        // what a Zähler sends
+        if (object.role === 'counter_out') {
+            props.send_code = null;
+            return true;
+        }
+        const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal', pickup: 'signal_on_collect', companion: 'waits_for_signal' }[trait];
         if (flag) {
             props[flag] = false;
             delete props.signal_code;
@@ -1474,7 +1479,7 @@ class LevelEditor {
     start_new_signal_rule() {
         if (menus.level.active_key !== 'tool/connect') menus.level.handle_click('tool/connect');
         this.cancel_connect();
-        this.show_level_notice('Verbinden: Klicke zuerst auf das, was senden soll (Schalter, Schlüssel, Druckplatte, Gegner, Bereich) – dann auf das, was reagieren soll (Tür, Ebene). Esc bricht ab.', 7000);
+        this.show_level_notice('Verbinden: Klicke zuerst auf das, was senden soll (Schalter, Schlüssel, Druckplatte, Gegner, Signalbereich) – dann auf das, was reagieren soll (Tür, Ebene). Esc bricht ab.', 7000);
     }
 
     // The Verzögerung of a sender in seconds (0: at once), as stored: the
@@ -1523,7 +1528,7 @@ class LevelEditor {
             const index = this.game.sprite_index_for_ref(layer.sprites?.[object.placed_index]?.[0]);
             return Number.isInteger(index) && this.game.data.sprites[index] ? sprite_label(this.game.data.sprites[index], index) : 'Sprite';
         }
-        return layer.properties?.name || (object.kind === 'area' ? 'Bereich' : 'Ebene');
+        return layer.properties?.name || (object.kind === 'area' ? 'Signalbereich' : 'Ebene');
     }
 
     // A small field over the level: "Name für das neue Signal". The
@@ -1700,7 +1705,8 @@ class LevelEditor {
     // connected. One line under each Code field (an enemy can have two: what it
     // sends when defeated, and the key it leaves behind).
     add_signal_link_line(container, trait, key, entry_index) {
-        const role = key === 'drop_code' ? SIGNAL_LOOT_ROLE : SIGNAL_SPRITE_ROLES.find(role => role.trait === trait);
+        const role = key === 'drop_code' ? SIGNAL_LOOT_ROLE : key === 'send_code' ? SIGNAL_COUNTER_OUT_ROLE :
+            SIGNAL_SPRITE_ROLES.find(role => role.trait === trait);
         if (!role) return;
         this.signal_link_lines ??= [];
         this.signal_link_lines.push({ line: $('<div class="signal-links">').appendTo(container), role, entry_index });
@@ -1747,7 +1753,7 @@ class LevelEditor {
         new SelectWidget({
             container,
             label: 'Bei Signal',
-            hint: 'Die Ebene kann erscheinen oder verschwinden, wenn etwas mit ihrem Code ein Signal sendet: ein Schlüssel, ein Schalter, eine Druckplatte, ein Bereich oder ein besiegter Gegner. „erscheint“: am Anfang weg, beim ersten Signal „an“ da. „verschwindet“: am Anfang da, beim ersten Signal „an“ weg. „da, solange an“ und „weg, solange an“: folgt dem Signal – praktisch mit einer Druckplatte oder einem Bereich (ein Dach, das verschwindet, solange man im Haus ist). „wechselt“: jedes Signal macht die Ebene da oder weg. Eine Ebene, die weg ist, wird nicht gezeichnet, man kann nicht auf ihr stehen, und Gegner auf ihr warten, bis sie erscheint – so baust du Brücken, Wände, die verschwinden, oder einen Hinterhalt. Die Spielfigur gehört nicht auf so eine Ebene.',
+            hint: 'Die Ebene kann erscheinen oder verschwinden, wenn etwas mit ihrem Code ein Signal sendet: ein Schlüssel, ein Schalter, eine Druckplatte, ein Signalbereich oder ein besiegter Gegner. „erscheint“: am Anfang weg, beim ersten Signal „an“ da. „verschwindet“: am Anfang da, beim ersten Signal „an“ weg. „da, solange an“ und „weg, solange an“: folgt dem Signal – praktisch mit einer Druckplatte oder einem Signalbereich (ein Dach, das verschwindet, solange man im Haus ist). „wechselt“: jedes Signal macht die Ebene da oder weg. Eine Ebene, die weg ist, wird nicht gezeichnet, man kann nicht auf ihr stehen, und Gegner auf ihr warten, bis sie erscheint – so baust du Brücken, Wände, die verschwinden, oder einen Hinterhalt. Die Spielfigur gehört nicht auf so eine Ebene.',
             options: LAYER_SIGNAL_REACTIONS,
             get: () => layer.properties.signal_reaction ?? 'none',
             set: (value) => {
@@ -2013,7 +2019,7 @@ class LevelEditor {
         const links = $('<div class="signal-links">');
         const update_links = () => {
             const code = stored_signal_code(layer.properties.signal_code);
-            links.text(code === null ? 'Kein Signal: Dieser Bereich sendet nichts.' : describe_signal_partners(code, signal_partners(level, code,
+            links.text(code === null ? 'Kein Signal: Dieser Signalbereich sendet nichts.' : describe_signal_partners(code, signal_partners(level, code,
                 ref => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits), signal_name(level, code)));
             this.build_signal_links();
             this.render();
@@ -2022,7 +2028,7 @@ class LevelEditor {
             editor: this,
             container,
             label: 'Code',
-            hint: 'Kommt die Mitte der Spielfigur in eines der Rechtecke, sendet der Bereich diesen Code mit „an“, geht sie wieder hinaus, mit „aus“. Ebenen und Türen mit demselben Code reagieren darauf – zum Beispiel verschwindet das Dach, solange man im Haus ist („weg, solange an“). Ohne Code („Kein Signal“) sendet der Bereich nichts.',
+            hint: 'Kommt die Mitte der Spielfigur in eines der Rechtecke, sendet der Signalbereich diesen Code mit „an“, geht sie wieder hinaus, mit „aus“. Ebenen und Türen mit demselben Code reagieren darauf – zum Beispiel verschwindet das Dach, solange man im Haus ist („weg, solange an“). Ohne Code („Kein Signal“) sendet der Signalbereich nichts. An der Bewegung ändert er nichts – dafür gibt es den Bewegungsbereich (Wasser, Schweben, Strömung).',
             // "Kein Signal": the Bereich sends nothing
             clear: () => {
                 layer.properties.signal_code = null;
@@ -2692,7 +2698,7 @@ class LevelEditor {
                 .append($('<span>').text(' Das wird gesendet – aber nichts reagiert darauf. Gib einer Tür oder Ebene denselben Code.')).appendTo(box);
         if (card.problem === 'no_sender')
             $('<div class="signal-rule-warning">').append($('<i class="fa fa-exclamation-triangle">'))
-                .append($('<span>').text(' Hier wartet etwas – aber nichts sendet diesen Code. Gib einem Schalter, Schlüssel oder Bereich denselben Code.')).appendTo(box);
+                .append($('<span>').text(' Hier wartet etwas – aber nichts sendet diesen Code. Gib einem Schalter, Schlüssel oder Signalbereich denselben Code.')).appendTo(box);
         return box;
     }
 
@@ -3560,6 +3566,7 @@ class LevelEditor {
         this.renderer.render(this.scene, this.camera);
         this.render_minimap();
         this.place_signal_link_labels();
+        this.place_platform_handle();
         // let data = {};
         // if (this.layer_structs.length > 0) {
         //     data.sprites = ((this.game.data.levels || [{}])[0].layers || [{}])[0].sprites.map(function(x) {return `#${x[0]} @ ${x[1]}/${x[2]}`;});
@@ -3991,6 +3998,7 @@ class LevelEditor {
                             // not start with the keys and doors on 0
                             // a platform "bei Signal" (platforms.js) as well
                             if (((trait === 'text' && key === 'speaks_on_signal') || (trait === 'pickup' && key === 'signal_on_collect') ||
+                                (trait === 'companion' && key === 'waits_for_signal') ||
                                 (trait === 'moving' && key === 'start' && value === 'signal')) &&
                                 (value === true || value === 'signal') && !('signal_code' in props))
                                 props.signal_code = free_signal_code(level);
@@ -4007,14 +4015,20 @@ class LevelEditor {
                             }
                         };
                         let widget = null;
-                        if (key === 'signal_code' || key === 'drop_code') {
+                        if (key === 'signal_code' || key === 'drop_code' || key === 'send_code') {
                             // a number and the level's signals with their names; an emptied
                             // Code is "kein Signal" (not for the Beute: absent there means the drawing's Code)
-                            const clear = key !== 'signal_code' ? null : () => {
+                            const clear = key === 'drop_code' ? null : () => {
                                 const props = writable_props_of(trait);
+                                // what a Zähler sends: "kein Signal"
+                                if (key === 'send_code') {
+                                    props.send_code = null;
+                                    this.update_signal_links?.();
+                                    return;
+                                }
                                 // an enemy or a sign: its signal switches off; a key, door,
                                 // Schalter or Druckplatte: null, it neither sends nor reacts
-                                const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal', pickup: 'signal_on_collect' }[trait];
+                                const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal', pickup: 'signal_on_collect', companion: 'waits_for_signal' }[trait];
                                 if (flag) {
                                     props[flag] = false;
                                     delete props.signal_code;
@@ -4124,7 +4138,7 @@ class LevelEditor {
                             });
                         }
                         widgets[`${trait}/${key}`] = widget;
-                        if (key === 'signal_code' || key === 'drop_code') this.add_signal_link_line(div, trait, key, entry_index);
+                        if (key === 'signal_code' || key === 'drop_code' || key === 'send_code') this.add_signal_link_line(div, trait, key, entry_index);
                     }
                 }
                 this.add_signal_links(sprite, entry_index);
@@ -4196,6 +4210,72 @@ class LevelEditor {
         this.scene.add(this.signal_links_group);
         this.scene.add(this.platform_paths_group);
         this.build_signal_links();
+    }
+
+    // The selected platform (one placed sprite with "bewegt sich"), if its
+    // end may be dragged: { layer, index, placed, sprite, settings } or null.
+    selected_platform() {
+        const layer = this.current_sprite_layer();
+        if (!layer || this.selection.length !== 1 || typeof platform_settings !== 'function') return null;
+        if (!layer.properties?.collision_detection || Math.abs(layer.properties?.parallax ?? 0) >= 0.0001) return null;
+        if (this.read_only_level() || this.layer_locked()) return null;
+        const placed = layer.sprites[this.selection[0]];
+        const sprite = this.game.data.sprites[this.game.sprite_index_for_ref(placed?.[0])];
+        if (!sprite?.traits || !('moving' in sprite.traits)) return null;
+        return { layer, index: this.selection[0], placed, sprite, settings: platform_settings(sprite.traits.moving, placed[3]?.moving) };
+    }
+
+    // A round handle in the middle of the dashed end frame: dragging it sets
+    // the Weg (placed moving.path_x / path_y), the end on whole grid cells
+    // like the pen (sprite_grid_point; with Shift pixel by pixel).
+    place_platform_handle() {
+        const found = menus.level.active_key === 'tool/select' && !this.moving_selection ? this.selected_platform() : null;
+        let handle = $(this.element).find('.platform-end-handle');
+        if (!found) { if (!this.platform_drag) handle.remove(); return; }
+        if (!handle.length) {
+            handle = $('<div class="platform-end-handle"><i class="fa fa-arrows"></i></div>')
+                .attr('title', 'Ziehen: bis hierhin fährt die Plattform')
+                .on('mousedown touchstart', (e) => this.start_platform_drag(e))
+                .appendTo(this.element);
+        }
+        const end = platform_end(found.placed[1], found.placed[2], found.settings);
+        const x = end.x, y = end.y + found.sprite.height / 2;
+        handle.css({ left: `${this.width / 2 + (x - this.camera_x) * this.scale}px`,
+            top: `${this.height / 2 - (y - this.camera_y) * this.scale}px` });
+    }
+
+    start_platform_drag(e) {
+        if (!e.touches && e.button !== 0) return;     // the middle button moves the view
+        const found = this.selected_platform();
+        if (!found) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.platform_drag = { index: found.index };
+        const move = (ev) => {
+            const now = this.selected_platform();
+            if (!now) return;
+            const [wx, wy] = this.ui_to_world(this.get_touch_point(ev), false, true);
+            const w = now.sprite.width, h = now.sprite.height, grid = this.selection_grid();
+            // the pointer holds the middle of the end frame
+            let [x, y] = ev.shiftKey ? [Math.round(wx), Math.round(wy - h / 2)] :
+                sprite_grid_point(wx - w / 2 + grid.width / 2, wy - h / 2 + grid.height / 2, w, h, grid);
+            const props = ((now.placed[3] ??= {}).moving ??= {});
+            const path_x = x - now.placed[1], path_y = y - now.placed[2];
+            if (props.path_x === path_x && props.path_y === path_y) return;
+            props.path_x = path_x;
+            props.path_y = path_y;
+            this.build_platform_paths();
+            this.render();
+        };
+        const up = () => {
+            $(window).off('mousemove.platform touchmove.platform', move).off('mouseup.platform touchend.platform', up);
+            this.platform_drag = null;
+            // the fields show the new Weg
+            this.placed_properties_for = null;
+            this.refresh();
+            this.render();
+        };
+        $(window).on('mousemove.platform touchmove.platform', move).on('mouseup.platform touchend.platform', up);
     }
 
     // Bewegte Plattformen (platforms.js): the Weg of every copy as a dashed

@@ -63,6 +63,7 @@ var SPRITE_TRAITS_ORDER = [
         [
             'switch',
             'pressure_plate',
+            'counter',
         ],
     ],
     [
@@ -172,6 +173,8 @@ var STATE_TRAITS_ORDER = {
     ],
     switch: ['off', 'on'],
     pressure_plate: ['up', 'down'],
+    // a Zähler: "zeigt 1" … "zeigt 9" while it counts (only the ones drawn), "erreicht" when full
+    counter: ['waiting', ['Zählt', ['count_1', 'count_2', 'count_3', 'count_4', 'count_5', 'count_6', 'count_7', 'count_8', 'count_9']], 'done'],
     bomb: ['fuse', 'explosion'],
 };
 
@@ -367,6 +370,25 @@ var SPRITE_TRAITS = {
                 default: false,
             },
         },
+        // Signale (signals.js): absent = it follows from the start, as always
+        placed_properties: {
+            waits_for_signal: {
+                label: 'kommt erst bei Signal mit',
+                hint: 'Ist das an, wartet dieser Begleiter, wo er steht, bis ein Signal „an“ mit seinem Code ankommt – dann kommt er mit und bleibt bei dir. Zum Beispiel ein Freund, den du erst finden musst: Leg einen Signalbereich um ihn herum.',
+                type: 'bool',
+                default: false,
+                rebuilds_panel: true,   // Code appears or goes
+            },
+            signal_code: {
+                label: 'Code',
+                hint: 'Kommt ein Signal „an“ mit diesem Code, kommt der Begleiter mit.',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 1000,
+                visible: (traits, traits_of, props) => props?.waits_for_signal === true,
+            },
+        },
     },
     block_above: {
         label: 'man kann nicht von oben reinfallen',
@@ -458,7 +480,7 @@ var SPRITE_TRAITS = {
             // older games: door_code (signals.js promote_legacy_signals)
             signal_code: {
                 label: 'Code',
-                hint: 'Schlüssel, Schalter, Druckplatten, Bereiche und Gegner mit demselben Code senden dieser Tür ein Signal. Was die Tür dann macht, stellst du darunter ein.',
+                hint: 'Schlüssel, Schalter, Druckplatten, Signalbereiche und Gegner mit demselben Code senden dieser Tür ein Signal. Was die Tür dann macht, stellst du darunter ein.',
                 type: 'int',
                 default: 0,
                 min: 0,
@@ -540,6 +562,43 @@ var SPRITE_TRAITS = {
             signal_delay: signal_delay_placed_property('„an“ und „aus“ kommen erst so viele Sekunden später an – zum Beispiel bleibt ein Tor noch kurz offen, nachdem man von der Platte gegangen ist.'),
         },
     },
+    // Zähler (signals.js): receives and sends. Placed: the Code it counts,
+    // the Anzahl and the Code it sends; absent = the defaults (a new one gets
+    // two free Codes when placed, give_new_senders_codes)
+    counter: {
+        label: 'ist ein Zähler',
+        placed_properties: {
+            signal_code: {
+                label: 'zählt Code',
+                hint: 'Jedes Signal „an“ mit diesem Code zählt eins dazu, jedes „aus“ eins weg. Gib allen Schaltern (Druckplatten, Münzen …), die zählen sollen, diesen Code.',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 1000,
+                entry_key: 'counter_in',
+            },
+            count: {
+                label: 'Anzahl',
+                hint: 'So viele muss der Zähler zählen, bis er sein eigenes Signal sendet. Drei Schalter und Anzahl 3: Erst wenn alle drei an sind, geht es weiter.',
+                type: 'int',
+                default: 3,
+                min: 1,
+                max: 99,
+                entry_key: 'counter_count',
+            },
+            send_code: {
+                label: 'sendet Code',
+                hint: 'Hat der Zähler seine Anzahl erreicht, sendet er diesen Code mit „an“. Fällt er wieder darunter (ein Schalter wird zurückgelegt), sendet er „aus“.',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 1000,
+                entry_key: 'counter_out',
+            },
+            signal_delay: { ...signal_delay_placed_property('Der Zähler sendet sein Signal erst so viele Sekunden später.'),
+                entry_key: 'counter_delay' },
+        },
+    },
     text: {
         label: 'Hinweistext',
         // speech.js: shown above the speaker, one line after the other
@@ -574,7 +633,7 @@ var SPRITE_TRAITS = {
             // Signale (signals.js): absent = only with the action key, as always
             speaks_on_signal: {
                 label: 'spricht bei Signal',
-                hint: 'Ist das an, wird der Text auch gesprochen, sobald ein Signal mit diesem Code „an“ ankommt – ohne dass jemand F drückt. Mit einem Bereich davor sagt das Schild etwas, sobald die Spielfigur vorbeiläuft; mit einem Schalter, wenn er umgelegt wird. Mit F kann man den Text trotzdem noch einmal lesen.',
+                hint: 'Ist das an, wird der Text auch gesprochen, sobald ein Signal mit diesem Code „an“ ankommt – ohne dass jemand F drückt. Mit einem Signalbereich davor sagt das Schild etwas, sobald die Spielfigur vorbeiläuft; mit einem Schalter, wenn er umgelegt wird. Mit F kann man den Text trotzdem noch einmal lesen.',
                 type: 'bool',
                 default: false,
                 rebuilds_panel: true,   // Code appears or goes
@@ -688,7 +747,7 @@ var SPRITE_TRAITS = {
         placed_properties: {
             path_x: {
                 label: 'Weg nach rechts',
-                hint: 'So weit fährt dieses Sprite von hier aus nach rechts (24 Pixel sind ein Block). Eine Zahl mit Minus fährt nach links. Im Level siehst du den Weg als gestrichelte Linie und das Ende als Rahmen.',
+                hint: 'So weit fährt dieses Sprite von hier aus nach rechts (24 Pixel sind ein Block). Eine Zahl mit Minus fährt nach links. Im Level siehst du den Weg als gestrichelte Linie und das Ende als Rahmen. Einfacher: Wähl die Plattform mit dem Auswahl-Werkzeug aus und zieh den runden Griff im Rahmen dorthin, wo sie hinfahren soll.',
                 type: 'int',
                 suffix: 'px',
                 min: -4800,
@@ -719,7 +778,7 @@ var SPRITE_TRAITS = {
             },
             signal_code: {
                 label: 'Code',
-                hint: 'Schalter, Druckplatten, Schlüssel, Bereiche und Gegner mit demselben Code schicken es los: „an“ ans Ende, „aus“ zurück an den Anfang.',
+                hint: 'Schalter, Druckplatten, Schlüssel, Signalbereiche und Gegner mit demselben Code schicken es los: „an“ ans Ende, „aus“ zurück an den Anfang.',
                 type: 'int',
                 default: 0,
                 min: 0,
@@ -1409,6 +1468,11 @@ var STATE_TRAITS = {
     pressure_plate: {
         up: { label: 'Druckplatte nicht gedrückt' },
         down: { label: 'Druckplatte gedrückt' },
+    },
+    counter: {
+        waiting: { label: 'Zähler wartet' },
+        ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [`count_${n}`, { label: `Zähler zeigt ${n}` }])),
+        done: { label: 'Zähler erreicht' },
     },
     bomb: {
         fuse: { label: 'Zündschnur' },

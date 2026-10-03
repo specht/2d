@@ -62,7 +62,7 @@ Die Zeit läuft ab dem Moment, in dem das Tor **ganz offen** ist. Bei **0** blei
 - Niemand wird eingeklemmt: Steht die Spielfigur oder ein Gegner gerade **in** dem Tor, wartet es, bis der Weg frei ist.
 - Eine **automatische Tür** bleibt offen, solange die Spielfigur davorsteht. Die Zeit läuft erst los, wenn sie weggeht.
 - Ein **Schalter** passt hier weniger gut: Er bleibt auf „an“ stehen, auch wenn das Tor längst wieder zu ist, und man müsste ihn zweimal umlegen, bis das Tor wieder aufgeht.
-- **Verzögerung:** Schalter, Druckplatten, Schlüssel, Bereiche und Gegner können ihr Signal auch erst später senden. Klicke im Level auf den Sender und stell **Verzögerung** ein. Eine Druckplatte mit **1 s** Verzögerung lässt eine Brücke (Ebene mit **verschwindet**) erst kurz nach dem Drauftreten einstürzen.
+- **Verzögerung:** Schalter, Druckplatten, Schlüssel, Signalbereiche und Gegner können ihr Signal auch erst später senden. Klicke im Level auf den Sender und stell **Verzögerung** ein. Eine Druckplatte mit **1 s** Verzögerung lässt eine Brücke (Ebene mit **verschwindet**) erst kurz nach dem Drauftreten einstürzen.
 
 ## Wenn's nicht klappt
 

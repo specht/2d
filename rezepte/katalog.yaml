@@ -15,6 +15,13 @@
 # Attack definitions may reference other catalogue sprites with
 # `sprite: <id>`; the build replaces this with the sprite index.
 #
+# A figure (actor, baddie or companion) stands on the bottom row of its
+# sprite: every frame of its standing and walking states (right, front,
+# walk_…, hunt_…, flee_…, landed_…) has a pixel in the last row, or the build
+# stops – a gap would make it hover above the ground in every child's game.
+# Figures that fly (can_fly, affected_by_gravity: false) are exempt; others
+# that never stand on the ground (fish, jellyfish) say `schwebt: true`.
+#
 # Adding a new situation later (e.g. swimming or gliding) means: draw a new
 # strip, add a state here with the new state trait, and write a recipe.
 
@@ -244,6 +251,26 @@ sprites:
       - { strip: welt/gitter_zu, traits: { door: [closed] } }
       - { strip: welt/gitter_auf, traits: { door: [open] } }
       - { strip: welt/gitter_uebergang, fps: 10, traits: { door: [transition] } }
+  # Zähler (signals.js): counts the "an" of its Code and sends its own at its
+  # Anzahl – lamps light up one by one (states "Zähler zeigt 1", "… erreicht")
+  zaehler:
+    label: Zähler (3 Lampen)
+    traits: { counter: {} }
+    states:
+      - { strip: welt/zaehler_wartet, traits: { counter: [waiting] } }
+      - { strip: welt/zaehler_1, traits: { counter: [count_1] } }
+      - { strip: welt/zaehler_2, traits: { counter: [count_2] } }
+      - { strip: welt/zaehler_voll, fps: 3, traits: { counter: [done] } }
+  zaehler_5:
+    label: Zähler (5 Lampen)
+    traits: { counter: {} }
+    states:
+      - { strip: welt/zaehler_5_wartet, traits: { counter: [waiting] } }
+      - { strip: welt/zaehler_5_1, traits: { counter: [count_1] } }
+      - { strip: welt/zaehler_5_2, traits: { counter: [count_2] } }
+      - { strip: welt/zaehler_5_3, traits: { counter: [count_3] } }
+      - { strip: welt/zaehler_5_4, traits: { counter: [count_4] } }
+      - { strip: welt/zaehler_5_voll, fps: 3, traits: { counter: [done] } }
   # An/Aus-Plattformen: red blocks while the Schalter is off, green ones while it
   # is on (the colours of its knob); the dashed outlines show where the others are
   block_rot:
@@ -594,6 +621,7 @@ sprites:
   # a fish as the player character: it only swims
   fisch:
     label: Fisch (Spielfigur)
+    schwebt: true
     traits:
       actor: { ex_left: 0.6, ex_right: 0.6, ex_top: 0.75, vjump: 7 }
     states:
@@ -604,6 +632,7 @@ sprites:
   # the submarine as the player character (48 × 24): the propeller turns
   u_boot:
     label: U-Boot (Spielfigur)
+    schwebt: true
     groesse: [48, 24]
     traits:
       actor: { ex_left: 0.85, ex_right: 0.85, ex_top: 0.8, vjump: 7 }
@@ -613,6 +642,7 @@ sprites:
   # a jellyfish (Flatterer: it bobs up and down, gravity does not pull it)
   qualle:
     label: Qualle
+    schwebt: true
     traits:
       baddie:
         energy: 100
@@ -1181,7 +1211,7 @@ sammlung:
   - Boden und Blöcke: [boden, erde, boden_schnee, boden_tot, wurzeln, mauer, mauer_fenster, dach, kiste, eis, strohballen, block_rot, block_gruen]
   - Plattformen, Leitern und Schrägen: [brett, wolkenplattform, plattform, aufzug, leiter, schraege, treppe, eishang, hang_flach, hang_flach_ab, hang_fuss, hang_fuss_ab, huegel_steil, huegel_steil_ab, huegel_steil_fuss, huegel_steil_fuss_ab]
   - Förderbänder: [band, band_anfang, band_ende, band_links, band_links_anfang, band_links_ende, rolltreppe, rolltreppe_gehaeuse, maschine]
-  - Türen und Schalter: [tuer, schlosstuer, haustuer, gittertor, schalter, druckplatte, umriss_rot, umriss_gruen]
+  - Türen und Schalter: [tuer, schlosstuer, haustuer, gittertor, schalter, druckplatte, zaehler, zaehler_5, umriss_rot, umriss_gruen]
   - Schilder, Checkpoints und Ziel: [schild, fahne, ziel]
   - Für Angriffe: [pfeil, stein, spore, bombe, treffer_funke]
   - Natur: [baum, busch, blumen, pilz, grasbuesche, hohes_gras, moos, ranke, toter_baum, toter_baum_2, toter_baum_3, schneemann, zaun, pfosten, kette, pfeiler]

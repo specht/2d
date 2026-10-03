@@ -25,7 +25,7 @@ The Studio lets you:
 - configure collision and movement
 - use slopes, ladders, conveyors, moving platforms and lifts, and moving environments
 - create doors, keys and checkpoints
-- connect switches, pressure plates, keys, collectibles, Bereiche, defeated enemies and the start of a level (a timer) to doors, layers, speaking signs and the end of a level by a shared, nameable Code (Signale), and see every rule of a level in one overview
+- connect switches, pressure plates, keys, collectibles, Signalbereiche, defeated enemies and the start of a level (a timer) to doors, layers, speaking signs, moving platforms and the end of a level by a shared, nameable Code (Signale) – with Zähler for "all three switches" or "five coins" – and see every rule of a level in one overview
 - let signs and characters speak in pixel-font speech bubbles
 - add collectibles and hazards
 - create melee and ranged combat
@@ -94,7 +94,7 @@ Player characters and supported enemy behaviours use the same underlying movemen
 
 ### Moving platforms and lifts
 
-Any sprite with the trait **bewegt sich (Plattform, Aufzug)** travels along a straight Weg and back. The drawing has the Geschwindigkeit and the Pause at the ends; each placed copy has its own Weg (*Weg nach rechts*, *Weg nach oben*, in pixels) and says when it moves (*Fährt*): *immer hin und her*, *wenn die Spielfigur draufsteht (Aufzug)* – it takes the player to the other end and comes back alone after the pause – or *bei Signal* (a receiver in the Signale: "an" to the end, "aus" back). The level editor draws every Weg as a dashed line with a dashed frame at its end.
+Any sprite with the trait **bewegt sich (Plattform, Aufzug)** travels along a straight Weg and back. The drawing has the Geschwindigkeit and the Pause at the ends; each placed copy has its own Weg (*Weg nach rechts*, *Weg nach oben*, in pixels) and says when it moves (*Fährt*): *immer hin und her*, *wenn die Spielfigur draufsteht (Aufzug)* – it takes the player to the other end and comes back alone after the pause – or *bei Signal* (a receiver in the Signale: "an" to the end, "aus" back). The level editor draws every Weg as a dashed line with a dashed frame at its end; with the select tool, a handle in that frame drags the end to where the platform should go.
 
 With *man kann nicht von oben reinfallen* the platform carries whoever stands on it: the player, enemies and companions; a rising platform also picks up a figure whose feet it passes. It never squashes anybody: a lift waits rather than push a rider's head into a ceiling, and a solid platform waits for somebody in its way. Only the player starts a lift. The logic is in `src/static/platforms.js` (a pure plan per platform and `MovingPlatforms.step`, which runs before the characters each simulation step and keeps the collision trees where the platform is drawn). Old games have no such trait and play exactly as before. The recipe *Bewegte Plattformen und Aufzüge* shows a platform over spikes, a lift, a bridge a Schalter slides out of a cliff and a slanting platform.
 
@@ -120,7 +120,7 @@ Enemies can use different behaviours such as guarding, hunting, fleeing, lurking
 
 A sprite with the trait **Begleiter** is a character the game controls that tries to stay with the player character – a dog, a robot, a fairy, a friend. It is not an enemy: it deals no damage, is never attacked, has no health and does not count for "alle Gegner besiegt". Because the player cannot control it, it never acts on the level: it collects nothing and presses, opens or sends nothing. Several companions line up behind the player.
 
-*Begleiter* says that it follows; its own movement settings say **how**: Geschwindigkeit, *kann springen* with its own Sprungkraft, *kann schwimmen* (into a Bewegungsbereich "Schwimmen"; otherwise it waits at the shore) and *kann fliegen* (through the air, over gaps and water). It never takes over the player's abilities, so a weak jumper genuinely stays below a ledge the player jumped onto. When it has really lost the player – far away, out of sight and getting no closer for a few seconds – the game helps a little later: it comes back from just outside the screen behind the player and walks or flies in. When the player loses a life, companions come along to where it starts again.
+*Begleiter* says that it follows; its own movement settings say **how**: Geschwindigkeit, *kann springen* with its own Sprungkraft, *kann schwimmen* (into a Bewegungsbereich "Schwimmen"; otherwise it waits at the shore) and *kann fliegen* (through the air, over gaps and water). It never takes over the player's abilities, so a weak jumper genuinely stays below a ledge the player jumped onto. When it has really lost the player – far away, out of sight and getting no closer for a few seconds – the game helps a little later: it comes back from just outside the screen behind the player and walks or flies in. When the player loses a life, companions come along to where it starts again. A companion can also wait where it stands until a signal arrives (*kommt erst bei Signal mit*) – a friend Pip has to find first.
 
 Walking, jumping, slopes, Bewegungsbereiche and animation are the same engine code as for the player and the enemies (`app.js` `Character`); `src/static/companion_ai.js` only decides which keys a companion presses and when it is lost. Companions have the usual optional states (Stehen, Laufen, Springen, Fallen, and Schwimmen und Schweben: schwimmt, schwebt, treibt, taucht ab, taucht auf) plus *Begleiter fliegt*; there is no Klettern, Angriff, Treffer or tot, because a companion climbs no ladders, does not fight and has no energy. The recipe *Ein Begleiter kommt mit* shows the dog and, in its text, the robot, a bird and a fairy, the otter and three people; all eight are in its scene, ready for the sprite basket.
 
@@ -245,7 +245,7 @@ src/static/layer_fade.js
 src/static/speech.js
 ```
 
-Movement regions, and Signale: keys, collectibles, switches, pressure plates, Bereiche, defeated enemies and the level's start send a Code; doors, layers, signs and the level react (a roof that disappears while the player is inside, a bridge that appears, an ambush, a sign that speaks when the player walks past, a level that is done once every enemy is defeated). Speech bubbles for signs and characters.
+Movement regions, and Signale: keys, collectibles, switches, pressure plates, Signalbereiche, defeated enemies and the level's start send a Code; doors, layers, signs and the level react (a roof that disappears while the player is inside, a bridge that appears, an ambush, a sign that speaks when the player walks past, a level that is done once every enemy is defeated). Speech bubbles for signs and characters.
 
 ```text
 src/static/image_import.js
