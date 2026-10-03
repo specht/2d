@@ -505,6 +505,9 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         current_pane = key;
         if (key in menus)
             menus[key].refresh_status_bar();
+        // the animation preview runs only while the sprite editor is shown
+        window.sprite_preview?.update?.();
+        if (current_pane === 'sprites') window.sprite_history?.rebase?.();
         if (current_pane === 'level') {
             game.level_editor.refresh_sprite_widget();
             // deleting a sprite elsewhere tidies the levels: not an edit to undo here
