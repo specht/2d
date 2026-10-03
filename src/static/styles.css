@@ -1808,6 +1808,9 @@ input.clr-color {
     font-family: 'IBM Plex Mono', monospace;
 }
 
+/* The points of a gradient or an effect (round, in their colour) and the
+   eight handles of a rectangle (square, white) in the level view
+   (level_editor.js place_backdrop_controls: left/top is the point itself) */
 .backdrop-swatch {
     width: 14px;
     height: 14px;
@@ -1816,6 +1819,25 @@ input.clr-color {
     border-radius: 50%;
     position: absolute;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    cursor: move;
+}
+
+.backdrop-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    box-sizing: border-box;
+    background: #f4f4f4;
+    border: 1px solid #1a1c2c;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6), 0 1px 4px rgba(0, 0, 0, 0.5);
+    transform: translate(-50%, -50%);
+    z-index: 1;
+}
+
+.backdrop-handle:hover {
+    background: #ffcd75;
 }
 
 .backdrop-swatch:hover {

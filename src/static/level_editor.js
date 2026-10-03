@@ -2214,12 +2214,29 @@ class LevelEditor {
                         } else if (x === '4') {
                             backdrop.colors = [['#e7e6e1', 0.1, 0.1], ['#c3def1', 0.9, 0.1], ['#12959f', 0.1, 0.9], ['#b296c7', 0.9, 0.9]];
                         }
+                        if (backdrop.colors.length !== 2) delete backdrop.gradient;
                         self.setup_layer_properties();
                         self.backdrop_controls_setup_for = null;
                         self.refresh();
                         self.render();
                     },
                 });
+                // backdrops.js: absent = straight, as always
+                if (backdrop.colors.length === 2) {
+                    new SelectWidget({
+                        container: $('#menu_layer_properties'),
+                        label: 'Verlauf',
+                        hint: 'Gerade: die Farben gehen von einem Punkt zum anderen ineinander über, wie beim Himmel. Rund: Farbe 1 liegt in der Mitte, und nach außen hin wird es immer mehr Farbe 2 – wie das Leuchten um eine Lampe, die Sonne oder einen Lichtkegel. Der zweite Punkt bestimmt, wie groß der Kreis ist.',
+                        options: BACKDROP_GRADIENTS,
+                        get: () => backdrop_gradient_radial(backdrop) ? 'radial' : 'linear',
+                        set: (x) => {
+                            if (x === 'radial') backdrop.gradient = 'radial'; else delete backdrop.gradient;
+                            self.backdrop_controls_setup_for = null;
+                            self.refresh();
+                            self.render();
+                        },
+                    });
+                }
                 for (let ci = 0; ci < backdrop.colors.length; ci++) {
                     new ColorWidget({
                         container: $('#menu_layer_properties'),
@@ -2992,12 +3009,13 @@ class LevelEditor {
     handle_up(e) {
         if (current_pane !== 'level') return;
         this.mouse_down = false;
+        this.backdrop_move_point = null;
+        this.backdrop_move_point_old_rect = null;
         if (this.grab_panning) {
             this.grab_panning = false;
             $(this.element).removeClass('grab-panning');
             return;
         }
-        this.backdrop_move_point = null;
         // let p_no_snap = this.ui_to_world(this.get_touch_point(e), false);
         // if (menus.level.active_key === 'tool/fill-rect') {
         //     let x0 = this.mouse_down_position_no_snap[0];
@@ -3167,9 +3185,7 @@ class LevelEditor {
                         let ny = Math.round((this.backdrop_move_point_old_coordinates[1] + dy) * 1000.0) / 1000.0;
                         backdrop.colors[color_index][1] = nx;
                         backdrop.colors[color_index][2] = ny;
-                        let p = this.world_to_ui([backdrop.rects[0].left + backdrop.rects[0].width * nx, backdrop.rects[0].bottom + backdrop.rects[0].height * ny]);
-                        this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
-                        this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
+                        this.place_backdrop_controls();
                         this.refresh();
                         this.render();
                     } else if (this.backdrop_move_point.substr(0, 14) === 'control_point_') {
@@ -3182,63 +3198,25 @@ class LevelEditor {
                         let nx = Math.round((this.backdrop_move_point_old_coordinates[0] + dx) * 1000.0) / 1000.0;
                         let ny = Math.round((this.backdrop_move_point_old_coordinates[1] + dy) * 1000.0) / 1000.0;
                         backdrop.control_points[control_point_index] = [nx, ny];
-                        let p = this.world_to_ui([backdrop.rects[0].left + backdrop.rects[0].width * nx, backdrop.rects[0].bottom + backdrop.rects[0].height * ny]);
-                        this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
-                        this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
+                        this.place_backdrop_controls();
                         this.refresh();
                         this.render();
-                    } else if (this.backdrop_move_point === 'sc0' || this.backdrop_move_point === 'sc3') {
+                    } else if (this.backdrop_move_point.startsWith('rect_') && this.backdrop_move_point_old_rect) {
+                        // one of the eight handles: its edges follow the mouse
+                        // (on the grid while it is shown), the others stay
                         let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
                         let rect = backdrop.rects[this.rect_index];
-                        if (this.backdrop_move_point === 'sc0') {
-                            let dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
-                            let dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
-                            let bnx = this.backdrop_move_point_old_coordinates[0] + dx;
-                            let bny = this.backdrop_move_point_old_coordinates[1] + dy;
-                            if (this.show_grid) {
-                                let r = this.snap(bnx, bny, false);
-                                bnx = r[0]; bny = r[1];
-                            }
-                            rect.width = this.backdrop_move_point_old_coordinates[0] + this.backdrop_move_point_old_size[0] - bnx;
-                            rect.height = this.backdrop_move_point_old_coordinates[1] + this.backdrop_move_point_old_size[1] - bny;
-                            rect.left = bnx;
-                            rect.bottom = bny;
-                            let p = this.world_to_ui([bnx, bny]);
-                            this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
-                            this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
-                        } else {
-                            let bnx = p_no_snap[0];
-                            let bny = p_no_snap[1];
-                            if (this.show_grid) {
-                                let r = this.snap(bnx, bny, false);
-                                bnx = r[0]; bny = r[1];
-                            }
-                            rect.width = bnx - this.backdrop_move_point_old_coordinates[0];
-                            rect.height = bny - this.backdrop_move_point_old_coordinates[1];
-                            let p = this.world_to_ui([bnx, bny]);
-                            this.backdrop_move_elements[this.backdrop_move_point].css('left', `${p[0] - 8}px`);
-                            this.backdrop_move_elements[this.backdrop_move_point].css('top', `${p[1] - 8}px`);
+                        const sides = RECT_HANDLES[this.backdrop_move_point.substr(5)];
+                        if (rect && sides) {
+                            const dx = p_no_snap[0] - this.mouse_down_position_no_snap[0];
+                            const dy = p_no_snap[1] - this.mouse_down_position_no_snap[1];
+                            const snap = this.show_grid ? (x, y) => this.snap(x, y, false) : (x, y) => [Math.round(x), Math.round(y)];
+                            const min_size = this.show_grid ? Math.min(this.grid_width, this.grid_height) : 1;
+                            Object.assign(rect, resized_rect(this.backdrop_move_point_old_rect, sides, dx, dy, snap, min_size));
+                            this.place_backdrop_controls();
+                            this.refresh();
+                            this.render();
                         }
-                        if (this.rect_index === 0) {
-                            for (let ci = 0; ci < (backdrop.colors ?? []).length; ci++) {
-                                if (`color_${ci}` in this.backdrop_move_elements) {
-                                    let color = backdrop.colors[ci];
-                                    let p = this.world_to_ui([rect.left + rect.width * color[1], rect.bottom + rect.height * color[2]]);
-                                    this.backdrop_move_elements[`color_${ci}`].css('left', `${p[0] - 8}px`);
-                                    this.backdrop_move_elements[`color_${ci}`].css('top', `${p[1] - 8}px`);
-                                }
-                            }
-                            for (let cpi = 0; cpi < (backdrop.control_points ?? []).length; cpi++) {
-                                if (`control_point_${cpi}` in this.backdrop_move_elements) {
-                                    let control_point = backdrop.control_points[cpi];
-                                    let p = this.world_to_ui([rect.left + rect.width * control_point[0], rect.bottom + rect.height * control_point[1]]);
-                                    this.backdrop_move_elements[`control_point_${cpi}`].css('left', `${p[0] - 8}px`);
-                                    this.backdrop_move_elements[`control_point_${cpi}`].css('top', `${p[1] - 8}px`);
-                                }
-                            }
-                        }
-                        this.refresh();
-                        this.render();
                     }
                 }
             }
@@ -3589,11 +3567,15 @@ class LevelEditor {
         let x0 = p0[0]; let y0 = p0[1];
         let x1 = p1[0]; let y1 = p1[1];
 
+        for (const child of this.grid_group.children) { child.geometry?.dispose(); child.material?.dispose(); }
         this.grid_group.remove.apply(this.grid_group, this.grid_group.children);
-        let opacity = 0.2;
-        if (this.scale < 1.0)
-            opacity *= this.scale;
-        let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.0, transparent: true, opacity: opacity });
+        // Every line twice, a dark one and a light one beside it (one screen
+        // pixel apart), so the grid shows on a light sky as well as on dark
+        // ground. It fades out when the cells get too small to aim at.
+        const cell = Math.min(this.grid_width, this.grid_height) * this.scale;
+        const opacity = 0.4 * Math.max(0, Math.min(1, (cell - 4) / 12));
+        if (opacity <= 0) return;
+        const pixel = 1 / this.scale;
 
         let points = [];
         let y = Math.floor(y0 / this.grid_height) * this.grid_height + (this.grid_y % this.grid_height);
@@ -3608,10 +3590,12 @@ class LevelEditor {
             points.push(new THREE.Vector3(x, y1))
             x += this.grid_width;
         }
-        let geometry = new THREE.BufferGeometry().setFromPoints(points);
-        // geometry.translate(0.5, 0.5, 0);
-        let line = new THREE.LineSegments(geometry, material);
-        this.grid_group.add(line);
+        const dark = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),
+            new THREE.LineBasicMaterial({ color: 0x1a1c2c, transparent: true, opacity }));
+        dark.position.set(pixel, -pixel, 0);
+        this.grid_group.add(dark);
+        this.grid_group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),
+            new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity })));
 
         // points = [];
         // points.push(new THREE.Vector3(0, 0))
@@ -3631,6 +3615,33 @@ class LevelEditor {
 
     refresh_backdrop_controls() {
         this.backdrop_controls_setup_for = null;
+    }
+
+    // Puts the handles of the current rectangle and the gradient / effect
+    // points where they belong on screen (CSS centres each on its point).
+    // A point of a gradient or effect is relative to the layer's first
+    // rectangle, the handles belong to the chosen one.
+    place_backdrop_controls() {
+        const backdrop = this.game.data.levels[this.level_index]?.layers?.[this.backdrop_index];
+        const rect = backdrop?.rects?.[this.rect_index];
+        if (!rect) return;
+        const at = (id, point) => this.backdrop_move_elements[id]?.css({ left: `${point[0]}px`, top: `${point[1]}px` });
+        // on a small rectangle the middle handles would cover the corners
+        const [a, b] = [this.world_to_ui([rect.left, rect.bottom]), this.world_to_ui([rect.left + rect.width, rect.bottom + rect.height])];
+        const room_x = Math.abs(b[0] - a[0]) >= 40, room_y = Math.abs(b[1] - a[1]) >= 40;
+        for (const [handle, sides] of Object.entries(RECT_HANDLES)) {
+            at(`rect_${handle}`, this.world_to_ui(rect_handle_point(rect, sides)));
+            const middle = sides.length === 1;
+            this.backdrop_move_elements[`rect_${handle}`]?.toggle(!middle || ('tb'.includes(sides) ? room_x : room_y));
+        }
+        const r0 = backdrop.rects[0];
+        const relative = (u, v) => this.world_to_ui([r0.left + r0.width * u, r0.bottom + r0.height * v]);
+        (backdrop.colors ?? []).forEach((c, ci) => at(`color_${ci}`, relative(c[1], c[2])));
+        const defaults = shaders.control_points_for_effect?.[backdrop.effect] ?? [];
+        defaults.forEach((d, cpi) => {
+            const c = backdrop.control_points?.[cpi] ?? d;
+            at(`control_point_${cpi}`, relative(c[0], c[1]));
+        });
     }
 
     // Effect time for the preview: 0 = still (as before), else the clock.
@@ -3837,6 +3848,22 @@ class LevelEditor {
                 points.push(new THREE.Vector3(backdrop.rects[this.rect_index].left, backdrop.rects[this.rect_index].bottom + backdrop.rects[this.rect_index].height));
                 let geometry = new THREE.BufferGeometry().setFromPoints(points);
                 this.backdrop_cursor.add(new THREE.LineLoop(geometry, material));
+                // a round gradient: the circle where colour 2 is reached
+                if (backdrop.backdrop_type === 'color' && backdrop_gradient_radial(backdrop) && backdrop.rects[0]) {
+                    const r0 = backdrop.rects[0];
+                    const [c0, c1] = backdrop.colors;
+                    const cx = r0.left + r0.width * c0[1], cy = r0.bottom + r0.height * c0[2];
+                    const radius = Math.hypot(r0.width * (c1[1] - c0[1]), r0.height * (c1[2] - c0[2]));
+                    const circle = [];
+                    for (let i = 0; i < 96; i++) {
+                        const a = i / 96 * Math.PI * 2;
+                        circle.push(new THREE.Vector3(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius));
+                    }
+                    const ring = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(circle),
+                        new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 6 / this.scale, gapSize: 4 / this.scale, transparent: true, opacity: 0.8 }));
+                    ring.computeLineDistances();
+                    this.backdrop_cursor.add(ring);
+                }
                 this.scene.add(this.backdrop_cursor);
             }
         }
@@ -3850,72 +3877,42 @@ class LevelEditor {
                 this.game.data.levels[this.level_index].layers[this.backdrop_index].rects?.[this.rect_index]) {
                 let backdrop = this.game.data.levels[this.level_index].layers[this.backdrop_index];
                 let rect = backdrop.rects[this.rect_index];
-                let p0 = this.world_to_ui([rect.left, rect.bottom]);
-                let p1 = this.world_to_ui([rect.left + rect.width, rect.bottom + rect.height]);
-
-                let sc0 = $(`<div style='top: ${p0[1] - 8}px; left: ${p0[0] - 8}px; background-color: #444;'>`).addClass('backdrop-swatch');
-                this.backdrop_controls.push(sc0);
-                this.backdrop_move_elements.sc0 = sc0;
-                $(sc0).on('mousedown touchstart', function(e) {
-                    self.backdrop_move_point = `sc0`;
-                    self.backdrop_move_point_old_coordinates = [rect.left, rect.bottom];
-                    self.backdrop_move_point_old_size = [rect.width, rect.height];
-                    self.handle_down(e);
-                });
-                $(this.element).append(sc0);
-
-                let sc3 = $(`<div style='top: ${p1[1] - 8}px; left: ${p1[0] - 8}px; background-color: #444;'>`).addClass('backdrop-swatch');
-                this.backdrop_controls.push(sc3);
-                this.backdrop_move_elements.sc3 = sc3;
-                $(sc3).on('mousedown touchstart', function(e) {
-                    self.backdrop_move_point = `sc3`;
-                    self.backdrop_move_point_old_coordinates = [rect.left, rect.bottom];
-                    self.backdrop_move_point_old_size = [rect.width, rect.height];
-                    self.backdrop_move_element = sc3;
-                    self.handle_down(e);
-                });
-                $(this.element).append(sc3);
-
-                if (backdrop.backdrop_type === 'color') {
-                    if (backdrop.colors.length > 1) {
-                        let rect = backdrop.rects[0];
-                        let p0 = this.world_to_ui([rect.left, rect.bottom]);
-                        let p1 = this.world_to_ui([rect.left + rect.width, rect.bottom + rect.height]);
-                        for (let ci = 0; ci < backdrop.colors.length; ci++) {
-                            let c = backdrop.colors[ci];
-                            let swatch_control = $(`<div style='top: ${p0[1] + (p1[1] - p0[1]) * c[2] - 8}px; left: ${p0[0] + (p1[0] - p0[0]) * c[1] - 8}px; background-color: ${c[0]};'>`).addClass('backdrop-swatch');
-                            this.backdrop_controls.push(swatch_control);
-                            this.backdrop_move_elements[`color_${ci}`] = swatch_control;
-                            $(swatch_control).on('mousedown touchstart', function(e) {
-                                self.backdrop_move_point = `color_${ci}`;
-                                self.backdrop_move_point_old_coordinates = [c[1], c[2]];
-                                self.backdrop_move_element = swatch_control;
-                                self.handle_down(e);
-                            });
-                            $(this.element).append(swatch_control);
-                        }
+                // the eight square handles of the rectangle (level_rects.js); the
+                // round ones are the points of a gradient or an effect
+                const add_control = (id, element, old_coordinates) => {
+                    this.backdrop_controls.push(element);
+                    this.backdrop_move_elements[id] = element;
+                    element.on('mousedown touchstart', (e) => {
+                        if (!e.touches && e.button !== 0) return;   // the middle button moves the view
+                        self.backdrop_move_point = id;
+                        self.backdrop_move_point_old_coordinates = old_coordinates();
+                        self.backdrop_move_point_old_rect = { ...rect };
+                        self.backdrop_move_element = element;
+                        self.handle_down(e);
+                    });
+                    $(this.element).append(element);
+                };
+                for (const handle of Object.keys(RECT_HANDLES)) {
+                    add_control(`rect_${handle}`, $('<div class="backdrop-handle">').css('cursor', RECT_HANDLE_CURSORS[handle])
+                        .attr('title', 'Ziehen, um das Rechteck größer oder kleiner zu machen'), () => [rect.left, rect.bottom]);
+                }
+                if (backdrop.backdrop_type === 'color' && backdrop.colors.length > 1) {
+                    for (let ci = 0; ci < backdrop.colors.length; ci++) {
+                        const c = backdrop.colors[ci];
+                        add_control(`color_${ci}`, $('<div class="backdrop-swatch">').css('background-color', c[0])
+                            .attr('title', `Farbe ${ci + 1}: ziehen, um den Verlauf zu verschieben`), () => [c[1], c[2]]);
                     }
                 }
                 if (backdrop.backdrop_type === 'effect') {
-                    let default_control_points = shaders.control_points_for_effect[backdrop.effect] ?? [];
-                    let rect = backdrop.rects[0];
-                    let p0 = this.world_to_ui([rect.left, rect.bottom]);
-                    let p1 = this.world_to_ui([rect.left + rect.width, rect.bottom + rect.height]);
+                    const default_control_points = shaders.control_points_for_effect[backdrop.effect] ?? [];
                     for (let cpi = 0; cpi < default_control_points.length; cpi++) {
-                        let c = backdrop.control_points[cpi] ?? default_control_points[cpi];
-                        let swatch_control = $(`<div style='top: ${p0[1] + (p1[1] - p0[1]) * c[1] - 8}px; left: ${p0[0] + (p1[0] - p0[0]) * c[0] - 8}px; background-color: #fff;'>`).addClass('backdrop-swatch');
-                        this.backdrop_controls.push(swatch_control);
-                        this.backdrop_move_elements[`control_point_${cpi}`] = swatch_control;
-                        $(swatch_control).on('mousedown touchstart', function(e) {
-                            let c = backdrop.control_points[cpi] ?? default_control_points[cpi];
-                            self.backdrop_move_point = `control_point_${cpi}`;
-                            self.backdrop_move_point_old_coordinates = [c[0], c[1]];
-                            self.backdrop_move_element = swatch_control;
-                            self.handle_down(e);
+                        add_control(`control_point_${cpi}`, $('<div class="backdrop-swatch">').css('background-color', '#fff'), () => {
+                            const c = backdrop.control_points[cpi] ?? default_control_points[cpi];
+                            return [c[0], c[1]];
                         });
-                        $(this.element).append(swatch_control);
                     }
                 }
+                this.place_backdrop_controls();
             }
         }
 

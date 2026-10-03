@@ -5,6 +5,7 @@ const path = require('node:path');
 const {
     BACKDROP_EFFECTS, BLEND_MODES, BACKDROP_DENSITY_EFFECTS, blend_mode_of, premultiplied_shader, backdrop_density,
     backdrop_dither_mode, backdrop_dither_levels, backdrop_pixel_size, backdrop_fragment_shader,
+    BACKDROP_GRADIENTS, backdrop_gradient_radial,
 } = require('../src/static/backdrops.js');
 
 const shader_dir = path.join(__dirname, '../src/static/shaders');
@@ -14,6 +15,20 @@ test('old backdrops keep the smooth look', () => {
     assert.equal(backdrop_pixel_size(old), 0);
     assert.equal(backdrop_dither_mode(old), 0);
     assert.equal(backdrop_pixel_size({ backdrop_type: 'effect', effect: 'snow' }), 0);
+});
+
+test('a two-colour gradient may be round; absent means straight, as always', () => {
+    const two = [['#000000', 0.5, 0.5], ['#ffffff', 1, 0.5]];
+    assert.deepEqual(Object.keys(BACKDROP_GRADIENTS), ['linear', 'radial']);
+    assert.equal(backdrop_gradient_radial({ colors: two }), 0);
+    assert.equal(backdrop_gradient_radial({ colors: two, gradient: 'radial' }), 1);
+    assert.equal(backdrop_gradient_radial({ colors: two, gradient: 'circle' }), 0);
+    // only with two colours
+    assert.equal(backdrop_gradient_radial({ colors: [two[0]], gradient: 'radial' }), 0);
+    assert.equal(backdrop_gradient_radial({ colors: [...two, ...two], gradient: 'radial' }), 0);
+    const shader = fs.readFileSync(path.join(shader_dir, 'gradient.fs'), 'utf8');
+    assert.match(shader, /uniform int radial;/);
+    assert.match(shader, /n == 2 && radial == 1/);
 });
 
 test('pixel grid and dithering settings', () => {

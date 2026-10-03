@@ -31,7 +31,7 @@ The Studio lets you:
 - use projectiles and bombs
 - configure several enemy behaviours
 - create water, floating and other movement regions
-- add parallax backgrounds, lighting, weather and visual effects
+- add parallax backgrounds, straight, round and four-colour gradients, lighting, weather and visual effects
 - playtest the game directly in the Studio
 - save and continue developing games through generated game codes
 
