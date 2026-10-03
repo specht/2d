@@ -12,12 +12,14 @@ szene:
   signale: { 1: Mauseloch }
   legende:
     '@': { sprite: maus, platziert: { baddie: { drop_code: 1 } } }
+    # the door the key opens: without it, the signal of the key would reach nothing
+    L: { sprite: schlosstuer, platziert: { door: { signal_code: 1 } } }
   karte: |
-    ..............
-    ..............
-    ..............
-    M.P.....@....M
-    ##############
+    .............M..M
+    .............M..M
+    .............M..M
+    M.P.....@....L..M
+    #################
 ablauf:
   - { t: 0.6, halten: rechts, dauer: 1.9 }
 dauer: 4.2
@@ -25,6 +27,8 @@ erwartet:
   gegner_ausrufezeichen: true
   gegner_weg: 72
   schluessel: [1]
+  tuer_offen: true
+  lebt: true
 ---
 ## Kurz gesagt
 
@@ -51,7 +55,7 @@ erwartet:
 6. **Schaden: 0.** Die Maus tut niemandem etwas – sie will nur weg.
 7. **Beute:** Wähl beim Gegner unter **Beute** den Schlüssel aus und setz das Häkchen bei **gibt die Beute ab, wenn man ihn berührt**.
 8. Klicke im **Level** auf die Maus. Neben **Code der Beute** wählst du **Neues Signal …** und gibst ihm einen Namen, zum Beispiel **Mauseloch**. Die Tür, die der Schlüssel öffnen soll, bekommt dasselbe Signal: Such es neben ihrem **Code** in der Liste aus.
-9. Probier es aus: Pip geht auf die Maus zu, sie erschrickt und flitzt davon, bis die Mauer sie aufhält. Pip holt sie ein – und hat den Schlüssel wieder.
+9. Probier es aus: Pip geht auf die Maus zu, sie erschrickt und flitzt davon, bis die verschlossene Tür sie aufhält. Pip holt sie ein, hat den Schlüssel wieder – und die Tür geht auf.
 
 ## Mit Intelligenz
 
