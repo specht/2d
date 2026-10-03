@@ -365,12 +365,10 @@ Ammunition should wait until there is a clearer inventory model.
 
 # NPCs and Adventure Mechanics
 
-Companions (Begleiter) are implemented: characters that follow the player with their own movement settings, get genuinely left behind and find the player again (`companion_ai.js`, recipes in the category Begleiter). Deliberately not part of them: commands, combat, health, inventories, conversations, quests and signals. Ideas for later, only when real games ask for them:
+Companions (Begleiter) are implemented: characters that follow the player with their own movement settings, get genuinely left behind and find the player again (`companion_ai.js`, recipe *Ein Begleiter kommt mit*). They never act on the level – the player cannot control them – so they press, collect, open and send nothing. Deliberately not part of them: commands, combat, health, inventories, conversations and quests. Ideas for later, only when real games ask for them:
 
-- a companion that waits for a signal, starts following at one, or sends one when it arrives somewhere
+- a companion that waits until a signal arrives, or starts following at one (the level acts on the companion, never the other way round)
 - companions that climb ladders (today a walker waits below a ladder and finds the player again)
-- doors that wait for a companion standing in them (today a door may close on a companion, which then finds the player again)
-- companions pressing Druckplatten (opt-in, or old levels change)
 
 Once triggers/actions exist, build higher-level systems on top of them.
 

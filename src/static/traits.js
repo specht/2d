@@ -103,11 +103,14 @@ var STATE_TRAITS_ORDER = {
         'climb',
         ['Angriff', ['attack_front', 'attack_back', 'attack_left', 'attack_right']],
         ['Treffer', ['hit_front', 'hit_back', 'hit_left', 'hit_right']],
-        ['Schwimmen (Bewegungsbereich)', ['swim_front', 'swim_back', 'swim_left', 'swim_right']],
-        ['Schweben (Bewegungsbereich)', ['float_front', 'float_back', 'float_left', 'float_right']],
-        ['Treibt (Bewegungsbereich)', ['drift_front', 'drift_back', 'drift_left', 'drift_right']],
-        ['Taucht ab (Bewegungsbereich)', ['dive_front', 'dive_back', 'dive_left', 'dive_right']],
-        ['Taucht auf (Bewegungsbereich)', ['rise_front', 'rise_back', 'rise_left', 'rise_right']],
+        // in the water or in space (a Bewegungsbereich, movement_regions.js) – one group
+        ['Schwimmen und Schweben', [
+            ['Schwimmt', ['swim_front', 'swim_back', 'swim_left', 'swim_right']],
+            ['Schwebt', ['float_front', 'float_back', 'float_left', 'float_right']],
+            ['Treibt', ['drift_front', 'drift_back', 'drift_left', 'drift_right']],
+            ['Taucht ab', ['dive_front', 'dive_back', 'dive_left', 'dive_right']],
+            ['Taucht auf', ['rise_front', 'rise_back', 'rise_left', 'rise_right']],
+        ]],
         'dead',
     ],
     baddie: [
@@ -122,11 +125,14 @@ var STATE_TRAITS_ORDER = {
         ['Flieht (Angsthase)', ['flee_front', 'flee_back', 'flee_left', 'flee_right']],
         ['Benommen (Lauerer)', ['stunned_front', 'stunned_back', 'stunned_left', 'stunned_right']],
         ['Aufgeschlagen (Stampfer)', ['landed_front', 'landed_back', 'landed_left', 'landed_right']],
-        ['Schwimmen (Bewegungsbereich)', ['swim_front', 'swim_back', 'swim_left', 'swim_right']],
-        ['Schweben (Bewegungsbereich)', ['float_front', 'float_back', 'float_left', 'float_right']],
-        ['Treibt (Bewegungsbereich)', ['drift_front', 'drift_back', 'drift_left', 'drift_right']],
-        ['Taucht ab (Bewegungsbereich)', ['dive_front', 'dive_back', 'dive_left', 'dive_right']],
-        ['Taucht auf (Bewegungsbereich)', ['rise_front', 'rise_back', 'rise_left', 'rise_right']],
+        // in the water or in space (a Bewegungsbereich, movement_regions.js) – one group
+        ['Schwimmen und Schweben', [
+            ['Schwimmt', ['swim_front', 'swim_back', 'swim_left', 'swim_right']],
+            ['Schwebt', ['float_front', 'float_back', 'float_left', 'float_right']],
+            ['Treibt', ['drift_front', 'drift_back', 'drift_left', 'drift_right']],
+            ['Taucht ab', ['dive_front', 'dive_back', 'dive_left', 'dive_right']],
+            ['Taucht auf', ['rise_front', 'rise_back', 'rise_left', 'rise_right']],
+        ]],
         'dead',
     ],
     // Begleiter (companion_ai.js): the same pictures as a figure – optional
@@ -137,8 +143,10 @@ var STATE_TRAITS_ORDER = {
         ['Springen', ['jump_front', 'jump_back', 'jump_left', 'jump_right']],
         ['Fallen', ['fall_front', 'fall_back', 'fall_left', 'fall_right']],
         ['Fliegen', ['fly_front', 'fly_back', 'fly_left', 'fly_right']],
-        ['Schwimmen (Bewegungsbereich)', ['swim_front', 'swim_back', 'swim_left', 'swim_right']],
-        ['Schweben (Bewegungsbereich)', ['float_front', 'float_back', 'float_left', 'float_right']],
+        ['Schwimmen und Schweben', [
+            ['Schwimmt', ['swim_front', 'swim_back', 'swim_left', 'swim_right']],
+            ['Schwebt', ['float_front', 'float_back', 'float_left', 'float_right']],
+        ]],
     ],
     checkpoint: [
         'active',
