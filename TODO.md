@@ -14,12 +14,7 @@ The main current weakness is not the game engine or sprite editor, but the **lev
 
 The level editor should move beyond placing individual sprites and become a proper visual scene editor.
 
-Implemented (`level_selection.js`, select tool): selecting many (rectangle, Shift adds), dragging the selection in grid steps (Shift: pixel by pixel), arrow-key nudging, Strg+C/X/V/D (paste at the mouse, also into another layer or level), deleting, moving the selection to another layer ("In Ebene"), and Strg + drag with the pen to fill a rectangle, selecting every copy of the selected sprites ("Alle gleichen") and replacing the selection with another sprite ("Ersetzen durch").
-
-Still open:
-
-- predictable drag behaviour across parallax layers
-- other bulk-placement operations (lines, outlines of a rectangle)
+Implemented (`level_selection.js`, select tool): selecting many (rectangle, Shift adds), dragging the selection in grid steps (Shift: pixel by pixel), arrow-key nudging, Strg+C/X/V/D (paste at the mouse, also into another layer or level), deleting, moving the selection to another layer ("In Ebene"; between layers with different Parallaxe the sprites are shifted by whole grid steps so they stay where they are on screen), and Strg + drag with the pen to fill a rectangle (with Shift only its edge, with Alt a line of cells, also diagonal), selecting every copy of the selected sprites ("Alle gleichen") and replacing the selection with another sprite ("Ersetzen durch").
 
 Undo and redo exist (Strg+Z / Strg+Y, per level, `level_history.js`); levels themselves (adding, deleting, reordering) and sprites in the sprite editor's lists are not part of it yet.
 
@@ -68,7 +63,9 @@ Areas to improve:
 - selecting objects in dense areas (a repeated double-click reaches what lies behind; more may be needed)
 - working comfortably at different zoom levels
 
-Consider whether an overview/minimap or similar orientation aid becomes useful once genuinely large levels are common.
+The view moves with the hand tool (Q) and, with any tool, with the middle mouse button or Leertaste + drag; the mouse wheel zooms. The Übersichtskarte (M, also under Werkzeuge and in the status bar) shows the whole level small in a corner with a frame for the view; clicking or dragging on it jumps there.
+
+Still open: finding existing objects (e.g. "where is the key for this door?" beyond the Signale-Übersicht), and whether the map should show more than the picture (the player, signals, the current layer).
 
 ---
 

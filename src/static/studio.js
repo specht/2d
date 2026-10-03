@@ -407,11 +407,17 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     });
 
     tool_menu_items.level = [
-        { group: 'tool', command: 'pan', image: 'move-hand-44', shortcut: 'Q', label: 'Verschieben' },
+        { group: 'tool', command: 'pan', image: 'move-hand-44', shortcut: 'Q', label: 'Verschieben', hints: [
+                'Mausrad: zoomen',
+                // level_editor.js handle_down: grab_panning, set_space_pan
+                `Mit jedem Werkzeug: mittlere Maustaste oder <span class='key longkey'>Leer</span>&nbsp;+ ziehen`,
+            ]
+        },
         {
             group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'W', label: 'Zeichnen', hints: [
                 { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
-                `<span class='key longkey'>Strg</span>&nbsp;+ ziehen: Rechteck füllen`,
+                // level_editor.js shape_for_event: Shift and Alt can change while dragging
+                `<span class='key longkey'>Strg</span>&nbsp;+ ziehen: Rechteck füllen, mit <span class='key longkey'>Shift</span> nur den Rand, mit <span class='key longkey'>Alt</span> eine Linie`,
             ]
         },
         {

@@ -47,6 +47,7 @@ erwartet:
 
 - **Geschwindigkeit** und **Sprungkraft** findest du bei der Eigenschaft *Spielfigur*. Pip hat hier eine Sprungkraft von 7.
 - Deine Figur darf kleiner sein als 24 × 24 Pixel. Pip ist nur 13 Pixel breit.
+- **Viel Boden auf einmal:** Halte im Level **Strg** und zieh mit dem Stift ein Rechteck auf – es wird ganz mit dem Sprite gefüllt. Mit **Strg + Shift** setzt du nur den Rand, mit **Strg + Alt** eine Linie, auch schräg.
 
 ## Wenn's nicht klappt
 

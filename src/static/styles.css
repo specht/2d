@@ -2755,6 +2755,35 @@ details.trait-advanced[open] > summary {
     margin-right: 0.4em;
 }
 
+/* Übersichtskarte (level_editor.js render_minimap): the picture is drawn
+   into the canvas right inside this border, 8 px from the bottom left */
+.level-minimap {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    overflow: hidden;
+    z-index: 2;
+}
+.level-minimap-view {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1.5px solid #ffcd75;
+    background: rgba(255, 205, 117, 0.12);
+    pointer-events: none;
+}
+
+/* Leertaste held or the middle mouse button: dragging moves the view
+   (level_editor.js set_space_pan); beats the inline crosshair */
+#level.space-pan {
+    cursor: grab !important;
+}
+#level.grab-panning {
+    cursor: grabbing !important;
+}
+
 /* the selected placed sprite: which sprite it is (level_editor.js) */
 .placed-sprite-title {
     font-weight: bold;
