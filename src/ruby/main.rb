@@ -303,7 +303,7 @@ class Main < Sinatra::Base
     end
 
     # A Fehlerbericht from the studio (crash_report.js): appended to the day's
-    # file under /raw/client-errors (client_errors.rb, show-client-errors.rb).
+    # file under /raw/client-errors (client_errors.rb, errors.rb).
     post "/api/report_error" do
         data = parse_request_data(:required_keys => [:report], :types => { :report => Hash }, :max_body_length => 64 * 1024)
         client = request.env["HTTP_X_CLIENT_IP"] || request.ip || "unknown"

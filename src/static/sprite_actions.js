@@ -191,6 +191,63 @@ function reverse_frames_in(frames, indices) {
     return result;
 }
 
+// Several selected frames dragged together: the frame list moved the one
+// that was dragged (from → to); the others follow it as a block, in their
+// order, so that the block lands where that frame was dropped. Returns the
+// new frames and the indices of the block.
+function move_frames_block(frames, indices, from, to) {
+    const chosen = new Set(valid_frame_indices(indices, frames.length));
+    const single = [...frames];
+    const [dragged] = single.splice(from, 1);
+    single.splice(to, 0, dragged);
+    // how many unselected frames come before the dropped one
+    const before = single.slice(0, to).filter(frame => !frames.some((f, i) => f === frame && chosen.has(i))).length;
+    const others = frames.filter((_, i) => !chosen.has(i));
+    const block = frames.filter((_, i) => chosen.has(i));
+    return {
+        frames: [...others.slice(0, before), ...block, ...others.slice(before)],
+        selection: block.map((_, k) => before + k),
+    };
+}
+
+// The frame list (canvas.js) asks before it moves or deletes a frame:
+// the selection, if that frame belongs to one of several frames.
+function selection_for_list_action(index) {
+    const chosen = selected_frames();
+    return chosen.length > 1 && chosen.includes(index) ? chosen : null;
+}
+
+// After the list moved the dragged frame: the rest of the selection follows.
+function finish_block_move(si, sti, before, chosen, from, to) {
+    const state = game.data.sprites[si]?.states?.[sti];
+    if (state) {
+        const result = move_frames_block(before, chosen, from, to);
+        state.frames = result.frames;
+        show_frames_again(si, sti, result.selection);
+    }
+    block_action_done();
+}
+
+// The list's own step and the rest of the selection: one undo step.
+function block_action_done() {
+    canvas.working = false;
+    window.sprite_history?.observe?.();
+}
+
+// After the list deleted the dragged frame (into the trash): the rest of
+// the selection goes, too – a state keeps at least one frame.
+function finish_block_delete(si, sti, chosen, deleted) {
+    const state = game.data.sprites[si]?.states?.[sti];
+    if (state) {
+        const rest = chosen.filter(i => i !== deleted).map(i => i > deleted ? i - 1 : i);
+        const result = remove_frames_from(state.frames, rest);
+        if (result.removed.length) state.frames = result.frames;
+        clear_frame_selection();
+        show_sprite_again(si, sti, Math.min(Math.min(...chosen), state.frames.length - 1));
+    }
+    block_action_done();
+}
+
 function selected_frames() {
     const si = canvas?.sprite_index, sti = canvas?.state_index;
     const frames = game?.data?.sprites?.[si]?.states?.[sti]?.frames ?? [];
@@ -233,13 +290,17 @@ if (typeof document !== 'undefined') {
                 if (set.has(index) && index !== current) set.delete(index); else set.add(index);
                 set_frame_selection([...set]);
             }
-        } else {
+        } else if (!selected_frames().includes(index)) {
             clear_frame_selection();
         }
+        // a selected frame keeps the selection while it may be dragged (the
+        // others follow it); a plain click on it ends the selection below
     }, true);
-    // ... and the click that follows must not show the clicked frame
+    // ... and the click that follows must not show the clicked frame; a
+    // plain click (not a drag) selects nothing but the frame it shows
     document.addEventListener('click', (e) => {
-        if (!(e.shiftKey || e.ctrlKey || e.metaKey) || !e.target?.closest?.('#menu_frames > ._dnd_item:not(.add)')) return;
+        if (!e.target?.closest?.('#menu_frames > ._dnd_item:not(.add)')) return;
+        if (!(e.shiftKey || e.ctrlKey || e.metaKey)) { clear_frame_selection(); return; }
         e.preventDefault();
         e.stopPropagation();
     }, true);
@@ -386,5 +447,5 @@ function show_state_notice(text) {
 
 if (typeof module !== 'undefined') module.exports = {
     copy_state_without_role, copy_state_for_sprite,
-    frame_range, valid_frame_indices, duplicate_frames_in, remove_frames_from, reverse_frames_in,
+    frame_range, valid_frame_indices, duplicate_frames_in, remove_frames_from, reverse_frames_in, move_frames_block,
 };

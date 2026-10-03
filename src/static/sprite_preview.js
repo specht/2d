@@ -6,8 +6,8 @@
 // state's "Framerate" field), and a mirror button: a figure drawn facing
 // right walks left in the game mirrored, so both directions can be checked.
 // P (next to O for Onion Skinning) or the status bar shows and hides it; off
-// at first, remembered per browser. It only reads the game; Framerate is the
-// one thing it changes.
+// whenever the studio opens. It only reads the game; Framerate is the one
+// thing it changes.
 
 const SPRITE_PREVIEW_MAX = 128;   // the picture fits into this many pixels
 
@@ -31,9 +31,8 @@ function sprite_preview_fps(fps, delta) {
 
 class SpritePreview {
     constructor() {
-        let shown = false;
-        try { shown = localStorage.getItem('sprite_preview') === '1'; } catch (e) { }
-        this.shown = shown;
+        // off whenever the studio opens, like Onion Skinning
+        this.shown = false;
         this.playing = true;
         this.mirrored = false;
         this.images = new Map();
@@ -52,7 +51,6 @@ class SpritePreview {
 
     set_shown(flag) {
         this.shown = !!flag;
-        try { localStorage.setItem('sprite_preview', this.shown ? '1' : '0'); } catch (e) { }
         this.update();
         menus?.sprites?.refresh_toggles?.();
     }

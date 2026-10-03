@@ -245,10 +245,9 @@ Focus on workflow improvements rather than redesigning it.
 
 Useful additions include:
 
-- dragging several selected frames at once (the right-click menu works on them already)
 - undo for adding and reordering whole sprites (deleting one can be undone right afterwards: `trash_undo.js`)
 
-Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste frames (also between sprites of the same size), move a frame to another state, swap two states' animations, copy a state into another sprite; Onion Skinning (O); Strg+Z / Strg+Y for everything inside a sprite – pixels, frames and states added, moved, duplicated or deleted, Framerate, Titel, traits (`sprite_history.js`); the Vorschau (P, off at first): the current state's animation plays in a corner of the drawing area, with play/pause, Framerate − / + and a mirrored view (`sprite_preview.js`); Spiegelnd zeichnen (M: pen, shapes and fill draw mirrored at the middle) and Farbe ersetzen (fill tool with Shift: in the frame, with Strg: in every frame of the sprite; `pixel_tools.js`); several frames selected with Shift / Strg + click, and a right-click menu for them (duplicate, reverse the order, copy, cut, delete, move to another state; `sprite_actions.js`).
+Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste frames (also between sprites of the same size), move a frame to another state, swap two states' animations, copy a state into another sprite; Onion Skinning (O); Strg+Z / Strg+Y for everything inside a sprite – pixels, frames and states added, moved, duplicated or deleted, Framerate, Titel, traits (`sprite_history.js`); the Vorschau (P): the current state's animation plays in a corner of the drawing area, with play/pause, Framerate − / + and a mirrored view (`sprite_preview.js`); Spiegelnd zeichnen (M: pen, shapes and fill draw mirrored at the middle) and Farbe ersetzen (fill tool with Shift: in the frame, with Strg: in every frame of the sprite) and Umriss zeichnen (Funktionen → Sprite: a one-pixel outline in the current colour, in a frame, a state or the whole sprite; `pixel_tools.js`); several frames selected with Shift / Strg + click, a right-click menu for them (duplicate, reverse the order, copy, cut, delete, move to another state) and dragging them together – to another place or into the trash (`sprite_actions.js`).
 
 ---
 
@@ -423,13 +422,11 @@ Persistence should only be added after deciding whether data belongs to:
 
 ## Classroom robustness
 
-Implemented: the rescue copy of unsaved work (`rescue.js`), the server banner and reload offer (`server_watch.js`, `neustart.html`), the robot with Fehlerberichte (`crash_report.js`, `client_errors.rb`, `show-client-errors.rb`).
+Implemented: the rescue copy of unsaved work (`rescue.js`), the server banner and reload offer (`server_watch.js`, `neustart.html`), the robot with Fehlerberichte (`crash_report.js`, `client_errors.rb`, `errors.rb`).
 
 Still open:
 
-- errors inside the game frame (Spielen, Level testen) are not reported yet – `standalone.html` and `app.js` are part of the recipe build's engine fingerprint, so this needs a careful, separate change
-- a report that cannot be sent (the server is away at that moment) is lost; it could wait in the rescue store and go out when the server is back
-- a small page for the teacher with the day's reports, instead of the command line
+Decided against for now: reporting errors inside the game frame (they rarely happen; `standalone.html` and `app.js` are part of the recipe build's engine fingerprint), keeping reports while the server is away, and a web page for the reports (it would need a token or accounts – `errors.rb` in the terminal does the job).
 
 ---
 

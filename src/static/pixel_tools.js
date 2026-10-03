@@ -8,6 +8,9 @@
 // Farbe ersetzen (fill tool with Shift or Strg): every pixel of exactly the
 // clicked colour gets the new one – in the frame, or in every frame of the
 // sprite – to make a blue variant of a red enemy in one click.
+//
+// Umriss (Funktionen → Sprite): a one-pixel outline in the current colour
+// around everything drawn, in one frame, a state or the whole sprite.
 
 // The points of a mask and their mirror images (x → width − 1 − x), each once.
 function mirror_points(mask, width) {
@@ -49,11 +52,29 @@ function replace_color_in(data, from, to) {
     return count;
 }
 
+// Umriss: every empty (fully transparent) pixel next to a drawn one – left,
+// right, above or below – gets the colour: a one-pixel outline around
+// everything in the picture. Returns how many pixels changed.
+function outline_pixels(data, width, height, rgba) {
+    const drawn = (x, y) => x >= 0 && y >= 0 && x < width && y < height && data[(y * width + x) * 4 + 3] > 0;
+    const targets = [];
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            if (drawn(x, y)) continue;
+            if (drawn(x - 1, y) || drawn(x + 1, y) || drawn(x, y - 1) || drawn(x, y + 1)) targets.push((y * width + x) * 4);
+        }
+    }
+    for (const i of targets) {
+        data[i] = rgba[0]; data[i + 1] = rgba[1]; data[i + 2] = rgba[2]; data[i + 3] = rgba[3];
+    }
+    return targets.length;
+}
+
 // 0xRRGGBBAA (the editor's colour format) → [r, g, b, a]
 function rgba_of(color) {
     return [(color >>> 24) & 0xff, (color >>> 16) & 0xff, (color >>> 8) & 0xff, color & 0xff];
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { mirror_points, mirror_axis, replace_color_in, rgba_of };
+    module.exports = { mirror_points, mirror_axis, replace_color_in, outline_pixels, rgba_of };
 }

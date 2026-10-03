@@ -41,14 +41,14 @@ class Canvas {
         this.overlay_grid = document.createElement('canvas');
         // Onion Skinning: the frame before (and after) shines through (update_onion_skin)
         this.onion_bitmap = document.createElement('canvas');
+        // view aids start switched off whenever the studio opens (a forgotten
+        // one would only confuse): Onion Skinning (O), Spiegelnd zeichnen (M)
         this.onion_skin = false;
-        try { this.onion_skin = localStorage.getItem('onion_skin') === '1'; } catch { }
         this.onion_images = new Map();
         this.onion_key = null;
         // Spiegelnd zeichnen (M): the pen and the shapes draw mirrored, too
         // (pixel_tools.js); the axis is shown over the drawing
         this.symmetric = false;
-        try { this.symmetric = localStorage.getItem('mirror_drawing') === '1'; } catch { }
         this.mirror_axis_div = null;
         this.bitmap.width = DEFAULT_WIDTH;
         this.bitmap.height = DEFAULT_HEIGHT;
@@ -1317,7 +1317,6 @@ class Canvas {
     // ---------------------------------------- Spiegelnd zeichnen (M)
     set_symmetric(flag) {
         this.symmetric = !!flag;
-        try { localStorage.setItem('mirror_drawing', this.symmetric ? '1' : '0'); } catch { }
         this.place_mirror_axis();
         this.update_overlay_brush();
     }
@@ -1382,6 +1381,58 @@ class Canvas {
         this.game.refresh_frames_on_screen();
         window.sprite_history?.observe?.();
         if (typeof show_state_notice === 'function') show_state_notice(count ? `${count} Pixel umgefärbt – in allen Frames des Sprites.` : 'Diese Farbe kommt sonst nirgends vor.');
+    }
+
+    // ---------------------------------------- Umriss
+    // scope: 'frame', 'state' (every frame of this state) or 'sprite'. The
+    // frame on the drawing area is changed directly, the others one by one
+    // (`working`: one undo step for all of it).
+    async outline_frames(scope) {
+        if (this.sprite_index === null || this.state_index === null || this.frame_index === null) return;
+        const rgba = rgba_of(this.current_color >>> 0);
+        if (rgba[3] === 0) {
+            if (typeof show_state_notice === 'function') show_state_notice('Wähle zuerst eine Farbe für den Umriss (nicht durchsichtig).');
+            return;
+        }
+        const si = this.sprite_index, sti = this.state_index, fi = this.frame_index;
+        const sprite = this.game.data.sprites[si];
+        const w = this.bitmap.width, h = this.bitmap.height;
+        this.working = true;
+        let count = 0;
+        try {
+            const context = this.bitmap.getContext('2d', { willReadFrequently: true });
+            const data = context.getImageData(0, 0, w, h);
+            count += outline_pixels(data.data, w, h, rgba);
+            context.putImageData(data, 0, 0);
+            const temp = document.createElement('canvas');
+            temp.width = w;
+            temp.height = h;
+            const temp_context = temp.getContext('2d', { willReadFrequently: true });
+            for (let s = 0; s < sprite.states.length; s++) {
+                if (scope === 'frame' || (scope === 'state' && s !== sti)) continue;
+                for (let f = 0; f < sprite.states[s].frames.length; f++) {
+                    if (s === sti && f === fi) continue;
+                    const frame = sprite.states[s].frames[f];
+                    temp_context.clearRect(0, 0, w, h);
+                    temp_context.drawImage(await loadImage(frame.src), 0, 0);
+                    const pixels = temp_context.getImageData(0, 0, w, h);
+                    const changed = outline_pixels(pixels.data, w, h, rgba);
+                    if (!changed) continue;
+                    count += changed;
+                    temp_context.putImageData(pixels, 0, 0);
+                    frame.src = temp.toDataURL('image/png');
+                }
+            }
+        } finally {
+            this.working = false;
+        }
+        this.write_frame_to_game_data();
+        this.append_to_undo_stack();
+        this.game.update_material_for_sprite?.(si);
+        this.game.refresh_frames_on_screen();
+        window.sprite_history?.observe?.();
+        if (typeof show_state_notice === 'function')
+            show_state_notice(count ? `Umriss gezeichnet: ${count} Pixel.` : 'Hier gibt es nichts zu umranden.');
     }
 
     setModifierCtrl(flag) {
@@ -1540,14 +1591,32 @@ class Canvas {
                         return self.game.data.sprites[self.sprite_index].states[self.state_index].frames[self.game.data.sprites[self.sprite_index].states[self.state_index].frames.length - 1];
                     },
                     delete_item: (index) => {
+                        // one of several selected frames: the others go too (sprite_actions.js)
+                        const chosen = typeof selection_for_list_action === 'function' ? selection_for_list_action(index) : null;
+                        const si = self.sprite_index, sti = self.state_index;
                         self.game.data.sprites[self.sprite_index].states[self.state_index].frames.splice(index, 1);
                         // another frame is at this place now: load it again
                         self.frame_index = null;
                         self.game.refresh_frames_on_screen();
+                        // after the list has finished with the one it deleted
+                        if (chosen) {
+                            // one undo step for all of it (sprite_history.js waits)
+                            self.working = true;
+                            setTimeout(() => finish_block_delete(si, sti, chosen, index), 0);
+                        }
                     },
                     on_move_item: (from, to) => {
-                        move_item_helper(self.game.data.sprites[self.sprite_index].states[self.state_index].frames, from, to);
+                        const frames = self.game.data.sprites[self.sprite_index].states[self.state_index].frames;
+                        // one of several selected frames: they move as a block (sprite_actions.js)
+                        const chosen = typeof selection_for_list_action === 'function' ? selection_for_list_action(from) : null;
+                        const before = [...frames];
+                        const si = self.sprite_index, sti = self.state_index;
+                        move_item_helper(frames, from, to);
                         self.game.refresh_frames_on_screen();
+                        if (chosen) {
+                            self.working = true;
+                            setTimeout(() => finish_block_move(si, sti, before, chosen, from, to), 0);
+                        }
                     }
                 });
             }
@@ -1557,7 +1626,6 @@ class Canvas {
 
     set_onion_skin(flag) {
         this.onion_skin = !!flag;
-        try { localStorage.setItem('onion_skin', this.onion_skin ? '1' : '0'); } catch { }
         this.update_onion_skin();
     }
 

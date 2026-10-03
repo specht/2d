@@ -1,7 +1,7 @@
 # Fehlerberichte from the studio (src/static/crash_report.js): every error a
 # child's browser runs into is appended as one JSON line to
 # /raw/client-errors/YYYY-MM-DD.jsonl (/raw is not served by nginx), so the
-# teacher can look at them during or after a lesson (show-client-errors.rb)
+# teacher can look at them during or after a lesson (errors.rb)
 # and turn them into fixes and regression tests.
 #
 # Only what helps to reproduce a bug is kept: the message, where it happened,
@@ -12,6 +12,8 @@
 
 require "json"
 require "fileutils"
+require "digest"
+require "date"
 
 module ClientErrors
     MAX_STRING = 2000
@@ -65,6 +67,69 @@ module ClientErrors
             f.flock(File::LOCK_EX)
             f.puts(entry.to_json)
         end
+    end
+
+    # ------------------------------------------------ reading them back
+    # (errors.rb, the terminal helper on the server)
+
+    # The same bug: the same kind, message and place in the code. The
+    # address and version of the script do not count (?abc… changes with
+    # every update).
+    def self.group_key(report)
+        source = report["source"].to_s.sub(%r{^https?://[^/]+}, "").sub(/\?.*$/, "")
+        [report["kind"] || "error", report["message"].to_s[0, 160], source, report["line"]].join("|")
+    end
+
+    # A short, stable name for a group, to type on the command line.
+    def self.group_id(key)
+        Digest::SHA1.hexdigest(key)[0, 6]
+    end
+
+    # Every report of the given files, oldest first. Broken lines are skipped.
+    def self.read(files)
+        files.flat_map do |path|
+            File.foreach(path).map { |line| JSON.parse(line) rescue nil }.compact
+        end.sort_by { |report| report["time"].to_s }
+    end
+
+    # Groups, the most frequent first: { id, key, reports, first, last, resolved, again }.
+    # resolved: { id => time } – a group marked as fixed is left out unless
+    # it happened again afterwards (then again: true).
+    def self.groups(reports, resolved = {})
+        by_key = reports.group_by { |report| group_key(report) }
+        by_key.map do |key, list|
+            id = group_id(key)
+            fixed_at = resolved[id]
+            again = fixed_at && list.any? { |report| report["time"].to_s > fixed_at }
+            next nil if fixed_at && !again
+            { "id" => id, "key" => key, "reports" => list, "first" => list.first["time"], "last" => list.last["time"],
+              "resolved" => fixed_at, "again" => !!again }
+        end.compact.sort_by { |group| [-group["reports"].size, group["last"].to_s] }
+    end
+
+    def self.read_resolved(dir)
+        JSON.parse(File.read(File.join(dir, "resolved.json")))
+    rescue
+        {}
+    end
+
+    def self.write_resolved(dir, resolved)
+        FileUtils.mkpath(dir)
+        File.write(File.join(dir, "resolved.json"), JSON.pretty_generate(resolved))
+    end
+
+    # The day files (YYYY-MM-DD.jsonl) of the last `days` days, or all.
+    def self.files(dir, days = nil, today = Time.now.utc.to_date)
+        all = Dir[File.join(dir, "*.jsonl")].sort
+        return all if days.nil?
+        first = (today - (days - 1)).strftime("%Y-%m-%d")
+        all.select { |path| File.basename(path, ".jsonl") >= first }
+    end
+
+    # Day files older than `days` days: to delete.
+    def self.old_files(dir, days, today = Time.now.utc.to_date)
+        keep_from = (today - days).strftime("%Y-%m-%d")
+        Dir[File.join(dir, "*.jsonl")].sort.select { |path| File.basename(path, ".jsonl") < keep_from }
     end
 
     # A small sliding window per client, so one broken page in a loop cannot

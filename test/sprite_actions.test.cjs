@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { copy_state_without_role, copy_state_for_sprite, frame_range, valid_frame_indices, duplicate_frames_in, remove_frames_from, reverse_frames_in } = require('../src/static/sprite_actions.js');
+const { copy_state_without_role, copy_state_for_sprite, frame_range, valid_frame_indices, duplicate_frames_in, remove_frames_from, reverse_frames_in, move_frames_block } = require('../src/static/sprite_actions.js');
 
 const state = () => ({
     properties: { name: 'laufen', fps: 10 },
@@ -46,4 +46,22 @@ test('several frames: duplicate after the last, reverse, remove (never all)', ()
     assert.equal(srcs(removed.removed), 'ae');
     assert.equal(remove_frames_from(strip(), [0, 1, 2, 3, 4]).removed.length, 0);
     assert.equal(srcs(duplicate_frames_in(strip(), []).frames), 'abcde');
+});
+
+test('several selected frames dragged together land as a block where the dragged one was dropped', () => {
+    // a b c d e, b and c selected, b dragged behind e (from 1 to 4)
+    let r = move_frames_block(strip(), [1, 2], 1, 4);
+    assert.equal(srcs(r.frames), 'adebc');
+    assert.deepEqual(r.selection, [3, 4]);
+    // c dragged to the front (from 2 to 0)
+    r = move_frames_block(strip(), [1, 2], 2, 0);
+    assert.equal(srcs(r.frames), 'bcade');
+    assert.deepEqual(r.selection, [0, 1]);
+    // gaps close up: a and e selected, a dragged between c and d (from 0 to 2)
+    r = move_frames_block(strip(), [0, 4], 0, 2);
+    assert.equal(srcs(r.frames), 'bcaed');
+    assert.deepEqual(r.selection, [2, 3]);
+    // dropped where it was: nothing moves except closing the gaps
+    r = move_frames_block(strip(), [1, 3], 1, 1);
+    assert.equal(srcs(r.frames), 'abdce');
 });
