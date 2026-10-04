@@ -9,6 +9,10 @@ schritte: 2             # two simulation steps per frame: half the file size
 szene:
   himmel: ['#41a6f6', '#73eff7']
   kamera: { bildhoehe: 144 }
+  # Dunst am Fuß der fernen Berge: ein Hintergrund mit Farbverlauf von
+  # durchsichtig nach hell, gedithert, mit derselben Parallaxe wie die Berge
+  effekte:
+    - { effekt: farbe, name: Dunst, hinter: Berge, parallaxe: 0.75, farben: ['#bfe6f400', '#bfe6f4ff'], dither: bayer, stufen: 4, bereich: [-6, 2.5, 44, 2.25] }
   ebenen:
     - name: Wolken
       parallaxe: 0.9
@@ -111,14 +115,15 @@ schleife: true
 4. Für jede Tiefe eine eigene Ebene: Wolken, ferne Berge, Berge, Wald, Tannen. Setz die großen Sprites nebeneinander, bis sie das ganze Level füllen.
 5. Stell bei **Layer-Eigenschaften** die **Parallaxe** ein. Pip benutzt: Wolken **0,9**, ferne Berge **0,75**, Berge **0,55**, Wald **0,35**, Tannen **0,15**, die Welt **0**.
 6. Für den Vordergrund: eine Ebene ganz oben in der Layer-Liste mit **Parallaxe −0,35**. Sie zieht schneller vorbei als die Welt.
-7. Probier es aus und lauf einmal durchs Level. Stell zum Vergleich alle Parallaxen auf 0: Dann klebt alles flach aneinander.
+7. **Dunst** zwischen den Bergen: eine Ebene **Hintergrund** direkt unter den nahen Bergen in der Layer-Liste, mit **Parallaxe 0,75** wie die fernen Berge. Zieh ihr Rechteck über den Fuß der fernen Berge und gib ihm einen **Farbverlauf** von oben durchsichtig nach unten hellblau. Stell **Dithering** auf **Raster** und **Farbstufen** auf 4 – dann wird der Dunst zu einem Pixelmuster, das nach oben hin ausdünnt.
+8. Probier es aus und lauf einmal durchs Level. Stell zum Vergleich alle Parallaxen auf 0: Dann klebt alles flach aneinander.
 
 ## Tipps
 
 > **Tipp:** Je weiter weg, desto **heller, blauer und blasser**. So macht es auch die echte Luft. Nahe Dinge sind kräftig und dunkel, ferne verschwimmen mit dem Himmel.
 
 - **Grate malen:** Ein Berg ist kein Dreieck. Von jeder Zacke der Kante läuft ein **Grat** schräg nach unten: links davon die helle Seite, die zur Sonne zeigt, rechts die dunkle. Ein paar dünne Rillen in der anderen Farbe machen den Fels zerklüftet, und in den Rinnen liegt der Schnee länger.
-- **Dithering** mischt zwei Farben mit einem Pixelmuster, zum Beispiel wie ein Schachbrett. So bekommst du Übergänge, obwohl die Palette nur wenige Farben hat: Nebel am Fuß der Berge, weiche Schatten an den Hängen, Wolken, die unten grau werden.
+- **Dithering** mischt zwei Farben mit einem Pixelmuster, zum Beispiel wie ein Schachbrett. So bekommst du Übergänge, obwohl die Palette nur wenige Farben hat: weiche Schatten an den Hängen, Wolken, die unten grau werden. Den Dunst am Fuß der Berge malst du nicht in die Berge hinein – als eigene Ebene kannst du ihn verschieben, dichter oder dünner machen und auch vor anderen Bergen benutzen.
 - Für Dithering reichen drei Muster: jedes vierte Pixel (25 %), Schachbrett (50 %) und jedes vierte Pixel frei (75 %).
 - Ebenen mit Parallaxe haben **nie Kollisionen**. Böden und Wände gehören in eine Ebene mit Parallaxe 0.
 - Mit Parallaxe verschiebt sich eine Ebene auch nach oben und unten, wenn die Kamera das tut. Schau sie dir im Level-Editor an der Stelle an, an der die Spielfigur startet.

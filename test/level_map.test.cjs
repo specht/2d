@@ -45,11 +45,13 @@ test('warnings: no exit, a lonely side level, a lost target, a broken layer, now
     const map = level_map(levels, traits_of);
     assert.match(map.nodes[0].warnings[0], /nicht mehr gibt/);
     assert.equal(map.edges.find(e => e.from === 0).to, 1);       // falls back to the next level
-    assert.match(map.nodes[1].warnings[0], /keinen Ausgang/);
+    assert.match(map.nodes[1].hints[0], /Noch kein Ausgang/);
+    assert.deepEqual(map.nodes[1].warnings, []);
     assert.ok(map.nodes[2].warnings.some(w => /Nebenlevel/.test(w)));
     assert.ok(map.nodes[2].warnings.some(w => /„zurück“/.test(w)));
     assert.ok(map.nodes[3].warnings.some(w => /Kollisionen/.test(w)));
-    assert.ok(map.nodes[3].warnings.some(w => /nie in dieses Level/.test(w)));
+    // reached along the order (Kein Ausgang in b yet: the arrow shows where it will lead)
+    assert.ok(map.nodes[3].reachable);
     assert.deepEqual(map.nodes[4].warnings, []);                  // a draft says nothing
     assert.equal(map.end_reachable, false);
     assert.ok(!map.nodes[2].reachable && map.nodes[2].row === 1);
@@ -64,4 +66,18 @@ test('exits: placed settings and "geschafft bei Signal"', () => {
     const map = level_map([lv, level('b', [exit()]), level('c', [exit()])], traits_of);
     assert.deepEqual(map.edges.map(e => [e.from, e.to, e.kind]), [[0, 2, 'next'], [0, 'end', 'end'], [1, 2, 'next'], [2, 'end', 'end']]);
     assert.match(map.nodes[1].warnings[0], /nie in dieses Level/);
+});
+
+test('a new game is a connected row: levels without an exit show where it will lead', () => {
+    // one empty level: on to the end, no alarm
+    let map = level_map([level('a', [])], traits_of);
+    assert.deepEqual(map.edges.map(e => [e.from, e.to, e.kind]), [[0, 'end', 'order']]);
+    assert.equal(map.end_reachable, true);
+    assert.deepEqual(map.nodes[0].warnings, []);
+    assert.match(map.nodes[0].hints[0], /Noch kein Ausgang/);
+    // three levels, the middle one already has an exit; Nebenlevel are no part of the order
+    map = level_map([level('a', []), level('s', [], { side_level: true }), level('b', [exit()]), level('c', [])], traits_of);
+    assert.deepEqual(map.edges.map(e => [e.from, e.to, e.kind]), [[0, 2, 'order'], [2, 3, 'next'], [3, 'end', 'order']]);
+    assert.equal(map.end_reachable, true);
+    assert.deepEqual(map.nodes[1].hints.length, 1);       // the Nebenlevel: a hint, no arrow
 });

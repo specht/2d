@@ -360,6 +360,15 @@ sprites:
     states:
       - { strip: welt/broeckel }
       - { strip: welt/broeckel_zerfall, traits: { falls_down: [crumbling] } }
+  # the same stone in one cell: it crumbles where it lies (no room below in the sprite)
+  broeckel_klein:
+    label: Bröckelstein (klein)
+    traits:
+      block_above: {}
+      falls_down: { timeout: 0.5 }
+    states:
+      - { strip: welt/broeckel_klein }
+      - { strip: welt/broeckel_klein_zerfall, traits: { falls_down: [crumbling] } }
   stacheln:
     label: Stacheln
     traits: { trap: { damage: 25, damage_cool_down: 1.0 } }
@@ -933,12 +942,12 @@ sprites:
     traits:
       companion: {}
     states:
-      - { strip: hund/stehen, fps: 6, traits: { companion: [right] } }
-      - { strip: hund/laufen, fps: 12, traits: { companion: [walk_right] } }
+      - { strip: hund/stehen, fps: 3, traits: { companion: [right] } }
+      - { strip: hund/laufen, fps: 10, traits: { companion: [walk_right] } }
       - { strip: hund/springen, traits: { companion: [jump_right] } }
       - { strip: hund/fallen, traits: { companion: [fall_right] } }
-      - { strip: hund/sitzt, fps: 5, traits: { companion: [sit_right] } }
-      - { strip: hund/schnueffelt, fps: 7, traits: { companion: [busy_right] } }
+      - { strip: hund/sitzt, fps: 3, traits: { companion: [sit_right] } }
+      - { strip: hund/schnueffelt, fps: 6, traits: { companion: [busy_right] } }
   kaetzchen:
     label: Kätzchen
     traits:
@@ -946,23 +955,11 @@ sprites:
       companion: { vrun: 3.2, vjump: 7.5 }
     states:
       - { strip: kaetzchen/stehen, fps: 4, traits: { companion: [right] } }
-      - { strip: kaetzchen/laufen, fps: 12, traits: { companion: [walk_right] } }
+      - { strip: kaetzchen/laufen, fps: 10, traits: { companion: [walk_right] } }
       - { strip: kaetzchen/springen, traits: { companion: [jump_right] } }
       - { strip: kaetzchen/fallen, traits: { companion: [fall_right] } }
       - { strip: kaetzchen/sitzt, fps: 3, traits: { companion: [sit_right] } }
       - { strip: kaetzchen/putzt_sich, fps: 5, traits: { companion: [busy_right] } }
-  kroete:
-    label: Kröte
-    traits:
-      # slow, but it jumps higher than Pip
-      companion: { vrun: 2.2, vjump: 8 }
-    states:
-      - { strip: kroete/stehen, fps: 4, traits: { companion: [right] } }
-      - { strip: kroete/huepfen, fps: 10, traits: { companion: [walk_right] } }
-      - { strip: kroete/springen, traits: { companion: [jump_right] } }
-      - { strip: kroete/fallen, traits: { companion: [fall_right] } }
-      - { strip: kroete/doest, fps: 2, traits: { companion: [sit_right] } }
-      - { strip: kroete/fliegenfang, fps: 8, traits: { companion: [busy_right] } }
   vogel:
     label: Vogel
     traits:
@@ -980,21 +977,7 @@ sprites:
     states:
       - { strip: eule/fliegen, fps: 10, traits: { companion: [fly_right] } }
       - { strip: eule/stehen, fps: 3, traits: { companion: [right] } }
-      - { strip: eule/watscheln, fps: 8, traits: { companion: [walk_right] } }
       - { strip: eule/dreht_den_kopf, fps: 3, traits: { companion: [busy_right] } }
-  entchen:
-    label: Entchen
-    traits:
-      # it swims; small legs: a weak jump
-      companion: { can_swim: true, vrun: 2.6, vjump: 5 }
-    states:
-      - { strip: entchen/stehen, fps: 4, traits: { companion: [right] } }
-      - { strip: entchen/watscheln, fps: 12, traits: { companion: [walk_right] } }
-      - { strip: entchen/springen, traits: { companion: [jump_right] } }
-      - { strip: entchen/fallen, traits: { companion: [fall_right] } }
-      - { strip: entchen/schwimmen, fps: 6, traits: { companion: [swim_right] } }
-      - { strip: entchen/sitzt, fps: 3, traits: { companion: [sit_right] } }
-      - { strip: entchen/putzt_sich, fps: 4, traits: { companion: [busy_right] } }
   roboter:
     label: Roboter
     traits:
@@ -1300,10 +1283,10 @@ legende:
 sammlung:
   - Spielfiguren: [pip, pip_einfach, pip_schwert, pip_bogen, pip_bogen_schraeg, pip_wurf, pip_bombe, pip_taucher, astronaut, fisch, u_boot]
   - Gegner: [glibber, schnecke, spuckpilz, kaefer, keiler, frosch, fledermaus, klotz, klotz_einmal, maus, waschbaer, katze, geist, strohpuppe, qualle, hai]
-  - Begleiter: [hund, kaetzchen, kroete, vogel, eule, entchen, roboter]
+  - Begleiter: [hund, kaetzchen, vogel, eule, roboter]
   - Zum Einsammeln: [muenze, edelstein, herz, trank, schutzschild, feder, krone, geldsack, perle, stern, schluessel]
   - Essen: [apfel, kirschen, erdbeere, banane, karotte, kuchen, eiswaffel]
-  - Fallen und Gefahren: [stacheln, lava, broeckel, saege, lagerfeuer, dornen]
+  - Fallen und Gefahren: [stacheln, lava, broeckel, broeckel_klein, saege, lagerfeuer, dornen]
   - Boden und Blöcke: [boden, erde, boden_schnee, boden_tot, wurzeln, mauer, mauer_fenster, dach, kiste, eis, strohballen, block_rot, block_gruen]
   - Plattformen, Leitern und Schrägen: [brett, wolkenplattform, plattform, aufzug, leiter, schraege, treppe, eishang, hang_flach, hang_flach_ab, hang_fuss, hang_fuss_ab, huegel_steil, huegel_steil_ab, huegel_steil_fuss, huegel_steil_fuss_ab]
   - Förderbänder: [band, band_anfang, band_ende, band_links, band_links_anfang, band_links_ende, rolltreppe, rolltreppe_gehaeuse, maschine]

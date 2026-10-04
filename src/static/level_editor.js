@@ -2640,7 +2640,7 @@ class LevelEditor {
         const head = $('<div class="level-map-head">').appendTo(panel);
         $('<span class="level-map-title">').text('Levelübersicht').appendTo(head);
         const legend = $('<span class="level-map-legend">').appendTo(head);
-        for (const [kind, text] of [['next', 'nächstes Level'], ['target', 'gewähltes Level'], ['back', 'zurück'], ['end', 'Spielende']])
+        for (const [kind, text] of [['next', 'nächstes Level'], ['target', 'gewähltes Level'], ['back', 'zurück'], ['end', 'Spielende'], ['order', 'Reihenfolge (noch ohne Ausgang)']])
             $('<span>').addClass(`level-map-key level-map-key-${kind}`).text(text).appendTo(legend);
         $('<button class="level-map-close" title="Schließen (L)">').append($('<i class="fa fa-times">'))
             .on('click', () => this.set_view_option('show_level_map', false)).appendTo(head);
@@ -2653,7 +2653,7 @@ class LevelEditor {
         const svg = $(document.createElementNS('http://www.w3.org/2000/svg', 'svg'))
             .attr({ width, height, class: 'level-map-lines' }).appendTo(area);
         const defs = $(document.createElementNS('http://www.w3.org/2000/svg', 'defs')).appendTo(svg);
-        for (const kind of ['next', 'target', 'back', 'end']) {
+        for (const kind of ['next', 'target', 'back', 'end', 'order']) {
             const marker = $(document.createElementNS('http://www.w3.org/2000/svg', 'marker'))
                 .attr({ id: `level-map-arrow-${kind}`, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' })
                 .appendTo(defs);
@@ -2717,11 +2717,18 @@ class LevelEditor {
             // a wide invisible path makes the arrow easy to click
             const hit = $(document.createElementNS('http://www.w3.org/2000/svg', 'path')).attr({ d, class: 'level-map-hit' }).appendTo(group);
             const exit = edge.exits.find(e => !e.signal) ?? edge.exits[0];
-            const title = `${edge.exits.length > 1 ? `${edge.exits.length} Ausgänge` : exit.signal ? '„geschafft bei Signal“' : 'Ausgang'} in »${map.nodes[edge.from].name}« ` +
-                `${edge.kind === 'end' ? 'führt zum Spielende' : edge.kind === 'back' ? `führt zurück nach »${map.nodes[edge.to].name}«` : `führt nach »${map.nodes[edge.to].name}«`}` +
+            const where = edge.to === 'end' ? 'zum Spielende' : `nach »${map.nodes[edge.to].name}«`;
+            const title = edge.kind === 'order' ?
+                `»${map.nodes[edge.from].name}« hat noch keinen Ausgang. Bekommt es einen, führt er ${where} – klicken, um das Level zu öffnen` :
+                `${edge.exits.length > 1 ? `${edge.exits.length} Ausgänge` : exit.signal ? '„geschafft bei Signal“' : 'Ausgang'} in »${map.nodes[edge.from].name}« ` +
+                `${edge.kind === 'back' ? `führt zurück nach »${map.nodes[edge.to].name}«` : `führt ${where}`}` +
                 (exit.signal ? '' : ' – klicken, um ihn zu zeigen');
             $(document.createElementNS('http://www.w3.org/2000/svg', 'title')).text(title).appendTo(group);
-            if (!exit.signal) hit.on('click', () => this.show_level_map_exit(edge.from, exit));
+            if (edge.kind === 'order') hit.on('click', () => {
+                this.open_level_from_map(edge.from);
+                this.show_level_notice('Setz ein Sprite mit der Eigenschaft „Levelwechsel“ ins Level – das ist der Ausgang. Wohin er führt, stellst du bei ihm unter „führt zu“ ein.', 7000);
+            });
+            else if (!exit.signal) hit.on('click', () => this.show_level_map_exit(edge.from, exit));
             const badges = [];
             if (edge.exits.some(e => e.action_key)) badges.push('F');
             if (edge.exits.some(e => e.signal)) badges.push('⚡');
@@ -2734,7 +2741,7 @@ class LevelEditor {
             const card = $('<div class="level-map-card">').css({ left: `${x}px`, top: `${y}px`, width: `${W}px`, height: `${H}px` })
                 .toggleClass('current', node.index === this.level_index).toggleClass('unused', !node.used)
                 .toggleClass('side', node.side).toggleClass('warn', node.warnings.length > 0)
-                .attr('title', [`${node.name} – klicken, um das Level zu öffnen`, ...node.warnings].join('\n'))
+                .attr('title', [`${node.name} – klicken, um das Level zu öffnen`, ...node.warnings, ...node.hints].join('\n'))
                 .on('click', () => this.open_level_from_map(node.index))
                 .appendTo(area);
             const label = $('<div class="level-map-name">').appendTo(card);
@@ -2746,6 +2753,8 @@ class LevelEditor {
             else if (node.side) $('<span>').text('Nebenlevel').appendTo(tags);
             if (node.warnings.length) $('<span class="level-map-warn">').append($('<i class="fa fa-exclamation-triangle">'),
                 document.createTextNode(` ${node.warnings.length}`)).appendTo(tags);
+            else if (node.hints.length) $('<span class="level-map-hint">').append($('<i class="fa fa-info-circle">'),
+                document.createTextNode(' kein Ausgang')).appendTo(tags);
         }
         const end = pos(map.end.column, map.end.row);
         $('<div class="level-map-end">').css({ left: `${end.x}px`, top: `${end.y}px`, height: `${H}px` })
@@ -2753,19 +2762,22 @@ class LevelEditor {
             .append($('<i class="fa fa-flag-checkered">'), $('<span>').text('Spielende'))
             .attr('title', map.end_reachable ? 'THE END: hier ist das Spiel geschafft' : 'Kein Weg führt vom ersten Level bis hierher')
             .appendTo(area);
-        // what is wrong, in words (also on the cards)
+        // what is wrong, in words (also on the cards), and how connections are made
         const notes = [];
-        if (!map.end_reachable) notes.push(['', 'Vom ersten Level aus führt kein Weg zum Spielende.']);
-        for (const node of map.nodes) for (const w of node.warnings) notes.push([node.name, w]);
-        if (notes.length) {
-            const list = $('<div class="level-map-notes">').appendTo(panel);
-            for (const [name, text] of notes) {
-                const line = $('<div>').append($('<i class="fa fa-exclamation-triangle">'));
-                if (name) $('<b>').text(` ${name}: `).appendTo(line);
-                else line.append(document.createTextNode(' '));
-                line.append(document.createTextNode(text)).appendTo(list);
-            }
+        if (!map.end_reachable) notes.push(['', 'Vom ersten Level aus führt kein Weg zum Spielende.', 'warn']);
+        for (const node of map.nodes) for (const w of node.warnings) notes.push([node.name, w, 'warn']);
+        for (const node of map.nodes) for (const h of node.hints) notes.push([node.name, h, 'hint']);
+        const list = $('<div class="level-map-notes">').appendTo(panel);
+        for (const [name, text, kind] of notes) {
+            const line = $('<div>').addClass(`level-map-note-${kind}`)
+                .append($(`<i class="fa ${kind === 'warn' ? 'fa-exclamation-triangle' : 'fa-info-circle'}">`));
+            if (name) $('<b>').text(` ${name}: `).appendTo(line);
+            else line.append(document.createTextNode(' '));
+            line.append(document.createTextNode(text)).appendTo(list);
         }
+        $('<div class="level-map-help">').text('Jeder Pfeil ist ein Ausgang – ein Sprite mit der Eigenschaft „Levelwechsel“. ' +
+            'Normalerweise führt er zum nächsten Level der Liste. Wohin er sonst führt, stellst du beim Ausgang im Level unter „führt zu“ ein: ' +
+            'klick auf einen Pfeil, um ihn zu zeigen.').appendTo(list);
         // a wide game: smaller, so that it fits (up to a point, then it scrolls)
         const avail = body[0].clientWidth - 4, tall = body[0].clientHeight - 4;
         const fit = Math.min(1, avail / width, Math.max(0.6, tall / height));

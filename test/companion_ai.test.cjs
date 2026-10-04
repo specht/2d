@@ -310,6 +310,21 @@ test('Begleiter that flies keeps busy: flutters around, lands, hops and flies up
     assert.ok(idle.every(s => Math.abs(s.x - p.mesh.position.x) <= COMPANION_IDLE.FLUTTER_SIDE + 30), 'near the player');
 });
 
+test('Begleiter that flies hops on the ground only with a drawn walk picture', () => {
+    const on_ground_xs = poses => {
+        const { run, trace } = world({ blocks: ground(-5, 40), companion: { can_fly: true }, player: [300, 24], start: [240, 70], poses });
+        run(40);
+        const xs = [];
+        for (let i = 1; i < trace.length; i++)
+            if (trace[i].y <= 24.5 && trace[i - 1].y <= 24.5) xs.push(Math.abs(trace[i].x - trace[i - 1].x));
+        return xs;
+    };
+    const still = on_ground_xs([]);
+    assert.ok(still.length > 0, 'it landed');
+    assert.ok(still.every(d => d < 0.01), 'and never walked');
+    assert.ok(on_ground_xs(['walk']).some(d => d > 0.01), 'with a walk picture it hops');
+});
+
 test('Begleiter that got stuck is lost after a while and comes back – not at once, and behind the player', () => {
     const blocks = [...ground(-5, 60), ...ground(10, 60, 1), ...ground(10, 60, 2)];
     const { c, p, run, trace } = world({ blocks, companion: { vjump: 5.5 }, player: [30 * 24, 72], view: 300 });

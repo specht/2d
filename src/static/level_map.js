@@ -26,16 +26,20 @@ function level_map_exits(level, traits_of) {
 }
 
 // Nodes (one per level, plus the end), edges and warnings.
-//   node: { index, id, name, side, used, start, reachable, column, row, warnings }
-//   edge: { from, to (level index or 'end'), kind: 'next' | 'target' | 'back' | 'end',
+//   node: { index, id, name, side, used, start, reachable, column, row, warnings, hints }
+//   edge: { from, to (level index or 'end'), kind: 'next' | 'target' | 'back' | 'end' | 'order',
 //           exits: [exit …] }    – exits that lead the same way share one edge
+// A level of the order that has no exit yet gets an 'order' edge: where its
+// exit will lead when it gets one (the next level, after the last one the
+// end). So a new game is a connected row from the start, and a missing exit
+// is a hint, not an alarm.
 function level_map(levels, traits_of) {
     levels = levels ?? [];
     const start = first_level_index(levels);
     const nodes = levels.map((level, index) => ({
         index, id: level?.id ?? null, name: level_display_name(levels, index),
         side: level_is_side(level), used: Boolean(level?.properties?.use_level), start: index === start,
-        reachable: false, column: 0, row: 0, warnings: [],
+        reachable: false, column: 0, row: 0, warnings: [], hints: [],
     }));
     const edges = [];
     const edge_to = (from, to, kind, exit) => {
@@ -46,7 +50,14 @@ function level_map(levels, traits_of) {
     const back_exits = [];
     levels.forEach((level, i) => {
         const exits = level_map_exits(level, traits_of);
-        if (!exits.length) nodes[i].warnings.push('Hier gibt es keinen Ausgang – dieses Level kann man nicht verlassen.');
+        if (!exits.length) {
+            nodes[i].hints.push('Noch kein Ausgang: Setz ein Sprite mit der Eigenschaft „Levelwechsel“ ins Level. Ohne eigenes Ziel führt es zum nächsten Level.');
+            // where it will lead: the order of the levels (a Nebenlevel leads back once it has an exit)
+            if (level_in_sequence(level)) {
+                const to = next_level_in_sequence(levels, i, 1);
+                edge_to(i, to >= 0 && to < levels.length ? to : 'end', 'order', { order: true });
+            }
+        }
         if (exits.some(e => !e.working))
             nodes[i].warnings.push('Ein Ausgang liegt in einer Ebene ohne Kollisionen (oder mit Parallaxe) und funktioniert im Spiel nicht.');
         for (const exit of exits.filter(e => e.working)) {
@@ -110,7 +121,7 @@ function level_map(levels, traits_of) {
         if (node.used) node.warnings.push(node.side ? 'Kein Ausgang führt in dieses Nebenlevel.' : 'Man kommt im Spiel nie in dieses Level.');
     }
     // a level that is not used is a draft: no warnings about it
-    for (const node of nodes) if (!node.used) node.warnings = [];
+    for (const node of nodes) if (!node.used) { node.warnings = []; node.hints = []; }
     const end = { column: Math.max(columns, 1), row: 0 };
     return { nodes, edges, end, end_reachable, rows: reached_rows + (loose ? 1 : 0), columns: Math.max(columns + 1, loose) };
 }

@@ -454,14 +454,19 @@ export async function build_game(catalog, recipe, repo) {
             const f = e.farben ?? ['#8d9bb5', '#8d9bb5'];
             const colors = typeof f[0] === 'string' ? [[f[0], 0.5, 1.0], [f[f.length - 1], 0.5, 0.0]] : f;
             if (![1, 2, 4].includes(colors.length)) throw new Error(`${recipe.id}: effekt farbe braucht 1, 2 oder 4 Farben`);
+            // parallaxe: like a map layer with Parallaxe (placed so that it looks like its map at the start)
+            const p = scene.parallaxe_aus ? 0 : Number(e.parallaxe ?? 0);
             return {
                 type: 'backdrop', backdrop_type: 'color', ...(e.id ? { id: e.id } : {}),
-                properties: { name: e.name ?? 'Tönung', ...(e.mischmodus ? { blend: blend_of(e.mischmodus, `${recipe.id}: `) } : {}),
+                properties: { name: e.name ?? 'Tönung', ...(p ? { parallax: p } : {}),
+                    ...(e.mischmodus ? { blend: blend_of(e.mischmodus, `${recipe.id}: `) } : {}),
                     ...layer_signal_of(e.signal, `${recipe.id}: `) },
                 colors: clone(colors),
+                // dither: bayer | noise, stufen: how many steps between the colours (the editor's Dithering)
+                ...(e.dither ? { dither: e.dither, dither_levels: e.stufen ?? 8 } : {}),
                 // bereich: [column, row from top, width, height] in tiles – e.g. only over a cave
                 rects: [e.bereich ?
-                    { left: e.bereich[0] * TILE + X0, bottom: (rows - e.bereich[1] - e.bereich[3]) * TILE, width: e.bereich[2] * TILE, height: e.bereich[3] * TILE } :
+                    { left: e.bereich[0] * TILE + X0 - cam_x * p, bottom: (rows - e.bereich[1] - e.bereich[3]) * TILE - cam_y * p, width: e.bereich[2] * TILE, height: e.bereich[3] * TILE } :
                     { left: -TILE * 4 + X0, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
             };
         }

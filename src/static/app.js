@@ -834,8 +834,12 @@ void main() {
 				x: player.mesh.position.x, y: player.mesh.position.y,
 				facing: player.last_horizontal_facing ?? 'right',
 			} : null,
-			// which keep-busy pictures it has ("sitzt", "beschäftigt sich")
-			has_pose: kind => Boolean(this.sti_for_state[kind]),
+			// which keep-busy pictures it has ("sitzt", "beschäftigt sich"); for
+			// the movement states only drawn ones count (walk is never missing:
+			// it falls back to the standing picture)
+			has_pose: kind => ['stand', 'walk', 'jump', 'fall'].includes(kind) ?
+				Object.values(this.sti_for_state[kind] ?? {}).some(e => e.confidence >= 100) :
+				Boolean(this.sti_for_state[kind]),
 			// how far down the ground is (px, at most max), or null
 			ground_below: max => {
 				for (let d = 0; d <= max; d += 2)
@@ -2172,6 +2176,26 @@ class Game {
 		return true;
 	}
 
+	// The F hint of a door, sign, Schalter or exit is drawn in front of every
+	// sprite of its layer (the scene is drawn in order, renderer.sortObjects is
+	// off), but behind the figure: in the figure's own layer it comes right
+	// before the figure, in a layer in front of the figure's it stays in front,
+	// like the sprites of that layer.
+	place_overlay_meshes() {
+		const player = this.player_character?.mesh ?? null;
+		for (const mesh of this.overlay_meshes) {
+			const group = mesh.parent;
+			if (!group) continue;
+			group.remove(mesh);
+			const at = player && player.parent === group ? group.children.indexOf(player) : -1;
+			if (at < 0) group.add(mesh);
+			else {
+				group.children.splice(at, 0, mesh);
+				mesh.parent = group;
+			}
+		}
+	}
+
 	// the level an exit without a target leads to (level_flow.js)
 	get_next_level_index(delta) {
 		return next_level_in_sequence(this.data.levels, this.level_index, delta);
@@ -2537,7 +2561,9 @@ class Game {
 							active_entry.door_state = 'idle';
 							let overlay_mesh = this.overlay_mesh_catalogue['f_key'].clone();
 							overlay_mesh.geometry = overlay_mesh.geometry.clone();
-							overlay_mesh.position.set(placed[1], placed[2] + sprite.height / 2, 1.0);
+							// z 0: in the plane of the sprites, so the figure is never hidden
+							// behind it by depth (where it is drawn decides: place_overlay_meshes)
+							overlay_mesh.position.set(placed[1], placed[2] + sprite.height / 2, 0);
 							game_layer.add(overlay_mesh);
 							active_entry.overlay_mesh = overlay_mesh;
 							overlay_mesh.visible = false;
@@ -2616,6 +2642,8 @@ class Game {
 		// a level entered again during this run: as it was left (collected things
 		// stay collected, defeated enemies stay defeated, Schalter keep their state)
 		this.restore_level_memory(level);
+		// the F hints: in front of the sprites of their layer, behind the figure
+		this.place_overlay_meshes();
 		// through an exit with a chosen target: start at the exit that leads back
 		this.place_player_on_arrival();
 		// no exit works before the figure has stepped off them (exit_armed), and an

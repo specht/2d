@@ -4961,6 +4961,7 @@ button.resize-cell.active {
 .level-map-key-target::before { border-top-color: var(--map-target); }
 .level-map-key-back::before { border-top: 2px dashed var(--map-back); }
 .level-map-key-end::before { border-top-color: var(--map-end); }
+.level-map-key-order::before { border-top: 2px dotted var(--map-next); }
 .level-map-close {
     background: none;
     border: none;
@@ -4995,10 +4996,12 @@ button.resize-cell.active {
 .level-map-line.level-map-target { stroke: var(--map-target); }
 .level-map-line.level-map-back { stroke: var(--map-back); stroke-dasharray: 6 5; }
 .level-map-line.level-map-end { stroke: var(--map-end); }
+.level-map-line.level-map-order { stroke: var(--map-next); stroke-width: 1.5; stroke-dasharray: 2 4; opacity: 0.8; }
 .level-map-arrowhead { fill: var(--map-next); }
 .level-map-arrowhead.level-map-target { fill: var(--map-target); }
 .level-map-arrowhead.level-map-back { fill: var(--map-back); }
 .level-map-arrowhead.level-map-end { fill: var(--map-end); }
+.level-map-arrowhead.level-map-order { fill: var(--map-next); opacity: 0.8; }
 .level-map-hit {
     fill: none;
     stroke: transparent;
@@ -5093,4 +5096,14 @@ button.resize-cell.active {
 }
 .level-map-notes b {
     color: #fff;
+}
+.level-map-note-hint, .level-map-hint {
+    color: rgba(255, 255, 255, 0.6);
+}
+.level-map-hint {
+    margin-left: auto;
+}
+.level-map-help {
+    margin-top: 4px;
+    color: rgba(255, 255, 255, 0.55);
 }

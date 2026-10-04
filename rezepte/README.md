@@ -231,6 +231,9 @@ szene:
   #   - { effekt: farbe, farben: ['#56668a', '#7d6784'], mischmodus: abdunkeln }
   #     # a colour layer instead of an effect (top, bottom or [[colour, x, y], …]):
   #     # with abdunkeln a tint over the whole scene (the gloomy world in Schwebestaub)
+  #     # '#rrggbbaa' colours fade (haze between the mountains in Parallaxe) · dither: bayer |
+  #     # noise, stufen: 4 – dithered steps instead of a smooth fade · parallaxe: 0.75 – it moves
+  #     # like a map layer with that Parallaxe (bereich is where it is at the start)
   # palette: Nyx8             # every sprite converted to a studio palette (palettes.js, by
   #                            # name) like "Sprite an Palette anpassen", the sky gets the
   #                            # nearest palette colours · { name: Nyx8, dithering: ordered |
@@ -353,8 +356,10 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `treffer`, `tot` (3).
 * **Welt**: `boden`, `erde`, `mauer`, `dach`, `leiter`, `schraege`, `treppe`,
   `brett` (jump-through), `eis`, `eishang` (slope down, slippery),
-  `broeckel` + `broeckel_zerfall` (6, crumbling bricks: irregular fragments
-  that break off and fall – drawn from a Voronoi pattern), `stacheln`,
+  `broeckel` + `broeckel_zerfall` (14, crumbling bricks: irregular fragments
+  that break off one after the other, the ones under the feet last, and shrink to dust while they
+  fall – drawn from a Voronoi pattern), `broeckel_klein` + `broeckel_klein_zerfall` (the same
+  stone as 24 × 24, crumbling where it lies), `stacheln`,
   `fahne_aus` / `fahne_an` (2, checkpoint), `ziel` (2, the exit: a checkered flag with
   *Levelwechsel*, legend `!`), `edelstein` (4, a gem to collect, 50 points, legend `$`), `wurzeln`, `tuer_zu`, `tuer_auf`,
   `tuer_uebergang` (3), `schlosstuer_zu`, `schluessel` (2), `muenze` (4),
@@ -396,7 +401,7 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   `benommen`), `frosch` (Hüpfer: `stehen`, `springen`), `fledermaus`
   (Flatterer: `fliegen`), `klotz` (Stampfer: `stehen`, `fallen`, `landen`;
   `klotz_einmal` falls only once); each with `treffer` and `tot`. `maus`
-  (Angsthase: `stehen`, `laufen`, `fliehen`, `tot`). `waschbaer` (Jäger with Intelligenz: `stehen`,
+  (Angsthase, low and round, its belly almost on the ground: `stehen`, `laufen`, `fliehen`, `tot`). `waschbaer` (Jäger with Intelligenz: `stehen`,
   `laufen`, `jagen`, `springen`, `klettern` – back view, state *Gegner
   klettert*). `strohpuppe` (24×48 training dummy, drawn in the lower 32 px, with its hitbox kept there by `ex_top`, *Steht still*: `stehen`,
   `treffer`, `tot` – its bullseye sits exactly at arrow height, 10 px
@@ -405,14 +410,13 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   recording, the others as variants in its text, and all of them in its scene through
   `szene.zusaetzlich`), fully animated so children can take them into their own games, each with
   pictures for keeping busy while the player stands still (*Begleiter sitzt*, *Begleiter
-  beschäftigt sich*): `hund` (`stehen` 4 wagging, `laufen` 6, `springen`, `fallen`, `sitzt`,
-  `schnueffelt`), `kaetzchen` (quick, jumps high: `stehen`, `laufen`, `springen`, `fallen`,
-  `sitzt` with the tail around its paws, `putzt_sich`), `kroete` (slow, jumps higher than Pip:
-  `stehen` with a pulsing throat, `huepfen`, `springen`, `fallen`, `doest`, `fliegenfang`),
-  `vogel` and `eule` (*kann fliegen*: `fliegen`, and on the ground `stehen`, `huepfen` /
-  `watscheln`, `pickt` / `dreht_den_kopf`, the bird also `plustert_sich`), `entchen` (*kann
-  schwimmen*: `stehen`, `watscheln`, `springen`, `fallen`, `schwimmen`, `sitzt`, `putzt_sich`)
-  and `roboter` (*kann springen* off: `stehen` with a blinking antenna, `rollen` – it bops on its
+  beschäftigt sich*): `hund` (a floppy-eared puppy with a red collar, its shoulder lower than
+  Pip: `stehen` 4 wagging and blinking, `laufen` 4, `springen`, `fallen`, `sitzt`,
+  `schnueffelt`), `kaetzchen` (a grey tabby with a big round face and a bell; quick, jumps
+  high: `stehen`, `laufen`, `springen`, `fallen`, `sitzt`, `putzt_sich` with a paw at its mouth),
+  `vogel` (*kann fliegen*: `fliegen`, and on the ground `stehen`, `huepfen`, `pickt`,
+  `plustert_sich`), `eule` (*kann fliegen*, but no walking picture, so it never hops around on
+  the ground: `fliegen`, `stehen`, `dreht_den_kopf`) and `roboter` (*kann springen* off: `stehen` with a blinking antenna, `rollen` – it bops on its
   spring –, `ruht`, `scannt`). They are shaded, with no big flat patches. Sprite titles
   are their names (`begleiter_einzeln` uses them).
 * **Meer** (`meer/`, recipes *Pip taucht*, *Ein Fisch als Spielfigur*, *Das
@@ -515,13 +519,17 @@ shaded with ordered 4×4 Bayer dithering. A big sprite placed in a map starts
 at its cell and stands on the cell's bottom edge. (In the level editor the
 pen puts a sprite with its lower left corner on the grid of the game's
 Rastergröße, so sprites of 48 × 24 and 24 × 24 line up.) The sky is never a sprite
-but the level's colour backdrop (`himmel`). The mountains are facets: a ragged skyline whose
-corners send ridges and gullies down, faces turned to the left lit, the others in shadow, and snow
-that reaches further down in the gullies.
+but the level's colour backdrop (`himmel`). The mountains (`berge`, `berge_fern`) are massifs
+seen from the front, made from a height map: summits of different heights, ridges with small
+bumps, faces turned to the left lit, the others in shadow, and snow that hangs from the summits
+down the gullies. They carry no haze of their own: a recipe puts a dithered colour gradient
+between them (`effekt: farbe` with `farben` that fade to transparent, `dither`, `stufen` and the
+layer's `parallaxe`, see *Parallaxe*), so children can change or remove it.
 
 The Bröckelstein is 24 × 48: the stone in the top half, room below for its pieces to fall
-(`zerbröselt`, 12 frames), and only `block_above`, so the empty half is in nobody's way – a
-recipe map puts it one row below the bridge.
+(`zerbröselt`, 14 frames), and only `block_above`, so the empty half is in nobody's way – a
+recipe map puts it one row below the bridge. `broeckel_klein` (24 × 24) sits in the bridge itself;
+its pieces shrink away inside its own cell.
 
 **Figures stand on the bottom row of their sprite:** the engine puts the bottom edge of a sprite
 on the ground, so every frame of a figure's standing and walking states (`right`, `front`,

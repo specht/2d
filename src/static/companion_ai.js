@@ -172,7 +172,9 @@ function companion_idle_fly(a, mem, w) {
     }
     if (job.kind === 'ground') {
         if (now >= job.next) {
-            const kind = companion_pick_idle(mem, [['stand', 1], ['hop', 2], ...(has('busy') ? [['busy', 3]] : []), ...(has('sit') ? [['sit', 1]] : [])]);
+            // it hops only with a drawn walk picture (an owl without one stays put)
+            const kind = companion_pick_idle(mem, [['stand', 1], ...(has('walk') ? [['hop', 2]] : []),
+                ...(has('busy') ? [['busy', 3]] : []), ...(has('sit') ? [['sit', 1]] : [])]);
             // hops stay near the player: back towards it when it is more than a little away
             const away = Math.abs(p.dx) > COMPANION_IDLE.FLUTTER_SIDE * 0.6;
             const dir = away ? toward_player : (companion_random(mem) < 0.5 ? 'left' : 'right');
