@@ -278,6 +278,9 @@ class LevelEditor {
         try { this.show_signal_overview = localStorage.getItem('signal_overview') === '1'; } catch { this.show_signal_overview = false; }
         // Übersichtskarte (M): the whole level small, in a corner (level_minimap.js)
         try { this.show_minimap = localStorage.getItem('level_minimap') === '1'; } catch { this.show_minimap = false; }
+        // Levelübersicht (L): how the levels are connected (level_map.js). Not remembered:
+        // it covers the level, and a child who reloads should see the level.
+        this.show_level_map = false;
         this.signal_focus_code = null;
 
         this.texture_loader = new THREE.TextureLoader();
@@ -308,6 +311,14 @@ class LevelEditor {
             hint: 'Zeigt unten links das ganze Level klein, mit einem Rahmen um das, was du gerade siehst. Klick oder zieh auf der Karte, um dorthin zu springen.',
             get: () => self.show_minimap,
             set: (x) => self.set_view_option('show_minimap', x),
+        });
+        this.view_option_widgets.show_level_map = new CheckboxWidget({
+            container: $('#tool_menu_level_settings'),
+            label: 'Levelübersicht',
+            key: 'L',
+            hint: 'Zeigt alle Level deines Spiels und wohin ihre Ausgänge führen. Ein Klick auf ein Level öffnet es, ein Klick auf einen Pfeil zeigt den Ausgang. Warnungen sagen dir, wenn man ein Level nie erreicht oder nicht mehr herauskommt.',
+            get: () => self.show_level_map,
+            set: (x) => self.set_view_option('show_level_map', x),
         });
         this.view_option_widgets.animate_level = new CheckboxWidget({
             container: $('#tool_menu_level_settings'),
@@ -427,6 +438,22 @@ class LevelEditor {
                     set: (x) => {
                         self.game.data.levels[self.level_index].properties.use_level = x;
                         self.update_level_label();
+                    },
+                });
+
+                // Nebenlevel (level_flow.js): absent = part of the order, as always
+                new CheckboxWidget({
+                    container: $('#menu_level_properties'),
+                    label: 'Nebenlevel',
+                    hint: 'Ein Nebenlevel ist ein Laden, ein Bonuslevel oder ein Geheimraum: Man kommt nur durch einen Ausgang hinein, der „führt zu“ genau dieses Level hat. Nach dem Level davor geht es nicht hier weiter, sondern mit dem nächsten Level der Liste. Ein Ausgang im Nebenlevel führt zurück, woher man kam – außer du wählst bei ihm etwas anderes.',
+                    get: () => self.game.data.levels[self.level_index].properties.side_level === true,
+                    set: (x) => {
+                        const properties = self.game.data.levels[self.level_index].properties;
+                        if (x) properties.side_level = true; else delete properties.side_level;
+                        self.update_level_label();
+                        // "führt zu" of the exits means something else now
+                        self.placed_properties_for = null;
+                        self.refresh();
                     },
                 });
 
@@ -1191,6 +1218,7 @@ class LevelEditor {
         this.signal_link_labels = [];
         this.build_platform_paths();
         this.refresh_signal_overview();
+        this.refresh_level_map();
         this.refresh_signal_code_widgets();
         if (!this.game.data.levels?.[this.level_index]) return;
         const { level, traits_of, size_of } = this.signal_context();
@@ -1671,6 +1699,7 @@ class LevelEditor {
         if (option === 'show_minimap') {
             try { localStorage.setItem('level_minimap', value ? '1' : '0'); } catch { }
         }
+        if (option === 'show_level_map') this.refresh_level_map();
         if (option === 'animate_level') {
             if (value) this.start_level_animation();
             else {
@@ -1979,7 +2008,10 @@ class LevelEditor {
             get: () => Number.isInteger(level.properties.signal_level_complete),
             set: (on) => {
                 if (on) level.properties.signal_level_complete = free_signal_code(level);
-                else delete level.properties.signal_level_complete;
+                else {
+                    delete level.properties.signal_level_complete;
+                    delete level.properties.signal_level_complete_target;
+                }
                 code_widget?.refresh();
                 update();
             },
@@ -1992,6 +2024,7 @@ class LevelEditor {
             // "Kein Signal": only the exit completes the level again
             clear: () => {
                 delete level.properties.signal_level_complete;
+                delete level.properties.signal_level_complete_target;
                 toggle.refresh();
                 update();
             },
@@ -1999,6 +2032,18 @@ class LevelEditor {
             set: (value) => {
                 level.properties.signal_level_complete = Math.round(value);
                 update();
+            },
+        });
+        // where it goes on (level_flow.js): absent = the next level, as always
+        new SelectWidget({
+            container: details,
+            label: 'führt zu',
+            hint: 'Wohin es weitergeht, wenn das Signal das Level beendet – wie „führt zu“ bei einem Ausgang.',
+            options: Object.fromEntries(this.level_target_choices(level.properties.signal_level_complete_target)),
+            get: () => clean_level_target(level.properties.signal_level_complete_target) ?? '',
+            set: (value) => {
+                if (value) level.properties.signal_level_complete_target = value;
+                else delete level.properties.signal_level_complete_target;
             },
         });
         links.appendTo(box);
@@ -2533,9 +2578,29 @@ class LevelEditor {
         }
     }
 
+    // The choices of a "führt zu" field of this level (level_flow.js). A target
+    // whose level was deleted stays visible, and so does the Delta of an older
+    // game's exit (old_delta: a number other than 1), so nothing changes by itself.
+    level_target_choices(current, old_delta = null) {
+        const levels = this.game.data.levels;
+        const options = level_target_options(levels, this.level_index);
+        const t = clean_level_target(current);
+        if (t && !options.some(([value]) => value === t))
+            options.splice(options.length - 1, 0, [t, t === levels[this.level_index]?.id ? 'dieses Level' : 'ein Level, das es nicht mehr gibt']);
+        if (!t && Number.isInteger(old_delta)) {
+            const to = next_level_in_sequence(levels, this.level_index, old_delta);
+            const where = to >= 0 && to < levels.length ? `»${level_display_name(levels, to)}«` : 'zum Spielende';
+            options.unshift([LEVEL_TARGET_DELTA, `${where} (${old_delta > 1 ? `${old_delta - 1} Level überspringen` : `${Math.abs(old_delta - 1)} Level zurück`}, von früher)`]);
+        }
+        return options;
+    }
+
     update_level_label(li) {
         if (typeof(li) === 'undefined') li = this.level_index;
         let label = $('<div>').text(this.game.data.levels[li].properties.name);
+        // a Nebenlevel (level_flow.js) is not part of the order
+        if (this.game.data.levels[li].properties.side_level === true)
+            label.prepend($('<i class="fa fa-level-up level-side-mark">').attr('title', 'Nebenlevel: nur durch einen Ausgang erreichbar'));
         if (!this.game.data.levels[li].properties.use_level) {
             label.css('text-decoration', 'line-through');
             label.css('opacity', 0.6);
@@ -2544,6 +2609,180 @@ class LevelEditor {
         label.css('margin', '6px 5px');
         label.css('pointer-events', 'none');
         this.label_for_level[li].empty().append(label);
+        // names and Nebenlevel are on the Levelübersicht, too
+        this.refresh_level_map?.();
+    }
+
+    // ------------------------------------------------ Levelübersicht (L)
+    // Every level of the game and where its exits lead (level_map.js), over the
+    // level view. A level is a node with its name; arrows are exits
+    // (grey: the next level, yellow: a chosen level, dashed: "zurück", green:
+    // the end). Clicking a card opens the level, clicking an arrow shows its
+    // exit. Built again only when what it shows changes.
+    refresh_level_map() {
+        let panel = $(this.element).find('.level-map');
+        const levels = this.game.data?.levels;
+        if (!this.show_level_map || !levels?.length) {
+            panel.remove();
+            this.level_map_key = null;
+            return;
+        }
+        const traits_of = (ref) => this.game.data.sprites[this.game.sprite_index_for_ref(ref)]?.traits ?? null;
+        const map = level_map(levels, traits_of);
+        const key = JSON.stringify([this.level_index, map]);
+        if (panel.length && key === this.level_map_key) return;
+        this.level_map_key = key;
+        const scroll = panel.find('.level-map-body').scrollLeft() ?? 0;
+        panel.remove();
+        panel = $('<div class="level-map">').appendTo(this.element);
+        // the level view must not paint, zoom or pan through the map
+        panel.on('mousedown touchstart dblclick wheel contextmenu', (e) => e.stopPropagation());
+        const head = $('<div class="level-map-head">').appendTo(panel);
+        $('<span class="level-map-title">').text('Levelübersicht').appendTo(head);
+        const legend = $('<span class="level-map-legend">').appendTo(head);
+        for (const [kind, text] of [['next', 'nächstes Level'], ['target', 'gewähltes Level'], ['back', 'zurück'], ['end', 'Spielende']])
+            $('<span>').addClass(`level-map-key level-map-key-${kind}`).text(text).appendTo(legend);
+        $('<button class="level-map-close" title="Schließen (L)">').append($('<i class="fa fa-times">'))
+            .on('click', () => this.set_view_option('show_level_map', false)).appendTo(head);
+        const body = $('<div class="level-map-body">').appendTo(panel);
+
+        const W = 150, H = 52, GX = 80, GY = 34, PAD = 24;
+        const pos = (column, row) => ({ x: PAD + column * (W + GX), y: PAD + row * (H + GY) });
+        const width = PAD * 2 + map.columns * (W + GX) - GX + 8, height = PAD * 2 + Math.max(1, map.rows) * (H + GY) - GY + 30;
+        const area = $('<div class="level-map-area">').css({ width: `${width}px`, height: `${height}px` }).appendTo(body);
+        const svg = $(document.createElementNS('http://www.w3.org/2000/svg', 'svg'))
+            .attr({ width, height, class: 'level-map-lines' }).appendTo(area);
+        const defs = $(document.createElementNS('http://www.w3.org/2000/svg', 'defs')).appendTo(svg);
+        for (const kind of ['next', 'target', 'back', 'end']) {
+            const marker = $(document.createElementNS('http://www.w3.org/2000/svg', 'marker'))
+                .attr({ id: `level-map-arrow-${kind}`, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' })
+                .appendTo(defs);
+            $(document.createElementNS('http://www.w3.org/2000/svg', 'path')).attr({ d: 'M0,0 L10,5 L0,10 z', class: `level-map-arrowhead level-map-${kind}` }).appendTo(marker);
+        }
+        const box_of = (to) => to === 'end' ? pos(map.end.column, map.end.row) : pos(map.nodes[to].column, map.nodes[to].row);
+        // several arrows between the same two levels (and direction) lie side by side
+        const pair_of = (edge) => `${edge.from}>${edge.to}`;
+        const pair_total = new Map();
+        for (const edge of map.edges) pair_total.set(pair_of(edge), (pair_total.get(pair_of(edge)) ?? 0) + 1);
+        const pair_count = new Map();
+        for (const edge of map.edges) {
+            const a = box_of(edge.from), b = box_of(edge.to);
+            const pair = pair_of(edge);
+            const nth = pair_count.get(pair) ?? 0;
+            pair_count.set(pair, nth + 1);
+            // −…+ around the middle line
+            const spread = (nth - ((pair_total.get(pair) ?? 1) - 1) / 2) * 22;
+            const shift = Math.max(0, spread);
+            // Every arrow leaves its node on the line from the node's middle
+            // towards where it goes, and comes in on the line towards the middle
+            // of the node it points at – its head points at that middle, after a
+            // straight piece (END) so it never sits on a bend.
+            const END = 12, PAD = 3;
+            const centre = (box) => ({ x: box.x + W / 2, y: box.y + H / 2 });
+            // where the line from a node's middle towards (tx, ty) leaves the node (and PAD beyond)
+            const rim = (box, tx, ty) => {
+                const c = centre(box);
+                const dx = tx - c.x, dy = ty - c.y, len = Math.hypot(dx, dy) || 1;
+                const ux = dx / len, uy = dy / len;
+                const t = Math.min(Math.abs(ux) > 1e-6 ? (W / 2) / Math.abs(ux) : Infinity, Math.abs(uy) > 1e-6 ? (H / 2) / Math.abs(uy) : Infinity) + PAD;
+                return { x: c.x + ux * t, y: c.y + uy * t, ux, uy };
+            };
+            const ca = centre(a), cb = centre(b);
+            const forward = b.x > a.x;
+            // forward: straight towards the other node (side by side: shifted);
+            // back to the left or within a column: through a point below both
+            let via_a, via_b;
+            if (forward) {
+                // side by side: aimed from points beside the other node's middle,
+                // so each leaves and arrives at its own place, still towards the middle
+                const len = Math.hypot(cb.x - ca.x, cb.y - ca.y) || 1;
+                const nx = -(cb.y - ca.y) / len, ny = (cb.x - ca.x) / len;
+                via_a = { x: cb.x + nx * spread * 3, y: cb.y + ny * spread * 3 };
+                via_b = { x: ca.x + nx * spread * 3, y: ca.y + ny * spread * 3 };
+            } else {
+                const dip = Math.max(a.y, b.y) + H + 30 + Math.abs(spread);
+                via_a = via_b = { x: (ca.x + cb.x) / 2 + spread, y: dip };
+            }
+            const s0 = rim(a, via_a.x, via_a.y);
+            const tip = rim(b, via_b.x, via_b.y);
+            const q = { x: tip.x + tip.ux * END, y: tip.y + tip.uy * END };
+            const k = Math.max(24, Math.hypot(q.x - s0.x, q.y - s0.y) / 3);
+            const c1 = { x: s0.x + s0.ux * k, y: s0.y + s0.uy * k }, c2 = { x: q.x + tip.ux * k, y: q.y + tip.uy * k };
+            const d = `M${s0.x},${s0.y} C${c1.x},${c1.y} ${c2.x},${c2.y} ${q.x},${q.y} L${tip.x},${tip.y}`;
+            // the middle of the curve, for its badge
+            const mid = { x: (s0.x + 3 * c1.x + 3 * c2.x + q.x) / 8, y: (s0.y + 3 * c1.y + 3 * c2.y + q.y) / 8 };
+            const group = $(document.createElementNS('http://www.w3.org/2000/svg', 'g')).addClass('level-map-edge').appendTo(svg);
+            $(document.createElementNS('http://www.w3.org/2000/svg', 'path')).attr({ d, class: `level-map-line level-map-${edge.kind}`,
+                'marker-end': `url(#level-map-arrow-${edge.kind})` }).appendTo(group);
+            // a wide invisible path makes the arrow easy to click
+            const hit = $(document.createElementNS('http://www.w3.org/2000/svg', 'path')).attr({ d, class: 'level-map-hit' }).appendTo(group);
+            const exit = edge.exits.find(e => !e.signal) ?? edge.exits[0];
+            const title = `${edge.exits.length > 1 ? `${edge.exits.length} Ausgänge` : exit.signal ? '„geschafft bei Signal“' : 'Ausgang'} in »${map.nodes[edge.from].name}« ` +
+                `${edge.kind === 'end' ? 'führt zum Spielende' : edge.kind === 'back' ? `führt zurück nach »${map.nodes[edge.to].name}«` : `führt nach »${map.nodes[edge.to].name}«`}` +
+                (exit.signal ? '' : ' – klicken, um ihn zu zeigen');
+            $(document.createElementNS('http://www.w3.org/2000/svg', 'title')).text(title).appendTo(group);
+            if (!exit.signal) hit.on('click', () => this.show_level_map_exit(edge.from, exit));
+            const badges = [];
+            if (edge.exits.some(e => e.action_key)) badges.push('F');
+            if (edge.exits.some(e => e.signal)) badges.push('⚡');
+            if (edge.exits.length > 1) badges.push(`×${edge.exits.length}`);
+            if (badges.length) $('<div class="level-map-badge">').text(badges.join(' ')).attr('title', title)
+                .css({ left: `${mid.x}px`, top: `${mid.y}px` }).appendTo(area);
+        }
+        for (const node of map.nodes) {
+            const { x, y } = pos(node.column, node.row);
+            const card = $('<div class="level-map-card">').css({ left: `${x}px`, top: `${y}px`, width: `${W}px`, height: `${H}px` })
+                .toggleClass('current', node.index === this.level_index).toggleClass('unused', !node.used)
+                .toggleClass('side', node.side).toggleClass('warn', node.warnings.length > 0)
+                .attr('title', [`${node.name} – klicken, um das Level zu öffnen`, ...node.warnings].join('\n'))
+                .on('click', () => this.open_level_from_map(node.index))
+                .appendTo(area);
+            const label = $('<div class="level-map-name">').appendTo(card);
+            if (node.start) $('<i class="fa fa-play level-map-start">').attr('title', 'Hier beginnt das Spiel').appendTo(label);
+            if (node.side) $('<i class="fa fa-level-up level-side-mark">').attr('title', 'Nebenlevel').appendTo(label);
+            $('<span>').text(node.name).appendTo(label);
+            const tags = $('<div class="level-map-tags">').appendTo(card);
+            if (!node.used) $('<span>').text('nicht verwendet').appendTo(tags);
+            else if (node.side) $('<span>').text('Nebenlevel').appendTo(tags);
+            if (node.warnings.length) $('<span class="level-map-warn">').append($('<i class="fa fa-exclamation-triangle">'),
+                document.createTextNode(` ${node.warnings.length}`)).appendTo(tags);
+        }
+        const end = pos(map.end.column, map.end.row);
+        $('<div class="level-map-end">').css({ left: `${end.x}px`, top: `${end.y}px`, height: `${H}px` })
+            .toggleClass('unreachable', !map.end_reachable)
+            .append($('<i class="fa fa-flag-checkered">'), $('<span>').text('Spielende'))
+            .attr('title', map.end_reachable ? 'THE END: hier ist das Spiel geschafft' : 'Kein Weg führt vom ersten Level bis hierher')
+            .appendTo(area);
+        // what is wrong, in words (also on the cards)
+        const notes = [];
+        if (!map.end_reachable) notes.push(['', 'Vom ersten Level aus führt kein Weg zum Spielende.']);
+        for (const node of map.nodes) for (const w of node.warnings) notes.push([node.name, w]);
+        if (notes.length) {
+            const list = $('<div class="level-map-notes">').appendTo(panel);
+            for (const [name, text] of notes) {
+                const line = $('<div>').append($('<i class="fa fa-exclamation-triangle">'));
+                if (name) $('<b>').text(` ${name}: `).appendTo(line);
+                else line.append(document.createTextNode(' '));
+                line.append(document.createTextNode(text)).appendTo(list);
+            }
+        }
+        // a wide game: smaller, so that it fits (up to a point, then it scrolls)
+        const avail = body[0].clientWidth - 4, tall = body[0].clientHeight - 4;
+        const fit = Math.min(1, avail / width, Math.max(0.6, tall / height));
+        if (fit < 1) area.css('zoom', Math.max(0.55, fit));
+        body.scrollLeft(scroll);
+    }
+
+    open_level_from_map(index) {
+        this.set_view_option('show_level_map', false);
+        if (index !== this.level_index) this.levels_widget?.select_index(index);
+    }
+
+    // An arrow of the map: its level, and the exit selected in its layer.
+    show_level_map_exit(level_index, exit) {
+        this.open_level_from_map(level_index);
+        if (Number.isInteger(exit?.layer) && Number.isInteger(exit?.index))
+            this.pick_signal_overview_object({ kind: 'sprite', layer_index: exit.layer, placed_index: exit.index });
     }
 
     // Double-click with the select tool: the sprite under the mouse is selected
@@ -3983,7 +4222,7 @@ class LevelEditor {
                     for (let key in ((SPRITE_TRAITS[trait] ?? {}).placed_properties ?? {})) {
                         let property = SPRITE_TRAITS[trait].placed_properties[key];
                         // visible(traits of the drawing, traits_of, this copy's settings)
-                        if (property.visible && !property.visible(sprite.traits, traits_of, props_of(trait))) continue;
+                        if (property.visible && !property.visible(sprite.traits, traits_of, props_of(trait), level)) continue;
                         // absent: the default (some take it from the drawing)
                         const get = () => props_of(trait)[key] ?? (property.default_for ? property.default_for(sprite.traits) : property.default);
                         const set = (value) => {
@@ -4100,6 +4339,29 @@ class LevelEditor {
                                 options: property.options ?? null,
                                 get,
                                 set,
+                            });
+                        } else if (property.type === 'level_target') {
+                            // where an exit leads (level_flow.js): '' = nothing chosen, the next level;
+                            // an older game's Delta (not 1) is a choice of its own until another is made
+                            const old_delta = () => {
+                                const d = props_of(trait).delta;
+                                return Number.isFinite(d) && Math.round(d) !== 1 && !clean_level_target(props_of(trait)[key]) ? Math.round(d) : null;
+                            };
+                            widget = new SelectWidget({
+                                container: div,
+                                label: property.label ?? key,
+                                hint: property.hint ?? null,
+                                options: Object.fromEntries(this.level_target_choices(props_of(trait)[key], old_delta())),
+                                get: () => clean_level_target(props_of(trait)[key]) ?? (old_delta() !== null ? LEVEL_TARGET_DELTA : ''),
+                                set: (value) => {
+                                    if (value === LEVEL_TARGET_DELTA) return;
+                                    const props = writable_props_of(trait);
+                                    // a new choice replaces the old Delta for good
+                                    delete props.delta;
+                                    if (value) return set(value);
+                                    delete props[key];
+                                    this.update_signal_links?.();
+                                },
                             });
                         } else if (property.type === 'string') {
                             widget = new LineEditWidget({

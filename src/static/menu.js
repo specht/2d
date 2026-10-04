@@ -238,8 +238,9 @@ class Menu {
                 show_signal_overview: 'Zeigt rechts alle Signale dieses Levels als Regeln: Wenn das passiert – dann das.',
                 show_minimap: 'Zeigt unten links das ganze Level klein. Klick oder zieh auf der Karte, um dorthin zu springen.',
                 animate_level: 'Sprites und Effekte bewegen sich schon hier im Editor, so wie im Spiel.',
+                show_level_map: 'Zeigt alle Level deines Spiels und wohin ihre Ausgänge führen.',
             };
-            for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['S', 'show_signal_overview', 'Signale'], ['M', 'show_minimap', 'Karte'], ['A', 'animate_level', 'Level animieren']]) {
+            for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['S', 'show_signal_overview', 'Signale'], ['M', 'show_minimap', 'Karte'], ['L', 'show_level_map', 'Levelübersicht'], ['A', 'animate_level', 'Level animieren']]) {
                 hints.push({ key, type: 'toggle', label, title: titles[option],
                     get: () => !!game.level_editor?.[option],
                     callback: (value) => game.level_editor?.set_view_option?.(option, value) });

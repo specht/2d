@@ -44,6 +44,7 @@ erwartet:
 - Mit **Ausblenden** und **Bewegung** stellst du ein, wie schnell und wie weit die Münze nach dem Einsammeln nach oben schwebt.
 - Damit sich nicht alle Münzen gleichzeitig drehen, sorgt die **Phase** (bei den Zustand-Einstellungen) für kleine Unterschiede.
 - Statt Punkten kann ein Gegenstand auch **Leben** oder **Energie** geben – ein Herz zum Beispiel.
+- Im Spiel zählt oben rechts deine Münze mit: Das Bild ist das Sprite, das Punkte gibt, daneben steht, wie viele du hast. Gibt ein Sprite Leben, sind die Herzen oben links dieses Sprite.
 
 ## Wenn's nicht klappt
 

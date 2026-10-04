@@ -519,7 +519,7 @@ class Game {
         new CheckboxWidget({
             container: $('#game-settings-here'),
             label: 'Energie anzeigen:',
-            hint: 'Gib hier an, ob du die Energie während des Spiels anzeigen möchtest.',
+            hint: 'Gib hier an, ob die Energie im Spiel oben links als Balken angezeigt wird. Der Balken erscheint nur, wenn dir im Spiel etwas schaden kann (eine Falle, ein Gegner) oder etwas Energie gibt.',
             default: true,
             get: () => self.data.properties.show_energy,
             set: (x) => {

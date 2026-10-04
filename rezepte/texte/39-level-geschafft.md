@@ -79,7 +79,9 @@ Beide Wege gehen auch zusammen: Das Ziel funktioniert weiter, auch wenn das Leve
 ## Tipps
 
 - **Welches Level kommt danach?** Das nächste in der Liste der Level, bei dem **Level verwenden** angehakt ist. Ein Level ohne Haken wird übersprungen.
-- Beim Ziel kannst du im Level noch **Delta** einstellen: **1** ist das nächste Level, **2** das übernächste. So baust du eine Abkürzung oder einen geheimen Weg.
+- Beim Ziel kannst du im Level einstellen, wohin es **führt**: normalerweise **zum nächsten Level**. Du kannst auch ein bestimmtes Level wählen – so führen zwei Türen in zwei verschiedene Level – oder **zurück, woher man kam** und **zum Spielende**. Kommt die Figur durch so eine Tür in ein Level, steht sie dort an der Tür, die zurückführt.
+- Mit **nur mit Aktionstaste** geht die Figur erst durch das Ziel, wenn man davor **F** drückt – wie bei einer Tür. Dann kann man auch daran vorbeilaufen.
+- Ein **Nebenlevel** (bei den Level-Eigenschaften) ist ein Laden, ein Bonuslevel oder ein Geheimraum: Nach dem Level davor geht es nicht dort weiter, man kommt nur durch ein Ziel hinein, das genau dorthin führt. Ein Ziel im Nebenlevel führt von selbst zurück.
 - Auf dem Bildschirm steht danach **LEVEL COMPLETE!** – und der Name des nächsten Levels, wenn es einen hat. Gib deinen Levels gute Namen.
 
 ## Wenn's nicht klappt
@@ -90,4 +92,4 @@ Beide Wege gehen auch zusammen: Das Ziel funktioniert weiter, auch wenn das Leve
 
 ## Mach mehr draus
 
-Bau ein Level mit zwei Ausgängen: Ein Ziel führt zum nächsten Level, ein verstecktes Ziel mit **Delta 2** überspringt eines. Oder ein Level, das man nur verlassen kann, wenn alle Gegner besiegt sind – und eine Uhr, die das Level nach einer Minute trotzdem beendet.
+Bau ein Level mit zwei Ausgängen: Ein Ziel führt zum nächsten Level, ein verstecktes Ziel führt zu einem Level weiter hinten – eine Abkürzung. Oder ein Level, das man nur verlassen kann, wenn alle Gegner besiegt sind – und eine Uhr, die das Level nach einer Minute trotzdem beendet.

@@ -103,7 +103,9 @@ export async function record(browser, repo, game, recipe) {
         window.__set_time = t => { now = t; };
         g.frame = 0;
         g.running = true;
-        $('#overlay').hide(); $('#screen').show(); $('#stats').hide();
+        $('#overlay').hide(); $('#screen').show();
+        // no HUD (hud.js) in recordings: they show a part of the level, not the screen
+        g.hud_off = true;
         // bild_hoch with kamera: the engine centres the camera on the level's
         // bounds (when they fit on the screen) – lift them, and the camera with them
         if (lift) { g.miny += lift; g.maxy += lift; }

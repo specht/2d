@@ -1187,10 +1187,12 @@ void main() {
 				this.hit_flash_until = 0;
 				this.update_state_and_direction('dead', 'front');
 				// Beute: an item the enemy leaves behind (a key, a life, coins …)
-				this.game.spawn_drop?.(this);
+				const drop = this.game.spawn_drop?.(this);
 				// Signale: "sendet, wenn besiegt", "alle Gegner besiegt" (once)
 				if (!this.defeated) {
 					this.defeated = true;
+					// the level memory: it stays defeated, its loot stays where it fell
+					this.game.remember_defeated?.(this, drop ?? this.drop_entry ?? null);
 					this.game.baddie_defeated?.(this, this.game.clock.getElapsedTime());
 				}
 				// this.mesh.visible = false;
@@ -1552,9 +1554,12 @@ void main() {
 					this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
 					this.game.transitioning_sprites['pickup'] ??= {};
 					this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+					this.game.remember_collected?.(this.game.active_level_sprites[entry.entry_index]);
 					// "sendet, wenn eingesammelt" (signals.js; absent = sends nothing)
-					if (entry.pickup_signal_on === true)
+					if (entry.pickup_signal_on === true) {
 						this.game.signals?.send(stored_signal_code(entry.pickup_signal_code), true, t, { delay: entry.pickup_signal_delay });
+						this.game.remember_send?.(stored_signal_code(entry.pickup_signal_code), true);
+					}
 					this.game.points += sprite.traits.pickup.points ?? 0;
 					this.game.lives += sprite.traits.pickup.lives ?? 0;
 					if (this.game.lives > this.game.data.properties.max_lives)
@@ -1592,8 +1597,10 @@ void main() {
 				console.log(this.game.active_level_sprites[entry.entry_index]);
 				// a key with "kein Signal" opens nothing
 				if (entry.signal_code !== null) this.game.found_keys[entry.signal_code] = true;
+				this.game.remember_collected?.(this.game.active_level_sprites[entry.entry_index]);
 				// …and sends its Code: doors with "öffnen" and layers react, too.
 				this.game.signals?.send(entry.signal_code, true, t, { delay: entry.signal_delay });
+				this.game.remember_send?.(entry.signal_code, true);
 				this.game.update_stats();
 			}
 
@@ -1677,13 +1684,16 @@ void main() {
 			if (!this.game.reached_flag) {
 				entry = this.has_trait_at(['level_complete'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 					this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
-				if (entry) {
-					this.game.complete_level(entry.delta ?? 1);
-					// let sprite = this.game.data.sprites[entry.sprite_index];
-					// for (let sti = 0; sti < sprite.states.length; sti++) {
-					// 	if ('active' in sprite.states[sti].traits.checkpoint)
-					// 		this.game.state_for_mesh[entry.mesh.uuid].state_index = sti;
-					// }
+				// An exit does nothing until the figure has once stood beside every
+				// exit: it may start or arrive (level_flow.js) on one.
+				if (!entry) this.game.exit_armed = true;
+				else if (entry.exit_action_key === true) {
+					// "nur mit Aktionstaste": the F hint, and through on a fresh press (below)
+					const overlay = this.game.active_level_sprites[entry.entry_index].overlay_mesh;
+					if (overlay) overlay.visible = true;
+					this.game.action_key_targets.exit = [entry.entry_index];
+				} else if (this.game.exit_armed) {
+					this.game.complete_level(entry.delta ?? 1, entry.exit_target);
 				}
 			}
 
@@ -1719,7 +1729,14 @@ void main() {
 					this.game.flip_switch(entry_index, t);
 				// a sign: read it out – or, while somebody speaks, the next sentence
 				this.game.speech_action?.(t);
+				// an exit "nur mit Aktionstaste" – not with F still held from the level before
+				const exit_index = (this.game.action_key_targets.exit ?? [])[0];
+				if (exit_index !== undefined && this.game.exit_key_ready && !this.game.reached_flag) {
+					const exit = this.game.active_level_sprites[exit_index];
+					this.game.complete_level(exit.delta ?? 1, exit.exit_target);
+				}
 			}
+			if (!this.game.action_key_held?.()) this.game.exit_key_ready = true;
 			this.action_was_pressed = action_pressed;
 			if (this.pressed_keys[KEY_ACTION]) {
 				for (let entry_index of (this.game.action_key_targets.door ?? [])) {
@@ -1830,6 +1847,8 @@ class Game {
 		this.pointer_client = null;
 		this.pointer_world = { valid: false, x: 0, y: 0 };
 		this.key_actions = controls_key_map(null);
+		// the keys that are down right now (unlike pressed_keys, not forgotten by setup())
+		this.keys_down = new Set();
 		// Sprechtexte (speech.js): what is being said, drawn in a last render pass
 		this.speech = new Speech();
 		this.reset();
@@ -1857,9 +1876,11 @@ class Game {
 				this.end_playtest();
 				return;
 			}
+			this.keys_down.add(e.code);
 			this.handle_key_down(e.code)
 		});
 		window.addEventListener('keyup', (e) => {
+			this.keys_down.delete(e.code);
 			this.handle_key_up(e.code)
 		});
 		window.addEventListener('touchstart', (e) => {
@@ -1876,6 +1897,7 @@ class Game {
 		window.addEventListener('blur', () => {
 			this.pointer_world.valid = false;
 			this.pointer_client = null;
+			this.keys_down.clear();
 			// Alt+Tab, the Windows key or a system dialog steal the key-up event:
 			// release every key so the figure does not keep running.
 			for (const k of Object.keys(this.pressed_keys ?? {})) this.pressed_keys[k] = false;
@@ -1927,6 +1949,14 @@ class Game {
 		this.time_meshes = [];
 		this.level_index = 0;
 		this.next_level_index = 0;
+		// the levels the figure came from ("zurück", level_flow.js) and the one it
+		// just left (where it arrives in the next one)
+		this.level_trail = [];
+		this.arrived_from = null;
+		// what happened in each level during this run (level id → record): a level
+		// that is entered again looks as it was left (remember_* / restore_level_memory)
+		this.level_memory = {};
+		this.memory_now = null;
 		this.lives = 5;
 		this.energy = 100;
 		this.found_keys = {};
@@ -1947,6 +1977,16 @@ class Game {
 		this.lives = this.data.properties.lives_at_begin;
 		this.energy = this.data.properties.energy_at_begin;
 		this.points = 0;
+		// a game starts with the first level of the order (Level verwenden, no Nebenlevel)
+		this.level_index = first_level_index(this.data.levels);
+	}
+
+	// Is a key that means "Aktion" held down right now? (keys_down: the keyboard
+	// as it is, also across a level change, which forgets pressed_keys)
+	action_key_held() {
+		for (const code of this.keys_down ?? [])
+			if ((this.key_actions.get(code) ?? []).includes('action')) return true;
+		return false;
 	}
 
 	// Sprite sheet material with a blend mode (backdrops.js); null = plain.
@@ -1972,6 +2012,7 @@ class Game {
 		if (!('pickup' in sprite.traits) && !('key' in sprite.traits)) return null;
 		owner.dropped = true;
 		const mesh = this.mesh_catalogue[si].clone();
+		const remembered_owner = owner;
 		mesh.geometry = mesh.geometry.clone();
 		mesh.geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
 		if (owner.mesh.userData?.blend) {
@@ -1989,6 +2030,8 @@ class Game {
 		if ('key' in sprite.traits) entry.signal_code = effective_loot_code(owner.placed_signal, drop);
 		const index = this.active_level_sprites.length;
 		this.active_level_sprites.push(entry);
+		// the enemy knows its loot (the level memory keeps it if nobody collects it)
+		remembered_owner.drop_entry = entry;
 		this.interval_tree_x.insert([x - sprite.width / 2, x + sprite.width / 2], index);
 		this.interval_tree_y.insert([y, y + sprite.height], index);
 		// animated like placed sprites (coins spin, keys glint)
@@ -2024,6 +2067,8 @@ class Game {
 		// Saved games refer to sprites by ID (game_ids.js); the engine keeps
 		// working with array indices. Old games already hold indices.
 		resolve_sprite_references_to_indices(this.data);
+		// the first level of the order (reset() ran before this game was there)
+		this.level_index = first_level_index(this.data.levels);
 		this.spritesheet_info = await (await fetch(`/gen/spritesheets/${tag}.json`)).json();
 		this.spritesheets = [];
 		for (let i = 0; i < this.spritesheet_info.spritesheets.length; i++) {
@@ -2076,7 +2121,6 @@ class Game {
 		this.setup();
 		this.ts_zoom_actor = -1;
 		this.reached_flag = false;
-		$('#stats').removeClass('showing');
 		// if (window.location.host.substring(0, 9) === 'localhost') {
 		// 	this.run();
 		// 	// $('#touch_controls').show();
@@ -2092,22 +2136,30 @@ class Game {
 	}
 
 	// The level is done: by the exit (a sprite with level_complete, its placed
-	// delta) or by a Signal (level setting signal_level_complete, delta 1).
-	// Once per level (reached_flag); the camera zooms onto the figure, then the
-	// curtain leads to the next level in use – or THE END.
-	complete_level(delta = 1) {
-		if (this.reached_flag) return false;
+	// delta and target) or by a Signal (level setting signal_level_complete,
+	// delta 1, signal_level_complete_target). Once per level (reached_flag); the
+	// camera zooms onto the figure, then the curtain leads to where the exit
+	// leads (level_flow.js: the next level in use unless something else was
+	// chosen) – or THE END.
+	complete_level(delta = 1, target = null) {
+		if (this.reached_flag || this.replaying_memory) return false;
 		this.reached_flag = true;
 		this.ts_zoom_actor = this.clock.getElapsedTime();
 		let self = this;
-		let next_level_index = self.get_next_level_index(delta);
-		if (next_level_index >= 0 && next_level_index < self.data.levels.length) {
-			let next_level_title = self.data.levels[next_level_index].properties.name.trim();
+		const levels = self.data.levels;
+		const here = levels[self.level_index];
+		const result = resolve_level_exit(levels, self.level_index, { target, delta }, self.level_trail);
+		if (!result.end) {
+			const next = levels[result.index];
+			let next_level_title = (next.properties.name ?? '').trim();
 			if (next_level_title.length > 0) {
 				next_level_title = `<div><span style='color: #aaa;'>Next up:</span> ${next_level_title}</div>`;
 			}
 			this.curtain.show(`LEVEL COMPLETE!${next_level_title}`, 0.5, 1.0, function () {
-				self.level_index = self.get_next_level_index(delta);
+				self.level_trail = next_level_trail(self.level_trail, here?.id ?? null, result, next.id ?? null);
+				// the figure arrives at the exit that leads back here (setup: place_player_on_arrival)
+				self.arrived_from = here?.id ?? null;
+				self.level_index = result.index;
 				self.setup();
 				self.run();
 			});
@@ -2120,18 +2172,121 @@ class Game {
 		return true;
 	}
 
+	// the level an exit without a target leads to (level_flow.js)
 	get_next_level_index(delta) {
-		let li = this.level_index + delta;
-		while ((li >= 0) && (li < this.data.levels.length) && !this.data.levels[li].properties.use_level)
-			li += 1;
-		return li;
+		return next_level_in_sequence(this.data.levels, this.level_index, delta);
 	}
 
+	// Came through an exit with a chosen target: the figure starts at the exit
+	// that leads back (level_flow.js arrival_exit_index) – also after losing a
+	// life – and its Begleiter come along. Without one: the level's own start.
+	place_player_on_arrival() {
+		const from = this.arrived_from;
+		this.arrived_from = null;
+		const pc = this.player_character;
+		if (!from || !pc) return;
+		const exits = this.active_level_sprites.filter(entry =>
+			entry.layer_index !== null && 'level_complete' in this.data.sprites[entry.sprite_index].traits);
+		const i = arrival_exit_index(this.data.levels, this.level_index, exits.map(entry => ({ target: entry.exit_target })), from);
+		if (i < 0) return;
+		const exit = exits[i];
+		pc.mesh.position.x = exit.mesh.position.x;
+		pc.mesh.position.y = this.free_start_height(pc, exit.mesh.position.x, exit.mesh.position.y);
+		pc.initial_position = [pc.mesh.position.x, pc.mesh.position.y];
+		this.camera_x = pc.mesh.position.x;
+		this.camera_y = pc.mesh.position.y + this.data.properties.screen_pixel_height * 0.3;
+		for (const companion of this.companions ?? [])
+			if (!companion.companion_waiting) companion.return_to_player(pc, 0, true);
+	}
+
+	// Lives, energy and points are read by the HUD in every frame (draw_hud);
+	// callers still say when they changed.
 	update_stats() {
-		$('.la_level').html(`Level: ${this.level_index + 1}`);
-		$('.la_points').html(`Punkte: ${this.points}`);
-		$('.la_lives').html(`Leben: ${this.lives}`);
-		$('.la_energy').html(`Energie: ${this.energy}`);
+	}
+
+	// ------------------------------------------------------------ HUD (hud.js)
+	// Made for every level (setup): what the game shows (hud_plan) and its
+	// pictures, taken from the sprite sheet at their real size.
+	setup_hud() {
+		if (typeof HudPainter === 'undefined' || typeof document === 'undefined' || !this.data) { this.hud = null; return; }
+		const name = this.data.levels[this.level_index]?.properties?.name ?? '';
+		if (this.hud && this.hud_data === this.data) { this.hud.reset(name); this.hud_key = null; return; }
+		const make_canvas = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+		const sprite_rgba = (si) => {
+			const sprite = this.data.sprites[si];
+			const tile = this.spritesheet_info?.tiles?.[si]?.[0]?.[0];
+			const image = tile ? this.spritesheets?.[tile[0]]?.uniforms?.texture1?.value?.image : null;
+			if (!sprite || !image) return null;
+			const canvas = make_canvas(sprite.width, sprite.height);
+			const ctx = canvas.getContext('2d');
+			ctx.imageSmoothingEnabled = false;
+			// the sheet holds every picture four times as big (SPRITESHEET_FACTOR)
+			ctx.drawImage(image, tile[1], tile[2], sprite.width * 4, sprite.height * 4, 0, 0, sprite.width, sprite.height);
+			return { rgba: ctx.getImageData(0, 0, sprite.width, sprite.height).data, width: sprite.width, height: sprite.height };
+		};
+		const font = speech_settings(this.data.properties).font;
+		const text_bitmap = (text, color, k) => render_speech_bitmap([text], font, k, color, make_canvas).canvas;
+		this.hud = new HudPainter(hud_plan(this.data), { make_canvas, sprite_rgba, text_bitmap });
+		this.hud.reset(name);
+		// numbers and names in the game's pixel font: drawn again once it is loaded
+		const hud = this.hud;
+		this.speech_fonts_ready?.().then(() => { hud.texts.clear(); this.hud_key = null; });
+		this.hud_data = this.data;
+		this.hud_key = null;
+	}
+
+	// The HUD in screen pixels over everything (like draw_speech): a canvas as
+	// wide as the screen and as tall as the HUD, made a texture only when its
+	// picture changed.
+	draw_hud() {
+		if (!this.hud || this.hud_off || typeof document === 'undefined' || !this.renderer) return;
+		const font = SPEECH_FONTS[speech_settings(this.data.properties).font] ?? SPEECH_FONTS[SPEECH_DEFAULT_FONT];
+		const k = hud_scale(this.height, this.screen_pixel_height, font.cap);
+		const w = Math.max(1, Math.round(this.width)), h = Math.min(Math.max(1, Math.round(this.height)), HUD.STRIP * k);
+		if (!this.hud_canvas) {
+			this.hud_canvas = document.createElement('canvas');
+			this.hud_scene = new THREE.Scene();
+			this.hud_camera = new THREE.OrthographicCamera(0, 1, 1, 0, -10, 10);
+			this.hud_texture = new THREE.CanvasTexture(this.hud_canvas);
+			this.hud_texture.magFilter = THREE.NearestFilter;
+			this.hud_texture.minFilter = THREE.NearestFilter;
+			this.hud_texture.generateMipmaps = false;
+			this.hud_mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+				new THREE.MeshBasicMaterial({ map: this.hud_texture, transparent: true, depthTest: false, depthWrite: false }));
+			this.hud_scene.add(this.hud_mesh);
+		}
+		if (this.hud_canvas.width !== w || this.hud_canvas.height !== h) {
+			this.hud_canvas.width = w;
+			this.hud_canvas.height = h;
+			// a canvas of another size needs a new texture
+			this.hud_texture.dispose();
+			this.hud_texture = new THREE.CanvasTexture(this.hud_canvas);
+			this.hud_texture.magFilter = THREE.NearestFilter;
+			this.hud_texture.minFilter = THREE.NearestFilter;
+			this.hud_texture.generateMipmaps = false;
+			this.hud_mesh.material.map = this.hud_texture;
+			this.hud_mesh.material.needsUpdate = true;
+			this.hud_key = null;
+		}
+		const key = this.hud.paint(this.hud_canvas.getContext('2d'), w, h, k, {
+			lives: this.lives, lives_at_begin: this.data.properties.lives_at_begin,
+			energy: this.energy, max_energy: this.data.properties.max_energy, points: this.points,
+		}, this.clock.getElapsedTime());
+		if (key !== this.hud_key) {
+			this.hud_texture.needsUpdate = true;
+			this.hud_key = key;
+		}
+		// screen pixel on screen pixel, along the top of the screen
+		this.hud_camera.right = this.width;
+		this.hud_camera.top = this.height;
+		this.hud_camera.updateProjectionMatrix();
+		this.hud_mesh.scale.set(w, h, 1);
+		this.hud_mesh.position.set(w / 2, this.height - h / 2, 0);
+		const auto_clear = this.renderer.autoClear;
+		this.renderer.autoClear = false;
+		this.renderer.setRenderTarget(null);
+		this.renderer.render(this.hud_scene, this.hud_camera);
+		this.renderer.autoClear = auto_clear;
 	}
 
 	setup() {
@@ -2252,19 +2407,13 @@ class Game {
 		if (this.data === null)
 			return;
 
-		if (this.level_index === 0) {
-			this.lives = 1;
-			this.energy = 100;
-			this.lives = this.data.properties.lives_at_begin;
-			this.energy = this.data.properties.energy_at_begin;
-		}
-
+		// Lives and energy start anew with a new game (reset), not whenever the
+		// first level is set up – a level reached again (a hub) keeps them.
 		this.update_stats();
 
 		this.screen_pixel_height = this.data.properties.screen_pixel_height;
 		this.screen_safe_zone_x = this.data.properties.safe_zone_x;
 		this.screen_safe_zone_y = this.data.properties.safe_zone_y;
-		if (this.data.properties.show_energy) $('.la_energy').show(); else $('.la_energy').hide();
 
 		let tw = this.spritesheet_info.width;
 		let th = this.spritesheet_info.height;
@@ -2364,7 +2513,8 @@ class Game {
 						if (!('actor' in sprite.traits || 'baddie' in sprite.traits || 'companion' in sprite.traits)) {
 							this.interval_tree_x.insert([x0, x1], this.active_level_sprites.length);
 							this.interval_tree_y.insert([y0, y1], this.active_level_sprites.length);
-							active_entry = { layer_index: li, sprite_index: si, mesh: mesh };
+							// place: which placed sprite this is (the level memory)
+							active_entry = { layer_index: li, sprite_index: si, mesh: mesh, place: `${li}:${spi}` };
 							this.active_level_sprites.push(active_entry);
 						}
 						for (let trait of Object.keys(sprite.traits)) {
@@ -2381,7 +2531,9 @@ class Game {
 								console.log('look', active_entry);
 							}
 						}
-						if (active_entry !== null && ('door' in sprite.traits || 'text' in sprite.traits || 'switch' in sprite.traits)) {
+						// an exit "nur mit Aktionstaste" shows the F hint like a door
+						if (active_entry !== null && ('door' in sprite.traits || 'text' in sprite.traits || 'switch' in sprite.traits ||
+							('level_complete' in sprite.traits && active_entry.exit_action_key === true))) {
 							active_entry.door_state = 'idle';
 							let overlay_mesh = this.overlay_mesh_catalogue['f_key'].clone();
 							overlay_mesh.geometry = overlay_mesh.geometry.clone();
@@ -2403,6 +2555,7 @@ class Game {
 					else if ('baddie' in sprite.traits) {
 						const baddie = new Character(this, si, mesh);
 						baddie.layer_index = li;
+						baddie.place = `${li}:${spi}`;
 						// Signale: "sendet, wenn besiegt" and its Code (absent = sends nothing),
 						// and the Code of a key it leaves behind (drop_code)
 						baddie.placed_signal = placed[3]?.baddie ?? null;
@@ -2460,8 +2613,19 @@ class Game {
 			}
 			this.layers.push(game_layer);
 		}
+		// a level entered again during this run: as it was left (collected things
+		// stay collected, defeated enemies stay defeated, Schalter keep their state)
+		this.restore_level_memory(level);
+		// through an exit with a chosen target: start at the exit that leads back
+		this.place_player_on_arrival();
+		// no exit works before the figure has stepped off them (exit_armed), and an
+		// exit "nur mit Aktionstaste" waits until the key is let go (exit_key_ready)
+		this.exit_armed = false;
+		this.exit_key_ready = !this.action_key_held();
 		// touch buttons for this level's figure (melee / ranged only if it has them)
 		this.update_touch_buttons();
+		// the HUD: what this game shows, and the level's name for a moment
+		this.setup_hud();
 		// Bewegungsbereiche: swimming, floating, other gravity, currents (player and walking enemies)
 		this.movement_regions = typeof MovementRegions !== 'undefined' ? MovementRegions.resolve(level) : null;
 		// Bewegte Plattformen und Aufzüge (platforms.js; old games have none)
@@ -2545,7 +2709,6 @@ class Game {
 	run() {
 		// this.setup();
 		// this.prepare_run();
-		$('#stats').addClass('showing');
 		{
 			// Level music overrides the game-wide track; an empty level tag uses the game default.
 			let game_music = this.data.properties.yt_tag ?? '';
@@ -2578,7 +2741,6 @@ class Game {
 		this.curtain.hide();
 		$('#overlay').fadeIn();
 		$('#screen').fadeOut();
-		$('#stats').removeClass('showing');
 		window.yt_pending = null;
 		if (window.yt_player !== null) {
 			try {
@@ -2644,7 +2806,7 @@ class Game {
 		// "geschafft bei Signal" (level setting; absent = only the exit completes the level)
 		const complete = level.properties?.signal_level_complete;
 		if (Number.isInteger(complete))
-			this.signals.connect(complete, (value) => { if (value) this.complete_level(1); });
+			this.signals.connect(complete, (value) => { if (value) this.complete_level(1, level.properties?.signal_level_complete_target); });
 		for (let li = 0; li < level.layers.length; li++) {
 			const layer = level.layers[li];
 			if (!layer_reacts_to_signals(layer.properties)) continue;
@@ -2693,6 +2855,106 @@ class Game {
 		if (Number.isInteger(start) && start_delay === 0) this.signals.send(start, true, 0);
 		this.signals.immediate = false;
 		if (Number.isInteger(start) && start_delay > 0) this.signals.send(start, true, 0, { delay: start_delay, from: 'level_start' });
+		// entered again: what the remembered senders sent arrives once more, at once
+		this.replay_level_memory();
+	}
+
+	// ------------------------------------------------------- level memory
+	// During one run (until a new game, game over or a new test run) every level
+	// remembers what happened in it: collected sprites and keys, defeated
+	// enemies (and the loot they left lying there), Schalter, and the signals
+	// those sent. Entered again, the level looks as it was left: the signals are
+	// sent again at once (doors, layers, Zähler and companions follow), without
+	// completing the level or making signs speak. Falling blocks, Druckplatten,
+	// Signalbereiche, timers and checkpoints start afresh – a crumbled bridge
+	// is back, so no level can become impossible.
+	level_memory_record(level) {
+		if (!level?.id) return null;
+		this.level_memory ??= {};
+		return this.level_memory[level.id] ??= { gone: [], defeated: [], switches: {}, drops: {}, sends: [] };
+	}
+
+	remember_send(code, value) {
+		if (this.replaying_memory || !this.memory_now || signal_key(code) === null) return;
+		if (this.memory_now.sends.length < LEVEL_MEMORY_MAX_SENDS) this.memory_now.sends.push([code, Boolean(value)]);
+	}
+
+	// a collected sprite or key (a placed one, or loot an enemy left behind)
+	remember_collected(entry) {
+		const memory = this.memory_now;
+		entry.collected = true;
+		if (!memory || this.replaying_memory) return;
+		if (entry.place) memory.gone.push(entry.place);
+		if (entry.drop_of) delete memory.drops[entry.drop_of];
+	}
+
+	remember_defeated(baddie, drop_entry) {
+		const memory = this.memory_now;
+		if (!memory || !baddie.place) return;
+		memory.defeated.push(baddie.place);
+		// loot still lying there comes back with the level
+		if (drop_entry && !drop_entry.collected) {
+			drop_entry.drop_of = baddie.place;
+			memory.drops[baddie.place] = { x: drop_entry.mesh.position.x, y: drop_entry.mesh.position.y,
+				drop: baddie.traits.drop, placed_signal: baddie.placed_signal, layer_index: baddie.layer_index,
+				blend: baddie.mesh.userData?.blend ?? null };
+		}
+	}
+
+	restore_level_memory(level) {
+		const memory = this.level_memory_record(level);
+		this.memory_now = memory;
+		this.memory_to_replay = null;
+		if (!memory || !(memory.gone.length || memory.defeated.length || Object.keys(memory.switches).length ||
+			Object.keys(memory.drops).length || memory.sends.length)) return;
+		const gone = new Set(memory.gone);
+		this.active_level_sprites.forEach((entry) => {
+			if (entry.place && gone.has(entry.place)) {
+				const sprite = this.data.sprites[entry.sprite_index];
+				const x = entry.mesh.position.x, y = entry.mesh.position.y;
+				this.interval_tree_x.remove([x - sprite.width / 2, x + sprite.width / 2], this.active_level_sprites.indexOf(entry));
+				this.interval_tree_y.remove([y, y + sprite.height], this.active_level_sprites.indexOf(entry));
+				entry.mesh.visible = false;
+				entry.collected = true;
+				// a key that was found still opens its doors
+				if ('key' in sprite.traits && entry.signal_code !== null) this.found_keys[entry.signal_code] = true;
+			}
+			if (entry.place && entry.place in memory.switches) entry.switch_on = memory.switches[entry.place];
+		});
+		const defeated = new Set(memory.defeated);
+		this.baddies = this.baddies.filter(baddie => {
+			if (!defeated.has(baddie.place)) return true;
+			baddie.active = false;
+			baddie.defeated = true;
+			baddie.mesh.parent?.remove(baddie.mesh);
+			return false;
+		});
+		for (const [place, drop] of Object.entries(memory.drops)) {
+			const owner = { traits: { drop: drop.drop }, placed_signal: drop.placed_signal,
+				mesh: { position: { x: drop.x, y: drop.y }, userData: { blend: drop.blend }, parent: this.layers[drop.layer_index] ?? null } };
+			const entry = this.spawn_drop(owner);
+			if (entry) entry.drop_of = place;
+		}
+		this.memory_to_replay = memory.sends.slice();
+	}
+
+	replay_level_memory() {
+		const sends = this.memory_to_replay;
+		this.memory_to_replay = null;
+		if (!sends?.length || !this.signals) return;
+		const waiting = (this.companions ?? []).filter(companion => companion.companion_waiting);
+		this.replaying_memory = true;
+		this.signals.immediate = true;
+		try {
+			for (const [code, value] of sends) this.signals.send(code, value, 0);
+		} finally {
+			this.signals.immediate = false;
+			this.replaying_memory = false;
+		}
+		// a companion that was already found comes along again
+		const pc = this.player_character;
+		for (const companion of waiting)
+			if (!companion.companion_waiting && pc) companion.return_to_player(pc, 0, true);
 	}
 
 	update_signal_areas(t) {
@@ -2714,12 +2976,15 @@ class Game {
 	// the level sends "alle Gegner besiegt" (enemies that are "unverwundbar"
 	// do not count). Either may send later (Verzögerung).
 	baddie_defeated(baddie, t) {
-		if (baddie.placed_signal?.signal_on_defeat === true)
+		if (baddie.placed_signal?.signal_on_defeat === true) {
 			this.signals?.send(stored_signal_code(baddie.placed_signal.signal_code), true, t, { delay: baddie.placed_signal.signal_delay });
+			this.remember_send(stored_signal_code(baddie.placed_signal.signal_code), true);
+		}
 		if (this.signal_all_defeated === null || this.signal_all_defeated === undefined) return;
 		// an enemy that cannot be defeated ("unverwundbar") does not count either
 		if (this.baddies.some(other => other.active && !other.signal_hidden && other.traits?.invincible !== true)) return;
 		this.signals?.send(this.signal_all_defeated, true, t, { delay: this.signal_all_defeated_delay });
+		this.remember_send(this.signal_all_defeated, true);
 	}
 
 	// A layer that is away is not drawn, its sprites do not collide
@@ -2774,6 +3039,7 @@ class Game {
 	// (signals may arrive with time 0 when the level decides at once); a sign
 	// that is already speaking goes on.
 	signal_speech(entry_index) {
+		if (this.replaying_memory) return false;
 		if (this.speech.active && this.speech.current?.source === entry_index) return false;
 		return this.start_speech(entry_index, this.clock.getElapsedTime());
 	}
@@ -2924,6 +3190,8 @@ class Game {
 		entry.switch_on = !entry.switch_on;
 		this.show_trait_state(entry, 'switch', entry.switch_on ? 'on' : 'off');
 		this.signals?.send(entry.signal_code, entry.switch_on, t, { delay: entry.signal_delay });
+		if (this.memory_now && entry.place) this.memory_now.switches[entry.place] = entry.switch_on;
+		this.remember_send(entry.signal_code, entry.switch_on);
 	}
 
 	// A Druckplatte is down while the middle of the figure is above it (not
@@ -3222,7 +3490,8 @@ class Game {
 			this.renderer.setRenderTarget(null);
 			this.renderer.render(this.screen_scene, this.screen_camera);
 		}
-		// what somebody says: on top of everything
+		// the HUD (hud.js), and what somebody says on top of everything
+		this.draw_hud();
 		this.draw_speech();
 		if (this.running)
 			requestAnimationFrame((t) => this.render());
@@ -4007,7 +4276,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 	$('#mi_start').click(function (e) {
 		window.game.playtest = null;
 		$('#playtest_badge').removeClass('showing');
-		window.game.level_index = 0;
+		// reset() starts with the first level of the order (level_flow.js)
 		window.game.reset();
 		window.game.setup();
 		window.game.prepare_run();

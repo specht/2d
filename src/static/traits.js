@@ -1277,14 +1277,33 @@ var SPRITE_TRAITS = {
     },
     level_complete: {
         label: 'Levelwechsel',
+        // Where it leads (level_flow.js): absent target = the next level (by the
+        // placed Delta of older games), as always. In the game the placed
+        // settings land on the entry as exit_target / exit_action_key (entry_key).
         placed_properties: {
+            target: {
+                label: 'führt zu',
+                hint: 'Wohin dieser Ausgang führt. „zum nächsten Level“: wie immer das nächste Level in der Liste. Du kannst auch ein bestimmtes Level wählen – so führen zwei Türen in verschiedene Level, oder eine Tür in einen Laden oder ein Bonuslevel. „zurück, woher man kam“: zurück in das Level, aus dem die Spielfigur gekommen ist. Kommt die Figur durch so einen Ausgang in ein Level, steht sie dort an dem Ausgang, der zurückführt.',
+                type: 'level_target',
+                entry_key: 'exit_target',
+            },
+            // Older games jump by a number of levels; the game still does. "führt zu"
+            // replaced the field: an exit that has a Delta shows it there as a choice
+            // of its own (LevelEditor.level_target_choices) until another is chosen.
             delta: {
                 label: 'Delta',
-                hint: 'Gib hier an, wie weit der Levelwechsel nach vorne springen soll (1: nächstes Level, 2: übernächstes Level).',
                 type: 'int',
                 default: 1,
                 min: -100,
                 max: 100,
+                visible: () => false,
+            },
+            action_key: {
+                label: 'nur mit Aktionstaste',
+                hint: 'Ist das an, geht die Spielfigur erst durch diesen Ausgang, wenn man davor die Aktionstaste (F) drückt – wie bei einer Tür. So kann man an einem Ausgang vorbeilaufen, ohne gleich hindurchzugehen.',
+                type: 'bool',
+                default: false,
+                entry_key: 'exit_action_key',
             },
         },
     },

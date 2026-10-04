@@ -165,23 +165,6 @@
         opacity: 1;
         transform: scale(1.0);
       }
-      #stats {
-        position: absolute;
-        font-family: 'Bebas Neue', sans-serif;
-        font-size: 6vh;
-        text-shadow: 0.3vh 0.3vh #000;
-        pointer-events: none;
-        left: 0;
-        right: 0;
-        top: 0;
-        transition: none;
-        transform: translate(0, -16vh);
-        text-align: center;
-        background-color: rgba(0, 0, 0, 0.8);
-        box-shadow: 0 0 10px rgb(0 0 0 / 50%);
-        color: #fff;
-        padding-top: 1vh;
-      }
       /* a test run from the studio's level editor (app.js start_playtest) */
       #playtest_badge {
         position: absolute;
@@ -203,15 +186,6 @@
       }
       #playtest_badge b {
         color: #ffcd75;
-      }
-      #stats.showing {
-        transform: translate(0, 0);
-        transition: transform 0.5s ease;
-      }
-      #stats .item {
-        width: 20vw;
-        display: inline-block;
-        text-align: center;
       }
       #console {
         position: absolute;
@@ -261,7 +235,9 @@
     <script src="backdrops.js?#{@@cache_buster}"></script>
     <script src="signals.js?#{@@cache_buster}"></script>
     <script src="platforms.js?#{@@cache_buster}"></script>
+    <script src="level_flow.js?#{@@cache_buster}"></script>
     <script src="speech.js?#{@@cache_buster}"></script>
+    <script src="hud.js?#{@@cache_buster}"></script>
     <script src="traits.js?#{@@cache_buster}"></script>
     <script src="controls.js?#{@@cache_buster}"></script>
     <script src="baddie_ai.js?#{@@cache_buster}"></script>
@@ -301,16 +277,6 @@
           <div id="start_hint"></div>
         </div>
         <div id="playtest_badge"><b>Test</b> · R: neu starten · Esc: zurück zum Level</div>
-        <div id="stats">
-          <div class="item la_level">
-          </div>
-          <div class="item la_points">
-          </div>
-          <div class="item la_lives">
-          </div>
-          <div class="item la_energy">
-          </div>
-        </div>
         <div id="console">
         </div>
       </div>

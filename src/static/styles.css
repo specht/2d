@@ -4906,3 +4906,191 @@ button.resize-cell.active {
     background: #73eff7;
     color: #1a1c2c;
 }
+
+/* a Nebenlevel in the level list (level_flow.js): not part of the order */
+.level-side-mark {
+    margin-right: 0.4em;
+    opacity: 0.75;
+}
+
+/* Levelübersicht (level_editor.js refresh_level_map, level_map.js): every level
+   and where its exits lead, over the level view */
+.level-map {
+    position: absolute;
+    inset: 8px;
+    display: flex;
+    flex-direction: column;
+    background: rgba(18, 20, 32, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    color: #eee;
+    font-size: 13px;
+    z-index: 4;
+    cursor: default;
+    --map-next: #9aa3bd;
+    --map-target: #ffcd75;
+    --map-back: #73eff7;
+    --map-end: #a7f070;
+}
+.level-map-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 10px 8px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.level-map-title {
+    font-weight: bold;
+}
+.level-map-legend {
+    display: flex;
+    gap: 14px;
+    flex: 1;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+}
+.level-map-key::before {
+    content: '';
+    display: inline-block;
+    width: 18px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border-top: 2px solid var(--map-next);
+}
+.level-map-key-target::before { border-top-color: var(--map-target); }
+.level-map-key-back::before { border-top: 2px dashed var(--map-back); }
+.level-map-key-end::before { border-top-color: var(--map-end); }
+.level-map-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.level-map-close:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
+}
+.level-map-body {
+    flex: 1;
+    overflow: auto;
+}
+.level-map-area {
+    position: relative;
+}
+.level-map-lines {
+    position: absolute;
+    left: 0;
+    top: 0;
+    overflow: visible;
+}
+.level-map-line {
+    fill: none;
+    stroke-width: 2.5;
+    stroke: var(--map-next);
+}
+.level-map-line.level-map-target { stroke: var(--map-target); }
+.level-map-line.level-map-back { stroke: var(--map-back); stroke-dasharray: 6 5; }
+.level-map-line.level-map-end { stroke: var(--map-end); }
+.level-map-arrowhead { fill: var(--map-next); }
+.level-map-arrowhead.level-map-target { fill: var(--map-target); }
+.level-map-arrowhead.level-map-back { fill: var(--map-back); }
+.level-map-arrowhead.level-map-end { fill: var(--map-end); }
+.level-map-hit {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 14;
+    cursor: pointer;
+}
+.level-map-edge:hover .level-map-line {
+    stroke-width: 4;
+}
+.level-map-badge {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    padding: 1px 6px;
+    border-radius: 9px;
+    background: #1a1c2c;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    font-size: 11px;
+    font-weight: bold;
+    pointer-events: none;
+}
+.level-map-card {
+    position: absolute;
+    box-sizing: border-box;
+    padding: 7px 7px 5px;
+    border-radius: 8px;
+    background: #262b44;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+}
+.level-map-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+.level-map-card.current {
+    border: 2px solid var(--map-target);
+    padding: 6px 6px 4px;
+}
+.level-map-card.side {
+    background: #22323c;
+}
+.level-map-card.unused {
+    opacity: 0.5;
+}
+.level-map-name {
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.level-map-start {
+    color: var(--map-end);
+    margin-right: 0.4em;
+    font-size: 10px;
+}
+.level-map-tags {
+    display: flex;
+    justify-content: space-between;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 11px;
+    min-height: 14px;
+}
+.level-map-warn {
+    color: #ffcd75;
+    margin-left: auto;
+}
+.level-map-end {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    padding: 0 16px;
+    border-radius: 26px;
+    background: rgba(167, 240, 112, 0.14);
+    border: 2px solid var(--map-end);
+    color: var(--map-end);
+    font-weight: bold;
+}
+.level-map-end.unreachable {
+    border-style: dashed;
+    opacity: 0.6;
+}
+.level-map-notes {
+    max-height: 30%;
+    overflow: auto;
+    padding: 8px 14px 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    color: #ffcd75;
+    font-size: 12px;
+    line-height: 1.6;
+}
+.level-map-notes b {
+    color: #fff;
+}

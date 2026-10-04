@@ -25,6 +25,7 @@ The Studio lets you:
 - configure collision and movement
 - use slopes, ladders, conveyors, moving platforms and lifts, and moving environments
 - create doors, keys and checkpoints
+- play the levels as a simple sequence, or let exits lead to chosen levels: two doors to different levels, a hub, a shop or a bonus level (Nebenlevel) that leads back, and the end of the game wherever you want it – with a Levelübersicht of how everything is connected; a level entered again looks as it was left
 - connect switches, pressure plates, keys, collectibles, Signalbereiche, defeated enemies and the start of a level (a timer) to doors, layers, speaking signs, moving platforms and the end of a level by a shared, nameable Code (Signale) – with Zähler for "all three switches" or "five coins" – and see every rule of a level in one overview
 - let signs and characters speak in pixel-font speech bubbles
 - add collectibles and hazards
@@ -33,7 +34,8 @@ The Studio lets you:
 - configure several enemy behaviours
 - create water, floating and other movement regions
 - add parallax backgrounds, straight, round and four-colour gradients, lighting, weather and visual effects
-- playtest the game directly in the Studio
+- show the player only what the game uses: hearts, an energy bar and a coin counter drawn with the game's own sprites and pixel font
+- playtest the game directly in the Studio, a level at a time (Level testen, T) or from the start
 - save and continue developing games through generated game codes
 
 The built-in **Rezepte** provide small German-language examples showing how individual mechanics can be assembled into games. Every recipe's scene can be opened in the Studio and saved as an own game.
@@ -72,6 +74,29 @@ Layers make it possible to separate things such as:
 - lighting and visual effects
 
 The runtime combines the level geometry with the traits of the sprites placed in it.
+
+### The level editor
+
+- **Placing and changing:** the pen places sprites on the grid; Strg + drag fills a rectangle (Shift: only its edge, Alt: a line). The select tool selects many sprites (rectangle, Shift adds), drags them in grid steps (Shift: pixel by pixel) or with the arrow keys, copies, cuts, pastes and duplicates them (Strg+C/X/V/D, also into another layer or level), moves them to another layer (*In Ebene*), selects every copy of a sprite (*Alle gleichen*) and replaces them with another sprite (*Ersetzen durch*). A double-click picks a sprite in any layer (again: the one behind it).
+- **Undo:** Strg+Z / Strg+Y per level (and per sprite in the sprite editor); a level or sprite dragged into the trash can be brought back right afterwards.
+- **Layers:** reordered by dragging, shown and hidden (eye), locked (padlock: nothing can be painted, moved or deleted in them); the current layer is named in a corner of the view.
+- **Finding your way:** the hand tool (Q), the middle mouse button or Leertaste + drag move the view, the mouse wheel zooms, and the Übersichtskarte (M) shows the whole level small in a corner.
+- **Overviews:** the Signale-Übersicht (S) lists every rule of the level, the Levelübersicht (L) every level of the game and where its exits lead.
+- **Testing:** Level testen (T) plays the level straight away, with the figure where the mouse is; R starts again, Esc returns to the editor exactly as it was. Nothing is saved or changed by a test run.
+
+### How levels follow each other
+
+By default the levels are a sequence: an exit (*Levelwechsel*) leads to the next level of the list that has *Level verwenden*, and after the last one the game shows THE END. A child who never thinks about it never sees anything else.
+
+Each placed exit can say where it leads instead (*führt zu*): a particular level, *zurück, woher man kam* or *zum Spielende*. So two doors can lead to different levels, a hub can have doors to several levels, and a shop or bonus level can lead back. A level can be a *Nebenlevel*: the sequence skips it, and its exits without a target lead back to where the player came from. Coming in through an exit with a target, the player stands at the exit that leads back (the door it came through), and dying brings it back there. An exit can also wait for the action key (*nur mit Aktionstaste*), so the player can walk past it. "geschafft bei Signal" has the same *führt zu*. Exits refer to levels by their stable ID, so reordering levels changes nothing. The rules are in `src/static/level_flow.js`.
+
+The **Levelübersicht** (L in the level editor) draws every level as a node and every exit as an arrow – grey to the next level, yellow to a chosen level, dashed for *zurück*, green to the end. Clicking a level opens it, clicking an arrow selects its exit, and warnings name levels nobody reaches, levels without an exit, exits in layers without collisions and a game whose end cannot be reached (`src/static/level_map.js`). A game that never chose a target is simply a row.
+
+A level that is entered again during the same run looks as it was left: collected sprites and keys stay collected (a found key still opens its doors), defeated enemies stay defeated and loot they dropped is still lying where it fell, Schalter keep their position, and the signals these sent arrive again at once – so doors, layers, Zähler and companions are as they were. Crumbling blocks, Druckplatten, Signalbereiche and timers start afresh, so a level can never become impossible to finish. A new game, game over and a new test run forget everything.
+
+### What the player sees: the HUD
+
+There is no status bar across the top of the game. The HUD (`src/static/hud.js`, drawn by `app.js` into the game's canvas like the speech bubbles) shows only what the game uses, in the game's own pixel font and with the game's own sprites: hearts top left (the picture of the sprite that gives lives, else a built-in heart) when the game starts with more than one life or something gives lives, an energy bar under them when *Energie anzeigen* is on and something can hurt, the picture of the sprite that gives points and the number top right when anything gives points, and the level's name for a moment when a level starts. Changes are animated: a lost heart flashes, shakes and empties, damage leaves a white piece on the bar that drains away, coins count up and their picture hops. Recipe recordings show no HUD.
 
 ### Movement and physics
 
@@ -243,9 +268,12 @@ src/static/movement_regions.js
 src/static/signals.js
 src/static/layer_fade.js
 src/static/speech.js
+src/static/level_flow.js
+src/static/level_map.js
+src/static/hud.js
 ```
 
-Movement regions, and Signale: keys, collectibles, switches, pressure plates, Signalbereiche, defeated enemies and the level's start send a Code; doors, layers, signs and the level react (a roof that disappears while the player is inside, a bridge that appears, an ambush, a sign that speaks when the player walks past, a level that is done once every enemy is defeated). Speech bubbles for signs and characters.
+Movement regions, how levels follow each other and the Levelübersicht, the HUD, and Signale: keys, collectibles, switches, pressure plates, Signalbereiche, defeated enemies and the level's start send a Code; doors, layers, signs and the level react (a roof that disappears while the player is inside, a bridge that appears, an ambush, a sign that speaks when the player walks past, a level that is done once every enemy is defeated). Speech bubbles for signs and characters.
 
 ```text
 src/static/image_import.js
