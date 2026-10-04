@@ -84,6 +84,22 @@
       #overlay .poster {
         padding: 0 1em 0.3em 1em;
       }
+      /* title and author in the game's pixel font (screens.js render_curtain) */
+      #game_title {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.6vh;
+      }
+      #game_title canvas {
+        display: block;
+        image-rendering: pixelated;
+        max-width: 92vw;
+        object-fit: contain;
+      }
+      #overlay .menu .item {
+        margin-top: 1.2em;
+      }
       #start_controls {
         margin-top: 1.2em;
         display: grid;
@@ -165,6 +181,26 @@
         opacity: 1;
         transform: scale(1.0);
       }
+      /* the lines of a screen (screens.js): pixel bitmaps in the game's font */
+      #curtain_text {
+        gap: 2.2vh;
+      }
+      #curtain_text canvas.curtain-line {
+        display: block;
+        image-rendering: pixelated;
+        max-width: 96%;
+        object-fit: contain;
+      }
+      #curtain_text canvas.curtain-pulse {
+        animation: curtain-pulse 1.6s ease-in-out infinite;
+      }
+      @keyframes curtain-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.45; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #curtain_text canvas.curtain-pulse { animation: none; }
+      }
       /* a test run from the studio's level editor (app.js start_playtest) */
       #playtest_badge {
         position: absolute;
@@ -238,6 +274,7 @@
     <script src="level_flow.js?#{@@cache_buster}"></script>
     <script src="speech.js?#{@@cache_buster}"></script>
     <script src="hud.js?#{@@cache_buster}"></script>
+    <script src="screens.js?#{@@cache_buster}"></script>
     <script src="traits.js?#{@@cache_buster}"></script>
     <script src="controls.js?#{@@cache_buster}"></script>
     <script src="baddie_ai.js?#{@@cache_buster}"></script>

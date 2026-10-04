@@ -61,6 +61,14 @@ Each state consists of one or more frames and can have its own animation speed.
 
 Sprites can also carry traits describing what they do in the game. A sprite may, for example, be solid, collectible, a player character, an enemy, a ladder, a door or a projectile.
 
+### The sprite editor
+
+- **Columns at 1920 × 1080:** tools, palette and Funktionen on the left; the drawing area with the *Verlauf* above it and the frames below; the column of the sprite being drawn (Titel, Mischmodus, its states with their roles, the state's settings and *Rolle zuweisen*, then its Eigenschaften); and the whole sprite list at full height, with a search over the Titel and filters by what a sprite is (Figuren, Gegner, Blöcke, Sammeln, Türen & Schalter, Deko – shown from 13 sprites on, `sprite_filter.js`). On smaller screens the drawing area shrinks before the columns get too narrow (`sprite_pane_layout` in `studio.js`).
+- **Drawing:** the mouse wheel zooms and Leertaste + drag (or the middle button) moves the view with every tool; the brush size comes back after the pipette, fill, spray, gradient or selection; the palette's swatch of the pen's colour is highlighted (also after the pipette), and a line under the palette says that the right button paints transparent (it turns yellow while transparent is the colour). The rows under the palette are variations of the colour: similar hues, pixel-art shades (darker ones cooler, lighter ones warmer, `shade_ramp` in `pixel_tools.js`), darker/lighter, paler/stronger and more transparent – each row says what it is on hover.
+- **Selections** (Rechteck auswählen): Strg+C / X / V copy, cut and paste the selected pixels – pasted at the place they came from, also in another frame (the same head on every frame of a walk); Entf clears them, Esc ends the selection, the arrow keys move it by a pixel (Shift: four), B / N mirror only the selection, and the right-click menu offers all of it (`pixel_tools.js`: `copy_selected`, `paste_selected`, `move_selected`, `flip_selected`). After the window was left, Strg+V pastes a picture from outside again (the picture import).
+- **The Verlauf** above the drawing area keeps the pictures drawn or looked at lately (each once); a click puts one into the frame being drawn, dragging it onto the frames inserts it as a new frame. Pictures of another size are dimmed.
+- **Names:** a new sprite is "Sprite 4", a new state "Zustand 2" (the next free number; `default_names.js`). While a state still has such a name, giving it a role names it after the role ("laufen", "laufen links", "geöffnet"); a sprite still called "Sprite 4" is named after its first trait that says what it is ("Gegner", "Tür"). Names the child typed are never replaced. Lists show "Zustand 2" dimmed for a state without a name, a state's role in small letters beside its name when the name does not say it, and a double-click on a state renames it in the list. Right-click menus rename and delete sprites, states and frames (deleting a sprite can be undone like the trash); "Frame leeren" only clears the pixels.
+
 ### Levels
 
 Levels contain layers of placed sprites.
@@ -77,6 +85,8 @@ The runtime combines the level geometry with the traits of the sprites placed in
 
 ### The level editor
 
+- **The layout at 1920 × 1080:** on the left the tools, the view switches (Gitter, Signale, Karte, Levelübersicht, Animieren – small buttons with their keys; the grid size of the session folded away) and the sprite palette at full height, with the same search and filters as the sprite list plus *Im Level*; a game with fewer than four sprites says where more come from (*Sprites holen*). On the right the level list, *Einstellungen von »…«* (folds away, remembered per browser), the layers, *Einstellungen der Ebene* (folds away; always open for a Hintergrund, Signalbereich or Bewegungsbereich) and the selection's panel taking the rest of the height, so a selected sprite's settings are never below the screen. A level without a Titel is listed as "Level 3", dimmed; a double-click on a level or a layer renames it in the list.
+- **The right-click menu:** with Auswählen (E) or Verschieben (Q), a right-click on a sprite selects it (in whichever layer it lies) and shows what can be done with it: Ausschneiden, Kopieren, Einfügen, Duplizieren, Löschen (with their keys), Alle gleichen auswählen, Ersetzen durch, In Ebene ›, Nach vorne holen / Nach hinten schicken (the order in the layer is what is drawn in front; moving keeps it), Im Sprite-Editor bearbeiten, Verbinden … (for something that sends or reacts), Hier testen, and locking or hiding the layer. On empty ground: Einfügen there, Alles auswählen, Hier testen, Ganzes Level zeigen. A finger held still on a tablet opens it too. The pen erases with the right button – the topmost sprite under the mouse, also a wider one than the chosen sprite. Levels and layers have Umbenennen and Löschen in their menus.
 - **Placing and changing:** the pen places sprites on the grid; Strg + drag fills a rectangle (Shift: only its edge, Alt: a line). The select tool selects many sprites (rectangle, Shift adds), drags them in grid steps (Shift: pixel by pixel) or with the arrow keys, copies, cuts, pastes and duplicates them (Strg+C/X/V/D, also into another layer or level), moves them to another layer (*In Ebene*), selects every copy of a sprite (*Alle gleichen*) and replaces them with another sprite (*Ersetzen durch*). A double-click picks a sprite in any layer (again: the one behind it).
 - **Undo:** Strg+Z / Strg+Y per level (and per sprite in the sprite editor); a level or sprite dragged into the trash can be brought back right afterwards.
 - **Layers:** reordered by dragging, shown and hidden (eye), locked (padlock: nothing can be painted, moved or deleted in them); the current layer is named in a corner of the view.
@@ -86,13 +96,17 @@ The runtime combines the level geometry with the traits of the sprites placed in
 
 ### How levels follow each other
 
-By default the levels are a sequence: an exit (*Levelwechsel*) leads to the next level of the list that has *Level verwenden*, and after the last one the game shows THE END. A child who never thinks about it never sees anything else.
+By default the levels are a sequence: an exit (*Levelwechsel*) leads to the next level of the list that has *Level verwenden*, and after the last one the game shows its end screen (*Ende*). A child who never thinks about it never sees anything else.
 
 Each placed exit can say where it leads instead (*führt zu*): a particular level, *zurück, woher man kam* or *zum Spielende*. So two doors can lead to different levels, a hub can have doors to several levels, and a shop or bonus level can lead back. A level can be a *Nebenlevel*: the sequence skips it, and its exits without a target lead back to where the player came from. Coming in through an exit with a target, the player stands at the exit that leads back (the door it came through), and dying brings it back there. An exit can also wait for the action key (*nur mit Aktionstaste*), so the player can walk past it. "geschafft bei Signal" has the same *führt zu*. Exits refer to levels by their stable ID, so reordering levels changes nothing. The rules are in `src/static/level_flow.js`.
 
 The **Levelübersicht** (L in the level editor) draws every level as a node and every exit as an arrow – grey to the next level, yellow to a chosen level, dashed for *zurück*, green to the end. Clicking a level opens it, clicking an arrow selects its exit, and warnings name levels nobody reaches, exits in layers without collisions and a game whose end cannot be reached (`src/static/level_map.js`). A game that never chose a target is simply a row: a level that has no exit yet is joined to the next one (or to the end) by a thin dashed arrow, *Reihenfolge*, and gets a hint instead of a warning – "Noch kein Ausgang" –, so a new game is connected from the start; clicking that arrow opens the level and says how to make an exit. A help line under the map says where an exit's target is set.
 
 A level that is entered again during the same run looks as it was left: collected sprites and keys stay collected (a found key still opens its doors), defeated enemies stay defeated and loot they dropped is still lying where it fell, Schalter keep their position, and the signals these sent arrive again at once – so doors, layers, Zähler and companions are as they were. Crumbling blocks, Druckplatten, Signalbereiche and timers start afresh, so a level can never become impossible to finish. A new game, game over and a new test run forget everything.
+
+### What the player sees: the start screen and the curtains
+
+The start screen shows the game's title and author in the game's own pixel font (the same letters as the HUD and the speech bubbles), the Start button and the game's own controls. The screens between are in German and in that font, drawn as crisp bitmaps (`src/static/screens.js`): a level begins with its name (if it has one) and "Drück eine Taste, um loszulegen"; a lost life says "Autsch!" and how many lives are left; then "Game Over" or, after a level, "Geschafft!" with "Weiter mit:" and the next level's name; the end says "Ende", that the game was won, and the points if the HUD counts them. Names are text, never HTML.
 
 ### What the player sees: the HUD
 
@@ -158,6 +172,8 @@ Saving a game creates a short tag derived from its contents. The game JSON itsel
 All saved games are public to anyone who has their game code or link. There are no accounts, owners or per-game permissions: anyone can open a game in the Studio, change it and save another version. This does not require a global catalogue of every game; discovery can remain based on shared codes and links.
 
 When a saved game is opened, its tag becomes the parent for the next normal save. Saving creates a new immutable child version, and that new tag then becomes the parent for the following save. Older versions remain untouched, so the development of a game forms a version tree.
+
+**Neues Spiel** (Einstellungen → Spiel, and in the dialog of *Spiel laden*) starts over with an empty game – one empty sprite and one empty level, as the studio starts without a game – without reloading the page (`src/static/new_game.js`). With unsaved changes it says so and offers *Erst speichern*; the address no longer names the old game, so a reload does not bring it back. Not during a live session.
 
 #### Independent forks
 
@@ -271,6 +287,7 @@ src/static/speech.js
 src/static/level_flow.js
 src/static/level_map.js
 src/static/hud.js
+src/static/screens.js
 ```
 
 Movement regions, how levels follow each other and the Levelübersicht, the HUD, and Signale: keys, collectibles, switches, pressure plates, Signalbereiche, defeated enemies and the level's start send a Code; doors, layers, signs and the level react (a roof that disappears while the player is inside, a bridge that appears, an ambush, a sign that speaks when the player walks past, a level that is done once every enemy is defeated). Speech bubbles for signs and characters.
@@ -281,9 +298,12 @@ src/static/palette_apply.js
 src/static/sprite_basket.js
 src/static/sprite_actions.js
 src/static/own_game.js
+src/static/new_game.js
+src/static/sprite_filter.js
+src/static/default_names.js
 ```
 
-Authoring helpers: importing pictures, converting to a palette, borrowing sprites from other games, the sprite editor's right-click menus, and starting an own game from an existing one. `AGENTS.md` has the complete code map.
+Authoring helpers: importing pictures, converting to a palette, borrowing sprites from other games, the sprite editor's right-click menus, starting an own game from an existing one or a new one, searching and filtering sprite lists, and names for new things. `AGENTS.md` has the complete code map.
 
 The backend lives mainly in:
 

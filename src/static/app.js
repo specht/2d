@@ -1134,12 +1134,12 @@ void main() {
 		this.game.update_stats();
 		let self = this;
 		if (this.game.lives === 0) {
-			this.game.curtain.show('GAME OVER', 0.5, 2.0, function () {
+			this.game.curtain.show_screen('game_over', {}, 0.5, 2.0, function () {
 				self.game.stop();
 				$('#screen').hide();
 			});
 		} else {
-			this.game.curtain.show(`${this.game.continue_prompt?.() ?? 'Drück eine Taste'}, um fortzufahren`, 0.5, 1.0, function () {
+			this.game.curtain.show_screen('lost_life', { lives: this.game.lives }, 0.5, 1.0, function () {
 				self.mesh.position.x = self.initial_position[0];
 				self.mesh.position.y = self.initial_position[1];
 				// Begleiter come along to the place where the figure starts again
@@ -1809,7 +1809,30 @@ class Curtain {
 		this.ts_continue = this.game.clock.getElapsedTime() + key_delay;
 	}
 
+	// A screen of screens.js (in German, in the game's pixel font): kind and
+	// info as curtain_screen takes them; the prompt comes from the game.
+	show_screen(kind, info, text_delay, key_delay, oncomplete) {
+		const game = this.game;
+		const token = this.token = (this.token ?? 0) + 1;
+		const screen = curtain_screen(kind, { prompt: game.continue_prompt?.(), ...(info ?? {}) });
+		const font = speech_settings(game.data?.properties).font;
+		setTimeout(() => {
+			Promise.resolve(game.speech_fonts_ready?.()).then(() => {
+				// hidden or replaced in the meantime
+				if (!this.showing || token !== this.token) return;
+				const box = $('#curtain_text');
+				render_curtain(box, screen, box.height() || window.innerHeight, font, box.width() || null);
+				box.addClass('showing');
+			});
+		}, text_delay * 1000.0);
+		$('#curtain').addClass('showing');
+		this.oncomplete = oncomplete;
+		this.showing = true;
+		this.ts_continue = game.clock.getElapsedTime() + key_delay;
+	}
+
 	hide() {
+		this.token = (this.token ?? 0) + 1;
 		$('#curtain_text').empty().removeClass('showing');
 		$('#curtain').removeClass('showing');
 		this.game.ts_zoom_actor = -1;
@@ -2121,6 +2144,18 @@ class Game {
 			load_youtube_api();
 		$('#game_title').text(this.data.properties.title);
 		$('#game_author').text(this.data.properties.author);
+		// the title in the game's own pixel font (screens.js), once it has loaded
+		if (typeof start_screen === 'function') {
+			const font = speech_settings(this.data.properties).font;
+			const head = start_screen(this.data.properties);
+			const family = SPEECH_FONTS[font]?.family;
+			Promise.resolve(this.speech_fonts_ready?.()).then(() => {
+				const height = $('#overlay').height() || window.innerHeight;
+				render_curtain($('#game_title').attr('aria-label', this.data.properties.title ?? ''), head, height, font, $('#overlay').width() || null);
+				$('#game_author').empty();
+				if (family) $('#overlay .menu').css('font-family', `"${family}", 'Bebas Neue', sans-serif`);
+			});
+		}
 		this.render_start_screen();
 		this.setup();
 		this.ts_zoom_actor = -1;
@@ -2155,11 +2190,7 @@ class Game {
 		const result = resolve_level_exit(levels, self.level_index, { target, delta }, self.level_trail);
 		if (!result.end) {
 			const next = levels[result.index];
-			let next_level_title = (next.properties.name ?? '').trim();
-			if (next_level_title.length > 0) {
-				next_level_title = `<div><span style='color: #aaa;'>Next up:</span> ${next_level_title}</div>`;
-			}
-			this.curtain.show(`LEVEL COMPLETE!${next_level_title}`, 0.5, 1.0, function () {
+			this.curtain.show_screen('level_complete', { next_name: next.properties.name }, 0.5, 1.0, function () {
 				self.level_trail = next_level_trail(self.level_trail, here?.id ?? null, result, next.id ?? null);
 				// the figure arrives at the exit that leads back here (setup: place_player_on_arrival)
 				self.arrived_from = here?.id ?? null;
@@ -2168,7 +2199,7 @@ class Game {
 				self.run();
 			});
 		} else {
-			this.curtain.show('THE END', 0.5, 2.0, function () {
+			this.curtain.show_screen('the_end', this.end_screen_info(), 0.5, 2.0, function () {
 				self.stop();
 				$('#screen').hide();
 			});
@@ -2720,14 +2751,13 @@ class Game {
 		let self = this;
 		if (this.level_index < this.data.levels.length) {
 			let level = this.data.levels[this.level_index];
-			let level_title = level.properties.name.trim();
-			this.curtain.show(`<div>${level_title}</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>${this.continue_prompt()}</div>`, 0.0, 0.0, function () {
+			this.curtain.show_screen('level_start', { level_name: level.properties.name }, 0.0, 0.0, function () {
 				self.frame = 0;
 				self.clock.start();
 				self.run();
 			});
 		} else {
-			this.curtain.show(`<div>THE END</div><div style='margin-top: 1vh; font-size: 70%; opacity: 0.5;'>${this.continue_prompt()}</div>`, 0.0, 0.0, function () {
+			this.curtain.show_screen('the_end', this.end_screen_info(), 0.0, 0.0, function () {
 				self.stop();
 			});
 		}
@@ -3725,6 +3755,12 @@ class Game {
 		$('#start_hint').text(touch ?
 			(fullscreen ? 'Vollbild: Tipp unten rechts auf ⛶' : '') :
 			'Vollbild: Strg + Enter oder ⛶ unten rechts · Esc beendet das Spiel');
+	}
+
+	// The end of the game: its title, and the points if the HUD counts them.
+	end_screen_info() {
+		const plan = typeof hud_plan === 'function' && this.data ? hud_plan(this.data) : null;
+		return { title: this.data?.properties?.title, points: this.points, show_points: !!plan?.coins?.show };
 	}
 
 	// "Press a key" – or "tap", once the game has been touched.

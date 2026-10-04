@@ -42,7 +42,7 @@ varianten:
 
 1. **Das Ziel:** Ein Sprite mit der Eigenschaft **Levelwechsel** beendet das Level, sobald die Spielfigur es berührt.
 2. **Ein Signal:** Mit **geschafft bei Signal** ist das Level geschafft, sobald ein Signal ankommt – von einem Edelstein, einem Schalter, einem besiegten Gegner, wenn **alle Gegner besiegt** sind oder wenn die Zeit um ist.
-3. Danach geht es mit dem **nächsten Level** weiter. Nach dem letzten Level steht **THE END** da.
+3. Danach geht es mit dem **nächsten Level** weiter. Nach dem letzten Level steht **Ende** da – und dass man dein Spiel geschafft hat.
 
 ## Das brauchst du
 
@@ -82,13 +82,13 @@ Beide Wege gehen auch zusammen: Das Ziel funktioniert weiter, auch wenn das Leve
 - Beim Ziel kannst du im Level einstellen, wohin es **führt**: normalerweise **zum nächsten Level**. Du kannst auch ein bestimmtes Level wählen – so führen zwei Türen in zwei verschiedene Level – oder **zurück, woher man kam** und **zum Spielende**. Kommt die Figur durch so eine Tür in ein Level, steht sie dort an der Tür, die zurückführt.
 - Mit **nur mit Aktionstaste** geht die Figur erst durch das Ziel, wenn man davor **F** drückt – wie bei einer Tür. Dann kann man auch daran vorbeilaufen.
 - Ein **Nebenlevel** (bei den Level-Eigenschaften) ist ein Laden, ein Bonuslevel oder ein Geheimraum: Nach dem Level davor geht es nicht dort weiter, man kommt nur durch ein Ziel hinein, das genau dorthin führt. Ein Ziel im Nebenlevel führt von selbst zurück.
-- Auf dem Bildschirm steht danach **LEVEL COMPLETE!** – und der Name des nächsten Levels, wenn es einen hat. Gib deinen Levels gute Namen.
+- Auf dem Bildschirm steht danach **Geschafft!** – und „Weiter mit:“ und der Name des nächsten Levels, wenn es einen hat. Gib deinen Levels gute Namen: Der Name steht auch am Anfang des Levels groß da.
 
 ## Wenn's nicht klappt
 
 - **Die Figur läuft durch das Ziel hindurch:** Es liegt in einer Ebene ohne **Kollisionen erkennen**, oder ihm fehlt **Levelwechsel**.
 - **Das Signal kommt an, aber das Level geht weiter:** Bei den Level-Eigenschaften ist **geschafft bei Signal** aus, oder es hat ein anderes Signal als der Sender (schau in die Signale-Übersicht).
-- **Nach dem Ziel kommt sofort THE END:** Es gibt kein weiteres Level mit **Level verwenden**.
+- **Nach dem Ziel kommt sofort das Ende:** Es gibt kein weiteres Level mit **Level verwenden**.
 
 ## Mach mehr draus
 

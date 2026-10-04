@@ -35,17 +35,83 @@ function bytes_to_str(i) {
     return `${(i / 1024 / 1024 / 1024 / 1024).toFixed(1)} TB`;
 }
 
+// The sprite pane's columns (pure): tools and colours | drawing area |
+// "this sprite" (Titel, Zustände, Eigenschaften) | every sprite of the game.
+// The drawing area stays square and as big as the height allows, unless the
+// columns beside it would get too narrow.
+function sprite_pane_layout(width, height) {
+    const wide = width >= 1600;
+    const gap = wide ? 20 : 14;
+    const left_w = wide ? 260 : 232;
+    const sprite_w = wide ? 270 : 236;
+    const library_min = wide ? 300 : 220;
+    const x_canvas = gap + left_w + gap;
+    const room = width - x_canvas - (gap + sprite_w + gap + library_min + gap);
+    const size = Math.max(100, Math.min(height - 218, room));
+    const x_sprite = x_canvas + size + gap;
+    const x_library = x_sprite + sprite_w + gap;
+    return { gap, left_w, sprite_w, size, x_canvas, x_sprite, x_library, library_w: Math.max(library_min, width - x_library - gap) };
+}
+
+// Folding panels (the settings of the level and of the layer in the level
+// editor): the head always shows, a click folds or unfolds the body. Whether a
+// panel is open is remembered per browser; a panel may be held open (the
+// settings of a Hintergrund layer are all there is to edit on it).
+const FOLDING_PANEL_DEFAULT_OPEN = { level_settings: false, layer_settings: false };
+const folding_panel_forced = {};
+
+function folding_panel_open(name) {
+    if (folding_panel_forced[name]) return true;
+    try {
+        const stored = localStorage.getItem(`panel_${name}`);
+        if (stored !== null) return stored === '1';
+    } catch { }
+    return FOLDING_PANEL_DEFAULT_OPEN[name] ?? true;
+}
+
+function refresh_folding_panel(name) {
+    const panel = $(`.folding-panel[data-panel="${name}"]`);
+    const open = folding_panel_open(name);
+    panel.toggleClass('folded', !open);
+    panel.find('.folding-panel-head').attr('title', open ? 'Klicken zum Einklappen' : 'Klicken zum Aufklappen');
+}
+
+function set_folding_panel_open(name, open) {
+    try { localStorage.setItem(`panel_${name}`, open ? '1' : '0'); } catch { }
+    refresh_folding_panel(name);
+}
+
+window.set_folding_panel_open_by_name = (name, open) => set_folding_panel_open(name, open);
+
+window.set_folding_panel_forced = function (name, forced) {
+    folding_panel_forced[name] = !!forced;
+    refresh_folding_panel(name);
+};
+
+function setup_folding_panels() {
+    $(document).on('click', '.folding-panel-head', (e) => {
+        const name = $(e.currentTarget).closest('.folding-panel').data('panel');
+        // a panel held open folds only once it is no longer held
+        if (folding_panel_forced[name]) return;
+        set_folding_panel_open(name, !folding_panel_open(name));
+    });
+    $('.folding-panel').each((_, panel) => refresh_folding_panel($(panel).data('panel')));
+}
+
 function handleResize() {
+    const layout = sprite_pane_layout(window.innerWidth, window.innerHeight);
+    canvas.max_size = layout.size;
     canvas.handleResize();
-    $('#canvas').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
-    $('#undo_stack').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
-    $('#undo_stack').css('width', `${$('#canvas').width()}px`);
-    $('#menu_frames').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5}px`);
-    $('#menu_frames').css('top', `${$('#canvas').height() + 120}px`);
-    $('#menu_frames').css('width', `${$('#canvas').width()}px`);
-    $('.menu_container').css('left', `${(window.innerWidth - $('#canvas').width()) * 0.5 - $('.menu_container').width() - 25}px`);
-    $('.right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25}px`);
-    $('.far_right_menu_container').css('left', `${(window.innerWidth + $('#canvas').width()) * 0.5 + 25 + 225}px`);
+    const size = $('#canvas').width();
+    $('#canvas').css('left', `${layout.x_canvas}px`);
+    $('#undo_stack').css({ left: `${layout.x_canvas}px`, width: `${size}px` });
+    $('#menu_frames').css({ left: `${layout.x_canvas}px`, top: `${size + 120}px`, width: `${size}px` });
+    $('#main_div_sprites > .menu_container').first().css({ left: `${layout.gap}px`, width: `${layout.left_w}px` });
+    $('#main_div_sprites .right_menu_container').css({ left: `${layout.x_sprite}px`, width: `${layout.sprite_w}px` });
+    $('#main_div_sprites .far_right_menu_container').css({ left: `${layout.x_library}px`, width: `${layout.library_w}px` });
+    // the list moves its items aside while one is dragged: as many per row as fit
+    const per_row = Math.max(1, Math.floor(($('#menu_sprites').innerWidth() || layout.library_w - 16) / 68));
+    if (typeof game !== 'undefined') game?.sprites_widget?.set_columns?.(per_row, 68);
     // Level editor: wider side columns on wide screens (1920 × 1080: the
     // placed sprite's Eigenschaften fit their labels, more sprites per row),
     // the level view takes what is left.
@@ -56,11 +122,6 @@ function handleResize() {
     $('.full_left_menu_container').css('left', `20px`);
     $('#main_div_level .full_left_menu_container').css('width', `${left_width}px`);
     // $('#right_menu_container .menu_frames').css('height', `${$('#canvas').height() * 0.2 - 25}px`);
-
-    if (window.innerWidth - $('#canvas').width() > 940)
-        $('#states_container').appendTo($('.far_right_menu_container'));
-    else
-        $('#states_container').appendTo($('.right_menu_container'));
 
     $('#main_div_level .left_menu_container').css('left', '10px');
     $('#main_div_level .left_menu_container').css('width', '174px');
@@ -81,86 +142,43 @@ function setCurrentColor(color) {
     if (color.length === 7)
         color += 'ff';
     canvas.current_color = parseInt(color.replace('#', ''), 16);
-    // $('#current_color_menu input').val(`#${canvas.current_color.toString(16)}`);
-    let t = tinycolor(color);
-    $('#current_color_menu').css('background', `linear-gradient(${t.toRgbString()},${t.toRgbString()}), url(transparent.png), #777`);
+    refresh_current_color_chip();
     $('#color_variations_menu').empty();
-    let a = tinycolor(color).analogous(12);
-    for (var h = 0; h < 11; h++) {
-        var variation = a[h + 1];
-        var swatch = $("<span class='button button-9'>");
-        var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
-        swatch.css('background', b);
-        swatch.data('html_color', variation.toRgbString());
-        var rgb = variation.toRgb();
-        swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
-        $('#color_variations_menu').append(swatch);
-    }
-    $('#color_variations_menu').append('<br />');
-    for (var h = -5; h <= 5; h++) {
-        var variation = tinycolor(color);
-        // -40 -30 -20 -10 0 10 20 30 40
-        if (h < 0)
-            variation.darken(Math.pow(Math.abs(h / 5.0), 1.0) * 40);
-        else
-            variation.brighten(Math.pow(Math.abs(h / 5.0), 1.0) * 40);
-        var swatch = $("<span class='button button-9'>");
-        var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
-        swatch.css('background', b);
-        swatch.data('html_color', variation.toRgbString());
-        var rgb = variation.toRgb();
-        swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
-        $('#color_variations_menu').append(swatch);
-    }
-    $('#color_variations_menu').append('<br />');
-    for (var h = -5; h <= 5; h++) {
-        var variation = tinycolor(color);
-        // -40 -30 -20 -10 0 10 20 30 40
-        if (h < 0)
-            variation.darken(Math.pow(Math.abs(h / 5.0), 2.0) * 20);
-        else
-            variation.brighten(Math.pow(Math.abs(h / 5.0), 2.0) * 20);
-        var swatch = $("<span class='button button-9'>");
-        var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
-        swatch.css('background', b);
-        swatch.data('html_color', variation.toRgbString());
-        var rgb = variation.toRgb();
-        swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
-        $('#color_variations_menu').append(swatch);
-    }
-    $('#color_variations_menu').append('<br />');
-    for (var h = -5; h <= 5; h++) {
-        var variation = tinycolor(color);
-        if (h < 0)
-            variation.desaturate(-h * 16);
-        else
-            variation.saturate(h * 16);
-        var swatch = $("<span class='button button-9'>");
-        var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
-        swatch.css('background', b);
-        swatch.data('html_color', variation.toRgbString());
-        var rgb = variation.toRgb();
-        swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
-        $('#color_variations_menu').append(swatch);
-    }
-    $('#color_variations_menu').append('<br />');
-    for (var h = 1; h <= 11; h++) {
-        var variation = tinycolor(color);
-        variation.setAlpha(h / 11);
-        var swatch = $("<span class='button button-9'>");
-        var b = "linear-gradient(" + variation.toRgbString() + "," + variation.toRgbString() + "), url(transparent.png), #777";
-        swatch.css('background', b);
-        swatch.data('html_color', variation.toRgbString());
-        var rgb = variation.toRgb();
-        swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
-        $('#color_variations_menu').append(swatch);
-    }
+    // rows of variations of the colour, each with what it is for (hover)
+    const add_row = (colors, title) => {
+        for (const variation of colors) {
+            const swatch = $("<span class='button button-9'>").attr('title', title);
+            swatch.css('background', `linear-gradient(${variation.toRgbString()},${variation.toRgbString()}), url(transparent.png), #777`);
+            swatch.data('html_color', variation.toRgbString());
+            const rgb = variation.toRgb();
+            swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
+            $('#color_variations_menu').append(swatch);
+        }
+        $('#color_variations_menu').append('<br />');
+    };
+    const base = tinycolor(color);
+    const alpha = base.getAlpha();
+    add_row(base.analogous(12).slice(1, 12), 'Ähnliche Farbtöne');
+    // pixel-art shades: darker ones cooler, lighter ones warmer (pixel_tools.js shade_ramp)
+    add_row(shade_ramp(base.toHsl(), 5).map(c => tinycolor({ h: c.h, s: c.s, l: c.l, a: alpha })),
+        'Schatten und Licht wie in Pixel-Art: dunkler wird kühler (bläulicher), heller wird wärmer (gelblicher)');
+    add_row([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].map(h => {
+        const variation = tinycolor(color);
+        return h < 0 ? variation.darken(Math.abs(h / 5) * 40) : variation.brighten(Math.abs(h / 5) * 40);
+    }), 'Dunkler und heller (derselbe Farbton)');
+    add_row([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].map(h => {
+        const variation = tinycolor(color);
+        return h < 0 ? variation.desaturate(-h * 16) : variation.saturate(h * 16);
+    }), 'Blasser und kräftiger');
+    add_row([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(h => tinycolor(color).setAlpha(h / 11)),
+        'Durchsichtiger – ganz links fast unsichtbar');
     $('#color_variations_menu .button').click(function (e) {
         let list_color = $(e.target).data('list_color');
         canvas.current_color = (((((list_color[0] * 256) + list_color[1]) * 256) + list_color[2]) * 256) + list_color[3];
         color_menu.element.find('.button').removeClass('active');
         $('#color_variations_menu').find('.button').removeClass('active');
         $(e.target).addClass('active');
+        refresh_current_color_chip();
     });
 }
 
@@ -175,8 +193,38 @@ function activateTool(item) {
         canvas.setModifierCtrl(false);
         canvas.setModifierAlt(false);
         canvas.setModifierShift(false);
-        if (['tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient', 'tool/select-rect'].indexOf(item.key) >= 0)
+        // these work with one pixel; the brush size of the pen comes back with it
+        const one_pixel = ['tool/picker', 'tool/spray', 'tool/fill', 'tool/gradient', 'tool/select-rect'];
+        if (one_pixel.includes(item.key)) {
+            if (!one_pixel.includes(window.last_tool_key)) window.pen_width_for_drawing = canvas.pen_width;
             menus.sprites.handle_click('penWidth/1');
+        } else if (one_pixel.includes(window.last_tool_key) && window.pen_width_for_drawing > 1) {
+            menus.sprites.handle_click(`penWidth/${window.pen_width_for_drawing}`);
+        }
+        window.last_tool_key = item.key;
+    }
+}
+
+// The swatch of the palette that is the colour the pen draws with (also after
+// the pipette picked one), and a word when that colour is transparent.
+function refresh_current_color_chip() {
+    const c = canvas.current_color >>> 0;
+    const rgba = [(c >>> 24) & 0xff, (c >>> 16) & 0xff, (c >>> 8) & 0xff, c & 0xff];
+    const t = tinycolor({ r: rgba[0], g: rgba[1], b: rgba[2], a: rgba[3] / 255 });
+    const transparent = rgba[3] === 0;
+    $('#palette_erase_hint').toggleClass('transparent', transparent)
+        .text(transparent ? 'Durchsichtig gewählt – der Stift radiert' : 'Rechtsklick malt durchsichtig');
+    if (typeof color_menu !== 'undefined' && color_menu?.commands) {
+        const hex = t.toHexString().toLowerCase();
+        let found = false;
+        for (const command of Object.values(color_menu.commands)) {
+            const data = String(command.data ?? '').toLowerCase();
+            const same = transparent ? (data.length === 9 && data.endsWith('00')) :
+                (data.slice(0, 7) === hex && (data.length < 9 || data.slice(7, 9) === 'ff'));
+            command.button?.toggleClass('active', same && !found);
+            if (same) found = true;
+        }
+        if (found) $('#color_variations_menu .button').removeClass('active');
     }
 }
 
@@ -282,7 +330,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     await shaders.load();
     moment.locale('de');
     tool_menu_items.sprites = [
-        { group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'Q', label: 'Zeichnen' },
+        { group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'Q', label: 'Zeichnen', hints: [
+                'Rechtsklick: durchsichtig malen',
+                'Mausrad: zoomen',
+                `<span class='key longkey'>Leer</span>&nbsp;+ ziehen: Ausschnitt verschieben`,
+            ] },
         { group: 'tool', command: 'line', image: 'draw-line-44', shortcut: 'W', label: 'Linie zeichnen' },
         {
             group: 'tool', command: 'rect', image: 'draw-rectangle-44', shortcut: 'E', label: 'Rechteck zeichnen', hints: [
@@ -304,6 +356,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         },
         {
             group: 'tool', command: 'select-rect', image: 'select-rect-44', shortcut: 'Y', label: 'Rechteck auswählen', hints: [
+                'Rechtsklick: Menü',
+                { key: 'Control+A', label: 'Alles', callback: function () { canvas.select_all_pixels(); } },
+                // canvas.js handle_selection_key: Strg+C / X / V, Entf, Esc, Pfeiltasten
+                { key_label: 'Control+C', label: 'Kopieren', callback: function () { canvas.copy_selection_pixels(); } },
+                { key_label: 'Control+V', label: 'Einfügen', callback: function () { canvas.paste_selection_pixels(); } },
                 { key: 'Control', label: 'Auswahl erweitern', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
                 { key: 'Alt', label: 'Auswahl verkleinern', type: 'checkbox', callback: function (x) { canvas.setModifierAlt(x); } },
                 { key: 'Shift', label: 'Klonen', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
@@ -353,7 +410,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 { key: 'Space', label: 'Automatisch anpassen', callback: () => canvas.autoFit() },
                 `Zoome mit dem Mausrad und klicke, um den sichtbaren Ausschnitt zu verschieben`]
         },
-        { command: 'clear', image: 'document-new', callback: () => canvas.clearFrame(), label: 'Frame löschen' },
+        { command: 'clear', image: 'document-new', callback: () => canvas.clearFrame(), label: 'Frame leeren', title: 'Macht den Frame leer. Den Frame selbst löschst du mit Rechtsklick auf ihn unten in der Frame-Liste.' },
         { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Z', label: 'Farbe auswählen' },
         {
             group: 'tool', command: 'move', image: 'transform-move', shortcut: 'X', label: 'Sprite verschieben', hints: [
@@ -395,6 +452,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     tool_menu_items.level = [
         { group: 'tool', command: 'pan', image: 'move-hand-44', shortcut: 'Q', label: 'Verschieben', hints: [
                 'Mausrad: zoomen',
+                'Rechtsklick: Menü',
                 // level_editor.js handle_down: grab_panning, set_space_pan
                 `Mit jedem Werkzeug: mittlere Maustaste oder <span class='key longkey'>Leer</span>&nbsp;+ ziehen`,
             ]
@@ -402,12 +460,14 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         {
             group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'W', label: 'Zeichnen', hints: [
                 { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
+                'Rechtsklick: löschen',
                 // level_editor.js shape_for_event: Shift and Alt can change while dragging
                 `<span class='key longkey'>Strg</span>&nbsp;+ ziehen: Rechteck füllen, mit <span class='key longkey'>Shift</span> nur den Rand, mit <span class='key longkey'>Alt</span> eine Linie`,
             ]
         },
         {
             group: 'tool', command: 'select', image: 'select-rect-44', shortcut: 'E', label: 'Auswählen', hints: [
+                'Rechtsklick: Menü',
                 { key: 'Control+A', label: 'Alles auswählen', callback: function (x) { game.level_editor.select_all(); } },
                 { key: 'Delete', label: 'Auswahl löschen', callback: function (x) { game.level_editor.delete_selection(); } },
                 // handled by the printed letter in level_editor.js (key_label: shown only)
@@ -441,6 +501,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 
     canvas = new Canvas($('#canvas'), null);
     handleResize();
+    setup_folding_panels();
 
     update_color_palette();
     // initialize all other menus
@@ -1052,6 +1113,12 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             //         });
             //     },
             // },
+            {
+                type: 'button',
+                label: 'Neues Spiel …',
+                icon: 'fa-file-o',
+                callback: (self) => { self.dismiss(); if (typeof show_new_game_dialog === 'function') show_new_game_dialog(); },
+            },
             {
                 type: 'button',
                 label: 'Abbrechen',

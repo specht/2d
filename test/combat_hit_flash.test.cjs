@@ -47,7 +47,7 @@ function world(withHitArt = false) {
     const game = {
         data: { sprites: [actor, baddie] },
         energy: 100, lives: 3, running: true, reached_flag: false,
-        ts_zoom_actor: -1, curtain: { showing: false, show() {} },
+        ts_zoom_actor: -1, curtain: { showing: false, show() {}, show_screen() {} },
         clock: { getElapsedTime: () => now },
         geometry_and_material_for_frame: [actor, baddie].map(s => s.states.map(
             (state, si) => state.frames.map((_, fi) => ({ geometry: `${si}:${fi}`, material })))),

@@ -101,10 +101,10 @@ studio.
   and garbles frames beyond roughly 65,000 rows. `write_webp` therefore
   encodes chunks of at most 32,000 rows and joins their frames (`ANMF`
   chunks) into one file itself.
-* **A completed level** zooms onto the figure (the curtain with LEVEL COMPLETE! is HTML and
-  not part of the recording). While it zooms, the recorder keeps reading the same part of the
+* **A completed level** zooms onto the figure (the curtain with „Geschafft!“ is HTML – pixel bitmaps
+  in page elements, screens.js – and not part of the recording). While it zooms, the recorder keeps reading the same part of the
   screen as just before, so the recording shows the zoom as a player sees it. Keep `dauer`
-  below 2.5 s after the moment the level is done: then the game stops (THE END) or loads the
+  below 2.5 s after the moment the level is done: then the game stops (the end screen) or loads the
   next level.
 * Runs are deterministic: the same inputs give the same recording.
 * **Catalogue images** (`![…](katalog:…)`) are written at their native size

@@ -287,52 +287,37 @@ class LevelEditor {
         this.refresh_sprite_widget();
 
         $('#tool_menu_level_settings').empty();
-        // View settings: also in the status bar, with G / S / M / A (set_view_option)
+        // View settings: also in the status bar, with G / S / M / L / A
+        // (set_view_option). Small switches in one block with their names on
+        // them, so the palette below gets the height.
         this.view_option_widgets = {};
-        this.view_option_widgets.show_grid = new CheckboxWidget({
-            container: $('#tool_menu_level_settings'),
-            label: 'Gitter anzeigen',
-            key: 'G',
-            get: () => self.show_grid,
-            set: (x) => self.set_view_option('show_grid', x),
-        });
-        this.view_option_widgets.show_signal_overview = new CheckboxWidget({
-            container: $('#tool_menu_level_settings'),
-            label: 'Signale-Übersicht',
-            key: 'S',
-            hint: 'Zeigt rechts im Level alle Signale als Regeln: Wenn das passiert – dann das. Fährst du mit der Maus über eine Regel, siehst du ihre Verbindungen. Ein Klick auf eine Zeile wählt aus, was dort steht, ein Klick auf den Code zeigt alles mit diesem Code. Was du im Level auswählst, zeigt seine Verbindungen auch ohne Übersicht.',
-            get: () => self.show_signal_overview,
-            set: (x) => self.set_view_option('show_signal_overview', x),
-        });
-        this.view_option_widgets.show_minimap = new CheckboxWidget({
-            container: $('#tool_menu_level_settings'),
-            label: 'Übersichtskarte',
-            key: 'M',
-            hint: 'Zeigt unten links das ganze Level klein, mit einem Rahmen um das, was du gerade siehst. Klick oder zieh auf der Karte, um dorthin zu springen.',
-            get: () => self.show_minimap,
-            set: (x) => self.set_view_option('show_minimap', x),
-        });
-        this.view_option_widgets.show_level_map = new CheckboxWidget({
-            container: $('#tool_menu_level_settings'),
-            label: 'Levelübersicht',
-            key: 'L',
-            hint: 'Zeigt alle Level deines Spiels und wohin ihre Ausgänge führen. Ein Klick auf ein Level öffnet es, ein Klick auf einen Pfeil zeigt den Ausgang. Warnungen sagen dir, wenn man ein Level nie erreicht oder nicht mehr herauskommt.',
-            get: () => self.show_level_map,
-            set: (x) => self.set_view_option('show_level_map', x),
-        });
-        this.view_option_widgets.animate_level = new CheckboxWidget({
-            container: $('#tool_menu_level_settings'),
-            label: 'Level animieren',
-            key: 'A',
-            hint: 'Sprites zeigen ihre Animation, und Schnee, Regen, Schwebestaub und die anderen Effekte bewegen sich – schon hier im Level-Editor, so wie später im Spiel. Gezeigt wird bei jedem Sprite sein erster Zustand.',
-            get: () => self.animate_level,
-            set: (x) => self.set_view_option('animate_level', x),
-        });
+        const view_row = $('<div class="view-toggles">').appendTo($('#tool_menu_level_settings'));
+        const view_toggle = (option, label, key, hint) => {
+            const button = $('<button type="button" class="view-toggle">').attr('title', `${label} (${key}) – ${hint}`)
+                .append($('<span class="view-toggle-dot">')).append($('<span>').text(label)).append($('<span class="key widget-key">').text(key))
+                .appendTo(view_row)
+                .on('click', () => self.set_view_option(option, !self[option]));
+            const widget = { refresh: () => button.toggleClass('active', !!self[option]) };
+            widget.refresh();
+            this.view_option_widgets[option] = widget;
+        };
+        view_toggle('show_grid', 'Gitter', 'G', 'Zeigt das Gitter, an dem die Sprites einrasten.');
+        view_toggle('show_signal_overview', 'Signale', 'S', 'Zeigt rechts im Level alle Signale als Regeln: Wenn das passiert – dann das. Fährst du mit der Maus über eine Regel, siehst du ihre Verbindungen. Ein Klick auf eine Zeile wählt aus, was dort steht, ein Klick auf den Code zeigt alles mit diesem Code. Was du im Level auswählst, zeigt seine Verbindungen auch ohne Übersicht.');
+        view_toggle('show_minimap', 'Karte', 'M', 'Zeigt unten links das ganze Level klein, mit einem Rahmen um das, was du gerade siehst. Klick oder zieh auf der Karte, um dorthin zu springen.');
+        view_toggle('show_level_map', 'Levelübersicht', 'L', 'Zeigt alle Level deines Spiels und wohin ihre Ausgänge führen. Ein Klick auf ein Level öffnet es, ein Klick auf einen Pfeil zeigt den Ausgang. Warnungen sagen dir, wenn man ein Level nie erreicht oder nicht mehr herauskommt.');
+        view_toggle('animate_level', 'Animieren', 'A', 'Sprites zeigen ihre Animation, und Schnee, Regen, Schwebestaub und die anderen Effekte bewegen sich – schon hier im Level-Editor, so wie später im Spiel. Gezeigt wird bei jedem Sprite sein erster Zustand.');
+        // Gittergröße and Gitteroffset change the grid for this session only
+        // (the game's Raster is in Einstellungen → Spiel): folded away
+        const grid_box = $('<details class="grid-details">').appendTo($('#tool_menu_level_settings'));
+        this.grid_summary = $('<summary>').attr('title', 'Gitter nur für jetzt verändern – das Raster des Spiels stellst du unter Einstellungen → Spiel ein.').appendTo(grid_box);
+        const grid_fields = $('<div>').appendTo(grid_box);
+        this.update_grid_summary = () => this.grid_summary.text(`Gitter ${self.grid_width} × ${self.grid_height}` +
+            (self.grid_x || self.grid_y ? `, versetzt ${self.grid_x} : ${self.grid_y}` : ''));
         this.grid_size_widget = new NumberWidget({
             count: 2,
-            container: $('#tool_menu_level_settings'),
+            container: grid_fields,
             connector: $('<span>').css('width', '0.8em').css('text-align', 'center').html('&times;'),
-            label: 'Gittergröße:',
+            label: 'Größe',
             width: '1.8em',
             min: [1, 1],
             max: [512, 512],
@@ -340,15 +325,16 @@ class LevelEditor {
             set: (width, height) => {
                 self.grid_width = width;
                 self.grid_height = height;
+                self.update_grid_summary();
                 self.refresh();
                 self.render();
             },
         });
         this.grid_offset_widget = new NumberWidget({
             count: 2,
-            container: $('#tool_menu_level_settings'),
+            container: grid_fields,
             connector: $('<span>').css('width', '0.8em').css('text-align', 'center').html(':'),
-            label: 'Gitteroffset:',
+            label: 'Versatz',
             width: '1.8em',
             min: [-1024, -1024],
             max: [1024, 1024],
@@ -356,10 +342,12 @@ class LevelEditor {
             set: (x, y) => {
                 self.grid_x = x;
                 self.grid_y = y;
+                self.update_grid_summary();
                 self.refresh();
                 self.render();
             },
         });
+        this.update_grid_summary();
 
         // new CheckboxWidget({
         //     container: $('#tool_menu_level_settings'),
@@ -395,6 +383,12 @@ class LevelEditor {
             item_class: 'menu_level_item',
             step_aside_css: { top: '35px' },
             context_menu: (index) => self.level_context_menu(index),
+            // double-click: rename the level right in the list
+            rename: {
+                get: (index) => self.game.data.levels[index]?.properties?.name ?? '',
+                placeholder: (index) => `Level ${index + 1}`,
+                set: (index, name) => self.rename_level(index, name),
+            },
             gen_item: (level, index) => {
                 let level_div = $(`<div>`);
                 let level_label = $(`<div>`);
@@ -419,11 +413,15 @@ class LevelEditor {
                     layer_struct.apply_layer(layer);
                     self.layer_structs.push(layer_struct);
                 }
+                // "in diesem Level" means this level now
+                if (self.palette_filter?.kind === 'used') self.palette_filter.apply();
 
                 $('#menu_level_properties').empty();
                 new LineEditWidget({
                     container: $('#menu_level_properties'),
                     label: 'Titel',
+                    hint: 'Der Name des Levels. Die Spieler sehen ihn, wenn das Level beginnt.',
+                    placeholder: () => `Level ${self.level_index + 1}`,
                     get: () => self.game.data.levels[self.level_index].properties.name,
                     set: (x) => {
                         self.game.data.levels[self.level_index].properties.name = x;
@@ -505,6 +503,11 @@ class LevelEditor {
                     items: self.game.data.levels[self.level_index].layers,
                     item_class: 'menu_layer_item',
                     context_menu: (index) => self.layer_context_menu(index),
+                    rename: {
+                        get: (index) => self.game.data.levels[self.level_index].layers[index]?.properties?.name ?? '',
+                        placeholder: (index) => `Ebene ${index + 1}`,
+                        set: (index, name) => self.rename_layer(index, name),
+                    },
                     // a locked layer cannot be thrown away (the trash does not appear)
                     can_delete_index: (index) => !self.layer_locked(index),
                     step_aside_css: { top: '35px' },
@@ -586,10 +589,16 @@ class LevelEditor {
                         self.history_observe();
                         self.clear_selection();
                         self.layer_index = index;
+                        // the hint of the selection panel depends on the layer
+                        $('#menu_placed_properties').empty();
                         self.rect_index = 0;
                         self.backdrop_controls_setup_for = null;
                         if (self.game.data.levels[self.level_index].layers[self.layer_index].type !== 'sprites') {
                             menus.level.blur();
+                        } else if (menus.level.active_key === null) {
+                            // back from a Hintergrund layer (which switched the
+                            // tools off for its handles): the tool from before
+                            menus.level.handle_click(menus.level.groups.tool?.active ?? 'tool/pan');
                         }
                         if (['backdrop', 'signal_area', 'movement_region'].includes(self.game.data.levels[self.level_index].layers[self.layer_index].type)) {
                             self.refresh_backdrop_controls();
@@ -615,6 +624,14 @@ class LevelEditor {
                             let count = self.game.data.levels[self.level_index].layers.filter(x => x.type === type).length + 1;
                             layer.properties = { name: `Bewegungsbereich ${count}` };
                             layer.movement = { mode: 'swim' };
+                        }
+                        if (type === 'sprites' || type === 'backdrop') {
+                            // "Ebene 3", "Hintergrund 2": a name to start with (default_names.js)
+                            const word = type === 'sprites' ? 'Ebene' : 'Hintergrund';
+                            const names = self.game.data.levels[self.level_index].layers.map(x => x.properties?.name);
+                            if (typeof next_default_name === 'function')
+                                layer.properties = { ...(layer.properties ?? {}), name: next_default_name(names.filter(n => String(n ?? '').startsWith(word)), word,
+                                    self.game.data.levels[self.level_index].layers.filter(x => x.type === type).length + 1) };
                         }
                         if (type === 'sprites') {
                             layer.sprites = [];
@@ -768,7 +785,10 @@ class LevelEditor {
 
         $(this.element).off();
 
+        // right-click: a menu of what can be done with the sprite under the
+        // mouse or with the selection (the pen erases instead, Verbinden stops)
         $(this.element).on('contextmenu', function (e) {
+            self.handle_context_menu(e);
             return false;
         });
         $(this.element).on('mouseenter', (e) => self.handle_enter(e));
@@ -864,6 +884,228 @@ class LevelEditor {
         this.backdrop_controls_setup_for = null;
         this.refresh();
         this.render();
+    }
+
+    // The panel of the selection says what it is for while nothing is selected.
+    show_placed_hint() {
+        const layer = this.game.data.levels[this.level_index]?.layers[this.layer_index];
+        const hint = $('<div class="placed-hint">').appendTo($('#menu_placed_properties'));
+        if (layer && layer.type !== 'sprites') {
+            hint.html('Diese Ebene hat keine Sprites. Ihre Einstellungen stehen oben – die Rechtecke ziehst du im Level an ihren Griffen größer oder kleiner.');
+            return;
+        }
+        hint.html('Klick mit <b>Auswählen (E)</b> auf ein Sprite im Level – hier stehen dann seine Einstellungen.<br><br>' +
+            '<b>Rechtsklick</b> auf ein Sprite zeigt, was du damit machen kannst: kopieren, löschen, in eine andere Ebene schieben, im Sprite-Editor bearbeiten …');
+    }
+
+    update_placed_title() {
+        const layer = this.current_sprite_layer();
+        const count = this.selection.length;
+        if (!layer || !count) { $('#placed_properties_title').text('Auswahl'); return; }
+        if (count === 1) {
+            const placed = layer.sprites[this.selection[0]];
+            const si = placed ? this.game.sprite_index_for_ref(placed[0]) : null;
+            $('#placed_properties_title').text(si !== null ? `Auswahl: ${sprite_label(this.game.data.sprites[si], si)}` : 'Auswahl');
+        } else $('#placed_properties_title').text(`Auswahl: ${count} Sprites`);
+    }
+
+    // ------------------------------------------------ the right-click menu
+    // With Auswählen and Verschieben (Q): on a sprite, it is selected first
+    // (in whichever layer it lies, like a double-click) and the menu shows what
+    // can be done with it; on the selection, with all of it; on empty ground,
+    // with the layer and the level. The pen erases with the right button and
+    // Verbinden stops with it, so they have no menu.
+    handle_context_menu(e) {
+        if (current_pane !== 'level') return;
+        const tool = menus.level.active_key;
+        if (tool === 'tool/pen' || tool === 'tool/connect') return;
+        const touch = this.get_touch_point(e);
+        const [wx, wy] = this.ui_to_world(touch, false);
+        const layer = this.current_sprite_layer();
+        if (!(layer && this.selection.length && this.selection_point_inside(wx, wy))) {
+            const pick = this.pick_for_menu(touch);
+            if (pick) {
+                if (tool !== 'tool/select') menus.level.handle_click('tool/select');
+                if (pick.layer_index !== this.layer_index)
+                    $('#menu_layers > ._dnd_item').eq(pick.layer_index).children().eq(0).trigger('click');
+                this.selection = [pick.placed_index];
+                this.placed_properties_for = null;
+                this.show_selection();
+                this.refresh();
+                this.render();
+            } else if (this.selection.length) {
+                this.clear_selection();
+            }
+        }
+        const entries = this.selection.length ? this.selection_menu(touch) : this.ground_menu(touch);
+        show_context_menu(e.clientX, e.clientY, entries);
+    }
+
+    // The sprite under the screen point: in the current layer first (the
+    // topmost there), else in any visible layer (placed_sprites_at).
+    pick_for_menu(touch) {
+        const level = this.game.data.levels[this.level_index];
+        if (this.current_sprite_layer()?.properties?.visible !== false) {
+            const [wx, wy] = this.ui_to_world(touch, false);
+            const index = this.topmost_placed_at(wx, wy);
+            if (index >= 0) return { layer_index: this.layer_index, placed_index: index };
+        }
+        const point_of = (li) => {
+            const parallax = level.layers[li]?.properties?.parallax ?? 0;
+            return [this.camera_x + (touch[0] - this.width / 2) / this.scale - this.camera_x * parallax,
+                this.camera_y - (touch[1] - this.height / 2) / this.scale - this.camera_y * parallax];
+        };
+        const size_of = (ref) => this.game.data.sprites[this.game.sprite_index_for_ref(ref)] ?? null;
+        return next_pick(placed_sprites_at(level.layers, point_of, size_of), null) ?? null;
+    }
+
+    layer_menu_entries() {
+        const layer = this.game.data.levels[this.level_index]?.layers[this.layer_index];
+        if (!layer) return [];
+        const locked = layer.properties?.locked === true;
+        return [
+            { label: locked ? 'Ebene entsperren' : 'Ebene sperren', icon: locked ? 'fa-unlock' : 'fa-lock',
+                hint: 'In einer gesperrten Ebene kannst du nichts aus Versehen malen, löschen oder verschieben.',
+                callback: () => $('#menu_layers > ._dnd_item').eq(this.layer_index).find('.layer-lock').trigger('click') },
+            { label: 'Ebene ausblenden', icon: 'fa-eye-slash',
+                hint: 'Nur hier im Editor – mit dem Auge in der Liste der Ebenen zeigst du sie wieder.',
+                callback: () => $('#menu_layers > ._dnd_item').eq(this.layer_index).find('.toggle').not('.layer-lock').first().trigger('click') },
+        ];
+    }
+
+    selection_menu(touch) {
+        const layer = this.current_sprite_layer();
+        const count = this.selection.length;
+        const level = this.game.data.levels[this.level_index];
+        const layer_name = layer?.properties?.name || `Ebene ${this.layer_index + 1}`;
+        const first = layer?.sprites[this.selection[0]];
+        const si = first ? this.game.sprite_index_for_ref(first[0]) : null;
+        const label = count === 1 && si !== null ? sprite_label(this.game.data.sprites[si], si) : `${count} Sprites`;
+        const read_only = this.read_only_level();
+        const same = layer ? same_sprite_indices(layer.sprites, this.selection).length : 0;
+        const others = level.layers.map((l, li) => ({ l, li })).filter(({ l, li }) => l.type === 'sprites' && li !== this.layer_index);
+        const signal = count === 1 && first ? this.signal_object_for_placed(this.layer_index, this.selection[0]) : null;
+        return [
+            { header: `${label} · Ebene »${layer_name}«` },
+            { label: 'Ausschneiden', icon: 'fa-scissors', key: 'Strg+X', disabled: read_only, callback: () => this.cut_selection() },
+            { label: 'Kopieren', icon: 'fa-files-o', key: 'Strg+C', callback: () => this.copy_selection() },
+            { label: 'Einfügen', icon: 'fa-clipboard', key: 'Strg+V', disabled: !window.level_clipboard || read_only,
+                hint: window.level_clipboard ? null : 'Erst etwas kopieren (Strg+C).', callback: () => this.paste_at(touch) },
+            { label: 'Duplizieren', icon: 'fa-clone', key: 'Strg+D', disabled: read_only, callback: () => this.duplicate_selection() },
+            { label: 'Löschen', icon: 'fa-trash', key: 'Entf', disabled: read_only, callback: () => this.delete_selection() },
+            '-',
+            { label: same > count ? `Alle gleichen auswählen (${same})` : 'Alle gleichen auswählen', icon: 'fa-object-group', disabled: same <= count,
+                hint: same > count ? 'Alle Sprites dieser Ebene, die so aussehen wie die ausgewählten.' : 'In dieser Ebene gibt es keine weiteren davon.',
+                callback: () => this.select_same_sprites() },
+            { label: 'Ersetzen durch …', icon: 'fa-exchange', disabled: read_only, hint: 'Die ausgewählten Sprites werden zu einem anderen Sprite, jedes an seinem Platz.',
+                callback: () => this.open_replace_picker() },
+            { label: 'In Ebene', icon: 'fa-clone', disabled: read_only || !others.length, empty: 'keine andere Sprite-Ebene',
+                hint: others.length ? null : 'Es gibt keine andere Sprite-Ebene.',
+                children: others.map(({ l, li }) => ({ label: l.properties?.name || `Ebene ${li + 1}`, callback: () => this.move_selection_to_layer(li) })) },
+            { label: 'Nach vorne holen', icon: 'fa-arrow-up', disabled: read_only, hint: 'Vor alle anderen Sprites dieser Ebene.',
+                callback: () => this.reorder_selection('front') },
+            { label: 'Nach hinten schicken', icon: 'fa-arrow-down', disabled: read_only, hint: 'Hinter alle anderen Sprites dieser Ebene.',
+                callback: () => this.reorder_selection('back') },
+            '-',
+            { label: 'Im Sprite-Editor bearbeiten', icon: 'fa-paint-brush', disabled: si === null,
+                hint: 'Das Bild dieses Sprites malen – alle Kopien im Spiel ändern sich mit.',
+                callback: () => this.edit_sprite_in_sprite_editor(si) },
+            ...(signal ? [{ label: 'Verbinden …', icon: 'fa-link', key: 'R', disabled: read_only,
+                hint: 'Mit einem Signal verbinden: Klick danach auf das, was reagieren soll (oder was es auslöst).',
+                callback: () => this.start_connect_from(signal) }] : []),
+            { label: 'Hier testen', icon: 'fa-play', key: 'T', callback: () => this.start_playtest(touch) },
+            '-',
+            ...this.layer_menu_entries(),
+        ];
+    }
+
+    ground_menu(touch) {
+        const layer = this.game.data.levels[this.level_index]?.layers[this.layer_index];
+        const sprites_layer = layer?.type === 'sprites';
+        const read_only = this.read_only_level();
+        return [
+            { header: `Ebene »${layer?.properties?.name || `Ebene ${this.layer_index + 1}`}«` },
+            { label: 'Einfügen', icon: 'fa-clipboard', key: 'Strg+V', disabled: !window.level_clipboard || !sprites_layer || read_only,
+                hint: !window.level_clipboard ? 'Erst etwas kopieren (Strg+C).' : !sprites_layer ? 'Nur in eine Sprite-Ebene.' : 'Hier einfügen.',
+                callback: () => this.paste_at(touch) },
+            { label: 'Alles in dieser Ebene auswählen', icon: 'fa-object-group', key: 'Strg+A', disabled: !sprites_layer || !layer.sprites.length,
+                callback: () => { if (menus.level.active_key !== 'tool/select') menus.level.handle_click('tool/select'); this.select_all(); } },
+            '-',
+            { label: 'Hier testen', icon: 'fa-play', key: 'T', hint: 'Das Level spielen – die Spielfigur beginnt hier.', callback: () => this.start_playtest(touch) },
+            { label: 'Ganzes Level zeigen', icon: 'fa-arrows-alt', hint: 'Zoomt so, dass alles zu sehen ist.', callback: () => this.show_whole_level() },
+            '-',
+            ...this.layer_menu_entries(),
+        ];
+    }
+
+    // Einfügen from the menu: where the menu was opened.
+    paste_at(touch) {
+        const before = { inside: this.pointer_inside, raw: this.pointer_world_raw };
+        this.pointer_inside = true;
+        this.pointer_world_raw = touch;
+        this.paste_clipboard();
+        this.pointer_inside = before.inside;
+        this.pointer_world_raw = before.raw;
+    }
+
+    reorder_selection(where) {
+        const layer = this.current_sprite_layer();
+        if (!layer || !this.selection.length || this.read_only_level() || this.refuse_locked_layer()) return;
+        const result = reorder_placed(layer.sprites, this.selection, where);
+        this.set_layer_sprites(this.layer_index, result.sprites, result.selection);
+    }
+
+    open_replace_picker() {
+        this.placed_properties_for = null;
+        this.refresh();
+        $('#menu_placed_properties .selection-replace').show();
+        $('#menu_placed_properties')[0]?.scrollTo?.({ top: 0 });
+        this.show_level_notice?.('Wähle rechts unter „Auswahl“ das neue Sprite.');
+    }
+
+    edit_sprite_in_sprite_editor(si) {
+        if (si === null || si === undefined) return;
+        if (window.studio_show_pane?.('sprites')) studio_history_push?.({ pane: 'sprites' });
+        canvas.switchToSprite(si);
+    }
+
+    show_whole_level() {
+        this.auto_adjust_camera = true;
+        this.refresh();
+        this.render();
+    }
+
+    // The Signale object of a placed sprite, if it sends or reacts (signals.js).
+    signal_object_for_placed(layer_index, placed_index) {
+        const level = this.game.data.levels[this.level_index];
+        const placed = level.layers[layer_index]?.sprites?.[placed_index];
+        const sprite = placed ? this.game.data.sprites[this.game.sprite_index_for_ref(placed[0])] : null;
+        if (!sprite) return null;
+        const { traits_of, size_of } = this.signal_context();
+        const x = placed[1], y = placed[2] + sprite.height / 2;
+        const picked = pick_signal_object(level, x, y, traits_of, size_of, layer_index, 'sender');
+        return picked?.kind === 'sprite' && picked.layer_index === layer_index && picked.placed_index === placed_index ? picked : null;
+    }
+
+    start_connect_from(object) {
+        menus.level.handle_click('tool/connect');
+        this.connect_from = object;
+        const placed = this.game.data.levels[this.level_index].layers[object.layer_index]?.sprites?.[object.placed_index];
+        this.connect_pointer = object.anchor ? { ...object.anchor } : (placed ? { x: placed[1], y: placed[2] } : null);
+        this.show_level_notice?.('Klick jetzt auf das, was damit verbunden werden soll. Rechtsklick bricht ab.');
+        this.refresh();
+        this.render();
+    }
+
+    // The heads of the folding settings panels name what they belong to.
+    update_layer_settings_head() {
+        const layer = this.game.data.levels[this.level_index]?.layers[this.layer_index];
+        if (!layer) return;
+        $('#layer_settings_head').text(`Einstellungen der Ebene »${layer.properties?.name || `Ebene ${this.layer_index + 1}`}«`);
+    }
+
+    update_level_settings_head() {
+        $('#level_settings_head').text(`Einstellungen von »${level_display_name(this.game.data.levels, this.level_index)}«`);
     }
 
     // ------------------------------------------------ working with a selection
@@ -970,7 +1212,17 @@ class LevelEditor {
     paste_clipboard() {
         const clipboard = window.level_clipboard;
         const layer = this.current_sprite_layer();
-        if (!clipboard || !layer || this.read_only_level() || this.refuse_locked_layer()) return;
+        if (!clipboard) { this.show_level_notice?.('Nichts zum Einfügen – kopiere erst Sprites (Strg+C).'); return; }
+        if (!layer) { this.show_level_notice?.('Sprites kannst du nur in eine Sprite-Ebene einfügen.'); return; }
+        if (this.read_only_level() || this.refuse_locked_layer()) return;
+        // copied in another game: its sprites are not in this one, and pasting
+        // would only clear the places they were meant for
+        const known = clipboard.items.filter(item => this.game.sprite_index_for_ref(item[0]) !== null);
+        if (known.length < clipboard.items.length) {
+            this.show_level_notice?.(known.length ? 'Ein Teil der kopierten Sprites stammt aus einem anderen Spiel – hol sie dir erst mit „Sprites holen“.' :
+                'Die kopierten Sprites stammen aus einem anderen Spiel – hol sie dir erst mit „Sprites holen“.');
+            return;
+        }
         const [dx, dy] = duplicate_offset(layer.sprites, clipboard.items, ...this.duplicate_step(), 0);
         let x = clipboard.x + dx, y = clipboard.y + dy;
         if (this.pointer_inside && this.pointer_world_raw)
@@ -1163,10 +1415,12 @@ class LevelEditor {
     // ------------------------------------------------------- test runs
     // "Level testen": this level in the Spielen pane. With the mouse over the
     // level (key T), the figure starts on the grid cell under the mouse.
-    start_playtest() {
+    // at: the screen point to start from (the right-click menu), else the mouse
+    start_playtest(at = null) {
         const options = { level_index: this.level_index, start: null };
-        if (this.pointer_inside && this.pointer_world_raw) {
-            const [x, y] = this.ui_to_world(this.pointer_world_raw, true);
+        const point = at ?? (this.pointer_inside ? this.pointer_world_raw : null);
+        if (point) {
+            const [x, y] = this.ui_to_world(point, true);
             options.start = { x, y };
         }
         window.studio_start_playtest?.(options);
@@ -1605,18 +1859,57 @@ class LevelEditor {
     // A short message over the level (a few seconds).
     // ------------------------------------------------ right-click menus
     level_context_menu(index) {
+        const levels = this.game.data.levels;
+        const can_delete = levels.length > 1 && (window.collaboration?.can_delete?.('level', levels[index]?.id) ?? true);
         return [
+            { header: level_display_name(levels, index) },
+            { label: 'Umbenennen', icon: 'fa-pencil', hint: 'Auch mit einem Doppelklick auf das Level.',
+                callback: () => this.levels_widget.start_rename(index) },
             { label: 'Duplizieren', icon: 'fa-clone', callback: () => this.duplicate_level(index),
                 hint: 'Eine Kopie des ganzen Levels mit allen Ebenen – gleich dahinter in der Liste.' },
+            { label: 'Einstellungen', icon: 'fa-sliders', hint: 'Hintergrundfarbe, Nebenlevel, Signale des Levels …',
+                callback: () => { if (index !== this.level_index) this.levels_widget.options.onclick(null, index); window.set_folding_panel_open_by_name?.('level_settings', true); } },
+            '-',
+            { label: 'Löschen', icon: 'fa-trash', disabled: !can_delete,
+                hint: can_delete ? 'Gleich danach kannst du es mit „Rückgängig“ zurückholen.' : 'Das letzte Level bleibt.',
+                callback: () => this.levels_widget.delete_index(index) },
         ];
     }
 
     layer_context_menu(index) {
         const read_only = this.read_only_level();
+        const layers = this.game.data.levels[this.level_index].layers;
+        const can_delete = !read_only && layers.length > 1 && !this.layer_locked(index);
         return [
+            { header: layers[index]?.properties?.name || `Ebene ${index + 1}` },
+            { label: 'Umbenennen', icon: 'fa-pencil', disabled: read_only, hint: 'Auch mit einem Doppelklick auf die Ebene.',
+                callback: () => this.layers_widget.start_rename(index) },
             { label: 'Duplizieren', icon: 'fa-clone', disabled: read_only, callback: () => this.duplicate_layer(index),
                 hint: read_only ? 'Gerade bearbeitet jemand anderes dieses Level.' : 'Eine Kopie dieser Ebene mit allem, was darin liegt – direkt darüber.' },
+            '-',
+            { label: 'Löschen', icon: 'fa-trash', disabled: !can_delete,
+                hint: this.layer_locked(index) ? 'Die Ebene ist gesperrt.' : layers.length <= 1 ? 'Die letzte Ebene bleibt.' : 'Strg+Z holt sie zurück.',
+                callback: () => this.layers_widget.delete_index(index) },
         ];
+    }
+
+    rename_level(index, name) {
+        const level = this.game.data.levels[index];
+        if (!level) return;
+        level.properties.name = name;
+        this.update_level_label(index);
+        // the Titel field of the level shows it
+        if (index === this.level_index) $('#menu_level_properties .item').first().data('widget-instance')?.refresh?.();
+        this.history_observe();
+    }
+
+    rename_layer(index, name) {
+        const layer = this.game.data.levels[this.level_index].layers[index];
+        if (!layer || this.read_only_level()) return;
+        layer.properties.name = name;
+        $('#menu_layers').children('._dnd_item').eq(index).find('.layer-name').text(name || `Ebene ${index + 1}`);
+        if (index === this.layer_index) { this.setup_layer_properties(); this.update_layer_label(); }
+        this.history_observe();
     }
 
     sprite_button_context_menu(si) {
@@ -2108,6 +2401,10 @@ class LevelEditor {
         let self = this;
         $('#menu_layer_properties').empty();
         let layer = self.game.data.levels[self.level_index].layers[self.layer_index];
+        this.update_layer_settings_head();
+        // a Hintergrund, Signalbereich or Bewegungsbereich has nothing else to
+        // edit than these settings: they stay open for it
+        window.set_folding_panel_forced?.('layer_settings', layer?.type !== 'sprites');
 
         new LineEditWidget({
             container: $('#menu_layer_properties'),
@@ -2119,6 +2416,7 @@ class LevelEditor {
                 $('#menu_layers').children('._dnd_item').eq(self.layer_index)
                     .find('.layer-name').text(name || `Ebene ${self.layer_index + 1}`);
                 self.update_layer_label();
+                self.update_layer_settings_head();
             },
         });
 
@@ -2597,7 +2895,9 @@ class LevelEditor {
 
     update_level_label(li) {
         if (typeof(li) === 'undefined') li = this.level_index;
-        let label = $('<div>').text(this.game.data.levels[li].properties.name);
+        // without a Titel: "Level 3", shown dimmed – it can (and should) be named
+        const named = String(this.game.data.levels[li].properties.name ?? '').trim() !== '';
+        let label = $('<div>').text(level_display_name(this.game.data.levels, li)).toggleClass('unnamed', !named);
         // a Nebenlevel (level_flow.js) is not part of the order
         if (this.game.data.levels[li].properties.side_level === true)
             label.prepend($('<i class="fa fa-level-up level-side-mark">').attr('title', 'Nebenlevel: nur durch einen Ausgang erreichbar'));
@@ -2609,6 +2909,7 @@ class LevelEditor {
         label.css('margin', '6px 5px');
         label.css('pointer-events', 'none');
         this.label_for_level[li].empty().append(label);
+        if (li === this.level_index) this.update_level_settings_head();
         // names and Nebenlevel are on the Levelübersicht, too
         this.refresh_level_map?.();
     }
@@ -3231,6 +3532,21 @@ class LevelEditor {
         this.y1 = this.mouse_down_position_no_snap[1];
 
         if (e.touches) this.mouse_down_button = 0;
+        // a tablet has no right button: holding a finger still opens the menu
+        // (with Auswählen and Verschieben, like the right-click)
+        clearTimeout(this.long_press?.timer);
+        this.long_press = null;
+        if ((e.touches || []).length === 1 && ['tool/select', 'tool/pan'].includes(menus.level.active_key)) {
+            const at = { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+            this.long_press = { x: at.clientX, y: at.clientY, timer: setTimeout(() => {
+                this.long_press = null;
+                this.mouse_down = false;
+                this.updating_selection = false;
+                this.moving_selection = null;
+                this.rect_group.visible = false;
+                this.handle_context_menu(at);
+            }, 550) };
+        }
         // the middle mouse button, or the left one while the Leertaste is held:
         // drag the view, whichever tool is active
         if (!e.touches && (e.button === 1 || (e.button === 0 && this.space_pan))) {
@@ -3257,13 +3573,15 @@ class LevelEditor {
                 }
             } else if (e.button === 2) {
                 if (this.modifier_shift) {
-                    this.remove_sprite_from_level(this.mouse_down_position_no_snap);
+                    this.remove_sprite_from_level(this.mouse_down_position_no_snap, this.mouse_down_position_no_snap);
                 } else {
-                    this.remove_sprite_from_level(this.mouse_down_position);
+                    this.remove_sprite_from_level(this.mouse_down_position, this.mouse_down_position_no_snap);
                 }
             }
         } else if (menus.level.active_key === 'tool/pan') {
             this.old_camera_position = [this.camera_x, this.camera_y];
+        } else if (menus.level.active_key === 'tool/select' && e.button === 2) {
+            // the right button opens the menu (handle_context_menu)
         } else if (menus.level.active_key === 'tool/select' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
             const [px, py] = this.mouse_down_position_no_snap;
             if (e.button === 0 && !e.shiftKey && this.selection.length && this.selection_point_inside(px, py)) {
@@ -3282,6 +3600,8 @@ class LevelEditor {
 
     handle_up(e) {
         if (current_pane !== 'level') return;
+        clearTimeout(this.long_press?.timer);
+        this.long_press = null;
         this.mouse_down = false;
         this.backdrop_move_point = null;
         this.backdrop_move_point_old_rect = null;
@@ -3339,6 +3659,12 @@ class LevelEditor {
 
     handle_move(e) {
         if (current_pane !== 'level') return;
+        // a finger that moves is no long press
+        if (this.long_press && e.touches?.[0] &&
+            Math.hypot(e.touches[0].clientX - this.long_press.x, e.touches[0].clientY - this.long_press.y) > 10) {
+            clearTimeout(this.long_press.timer);
+            this.long_press = null;
+        }
         if (this.grab_panning) {
             if (this.mouse_down) this.pan_view_to(this.get_touch_point(e));
             return;
@@ -3419,9 +3745,9 @@ class LevelEditor {
                     }
                 } else if (this.mouse_down_button === 2) {
                     if (this.modifier_shift) {
-                        this.remove_sprite_from_level(p_no_snap);
+                        this.remove_sprite_from_level(p_no_snap, p_no_snap);
                     } else {
-                        this.remove_sprite_from_level(p);
+                        this.remove_sprite_from_level(p, p_no_snap);
                     }
                 }
             }
@@ -3522,12 +3848,36 @@ class LevelEditor {
         this.rect_group.add(new THREE.LineLoop(geometry, material));
     }
 
-    remove_sprite_from_level(p) {
+    // Right-click with the pen: the sprite on exactly this spot, else the
+    // topmost one under the mouse (raw: the point in the world) – a wide
+    // sprite sits elsewhere than the spot the chosen sprite would take.
+    remove_sprite_from_level(p, raw = null) {
         if (this.layer_locked()) return;
-        if (this.game.data.levels[this.level_index].layers[this.layer_index].properties.visible) {
-            this.layer_structs[this.layer_index].remove_sprite(p, false);
-            this.render();
+        const layer = this.current_sprite_layer();
+        if (!layer || !layer.properties.visible) return;
+        const struct = this.layer_structs[this.layer_index];
+        if (!(`${p[0]}/${p[1]}` in struct.placed_sprite_index_for_pos) && raw) {
+            const index = this.topmost_placed_at(raw[0], raw[1]);
+            if (index < 0) return;
+            p = [layer.sprites[index][1], layer.sprites[index][2]];
         }
+        struct.remove_sprite(p, false);
+        this.render();
+    }
+
+    // The index of the topmost placed sprite of the current layer that
+    // covers the world point (x, y), or -1.
+    topmost_placed_at(x, y) {
+        const layer = this.current_sprite_layer();
+        if (!layer) return -1;
+        for (let i = layer.sprites.length - 1; i >= 0; i--) {
+            const placed = layer.sprites[i];
+            const sprite = this.game.data.sprites[this.game.sprite_index_for_ref(placed[0])];
+            if (!sprite) continue;
+            if (x >= placed[1] - sprite.width / 2 && x < placed[1] + sprite.width / 2 && y >= placed[2] && y < placed[2] + sprite.height)
+                return i;
+        }
+        return -1;
     }
 
     add_sprite_to_level(p) {
@@ -3554,7 +3904,10 @@ class LevelEditor {
     }
 
     delete_selection() {
-        if (this.selection.length && this.refuse_locked_layer()) return;
+        // only a sprite layer has sprites to delete (Entf on a Hintergrund
+        // layer used to end with the robot)
+        if (!this.current_sprite_layer() || !this.selection.length || this.read_only_level()) return;
+        if (this.refuse_locked_layer()) return;
         let delete_these = new Set();
         for (let i of this.selection)
             delete_these.add(i);
@@ -4198,22 +4551,26 @@ class LevelEditor {
         let placed_properties_need_update = (this.placed_properties_for ?? null) !== selection_key;
         this.placed_properties_for = selection_key;
         if (!selection_key) {
-            $('#menu_placed_properties').empty();
+            // nothing selected: what this panel is for (once, not on every refresh)
+            if (!$('#menu_placed_properties > .placed-hint').length) {
+                $('#menu_placed_properties').empty();
+                this.show_placed_hint();
+            }
+            $('#placed_properties_title').text('Auswahl');
             this.update_signal_links = null;
             placed_properties_need_update = false;
         }
 
         if (placed_properties_need_update) {
             $('#menu_placed_properties').empty();
+            this.update_placed_title();
             this.update_signal_links = null;
             this.add_selection_controls($('#menu_placed_properties'));
             if (this.selection.length === 1) {
                 let div = $(`<div>`).appendTo($('#menu_placed_properties'));
                 let entry_index = this.selection[0];
                 let entry = this.game.data.levels[this.level_index].layers[this.layer_index].sprites[entry_index];
-                console.log('entry', entry);
                 let sprite = this.game.data.sprites[this.game.sprite_index_for_ref(entry[0])];
-                console.log('sprite', sprite);
                 // which sprite this is (its Titel, else its number)
                 $('<div class="placed-sprite-title">')
                     .text(sprite_label(sprite, this.game.sprite_index_for_ref(entry[0]))).appendTo(div);
@@ -4604,6 +4961,7 @@ class LevelEditor {
         this.grid_y = 0;
         this.grid_size_widget?.refresh();
         this.grid_offset_widget?.refresh();
+        this.update_grid_summary?.();
     }
 
     // Where the pen puts the current sprite: whole grid cells from its lower
@@ -4624,6 +4982,17 @@ class LevelEditor {
     refresh_sprite_widget() {
         this.sync_grid_to_game();
         $('#menu_level_sprites').empty();
+        // search and filters (sprite_filter.js); "in diesem Level": the sprites placed here
+        if (!this.palette_filter && typeof SpriteFilter === 'function' && $('#level_sprite_filter').length) {
+            this.palette_filter = new SpriteFilter({
+                container: $('#level_sprite_filter'),
+                sprites: () => this.game.data.sprites,
+                used_ids: () => this.sprite_ids_in_level(),
+                on_change: (visible) => $('#menu_level_sprites > .button').each((i, button) => {
+                    $(button).toggle(visible[$(button).data('sprite_index')] !== false);
+                }),
+            });
+        }
         for (let si = 0; si < this.game.data.sprites.length; si++) {
             this.game.update_material_for_sprite(si);
             let fi = Math.floor(this.game.data.sprites[si].states[0].frames.length / 2 - 0.5);
@@ -4652,10 +5021,30 @@ class LevelEditor {
                 menus.level.handle_click('tool/pen');
             });
         }
+        // a game with only a few sprites: where more come from
+        if (this.game.data.sprites.length < 4) {
+            const hint = $('<div class="palette-hint">').appendTo($('#menu_level_sprites'));
+            $('<div>').text('Mehr Sprites? Zeichne sie im Tab „Sprites“ – oder hol dir fertige aus dem Sprite-Katalog.').appendTo(hint);
+            if (typeof show_sprite_basket === 'function')
+                $('<button type="button">').append($('<i class="fa fa-shopping-basket">')).append(' Sprites holen').appendTo(hint)
+                    .on('click', () => show_sprite_basket());
+        }
+        this.palette_filter?.refresh();
         this.refresh();
         let self = this;
         setTimeout(function() { self.render(); }, 0);
         menus.level.callback();
+    }
+
+    // The ids of every sprite placed in this level (any layer).
+    sprite_ids_in_level() {
+        const ids = new Set();
+        for (const layer of this.game.data.levels[this.level_index]?.layers ?? [])
+            for (const placed of layer.sprites ?? []) {
+                const si = this.game.sprite_index_for_ref(placed[0]);
+                if (si !== null) ids.add(this.game.data.sprites[si].id);
+            }
+        return ids;
     }
 }
 

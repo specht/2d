@@ -33,7 +33,7 @@ function fixture(role, extraStates = [], attack = null) {
         clock: { getElapsedTime: () => now },
         geometry_and_material_for_frame: [sprite.states.map((state, si) =>
             state.frames.map((_, fi) => ({ geometry: `${si}:${fi}`, material: `${si}:${fi}` })))],
-        update_stats() {}, curtain: { showing: false, show() {} }, baddies: [],
+        update_stats() {}, curtain: { showing: false, show() {}, show_screen() {} }, baddies: [],
     };
     function addCharacter() {
         const character = new Character(game, 0, {

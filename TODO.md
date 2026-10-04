@@ -31,7 +31,12 @@ The next phase concentrates on **authoring rather than engine breadth**:
 
 ## Editing existing content
 
+- several selected sprites show no settings: show the ones they share ("verschieden" where they differ) and write to all of them – careful with Codes
 - align or arrange several selected sprites
+- rectangles of a Hintergrund, Signalbereich or Bewegungsbereich can be resized but not moved, and can only be chosen in their list ("Rechteck"); a click in the view could pick one
+- Signalbereiche and Bewegungsbereiche are visible only while their layer is the current one (faint outlines of all of them as a view option)
+- dimming the layers that are not the current one, so it is clear what belongs to it
+- zoom with keys, "Zur Auswahl"; Strg+click to take one sprite out of a selection
 - levels themselves (adding, reordering) are not part of undo/redo yet
 
 Avoid requiring children to delete and recreate things simply because they changed their mind.
@@ -116,7 +121,7 @@ Fine-grained simultaneous editing of the same frame or level region only if real
 
 # Sprites and Pictures
 
-- Sprite editor: nothing concrete is open; wait for what children run into.
+- Sprite editor: a "Wer zeigt was?" overview of the pictures the game uses for Stehen, Laufen, Springen … left and right (drawn, mirrored, missing); a frame that is held longer than the others (needs the engine); the spray can sprays over an area of one colour rather than around the mouse (an airbrush mode?); + adds an empty frame (a copy of the current one may be what animators want); onion skin of another state.
 - Sprites holen: remembering recently opened source games; a small list of recommended source games for a class; a second player character, more enemies and a few more backgrounds for the catalogue.
 - Picture import: a hand-drawn grid in the dialog when the guess is wrong in a way the numbers cannot fix (frames of different widths); remembering the last choice of "Einfügen" per sprite.
 
@@ -154,7 +159,6 @@ Any new attack family must work for player characters and enemies through the sa
 - HUD: a visible timer, a cooldown display, items once there is an inventory, choosing which corner shows what
 - high scores, persistent progression (decide first whether data belongs to the run, the browser, the game or the server)
 - actor health configuration closer to the actor definition
-- the curtain texts are still English (LEVEL COMPLETE!, Next up, THE END, GAME OVER)
 
 ---
 
@@ -164,6 +168,10 @@ Any new attack family must work for player characters and enemies through the sa
 - a short "look here" hint per recipe (which layer, which sprite, which setting matters)
 
 ---
+
+# Screens and Devices
+
+The studio is made for 1920 × 1080 and works down to about 1366 × 768. On tablets in landscape (1024 × 768) both editors are usable with a mouse but cramped; in portrait, and on phones, they are not usable – only the Hilfe tab and playing are. Touch: the level editor opens its menu with a long press, two fingers zoom; hover texts, right-click menus in the sprite editor and keyboard shortcuts have no touch equivalent yet. Decide whether tablets should be supported (a layout with the side columns as drawers) before adding touch-only features.
 
 # Large or Experimental
 

@@ -51,6 +51,7 @@ class DragAndDropWidget {
         this.options.step_aside_css_reset = {};
         for (let key of Object.keys(this.options.step_aside_css))
             this.options.step_aside_css_reset[key] = '0';
+        this.options.step_aside_css_mod_n_fixed = this.options.step_aside_css_mod_n;
         $(options.container).empty();
         for (let i = 0; i < options.items.length; i++) {
             let item = options.items[i];
@@ -177,6 +178,16 @@ class DragAndDropWidget {
         self.container_scroll_position = [self.options.container.scrollLeft(), self.options.container.scrollTop()];
     }
 
+    // A list of tiles in rows (the sprite list): when the column gets wider or
+    // narrower, the items moving aside during a drag wrap at the new row length.
+    set_columns(n, step) {
+        if (!(n > 0) || !this.options.step_aside_css_mod_n_fixed) return;
+        const top = this.options.step_aside_css_mod.top ?? '0px';
+        this.options.step_aside_css_mod_n = n;
+        this.options.step_aside_css_mod = { left: `-${step * (n - 1)}px`, top };
+        this.options.step_aside_css_mod_reverse = { left: `${step * (n - 1)}px`, top: top.startsWith('-') ? top.slice(1) : `-${top}` };
+    }
+
     _append_item(item, index = this.options.items.length - 1) {
         let self = this;
         let item_div = $(`<div>`).addClass('_dnd_item');
@@ -202,6 +213,14 @@ class DragAndDropWidget {
             let element = $(e.target).closest('._dnd_item');
             self.options.onclick(element.children().eq(0)[0], element.index());
         });
+        // rename: { get(index), set(index, name), placeholder(index) } – a
+        // double-click turns the item into a text field (start_rename)
+        if (this.options.rename) item_subdiv.on('dblclick', (e) => {
+            if ($(e.target).closest('.toggle, .drag_handle').length) return;
+            e.preventDefault();
+            e.stopPropagation();
+            this.start_rename(item_div.index());
+        });
         item_subdiv.on('mousedown touchstart', function (e) {
             if (!self.has_touch)
                 self.handle_down(e);
@@ -219,6 +238,56 @@ class DragAndDropWidget {
             }
         } catch (e) {}
         $(this.options.container).append(item_div);
+    }
+
+    // Deleting an item without dragging it into the trash (a right-click menu):
+    // the same checks and the same way back (trash_undo.js) as the trash.
+    delete_index(index) {
+        const items = this.options.container.children('._dnd_item').not('.add, .placeholder');
+        if (!(index >= 0 && index < items.length)) return false;
+        if (this.options.can_delete_index?.(index) === false) return false;
+        if (!this.options.can_be_empty && items.length <= 1) return false;
+        const was_active = items.eq(index).hasClass('active');
+        const trash_undo = window.trash_undo?.before?.(this.options, index);
+        items.eq(index).remove();
+        this.options.delete_item(index);
+        const left = this.options.container.children('._dnd_item').not('.add, .placeholder');
+        let select = left.filter('.active').index();
+        if (was_active || select < 0) select = Math.max(0, Math.min(index, left.length - 1));
+        if (!this.options.can_be_empty && left.length)
+            this.options.onclick(left.eq(select).children().eq(0)[0], select);
+        this.options.game?.refresh_frames_on_screen?.();
+        if (trash_undo) window.trash_undo.after(trash_undo);
+        return true;
+    }
+
+    // A text field over the item: Enter or leaving it saves, Esc cancels.
+    start_rename(index) {
+        const rename = this.options.rename;
+        const item_div = this.options.container.children('._dnd_item').not('.add, .placeholder').eq(index);
+        if (!rename || !item_div.length) return;
+        item_div.find('.dnd-rename').remove();
+        const input = $('<input type="text" class="dnd-rename" spellcheck="false">')
+            .val(rename.get(index) ?? '').attr('placeholder', rename.placeholder?.(index) ?? '')
+            .appendTo(item_div.children().eq(0));
+        let done = false;
+        const finish = (save) => {
+            if (done) return;
+            done = true;
+            const value = String(input.val() ?? '').trim();
+            input.remove();
+            if (save) rename.set(index, value);
+        };
+        input.on('mousedown click dblclick touchstart', (e) => e.stopPropagation());
+        input.on('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') finish(true);
+            if (e.key === 'Escape') finish(false);
+        });
+        input.on('keyup keypress', (e) => e.stopPropagation());
+        input.on('blur', () => finish(true));
+        input.focus();
+        input[0].select();
     }
 
     can_delete_item() {
@@ -419,9 +488,13 @@ function show_context_menu(x, y, entries, options = {}) {
         for (const entry of list) {
             if (entry === '-') { $('<div>').addClass('context-menu-line').appendTo(container); continue; }
             if (!entry) continue;
+            // a head line: what the menu is about ("3 Sprites · Ebene »Welt«")
+            if (entry.header) { $('<div>').addClass('context-menu-header').text(entry.header).appendTo(container); continue; }
             const item = $('<div>').addClass('context-menu-item').attr('role', 'menuitem').appendTo(container);
             $('<i>').addClass(`fa fa-fw ${entry.icon ?? ''}`).appendTo(item);
             $('<span>').addClass('context-menu-label').text(entry.label).appendTo(item);
+            // the shortcut that does the same, so it can be learnt
+            if (entry.key) $('<span>').addClass('context-menu-key').text(entry.key).appendTo(item);
             if (entry.hint) item.attr('title', entry.hint);
             if (entry.disabled) { item.addClass('disabled'); continue; }
             if (entry.children) {
@@ -713,7 +786,6 @@ class ColorWidget {
 
 class LineEditWidget {
     constructor(data) {
-        console.log("LineEditWidget", data);
         this.data = data;
         this.container = data.container;
         let div = $(`<div class='item'>`).data('widget-instance', this);
@@ -723,9 +795,13 @@ class LineEditWidget {
         if ((data.options || {}).multiline)
             this.input = $(`<textarea style="font-family: 'IBM Plex Sans'; max-width: 100%; background-color: rgb(17, 17, 17); color: rgb(238, 238, 238); border: none; padding: 0.5em 0.2em; margin-top: 0.5em; box-shadow: rgba(255, 255, 255, 0.3) 0px 0px 10px inset; height: 100px; width: calc(100% - 0.4em);">`);
         this.input.val(data.get());
-        // label.click(function(e) {
-        //     self.input.focus();
-        // });
+        // placeholder: what the thing is called without a name of its own
+        // ("Level 3"), greyed – it shows that a name can be typed in
+        if (data.placeholder) this.input.attr('placeholder', typeof data.placeholder === 'function' ? data.placeholder() : data.placeholder);
+        // a default name ("Sprite 4") is selected on focus, so typing replaces it
+        if (data.select_default) this.input.on('focus', () => {
+            if (data.select_default(this.input.val())) setTimeout(() => this.input[0]?.select(), 0);
+        });
         $(this.container).append(div);
         if ((data.options || {}).multiline)
             $(this.container).append(this.input);

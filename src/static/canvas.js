@@ -81,6 +81,7 @@ class Canvas {
         this.spray_pixels = null;
         this.spray_pixels_per_shot = 1;
         this.label_for_state = [];
+        this.role_for_state = [];
         this.draw_ex = false;
         $(this.element).css('overflow', 'hidden');
         $(this.element).css('cursor', 'crosshair');
@@ -125,13 +126,48 @@ class Canvas {
         this.moving_y = 0;
 
         let self = this;
+        // the mouse wheel zooms with every tool (as in the level editor)
         this.element[0].addEventListener('wheel', function (e) {
-            if (self.menu.get('tool') === 'tool/pan') {
+            e.preventDefault();
+            let cx = e.clientX - self.element.position().left;
+            let cy = e.clientY - self.element.position().top;
+            self.zoom_at_point(e.deltaY, cx, cy);
+        }, { passive: false });
+        // a picture of the Verlauf dropped onto the frames: a new frame after the one being drawn
+        $('#menu_frames').on('dragover', (e) => {
+            if (Array.from(e.originalEvent.dataTransfer?.types ?? []).includes('application/x-2d-frame')) {
                 e.preventDefault();
-                let cx = e.clientX - self.element.position().left;
-                let cy = e.clientY - self.element.position().top;
-                self.zoom_at_point(e.deltaY, cx, cy);
+                $('#menu_frames').addClass('drop-frame');
             }
+        }).on('dragleave drop', () => $('#menu_frames').removeClass('drop-frame'))
+            .on('drop', (e) => {
+                const raw = e.originalEvent.dataTransfer?.getData('application/x-2d-frame');
+                if (!raw) return;
+                e.preventDefault();
+                const entry = JSON.parse(raw);
+                const sprite = self.game?.data?.sprites?.[self.sprite_index];
+                if (!sprite) return;
+                if (entry.width !== sprite.width || entry.height !== sprite.height) {
+                    if (typeof show_state_notice === "function") show_state_notice(`Das Bild ist ${entry.width} × ${entry.height} groß, dieses Sprite ${sprite.width} × ${sprite.height}.`);
+                    return;
+                }
+                const frames = sprite.states[self.state_index].frames;
+                frames.splice(self.frame_index + 1, 0, { src: entry.url });
+                if (typeof show_sprite_again === 'function') show_sprite_again(self.sprite_index, self.state_index, self.frame_index + 1);
+            });
+        // Leertaste + ziehen moves the view with every tool (the middle button, too)
+        this.space_pan = false;
+        window.addEventListener('keydown', (e) => {
+            if (e.code !== 'Space' || current_pane !== 'sprites' || e.target?.closest?.('input, textarea, select, [contenteditable]')) return;
+            if (self.menu?.get('tool') === 'tool/pan') return;
+            self.space_pan = true;
+            self.element.addClass('grab-panning');
+            e.preventDefault();
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.code !== 'Space') return;
+            self.space_pan = false;
+            if (!self.grab_panning) self.element.removeClass('grab-panning');
         });
         $(this.element).off();
         
@@ -144,10 +180,21 @@ class Canvas {
         this.sprite_index = null;
         this.state_index = null;
         this.frame_index = null;
-        // prevent context menu on canvas when right clicking
+        // right-click: the pen and the shapes draw transparent; with
+        // "Rechteck auswählen" a menu of what can be done with the selection
         this.element.on('contextmenu', function (e) {
+            if (self.menu?.get('tool') === 'tool/select-rect' && typeof show_context_menu === 'function')
+                show_context_menu(e.clientX, e.clientY, self.selection_menu());
             return false;
         });
+        // Strg+C / X / V, Entf, Esc and the arrow keys work on the selection
+        // (before the editor's own keys: the arrows would switch frames)
+        window.addEventListener('keydown', (e) => self.handle_selection_key(e), true);
+        // the pixel clipboard is for this studio: after the window was left
+        // (perhaps to copy a picture elsewhere), Strg+V pastes that picture again
+        window.addEventListener('blur', () => setTimeout(() => {
+            if (document.activeElement?.tagName !== 'IFRAME') window.pixel_clipboard_from_here = false;
+        }, 0));
     }
 
     get_touch_point(e) {
@@ -203,6 +250,17 @@ class Canvas {
         let p = this.get_touch_point(e);
         this.last_mouse_x = p[0] - this.element.position().left;
         this.last_mouse_y = p[1] - this.element.position().top;
+        // the right button with "Rechteck auswählen" opens the menu (contextmenu)
+        if (!e.touches && e.button === 2 && this.menu?.get('tool') === 'tool/select-rect') return;
+        // the middle button, or the left one while the Leertaste is held: move the view
+        if (!e.touches && (e.button === 1 || (e.button === 0 && this.space_pan))) {
+            e.preventDefault();
+            this.grab_panning = true;
+            this.moving_x = p[0];
+            this.moving_y = p[1];
+            this.element.addClass('grab-panning');
+            return;
+        }
         this.mouse_down = true;
         this.mouse_down_point = this.get_sprite_point_from_last_mouse();
         this.mouse_down_in_selection = this.get_pixel(this.selection_bitmap, this.mouse_down_point[0], this.mouse_down_point[1])[3] > 0;
@@ -621,25 +679,28 @@ class Canvas {
         this.clear(this.selection_bitmap_outline);
     }
 
+    // Fills the area of exactly the colour under the mouse (mouse_down_color)
+    // that p belongs to. With its own list instead of calling itself once per
+    // pixel: that ran out of stack on an empty 96 × 96 frame (the robot).
     _flood_fill(p, color) {
-        let offset = p[1] * this.bitmap.width + p[0];
-        if (this.flood_fill_seen_pixels[offset])
-            return;
-        let use_color = (this.mouse_down_button == 2) ? 0x00000000 : this.current_color;
-        this.flood_fill_seen_pixels[offset] = true;
-        offset *= 4;
-        let probe = [];
-        for (let i = 0; i < 4; i++)
-            probe.push(this.flood_fill_data.data[offset + i]);
-        if (probe.join('/') === this.mouse_down_color.join('/')) {
-            this.flood_fill_data.data[offset + 0] = (use_color >> 24) & 0xff;
-            this.flood_fill_data.data[offset + 1] = (use_color >> 16) & 0xff;
-            this.flood_fill_data.data[offset + 2] = (use_color >> 8) & 0xff;
-            this.flood_fill_data.data[offset + 3] = use_color & 0xff;
-            if (p[0] > 0) this._flood_fill([p[0] - 1, p[1]], color);
-            if (p[1] > 0) this._flood_fill([p[0], p[1] - 1], color);
-            if (p[0] < this.bitmap.width - 1) this._flood_fill([p[0] + 1, p[1]], color);
-            if (p[1] < this.bitmap.height - 1) this._flood_fill([p[0], p[1] + 1], color);
+        const width = this.bitmap.width, height = this.bitmap.height;
+        const data = this.flood_fill_data.data, seen = this.flood_fill_seen_pixels;
+        const use_color = (this.mouse_down_button == 2) ? 0x00000000 : this.current_color;
+        const want = this.mouse_down_color;
+        const fill = [(use_color >> 24) & 0xff, (use_color >> 16) & 0xff, (use_color >> 8) & 0xff, use_color & 0xff];
+        const todo = [p[1] * width + p[0]];
+        while (todo.length) {
+            const offset = todo.pop();
+            if (seen[offset]) continue;
+            seen[offset] = true;
+            const o = offset * 4;
+            if (data[o] !== want[0] || data[o + 1] !== want[1] || data[o + 2] !== want[2] || data[o + 3] !== want[3]) continue;
+            data[o] = fill[0]; data[o + 1] = fill[1]; data[o + 2] = fill[2]; data[o + 3] = fill[3];
+            const x = offset % width, y = (offset - x) / width;
+            if (x > 0) todo.push(offset - 1);
+            if (y > 0) todo.push(offset - width);
+            if (x < width - 1) todo.push(offset + 1);
+            if (y < height - 1) todo.push(offset + width);
         }
     }
 
@@ -717,6 +778,11 @@ class Canvas {
 
     handle_up(e) {
         if (current_pane !== 'sprites') return;
+        if (this.grab_panning) {
+            this.grab_panning = false;
+            if (!this.space_pan) this.element.removeClass('grab-panning');
+            return;
+        }
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 this.moving = false;
@@ -917,7 +983,8 @@ class Canvas {
                 touch_distance_delta = this_touch_distance - this.last_touch_distance;
             this.last_touch_distance = this_touch_distance;
             if (touch_distance_delta !== null) {
-                if (this.menu.get('tool') === 'tool/pan') {
+                {
+                    // two fingers zoom with every tool
                     let tx = (this_touch_points[0][0] + this_touch_points[1][0]) * 0.5;
                     let ty = (this_touch_points[0][1] + this_touch_points[1][1]) * 0.5;
                     let cx = tx - this.element.position().left;
@@ -930,6 +997,14 @@ class Canvas {
         let p = this.get_touch_point(e);
         this.last_mouse_x = p[0] - this.element.position().left;
         this.last_mouse_y = p[1] - this.element.position().top;
+        if (this.grab_panning) {
+            this.offset_x += p[0] - this.moving_x;
+            this.offset_y += p[1] - this.moving_y;
+            this.moving_x = p[0];
+            this.moving_y = p[1];
+            this.handleResize();
+            return;
+        }
         if (this.menu) {
             if (this.menu.get('tool') === 'tool/pan') {
                 if (this.moving) {
@@ -1038,6 +1113,8 @@ class Canvas {
     }
 
     flipHorizontal() {
+        // with a selection: only the selection (in its place)
+        if (this.has_selection()) { this.flip_selection('x'); return; }
         let temp = document.createElement('canvas');
         temp.width = this.bitmap.width;
         temp.height = this.bitmap.height;
@@ -1053,6 +1130,7 @@ class Canvas {
     }
 
     flipVertical() {
+        if (this.has_selection()) { this.flip_selection('y'); return; }
         let temp = document.createElement('canvas');
         temp.width = this.bitmap.width;
         temp.height = this.bitmap.height;
@@ -1166,6 +1244,125 @@ class Canvas {
         context.clearRect(0, 0, canvas.width, canvas.height);
     }
 
+    // ------------------------------------------- the selection (pixel_tools.js)
+    selection_mask() {
+        return this.selection_bitmap.getContext('2d', { willReadFrequently: true })
+            .getImageData(0, 0, this.bitmap.width, this.bitmap.height).data;
+    }
+
+    frame_pixels() {
+        return this.bitmap.getContext('2d', { willReadFrequently: true })
+            .getImageData(0, 0, this.bitmap.width, this.bitmap.height).data;
+    }
+
+    has_selection() {
+        if (!this.bitmap?.width) return false;
+        const mask = this.selection_mask();
+        for (let i = 3; i < mask.length; i += 4) if (mask[i] > 0) return true;
+        return false;
+    }
+
+    // Puts { pixels, mask } into the frame and the selection; one undo step.
+    apply_selection_result(result) {
+        const w = this.bitmap.width, h = this.bitmap.height;
+        this.bitmap.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(result.pixels), w, h), 0, 0);
+        this.selection_bitmap.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(result.mask), w, h), 0, 0);
+        this.update_selection_outline();
+        this.write_frame_to_game_data();
+        this.append_to_undo_stack();
+    }
+
+    copy_selection_pixels() {
+        const clip = copy_selected(this.frame_pixels(), this.selection_mask(), this.bitmap.width, this.bitmap.height);
+        if (!clip) return false;
+        window.pixel_clipboard = clip;
+        window.pixel_clipboard_from_here = true;
+        if (typeof show_state_notice === 'function')
+            show_state_notice('Kopiert – mit Strg+V fügst du es ein, auch in einem anderen Frame (an derselben Stelle).');
+        return true;
+    }
+
+    cut_selection_pixels() {
+        if (!this.copy_selection_pixels()) return;
+        this.delete_selection_pixels();
+    }
+
+    delete_selection_pixels() {
+        const mask = this.selection_mask();
+        this.apply_selection_result({ pixels: clear_selected(this.frame_pixels(), mask), mask });
+    }
+
+    // At the place it was copied from: the same head on every frame of a walk.
+    paste_selection_pixels() {
+        const clip = window.pixel_clipboard;
+        if (!clip) return false;
+        if (this.menu?.get('tool') !== 'tool/select-rect') this.menu?.handle_click('tool/select-rect');
+        const w = this.bitmap.width, h = this.bitmap.height;
+        const x = Math.min(clip.x, Math.max(0, w - clip.width)), y = Math.min(clip.y, Math.max(0, h - clip.height));
+        this.apply_selection_result(paste_selected(this.frame_pixels(), w, h, clip, x, y));
+        if (typeof show_state_notice === 'function') show_state_notice('Eingefügt – zieh die Auswahl dorthin, wo sie hin soll.');
+        return true;
+    }
+
+    nudge_selection_pixels(dx, dy) {
+        this.apply_selection_result(move_selected(this.frame_pixels(), this.selection_mask(), this.bitmap.width, this.bitmap.height, dx, dy));
+    }
+
+    flip_selection(axis) {
+        this.apply_selection_result(flip_selected(this.frame_pixels(), this.selection_mask(), this.bitmap.width, this.bitmap.height, axis));
+    }
+
+    select_all_pixels() {
+        if (this.menu?.get('tool') !== 'tool/select-rect') this.menu?.handle_click('tool/select-rect');
+        const w = this.bitmap.width, h = this.bitmap.height;
+        const mask = new Uint8ClampedArray(w * h * 4);
+        for (let i = 3; i < mask.length; i += 4) mask[i] = 1;
+        this.selection_bitmap.getContext('2d').putImageData(new ImageData(mask, w, h), 0, 0);
+        this.update_selection_outline();
+    }
+
+    handle_selection_key(e) {
+        if (typeof current_pane === 'undefined' || current_pane !== 'sprites') return;
+        if (e.target?.closest?.('input, textarea, select, [contenteditable]') || $('.modal-dialogs:visible, .context-menu').length) return;
+        const ctrl = e.ctrlKey || e.metaKey, key = e.key.toLowerCase();
+        const done = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+        if (ctrl && key === 'v' && window.pixel_clipboard && window.pixel_clipboard_from_here) { this.paste_selection_pixels(); done(); return; }
+        if (!this.has_selection()) return;
+        if (ctrl && key === 'c') { this.copy_selection_pixels(); done(); }
+        else if (ctrl && key === 'x') { this.cut_selection_pixels(); done(); }
+        else if (!ctrl && (e.key === 'Delete' || e.key === 'Backspace')) { this.delete_selection_pixels(); done(); }
+        else if (!ctrl && e.key === 'Escape') { this.clearSelection(); done(); }
+        else if (!ctrl && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+            const step = e.shiftKey ? 4 : 1;
+            const [dx, dy] = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+            this.nudge_selection_pixels(dx, dy);
+            done();
+        }
+    }
+
+    // The right-click menu of "Rechteck auswählen".
+    selection_menu() {
+        const any = this.has_selection();
+        const clip = window.pixel_clipboard;
+        return [
+            { header: any ? 'Auswahl' : 'Nichts ausgewählt' },
+            { label: 'Ausschneiden', icon: 'fa-scissors', key: 'Strg+X', disabled: !any, callback: () => this.cut_selection_pixels() },
+            { label: 'Kopieren', icon: 'fa-files-o', key: 'Strg+C', disabled: !any, callback: () => this.copy_selection_pixels() },
+            { label: 'Einfügen', icon: 'fa-clipboard', key: 'Strg+V', disabled: !clip,
+                hint: clip ? 'An der Stelle, an der es kopiert wurde – auch in einem anderen Frame.' : 'Erst etwas auswählen und kopieren.',
+                callback: () => this.paste_selection_pixels() },
+            { label: 'Löschen', icon: 'fa-eraser', key: 'Entf', disabled: !any, callback: () => this.delete_selection_pixels() },
+            '-',
+            { label: 'Waagerecht spiegeln', icon: 'fa-arrows-h', key: 'B', disabled: !any, callback: () => this.flip_selection('x') },
+            { label: 'Senkrecht spiegeln', icon: 'fa-arrows-v', key: 'N', disabled: !any, callback: () => this.flip_selection('y') },
+            { label: 'Um 1 Pixel verschieben', icon: 'fa-arrows', key: 'Pfeiltasten', disabled: true,
+                hint: 'Mit den Pfeiltasten (mit Shift: 4 Pixel) – oder zieh die Auswahl mit der Maus.' },
+            '-',
+            { label: 'Alles auswählen', icon: 'fa-object-group', key: 'Strg+A', callback: () => this.select_all_pixels() },
+            { label: 'Auswahl aufheben', icon: 'fa-times', key: 'Esc', disabled: !any, callback: () => this.clearSelection() },
+        ];
+    }
+
     clearFrame() {
         this.clear(this.bitmap);
         this.write_frame_to_game_data();
@@ -1187,6 +1384,8 @@ class Canvas {
         let height = window.innerHeight;
         let undo_height = 48;
         this.size = Math.max(100, height - 110 - 60 - undo_height);
+        // the sprite pane's layout may ask for less (studio.js sprite_pane_layout)
+        if (this.max_size) this.size = Math.max(100, Math.min(this.size, this.max_size));
         this.fix_scale();
         this.scrollable_x = (this.bitmap.width * this.scale > this.size);
         this.scrollable_y = (this.bitmap.height * this.scale > this.size);
@@ -1452,6 +1651,11 @@ class Canvas {
 
     append_to_undo_stack() {
         let url = this.toUrl();
+        const width = this.game.data.sprites[this.sprite_index].width, height = this.game.data.sprites[this.sprite_index].height;
+        // the same picture again (going back and forth between frames): once is enough –
+        // it moves to the end, where the newest pictures are
+        const same = this.undo_stack.findIndex(entry => entry.url === url && entry.width === width && entry.height === height);
+        if (same >= 0) this.undo_stack.splice(same, 1);
         if (this.undo_stack.length >= MAX_UNDO_STACK_SIZE) this.undo_stack = this.undo_stack.slice(1);
         this.undo_stack.push({
             width: this.game.data.sprites[this.sprite_index].width,
@@ -1465,8 +1669,21 @@ class Canvas {
         let div = $('#undo_stack');
         div.empty();
         let self = this;
+        // Verlauf: every picture drawn or looked at lately. A click puts it into
+        // the frame being drawn; dragged onto the frames below, it becomes a new frame.
+        $('<span class="undo-stack-label">').text('Verlauf').attr('title',
+            'Die Bilder, die du zuletzt gemalt oder angeschaut hast. Klick: in den Frame übernehmen, den du gerade malst. Auf die Frames unten ziehen: als neuer Frame einfügen. Nur bei gleicher Größe.')
+            .appendTo(div);
+        const current = this.game?.data?.sprites?.[this.sprite_index];
         for (let entry of this.undo_stack) {
-            let image = $('<img>').attr('src', entry.url);
+            let image = $('<img>').attr('src', entry.url).attr('draggable', 'true')
+                .attr('title', 'Klick: in diesen Frame übernehmen · auf die Frames ziehen: neuer Frame');
+            if (current && (entry.width !== current.width || entry.height !== current.height))
+                image.addClass('other-size').attr('title', `${entry.width} × ${entry.height} – passt nicht zu diesem Sprite`);
+            image.on('dragstart', (e) => {
+                e.originalEvent.dataTransfer.setData('application/x-2d-frame', JSON.stringify(entry));
+                e.originalEvent.dataTransfer.effectAllowed = 'copy';
+            });
             image.click(function (e) {
                 console.log('restore from undo stack');
                 if (entry.width === self.game.data.sprites[self.sprite_index].width &&
@@ -1519,7 +1736,7 @@ class Canvas {
 
             if (sprite_changed) {
                 // console.log('sprite_changed!');
-                new DragAndDropWidget({
+                self.states_widget = new DragAndDropWidget({
                     game: self.game,
                     container: $('#menu_states'),
                     trash: $('#trash'),
@@ -1529,14 +1746,31 @@ class Canvas {
                     step_aside_css: { top: '35px' },
                     // sprite_actions.js: Duplizieren, Animation kopieren/tauschen …
                     context_menu: (index) => typeof state_context_menu === 'function' ? state_context_menu(index) : [],
+                    // double-click (or Umbenennen in its menu): rename it in the list
+                    rename: {
+                        get: (index) => sprite.states[index]?.properties?.name ?? '',
+                        placeholder: (index) => `Zustand ${index + 1}`,
+                        set: (index, name) => {
+                            const state = sprite.states[index];
+                            if (!state) return;
+                            state.properties ??= {};
+                            state.properties.name = name;
+                            self.label_for_state[index]?.text(name || `Zustand ${index + 1}`).toggleClass('unnamed', !name);
+                            if (index === self.state_index) self.game.build_state_traits_menu();
+                        },
+                    },
                     gen_item: (state, index) => {
                         let state_div = $(`<div>`);
                         let fi = Math.floor(state.frames.length / 2 - 0.5);
                         let img = $('<img>').attr('src', state.frames[fi].src);
                         state_div.append(img);
-                        let state_label = $(`<div class='state_label'>`).text(state.properties.name);
+                        // without a Titel: "Zustand 2", dimmed – it can be named
+                        let state_label = $(`<div class='state_label'>`).text(state.properties.name || `Zustand ${index + 1}`)
+                            .toggleClass('unnamed', !state.properties.name);
                         self.label_for_state[index] = state_label;
                         state_div.append(state_label);
+                        // its role, small, when the name does not say it already
+                        self.role_for_state[index] = $('<span class="state-role">').text(self.state_role_text(state)).appendTo(state_div);
                         return state_div;
                     },
                     onclick: (e, index) => {
@@ -1548,9 +1782,13 @@ class Canvas {
                         self.game.build_state_traits_menu();
                     },
                     gen_new_item: () => {
-                        self.game.data.sprites[self.sprite_index].states.push({});
+                        const states = self.game.data.sprites[self.sprite_index].states;
+                        // "Zustand 2": a name that shows it can be renamed – and
+                        // that becomes its role once it gets one (default_names.js)
+                        const name = typeof next_default_name === 'function' ? next_default_name(states.map(x => x.properties?.name), 'Zustand', states.length + 1) : null;
+                        states.push(name ? { properties: { name } } : {});
                         self.game.fix_game_data();
-                        return self.game.data.sprites[self.sprite_index].states[self.game.data.sprites[self.sprite_index].states.length - 1];
+                        return states[states.length - 1];
                     },
                     delete_item: (index) => {
                         self.game.data.sprites[self.sprite_index].states.splice(index, 1);
@@ -1757,7 +1995,26 @@ class Canvas {
     }
 
     update_state_label() {
-        this.label_for_state[this.state_index].text(this.game.data.sprites[this.sprite_index].states[this.state_index].properties.name);
+        const state = this.game.data.sprites[this.sprite_index].states[this.state_index];
+        const name = state.properties.name;
+        this.label_for_state[this.state_index]?.text(name || `Zustand ${this.state_index + 1}`).toggleClass('unnamed', !name);
+        this.role_for_state?.[this.state_index]?.text(this.state_role_text(state));
+    }
+
+    // What the game uses a state for, in words ("laufen", "Tür geöffnet") –
+    // empty when it has no role or its name says it already.
+    state_role_text(state) {
+        const words = [];
+        for (const [sprite_trait, roles] of Object.entries(state?.traits ?? {}))
+            for (const role of Object.keys(roles ?? {})) {
+                const word = typeof role_state_name === 'function' ?
+                    role_state_name(sprite_trait, role, STATE_TRAITS?.[sprite_trait]?.[role]?.label) : STATE_TRAITS?.[sprite_trait]?.[role]?.label;
+                if (word && !words.includes(word)) words.push(word);
+            }
+        const name = String(state?.properties?.name ?? '').trim().toLowerCase();
+        const shown = words.filter(w => w.toLowerCase() !== name);
+        if (!shown.length) return '';
+        return shown.length > 2 ? `${shown.slice(0, 2).join(', ')} …` : shown.join(', ');
     }
 
     grow_image(image, width, height) {

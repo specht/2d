@@ -4,11 +4,15 @@ const sel = require('../src/static/level_selection.js');
 
 const layer = () => [['a', 0, 0], ['b', 24, 0], ['c', 48, 0, { key: { signal_code: 3 } }], ['d', 24, 24]];
 
-test('moving: the moved sprites win where they land, the rest stays', () => {
+test('moving: the moved sprites win where they land, the rest stays – in the same order', () => {
     const { sprites, selection } = sel.move_placed(layer(), [0, 1], 24, 0);
-    // a moved onto b's old place, b onto c (c is replaced)
-    assert.deepEqual(sprites, [['d', 24, 24], ['a', 24, 0], ['b', 48, 0]]);
-    assert.deepEqual(selection, [1, 2]);
+    // a moved onto b's old place, b onto c (c is replaced); the order stays, so
+    // what was behind stays behind
+    assert.deepEqual(sprites, [['a', 24, 0], ['b', 48, 0], ['d', 24, 24]]);
+    assert.deepEqual(selection, [0, 1]);
+    const back = sel.move_placed(layer(), [3], 0, -24);
+    assert.deepEqual(back.sprites, [['a', 0, 0], ['c', 48, 0, { key: { signal_code: 3 } }], ['d', 24, 0]]);
+    assert.deepEqual(back.selection, [2]);
     const same = layer();
     assert.equal(sel.move_placed(same, [0], 0, 0).sprites, same);
 });
@@ -245,4 +249,14 @@ test('the pen puts a sprite on whole cells: its lower left corner on the grid, a
     // shapes step by whole cells of the sprite
     assert.deepEqual(sprite_grid_step(48, 24, grid), { width: 48, height: 24 });
     assert.deepEqual(sprite_grid_step(30, 20, grid), { width: 48, height: 24 });
+});
+
+test('nach vorne / nach hinten: the selected go to the end or the start of the layer, in their order', () => {
+    const front = sel.reorder_placed(layer(), [0, 2], 'front');
+    assert.deepEqual(front.sprites.map(p => p[0]), ['b', 'd', 'a', 'c']);
+    assert.deepEqual(front.selection, [2, 3]);
+    const back = sel.reorder_placed(layer(), [3, 1], 'back');
+    assert.deepEqual(back.sprites.map(p => p[0]), ['b', 'd', 'a', 'c']);
+    assert.deepEqual(back.selection, [0, 1]);
+    assert.deepEqual(sel.reorder_placed(layer(), [], 'front').selection, []);
 });

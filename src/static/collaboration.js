@@ -1558,7 +1558,7 @@ class CollaborationClient {
         // does not change anything.
         if (kind === 'sprite') return {
             surface: '#canvas',
-            tools: '#color_menu, #color_variations_menu, #functions_dropdown, #undo_stack, #menu_frames, #states_container, #menu_sprite_properties',
+            tools: '#color_menu, #color_variations_menu, #functions_dropdown, #undo_stack, #menu_frames, #states_container, #menu_sprite_properties, #sprite_traits_group',
         };
         if (kind === 'level') return {
             surface: '#level',

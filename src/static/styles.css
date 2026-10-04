@@ -5107,3 +5107,539 @@ button.resize-cell.active {
     margin-top: 4px;
     color: rgba(255, 255, 255, 0.55);
 }
+
+/* ------------------------------------------------------------------ layout
+   Both editors at 1920 × 1080 (and smaller): the columns beside the drawing
+   area and the level take the full height; lists scroll inside them, and a
+   thin scrollbar shows that there is more (studio.js handleResize, sprite_pane_layout). */
+.side-column, .level-right-column, .level-left-column, .sprite-library {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+.side-column::-webkit-scrollbar, .level-right-column::-webkit-scrollbar,
+#menu_sprites::-webkit-scrollbar, #menu_level_sprites::-webkit-scrollbar,
+#menu_placed_properties::-webkit-scrollbar, .level-list::-webkit-scrollbar, .layer-list::-webkit-scrollbar {
+    display: block;
+    width: 6px;
+}
+.side-column::-webkit-scrollbar-thumb, .level-right-column::-webkit-scrollbar-thumb,
+#menu_sprites::-webkit-scrollbar-thumb, #menu_level_sprites::-webkit-scrollbar-thumb,
+#menu_placed_properties::-webkit-scrollbar-thumb, .level-list::-webkit-scrollbar-thumb, .layer-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 3px;
+}
+#menu_sprites, #menu_level_sprites, #menu_placed_properties, .level-list, .layer-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+/* Sprite pane: "this sprite" scrolls as a whole; the library is as tall as the screen. */
+#main_div_sprites .right_menu_container {
+    max-height: calc(100vh - 90px);
+}
+#main_div_sprites .sprite-library {
+    max-height: none;
+    height: calc(100vh - 92px);
+    overflow: hidden;
+}
+.sprite-library-menu {
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+}
+.sprite-library-menu > #menu_sprites {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+}
+#sprite_column_title, #sprite_library_title, #placed_properties_title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+/* Search and filters over a list of sprites (sprite_filter.js) */
+.sprite-filter {
+    padding: 0 2px 4px 2px;
+}
+.sprite-filter-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    padding: 0 4px 0 8px;
+    color: #888;
+}
+.sprite-filter-search input[type="text"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    color: #eee;
+    padding: 5px 0 !important;
+    font-size: 14px;
+}
+.sprite-filter-clear {
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    padding: 2px 4px;
+}
+.sprite-filter-clear:hover {
+    color: #fff;
+    border: none;
+}
+.sprite-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 5px;
+}
+.sprite-filter-chip {
+    font-size: 12px;
+    line-height: 1.2;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+    color: #ccc;
+    cursor: pointer;
+}
+.sprite-filter-chip:hover {
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    color: #fff;
+}
+.sprite-filter-chip.active {
+    background: #3b6db3;
+    border-color: #6f9fe0;
+    color: #fff;
+}
+.sprite-filter-count {
+    font-size: 12px;
+    color: #9ab;
+    margin: 4px 2px 0;
+    line-height: 1.3;
+}
+
+/* Level pane, left: the switches of the view in one block, the palette below gets the height */
+.level-left-column {
+    max-height: none;
+    height: calc(100vh - 92px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.level-left-column > .menu-group {
+    flex: none;
+}
+.level-left-column > .level-palette {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+}
+.level-palette > #menu_level_sprites {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+}
+.view-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 2px 0 4px;
+}
+.view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    padding: 3px 4px 3px 7px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.04);
+    color: #bbb;
+    cursor: pointer;
+}
+.view-toggle:hover {
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #fff;
+}
+.view-toggle .view-toggle-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+}
+.view-toggle.active {
+    color: #fff;
+    background: rgba(167, 240, 112, 0.12);
+    border-color: rgba(167, 240, 112, 0.5);
+}
+.view-toggle.active .view-toggle-dot {
+    background: #a7f070;
+    box-shadow: 0 0 5px #a7f070;
+}
+.view-toggle .key.widget-key {
+    margin-left: 1px;
+}
+.grid-details {
+    font-size: 13px;
+    color: #aaa;
+    margin: 2px 2px 0;
+}
+.grid-details > summary {
+    cursor: pointer;
+    padding: 2px 0;
+}
+.grid-details > summary:hover {
+    color: #fff;
+}
+.palette-hint {
+    line-height: 1.35;
+    font-size: 13px;
+    color: #bbb;
+    padding: 8px 4px;
+}
+.palette-hint button {
+    margin-top: 6px;
+}
+
+/* Level pane, right: levels, layers, and the selection taking the rest of the height */
+.level-right-column {
+    max-height: none;
+    height: calc(100vh - 92px);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+.level-right-column > .menu-group {
+    flex: none;
+}
+.level-right-column > .selection-group {
+    flex: 1 1 auto;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+}
+.selection-group > #menu_placed_properties_container {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+}
+.selection-group #menu_placed_properties {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+.level-list {
+    max-height: min(196px, 22vh);
+    line-height: 12px;
+}
+.layer-list {
+    max-height: min(260px, 28vh);
+    line-height: 12px;
+}
+.folding-panel-head {
+    cursor: pointer;
+    user-select: none;
+    margin: -5px -5px 0 -5px !important;
+    padding: 5px 8px !important;
+    color: #ccc !important;
+    border-bottom: none !important;
+    background: none !important;
+    justify-content: flex-start !important;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block !important;
+}
+.folding-panel-head::before {
+    content: '▾';
+    display: inline-block;
+    width: 1em;
+    color: #8ab;
+}
+.folding-panel.folded > .folding-panel-head::before {
+    content: '▸';
+}
+.folding-panel-head:hover {
+    color: #fff !important;
+}
+.folding-panel.folded > .folding-panel-body {
+    display: none;
+}
+.folding-panel:not(.folded) > .folding-panel-body {
+    margin-top: 4px;
+    max-height: 42vh;
+    overflow-y: auto;
+}
+.placed-hint {
+    color: #aaa;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 4px 4px 8px;
+}
+.placed-hint b {
+    color: #ddd;
+    font-weight: 600;
+}
+
+/* a level without a Titel is called "Level 3", dimmed: it can be named */
+.menu_level_item .unnamed {
+    font-style: italic;
+    color: #9aa;
+}
+/* the library: its head and filters keep their height, the list takes the rest */
+.sprite-library-menu > h3, .sprite-library-menu > .sprite-filter {
+    flex: none;
+}
+.level-palette > h3, .level-palette > .sprite-filter {
+    flex: none;
+}
+/* states as wide as their column */
+#states_container ._dnd_item {
+    display: block;
+}
+#states_container .menu_state_item {
+    width: auto;
+}
+._dnd_dragging .menu_state_item {
+    width: auto;
+}
+.state-role-hint {
+    color: #aaa;
+    font-size: 12.5px;
+    line-height: 1.35;
+    padding: 4px 5px 6px;
+}
+/* the selection's head names the sprite: no second title inside */
+.selection-group .placed-sprite-title {
+    display: none;
+}
+/* a list item being renamed (DragAndDropWidget.start_rename) */
+input.dnd-rename {
+    position: absolute;
+    left: 2px;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+    font-size: 14px;
+    padding: 3px 6px !important;
+    background: #111 !important;
+    color: #fff;
+    border: 1px solid #6f9fe0 !important;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+/* right-click menus: a head line, and the shortcut on the right */
+.context-menu-header {
+    padding: 6px 12px 5px;
+    font-size: 12.5px;
+    color: #9fb3c8;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    margin-bottom: 3px;
+    white-space: nowrap;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.context-menu-key {
+    margin-left: auto;
+    padding-left: 18px;
+    font-size: 11.5px;
+    color: #8a9aab;
+    font-family: 'IBM Plex Mono', 'Roboto Mono', monospace;
+}
+/* the Verlauf above the drawing area (canvas.js refresh_undo_stack) */
+.undo-stack-label {
+    position: sticky;
+    left: 0;
+    float: left;
+    height: 48px;
+    line-height: 48px;
+    padding: 0 10px;
+    font-size: 13px;
+    color: #9ab;
+    background: rgba(10, 16, 26, 0.9);
+    cursor: help;
+    z-index: 1;
+}
+#undo_stack img {
+    cursor: pointer;
+}
+#undo_stack img.other-size {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+#menu_frames.drop-frame {
+    outline: 2px dashed #6f9fe0;
+    outline-offset: -3px;
+}
+/* a state's role in the list, small (canvas.js state_role_text) */
+.menu_state_item .state-role {
+    position: absolute;
+    right: 22px;
+    top: 8px;
+    font-size: 11.5px;
+    color: #8fb0d0;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.menu_state_item .state_label.unnamed {
+    font-style: italic;
+    color: #9aa;
+}
+/* Neues Spiel (new_game.js) */
+.new-game-dialog {
+    padding: 4px 2px;
+}
+.new-game-warning {
+    color: #ffcd75;
+    line-height: 1.4;
+    margin: 0 0 12px;
+}
+.new-game {
+    margin-top: 8px;
+}
+/* under the palette: what the right mouse button does */
+.palette-erase-hint {
+    font-size: 12px;
+    color: #8a96a3;
+    padding: 4px 4px 2px;
+}
+.palette-erase-hint.transparent {
+    color: #ffcd75;
+}
+
+/* ------------------------------------- Hilfe: "Mehr lernen" below the recipes */
+#main_div_help .help-lead {
+    color: #bbb;
+    max-width: 60em;
+    line-height: 1.5;
+}
+#main_div_help h3.help-subhead {
+    font-size: 110%;
+    font-weight: 600;
+    color: #eee;
+    margin: 1.6em 0 0.6em;
+}
+.help-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+    gap: 16px;
+}
+#main_div_help a.help-link {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: auto;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+    text-decoration: none;
+    color: #bbb;
+    line-height: 1.45;
+    font-size: 90%;
+    transition: transform 0.18s ease, border-color 0.18s ease;
+}
+#main_div_help a.help-link:hover, #main_div_help a.help-link:focus-visible {
+    transform: translateY(-3px);
+    border-color: rgba(115, 239, 247, 0.55);
+    color: #ddd;
+}
+#main_div_help a.help-link b {
+    color: #f4f4f4;
+    font-size: 112%;
+}
+#main_div_help a.help-link:hover b {
+    color: #ffcd75;
+}
+.help-link-source {
+    font-size: 80%;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #ffcd75;
+}
+.help-video-thumb {
+    position: relative;
+    display: block;
+    margin: -14px -16px 6px;
+    aspect-ratio: 16 / 9;
+    background: #111;
+    overflow: hidden;
+    border-radius: 12px 12px 0 0;
+}
+.help-video-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.help-video-thumb i {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 56px;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+.help-principles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+    gap: 16px;
+}
+.help-principle {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-direction: column;
+}
+.help-principle img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    background: #333;
+}
+.help-principle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px 12px;
+    font-size: 88%;
+    line-height: 1.45;
+    color: #bbb;
+}
+.help-principle-text b {
+    color: #f4f4f4;
+    font-size: 108%;
+}
+.help-principle-en {
+    font-size: 85%;
+    color: #8a9aab;
+    font-style: italic;
+}

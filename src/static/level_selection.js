@@ -40,15 +40,33 @@ function split_selection(sprites, indices) {
     };
 }
 
+// Moving keeps the order of the layer (the order is what is drawn in front):
+// the moved sprites stay where they were in it, a sprite they land on goes.
 function move_placed(sprites, indices, dx, dy) {
+    const chosen = new Set(indices.filter(i => Number.isInteger(i) && i >= 0 && i < sprites.length));
+    if (!chosen.size || (!dx && !dy)) return { sprites, selection: [...indices] };
+    const landing = new Set([...chosen].map(i => `${sprites[i][1] + dx}/${sprites[i][2] + dy}`));
+    const result = [], selection = [];
+    sprites.forEach((placed, i) => {
+        if (chosen.has(i)) {
+            const moved = clone_placed(placed);
+            moved[1] = placed[1] + dx;
+            moved[2] = placed[2] + dy;
+            selection.push(result.length);
+            result.push(moved);
+        } else if (!landing.has(placed_position_key(placed))) result.push(placed);
+    });
+    return { sprites: result, selection };
+}
+
+// In front of or behind everything else of the layer (later sprites are drawn
+// over earlier ones): where = 'front' | 'back'. The selected keep their order.
+function reorder_placed(sprites, indices, where) {
     const { selected, rest } = split_selection(sprites, indices);
-    if (!selected.length || (!dx && !dy)) return { sprites, selection: [...indices] };
-    return merge_placed(rest, selected.map(placed => {
-        const moved = clone_placed(placed);
-        moved[1] = placed[1] + dx;
-        moved[2] = placed[2] + dy;
-        return moved;
-    }));
+    if (!selected.length) return { sprites, selection: [] };
+    const result = where === 'back' ? [...selected, ...rest] : [...rest, ...selected];
+    const start = where === 'back' ? 0 : rest.length;
+    return { sprites: result, selection: selected.map((_, i) => start + i) };
 }
 
 function remove_placed(sprites, indices) {
@@ -332,7 +350,7 @@ function sprite_grid_step(sprite_width, sprite_height, grid) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        placed_position_key, merge_placed, move_placed, remove_placed, copy_placed, paste_placed,
+        placed_position_key, merge_placed, move_placed, reorder_placed, remove_placed, copy_placed, paste_placed,
         move_placed_to_layer, parallax_layer_offset, duplicate_offset, selection_anchor, grid_point,
         snapped_selection_delta, grid_step_delta, shape_cells, place_shape, fill_placed, same_sprite_indices, replace_placed,
         placed_sprites_at, next_pick,

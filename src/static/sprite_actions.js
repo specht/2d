@@ -70,12 +70,32 @@ function show_sprite_again(si, sti, fi) {
 function sprite_context_menu(si) {
     const sprite = game.data.sprites[si];
     if (!sprite) return [];
+    const can_delete = game.data.sprites.length > 1 && (window.collaboration?.can_delete?.('sprite', sprite.id) ?? true);
     return [
+        { header: sprite_label(sprite, si) },
+        { label: 'Umbenennen', icon: 'fa-pencil', hint: 'Der Titel steht oben bei „Sprite“.', callback: () => rename_sprite(si) },
         { label: 'Duplizieren', icon: 'fa-clone', callback: () => duplicate_sprite(si),
             hint: 'Eine Kopie mit allen Zuständen, Frames und Eigenschaften – gleich dahinter in der Liste.' },
         '-',
         { label: 'Sprites holen (Katalog oder anderes Spiel) …', icon: 'fa-shopping-basket', callback: () => { if (typeof show_sprite_basket === 'function') show_sprite_basket(); } },
+        '-',
+        { label: 'Löschen', icon: 'fa-trash', disabled: !can_delete,
+            hint: can_delete ? 'Auch aus allen Levels. Gleich danach kannst du es mit „Rückgängig“ zurückholen.' : 'Das letzte Sprite bleibt.',
+            callback: () => game.sprites_widget?.delete_index?.(si) },
     ];
+}
+
+// Umbenennen: the sprite is shown and its Titel field gets the focus.
+function rename_sprite(si) {
+    const focus = () => {
+        const input = $('#menu_sprite_properties .item').first().find('input');
+        input.focus();
+        input[0]?.select();
+    };
+    if (canvas.sprite_index !== si) {
+        $('#menu_sprites > ._dnd_item').eq(si).children().eq(0).trigger('click');
+        setTimeout(focus, 50);
+    } else focus();
 }
 
 function duplicate_sprite(si) {
@@ -97,6 +117,8 @@ function state_context_menu(sti) {
         game.data.sprites[i].width === sprite.width && game.data.sprites[i].height === sprite.height);
     const paste_hint = frame_clipboard_hint(sprite);
     return [
+        { header: state_label_for(state, sti) },
+        { label: 'Umbenennen', icon: 'fa-pencil', hint: 'Auch mit einem Doppelklick auf den Zustand.', callback: () => canvas.states_widget?.start_rename?.(sti) },
         { label: 'Duplizieren', icon: 'fa-clone', callback: () => duplicate_state(si, sti),
             hint: 'Eine Kopie dieses Zustands am Ende der Liste – mit allen Frames, aber noch ohne Rolle (zum Beispiel „läuft nach links“).' },
         '-',
@@ -115,6 +137,10 @@ function state_context_menu(sti) {
                 ? 'Während ihr gemeinsam bearbeitet: Animation kopieren, das andere Sprite öffnen und dort Frames einfügen.'
                 : 'Kopiert diesen Zustand ans Ende eines anderen Sprites mit derselben Größe.',
             children: same_size.map(i => ({ label: sprite_label(game.data.sprites[i], i), callback: () => copy_state_to_sprite(si, sti, i) })) },
+        '-',
+        { label: 'Löschen', icon: 'fa-trash', disabled: sprite.states.length < 2,
+            hint: sprite.states.length < 2 ? 'Ein Sprite braucht mindestens einen Zustand.' : 'Strg+Z holt ihn zurück.',
+            callback: () => canvas.states_widget?.delete_index?.(sti) },
     ];
 }
 
@@ -335,6 +361,9 @@ function frame_context_menu(fi) {
         { label: 'In anderen Zustand verschieben', icon: 'fa-share', empty: 'Das Sprite hat nur diesen Zustand.',
             disabled: only, hint: only ? 'Ein Zustand braucht mindestens einen Frame.' : 'Der Frame kommt ans Ende des anderen Zustands.',
             children: others.map(i => ({ label: state_label_for(sprite.states[i], i), callback: () => move_frame_to_state(si, sti, fi, i) })) },
+        '-',
+        { label: 'Löschen', icon: 'fa-trash', disabled: only, hint: only ? 'Ein Zustand braucht mindestens einen Frame.' : 'Strg+Z holt ihn zurück.',
+            callback: () => remove_frame(si, sti, fi) },
     ];
 }
 

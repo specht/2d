@@ -10,7 +10,9 @@ class Game {
     }
 
     reset() {
-        this.data = {};
+        // a new game: one sprite, one state, one level, one layer – with names
+        // that show they can be renamed (default_names.js)
+        this.data = typeof fresh_game_data === 'function' ? fresh_game_data() : {};
         this.fix_game_data();
         this._load();
     }
@@ -417,6 +419,9 @@ class Game {
                 const size = typeof game_grid_size === 'function' ? game_grid_size(self.data) : DEFAULT_WIDTH;
                 const sprite = { width: size, height: size };
                 assign_new_game_id(self.data, 'sprites', sprite);
+                // a name to start with, which shows that it can be renamed (default_names.js)
+                if (typeof next_default_name === 'function')
+                    set_sprite_title(sprite, next_default_name(self.data.sprites.map(x => sprite_title(x)), 'Sprite', self.data.sprites.length + 1));
                 self.data.sprites.push(sprite);
                 self.fix_game_data();
                 self.create_geometry_and_material_for_sprite(self.data.sprites.length - 1);
@@ -458,6 +463,18 @@ class Game {
             }
         });
 
+        // search and filters over the sprite list (sprite_filter.js)
+        if (typeof SpriteFilter === 'function' && $('#sprite_library_filter').length) {
+            this.sprite_list_filter = new SpriteFilter({
+                container: $('#sprite_library_filter'),
+                sprites: () => this.data.sprites,
+                on_change: (visible) => $('#menu_sprites > ._dnd_item').not('.add, .placeholder').each((i, item) => {
+                    $(item).toggle(visible[i] !== false);
+                }),
+            });
+        }
+        if (typeof handleResize === 'function') handleResize();
+
         this.level_editor = new LevelEditor($('#level'), this);
         this.refresh_sprite_titles();
 
@@ -486,6 +503,7 @@ class Game {
             },
         });
         this.add_own_game_button?.($('#game-settings-here'));
+        this.add_new_game_button?.($('#game-settings-here'));
         new SeparatorWidget({
             container: $('#game-settings-here'),
             label: 'Gesundheit',
@@ -931,6 +949,13 @@ class Game {
         else if (trait === 'ranged_attack') add_ranged_trait(traits);
         else traits[trait] ??= {};
         self.fix_game_data();
+        // a sprite still called "Sprite 4" (or nothing) is now called after what it is
+        const name = typeof trait_sprite_name === 'function' ? trait_sprite_name(trait) : null;
+        const sprite = self.data.sprites[si];
+        if (name && is_default_name(sprite_title(sprite), 'Sprite')) {
+            set_sprite_title(sprite, unique_default_name(name, self.data.sprites.filter(x => x !== sprite).map(x => sprite_title(x))));
+            self.refresh_sprite_titles?.();
+        }
     }
 
     remove_sprite_trait(trait) {
@@ -991,6 +1016,8 @@ class Game {
             container: $('#menu_sprite_properties'),
             label: 'Titel',
             hint: 'Gib dem Sprite einen Titel, damit du es wiederfindest – zum Beispiel „Tür“, „Schlüssel“ oder „Glibber“. Du siehst ihn, wenn du mit der Maus auf ein Sprite zeigst, beim Platzieren im Level und überall, wo du ein Sprite auswählst.',
+            placeholder: `Sprite ${si + 1}`,
+            select_default: (value) => typeof is_default_name === 'function' && is_default_name(value, 'Sprite'),
             get: () => sprite_title(this.data.sprites[si]),
             set: (x) => {
                 if (x === sprite_title(this.data.sprites[si])) return;
@@ -1003,6 +1030,13 @@ class Game {
     // Hover titles of the sprite list and the level editor's sprite buttons
     // (in list order, so they stay right after moving sprites around).
     refresh_sprite_titles() {
+        // the library's head counts the sprites; the filter knows the new ones
+        $('#sprite_library_title').text(this.data.sprites.length > 1 ? `Sprites (${this.data.sprites.length})` : 'Sprites');
+        this.sprite_list_filter?.refresh();
+        this.level_editor?.palette_filter?.refresh();
+        const si_now = typeof canvas !== 'undefined' ? canvas?.sprite_index : null;
+        if (si_now !== null && si_now !== undefined && this.data.sprites[si_now])
+            $('#sprite_column_title').text(`Sprite »${sprite_label(this.data.sprites[si_now], si_now)}«`);
         $('#menu_sprites > ._dnd_item').not('.add, .placeholder').each((i, item) => {
             const sprite = this.data.sprites[i];
             if (sprite) $(item).attr('title', sprite_label(sprite, i));
@@ -1029,7 +1063,8 @@ class Game {
         // Mischmodus first: the menu below unfolds downwards and must not cover it
         this.add_sprite_blend_control?.(si);
         // an unfolded menu scrolls inside its box instead of spilling over what follows
-        let traits_menu = $('<div>').addClass('traits-menu').appendTo($('#menu_sprite_properties'));
+        $('#menu_sprite_traits_add').empty();
+        let traits_menu = $('<div>').addClass('traits-menu').appendTo($('#menu_sprite_traits_add').length ? $('#menu_sprite_traits_add') : $('#menu_sprite_properties'));
         let traits_menu_data = [];
         traits_menu_data.push({ label: 'Eigenschaft hinzufügen', children: this.build_sprite_traits_submenu(SPRITE_TRAITS_ORDER) });
         setupDropdownMenu(traits_menu, traits_menu_data);
@@ -1630,6 +1665,15 @@ class Game {
         self.data.sprites[si].states[sti].traits[sprite_trait] ??= {};
         self.data.sprites[si].states[sti].traits[sprite_trait][trait] ??= {};
         self.fix_game_data();
+        // a state still called "Zustand 2" (or nothing) is called after its role now ("laufen")
+        const state = self.data.sprites[si].states[sti];
+        if (typeof role_state_name === 'function' && is_default_name(state.properties?.name, 'Zustand')) {
+            const name = role_state_name(sprite_trait, trait, STATE_TRAITS[sprite_trait]?.[trait]?.label);
+            if (name) {
+                state.properties.name = unique_default_name(name, self.data.sprites[si].states.filter(x => x !== state).map(x => x.properties?.name));
+            }
+        }
+        canvas.update_state_label?.();
         this.door_state_help?.();
     }
 
@@ -1640,6 +1684,7 @@ class Game {
         // TODO: Check if this makes sense
         delete self.data.sprites[si].states[sti].traits[sprite_trait][trait];
         self.fix_game_data();
+        canvas.update_state_label?.();
         this.door_state_help?.();
     }
 
@@ -1678,6 +1723,8 @@ class Game {
             container: $('#menu_state_properties_fixed'),
             label: 'Titel',
             hint: `Gib jedem Zustand einen Titel, damit du weißt, welcher Zustand welcher ist.`,
+            placeholder: `Zustand ${sti + 1}`,
+            select_default: (value) => typeof is_default_name === 'function' && is_default_name(value, 'Zustand'),
             get: () => self.data.sprites[si].states[sti].properties.name,
             set: (x) => {
                 self.data.sprites[si].states[sti].properties.name = x;
@@ -1735,8 +1782,14 @@ class Game {
             if (sprite_trait in STATE_TRAITS_ORDER)
                 children.push({ label: SPRITE_TRAITS[sprite_trait].label, children: this.build_state_traits_submenu(sprite_trait, STATE_TRAITS_ORDER[sprite_trait]) });
         }
-        if (children.length === 0) return;
-        traits_menu_data.push({ label: 'Eigenschaft hinzufügen', children: children });
+        if (children.length === 0) {
+            // without a sprite trait that has pictures for something, there is no role to give
+            $('<div class="state-role-hint">').text('Wofür dieser Zustand ist (Laufen, Springen, Tür offen …), kannst du einstellen, sobald das Sprite unten bei „Eigenschaften“ zum Beispiel Spielfigur, Gegner oder Tür ist.')
+                .appendTo(traits_menu);
+            return;
+        }
+        // a state's role: which picture the game shows for what
+        traits_menu_data.push({ label: 'Rolle zuweisen – wofür ist dieser Zustand?', children: children });
         setupDropdownMenu(traits_menu, traits_menu_data);
 
         let sprite_traits = Object.keys(self.data.sprites[si].traits);
