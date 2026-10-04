@@ -281,8 +281,10 @@ sprites:
     label: Grüner Block
     traits: { block_above: {}, block_sides: {}, block_below: {} }
     states: [{ strip: welt/block_gruen }]
-  umriss_rot: { label: Umriss rot, states: [{ strip: welt/umriss_rot }] }
-  umriss_gruen: { label: Umriss grün, states: [{ strip: welt/umriss_gruen }] }
+  # thin dashes that march around (phase_r: 0 – every copy in step, so a row of
+  # outlines reads as one dashed frame)
+  umriss_rot: { label: Umriss rot, states: [{ strip: welt/umriss_rot, fps: 6, phase_r: 0 }] }
+  umriss_gruen: { label: Umriss grün, states: [{ strip: welt/umriss_gruen, fps: 6, phase_r: 0 }] }
   muenze:
     label: Münze
     traits: { pickup: { points: 10 } }
@@ -297,6 +299,13 @@ sprites:
     label: Schild
     traits: { text: {} }
     states: [{ strip: welt/schild }]
+  # a gnome at the roadside who speaks himself (text: "spricht gerade" while he talks)
+  wichtel:
+    label: Wichtel (spricht)
+    traits: { text: {} }
+    states:
+      - { strip: welt/wichtel_stehen, fps: 3 }
+      - { strip: welt/wichtel_spricht, fps: 6, traits: { text: [speaking] } }
 
   haustuer:
     label: Haustür
@@ -340,12 +349,13 @@ sprites:
     label: Eishang
     traits: { slope: { direction: negative, slippery: 150 } }
     states: [{ strip: welt/eishang }]
+  # 24 × 48: the stone on top, room below for the pieces to fall. Only "man kann
+  # nicht von oben reinfallen", so the empty half below is never in anybody's way.
   broeckel:
     label: Bröckelstein
+    groesse: [24, 48]
     traits:
       block_above: {}
-      block_sides: {}
-      block_below: {}
       falls_down: { timeout: 0.5 }
     states:
       - { strip: welt/broeckel }
@@ -916,37 +926,75 @@ sprites:
   # Begleiter (companion_ai.js): characters that follow Pip with their own way
   # of moving. Only the settings that differ from a new Begleiter are given.
   # Fully animated, so children can take them into their own games
-  # ("Sprites aus einem anderen Spiel holen" from a recipe scene).
+  # ("Sprites holen" → Sprite-Katalog), with pictures for keeping busy while the
+  # player stands still ("sitzt", "beschäftigt sich").
   hund:
     label: Hund
     traits:
       companion: {}
     states:
-      - { strip: hund/stehen, fps: 5, traits: { companion: [right] } }
+      - { strip: hund/stehen, fps: 6, traits: { companion: [right] } }
       - { strip: hund/laufen, fps: 12, traits: { companion: [walk_right] } }
       - { strip: hund/springen, traits: { companion: [jump_right] } }
       - { strip: hund/fallen, traits: { companion: [fall_right] } }
-  otter:
-    label: Otter
+      - { strip: hund/sitzt, fps: 5, traits: { companion: [sit_right] } }
+      - { strip: hund/schnueffelt, fps: 7, traits: { companion: [busy_right] } }
+  kaetzchen:
+    label: Kätzchen
     traits:
-      companion: { can_swim: true, vjump: 5 }
+      # quick and a high jumper
+      companion: { vrun: 3.2, vjump: 7.5 }
     states:
-      - { strip: otter/stehen, fps: 3, traits: { companion: [right] } }
-      - { strip: otter/laufen, fps: 10, traits: { companion: [walk_right] } }
-      - { strip: otter/springen, traits: { companion: [jump_right, fall_right] } }
-      - { strip: otter/schwimmen, fps: 8, traits: { companion: [swim_right] } }
+      - { strip: kaetzchen/stehen, fps: 4, traits: { companion: [right] } }
+      - { strip: kaetzchen/laufen, fps: 12, traits: { companion: [walk_right] } }
+      - { strip: kaetzchen/springen, traits: { companion: [jump_right] } }
+      - { strip: kaetzchen/fallen, traits: { companion: [fall_right] } }
+      - { strip: kaetzchen/sitzt, fps: 3, traits: { companion: [sit_right] } }
+      - { strip: kaetzchen/putzt_sich, fps: 5, traits: { companion: [busy_right] } }
+  kroete:
+    label: Kröte
+    traits:
+      # slow, but it jumps higher than Pip
+      companion: { vrun: 2.2, vjump: 8 }
+    states:
+      - { strip: kroete/stehen, fps: 4, traits: { companion: [right] } }
+      - { strip: kroete/huepfen, fps: 10, traits: { companion: [walk_right] } }
+      - { strip: kroete/springen, traits: { companion: [jump_right] } }
+      - { strip: kroete/fallen, traits: { companion: [fall_right] } }
+      - { strip: kroete/doest, fps: 2, traits: { companion: [sit_right] } }
+      - { strip: kroete/fliegenfang, fps: 8, traits: { companion: [busy_right] } }
   vogel:
     label: Vogel
     traits:
       companion: { can_fly: true }
     states:
-      - { strip: vogel/fliegen, fps: 12, traits: { companion: [right, fly_right] } }
-  fee:
-    label: Fee
+      - { strip: vogel/fliegen, fps: 14, traits: { companion: [fly_right] } }
+      - { strip: vogel/stehen, fps: 4, traits: { companion: [right] } }
+      - { strip: vogel/huepfen, fps: 10, traits: { companion: [walk_right] } }
+      - { strip: vogel/pickt, fps: 8, traits: { companion: [busy_right] } }
+      - { strip: vogel/plustert_sich, fps: 3, traits: { companion: [sit_right] } }
+  eule:
+    label: Eule
     traits:
-      companion: { can_fly: true, vrun: 3.5 }
+      companion: { can_fly: true, vrun: 2.5 }
     states:
-      - { strip: fee/fliegen, fps: 10, traits: { companion: [right, fly_right] } }
+      - { strip: eule/fliegen, fps: 10, traits: { companion: [fly_right] } }
+      - { strip: eule/stehen, fps: 3, traits: { companion: [right] } }
+      - { strip: eule/watscheln, fps: 8, traits: { companion: [walk_right] } }
+      - { strip: eule/dreht_den_kopf, fps: 3, traits: { companion: [busy_right] } }
+  entchen:
+    label: Entchen
+    traits:
+      # it swims; small legs: a weak jump
+      companion: { can_swim: true, vrun: 2.6, vjump: 5 }
+    states:
+      - { strip: entchen/stehen, fps: 4, traits: { companion: [right] } }
+      - { strip: entchen/watscheln, fps: 12, traits: { companion: [walk_right] } }
+      - { strip: entchen/springen, traits: { companion: [jump_right] } }
+      - { strip: entchen/fallen, traits: { companion: [fall_right] } }
+      - { strip: entchen/schwimmen, fps: 6, traits: { companion: [swim_right] } }
+      - { strip: entchen/sitzt, fps: 3, traits: { companion: [sit_right] } }
+      - { strip: entchen/putzt_sich, fps: 4, traits: { companion: [busy_right] } }
   roboter:
     label: Roboter
     traits:
@@ -954,34 +1002,8 @@ sprites:
     states:
       - { strip: roboter/stehen, fps: 3, traits: { companion: [right] } }
       - { strip: roboter/rollen, fps: 10, traits: { companion: [walk_right] } }
-  # people as Begleiter – each with its own way of moving
-  abenteurerin:
-    label: Abenteurerin
-    traits:
-      # jumps as high as Pip and swims
-      companion: { vjump: 7, can_swim: true }
-    states:
-      - { strip: abenteurerin/stehen, fps: 3, traits: { companion: [right] } }
-      - { strip: abenteurerin/laufen, fps: 8, traits: { companion: [walk_right] } }
-      - { strip: abenteurerin/springen, traits: { companion: [jump_right] } }
-      - { strip: abenteurerin/fallen, traits: { companion: [fall_right] } }
-  ritter:
-    label: Ritter
-    traits:
-      # heavy armour: slower, a weak jump, no swimming
-      companion: { vrun: 2.5, vjump: 5 }
-    states:
-      - { strip: ritter/stehen, fps: 3, traits: { companion: [right] } }
-      - { strip: ritter/laufen, fps: 8, traits: { companion: [walk_right] } }
-      - { strip: ritter/springen, traits: { companion: [jump_right] } }
-      - { strip: ritter/fallen, traits: { companion: [fall_right] } }
-  zauberin:
-    label: Zauberin
-    traits:
-      # she floats along
-      companion: { can_fly: true, vrun: 2.5 }
-    states:
-      - { strip: zauberin/schweben, fps: 4, traits: { companion: [right, fly_right] } }
+      - { strip: roboter/ruht, fps: 2, traits: { companion: [sit_right] } }
+      - { strip: roboter/scannt, fps: 4, traits: { companion: [busy_right] } }
   keiler:
     label: Keiler (Lauerer)
     traits:
@@ -1113,6 +1135,79 @@ sprites:
   blumen: { label: Blumen, states: [{ strip: extra/blumen, fps: 2 }] }
   zaun: { label: Zaun, states: [{ strip: extra/zaun }] }
   pilz: { label: Fliegenpilz, states: [{ strip: extra/pilz }] }
+  # more for children's games: food (energy or points), things that help,
+  # decoration and dangers
+  kirschen:
+    label: Kirschen (Energie)
+    traits: { pickup: { energy: 10 } }
+    states: [{ strip: extra/kirschen, fps: 3 }]
+  erdbeere:
+    label: Erdbeere (Energie)
+    traits: { pickup: { energy: 15 } }
+    states: [{ strip: extra/erdbeere, fps: 4 }]
+  banane:
+    label: Banane (Energie)
+    traits: { pickup: { energy: 20 } }
+    states: [{ strip: extra/banane, fps: 3 }]
+  karotte:
+    label: Karotte (Energie)
+    traits: { pickup: { energy: 10 } }
+    states: [{ strip: extra/karotte, fps: 3 }]
+  kuchen:
+    label: Kuchen (50 Punkte)
+    traits: { pickup: { points: 50 } }
+    states: [{ strip: extra/kuchen }]
+  eiswaffel:
+    label: Eiswaffel (20 Punkte)
+    traits: { pickup: { points: 20 } }
+    states: [{ strip: extra/eiswaffel, fps: 3 }]
+  schutzschild:
+    label: Schutzschild (unverwundbar)
+    traits: { pickup: { invincible: 5 } }
+    states: [{ strip: extra/schutzschild, fps: 5 }]
+  feder:
+    label: Feder (springt höher)
+    traits: { pickup: { speed_boost_duration: 6, speed_boost_vrun: 1.0, speed_boost_vjump: 1.4 } }
+    states: [{ strip: extra/feder, fps: 4 }]
+  krone:
+    label: Krone (100 Punkte)
+    traits: { pickup: { points: 100 } }
+    states: [{ strip: extra/krone, fps: 5 }]
+  geldsack:
+    label: Geldsack (50 Punkte)
+    traits: { pickup: { points: 50 } }
+    states: [{ strip: extra/geldsack, fps: 4 }]
+  sonnenblume: { label: Sonnenblume, groesse: [24, 48], states: [{ strip: extra/sonnenblume, fps: 2 }] }
+  baumstumpf:
+    label: Baumstumpf
+    traits: { block_above: {} }
+    states: [{ strip: extra/baumstumpf }]
+  felsen:
+    label: Felsbrocken
+    groesse: [48, 24]
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: extra/felsen }]
+  wegweiser: { label: Wegweiser, states: [{ strip: extra/wegweiser }] }
+  kuerbis: { label: Kürbis, states: [{ strip: extra/kuerbis }] }
+  schmetterling: { label: Schmetterling, states: [{ strip: extra/schmetterling, fps: 8 }] }
+  fass:
+    label: Fass
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: extra/fass }]
+  burgfahne: { label: Burgfahne, groesse: [24, 48], states: [{ strip: extra/burgfahne, fps: 6 }] }
+  kerze: { label: Kerze, states: [{ strip: extra/kerze, fps: 8 }] }
+  saege:
+    label: Kreissäge
+    traits: { trap: { damage: 25, damage_cool_down: 1.0 } }
+    states: [{ strip: extra/saege, fps: 16, phase_r: 0 }]
+  lagerfeuer:
+    label: Lagerfeuer
+    traits: { trap: { damage: 20, damage_cool_down: 1.0 } }
+    states: [{ strip: extra/lagerfeuer, fps: 8 }]
+  dornen:
+    label: Dornenbusch
+    traits: { trap: { damage: 10, damage_cool_down: 1.0 } }
+    states: [{ strip: extra/dornen, fps: 3 }]
 
 # Map characters used by the recipe scenes (recipes may add their own).
 legende:
@@ -1205,18 +1300,19 @@ legende:
 sammlung:
   - Spielfiguren: [pip, pip_einfach, pip_schwert, pip_bogen, pip_bogen_schraeg, pip_wurf, pip_bombe, pip_taucher, astronaut, fisch, u_boot]
   - Gegner: [glibber, schnecke, spuckpilz, kaefer, keiler, frosch, fledermaus, klotz, klotz_einmal, maus, waschbaer, katze, geist, strohpuppe, qualle, hai]
-  - Begleiter: [hund, otter, vogel, fee, roboter, abenteurerin, ritter, zauberin]
-  - Zum Einsammeln: [muenze, edelstein, herz, apfel, trank, perle, stern, schluessel]
-  - Fallen und Gefahren: [stacheln, lava, broeckel]
+  - Begleiter: [hund, kaetzchen, kroete, vogel, eule, entchen, roboter]
+  - Zum Einsammeln: [muenze, edelstein, herz, trank, schutzschild, feder, krone, geldsack, perle, stern, schluessel]
+  - Essen: [apfel, kirschen, erdbeere, banane, karotte, kuchen, eiswaffel]
+  - Fallen und Gefahren: [stacheln, lava, broeckel, saege, lagerfeuer, dornen]
   - Boden und Blöcke: [boden, erde, boden_schnee, boden_tot, wurzeln, mauer, mauer_fenster, dach, kiste, eis, strohballen, block_rot, block_gruen]
   - Plattformen, Leitern und Schrägen: [brett, wolkenplattform, plattform, aufzug, leiter, schraege, treppe, eishang, hang_flach, hang_flach_ab, hang_fuss, hang_fuss_ab, huegel_steil, huegel_steil_ab, huegel_steil_fuss, huegel_steil_fuss_ab]
   - Förderbänder: [band, band_anfang, band_ende, band_links, band_links_anfang, band_links_ende, rolltreppe, rolltreppe_gehaeuse, maschine]
   - Türen und Schalter: [tuer, schlosstuer, haustuer, gittertor, schalter, druckplatte, zaehler, zaehler_5, umriss_rot, umriss_gruen]
-  - Schilder, Checkpoints und Ziel: [schild, fahne, ziel]
+  - Schilder, Checkpoints und Ziel: [schild, wichtel, fahne, ziel]
   - Für Angriffe: [pfeil, stein, spore, bombe, treffer_funke]
-  - Natur: [baum, busch, blumen, pilz, grasbuesche, hohes_gras, moos, ranke, toter_baum, toter_baum_2, toter_baum_3, schneemann, zaun, pfosten, kette, pfeiler]
+  - Natur: [baum, busch, blumen, sonnenblume, pilz, kuerbis, schmetterling, baumstumpf, felsen, wegweiser, grasbuesche, hohes_gras, moos, ranke, toter_baum, toter_baum_2, toter_baum_3, schneemann, zaun, pfosten, kette, pfeiler]
   - Hintergründe: [wolke, berge_fern, berge, wald, tannen, tannen_schnee, tote_baeume_fern, vordergrund, sterne]
-  - Haus und Burg: [hausfront, hausfront_licht, fassade, fassade_fenster, innenwand, zimmer, bild, lampe, wandlampe, wandlampe_aus, tisch, pflanze, eingang, fackel, burgfenster, riss]
+  - Haus und Burg: [fass, burgfahne, kerze, hausfront, hausfront_licht, fassade, fassade_fenster, innenwand, zimmer, bild, lampe, wandlampe, wandlampe_aus, tisch, pflanze, eingang, fackel, burgfenster, riss]
   - Licht und Schatten: [lichtkegel, laterne, laternenlicht, leuchtschein, schatten, dachschatten, glas]
   - Wasser und Regen: [wasser, wasser_oben, regenspritzer]
   - Höhle: [hoehle_fels, hoehle_boden, hoehle_spalt, hoehle_wand, hoehle_uebergang_boden, hoehle_uebergang_erde, tropfstein_oben, tropfstein_unten, leuchtpilz, lichtschacht, pilzlicht, bergflanke, bergfront]

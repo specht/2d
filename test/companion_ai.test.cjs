@@ -7,8 +7,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ai = require('../src/static/companion_ai.js');
 const MovementRegions = require('../src/static/movement_regions.js');
-const { COMPANION, companion_abilities, companion_keeps_following, companion_jump_height, companion_decide,
-    companion_lost_step, companion_returned, companion_return_xs, companion_pick_spot } = ai;
+const { COMPANION, COMPANION_IDLE, companion_abilities, companion_keeps_following, companion_jump_height, companion_decide,
+    companion_lost_step, companion_returned, companion_return_xs, companion_pick_spot, companion_idle_ready,
+    companion_idle_walk, companion_idle_fly } = ai;
 
 const STATIC = path.join(__dirname, '../src/static');
 
@@ -143,21 +144,23 @@ const end = source.indexOf('\nclass VariableClock {', begin);
 // eslint-disable-next-line no-new-func
 const Character = new Function('resolved_character_attacks', 'baddie_behavior', 'MovementRegions',
     'companion_abilities', 'companion_decide', 'companion_lost_step', 'companion_returned',
-    'companion_return_xs', 'companion_pick_spot', 'COMPANION',
+    'companion_return_xs', 'companion_pick_spot', 'COMPANION', 'companion_idle_ready', 'companion_idle_walk', 'companion_idle_fly',
     `const SIMULATION_RATE = 60, KEY_UP = 'up', KEY_DOWN = 'down', KEY_LEFT = 'left', KEY_RIGHT = 'right', KEY_JUMP = 'jump', KEY_ACTION = 'action';
      Number.prototype.clamp ??= function (a, b) { return Math.min(Math.max(this, a), b); };
      ${source.slice(begin, end)}\nreturn Character;`)(
     () => [], () => null, MovementRegions, companion_abilities, companion_decide, companion_lost_step,
-    companion_returned, companion_return_xs, companion_pick_spot, COMPANION);
+    companion_returned, companion_return_xs, companion_pick_spot, COMPANION, companion_idle_ready, companion_idle_walk, companion_idle_fly);
 
 const traits = vm.runInNewContext(fs.readFileSync(path.join(STATIC, 'traits.js'), 'utf8') + '\n({ SPRITE_TRAITS, STATE_TRAITS_ORDER });');
 
 // blocks: [column, row] (24 × 24, centre x = column × 24, bottom y = row × 24)
-function world({ blocks, companion = {}, regions = [], player = [0, 24], start = [0, 24], view = 1e6 }) {
+function world({ blocks, companion = {}, regions = [], player = [0, 24], start = [0, 24], view = 1e6, poses = [] }) {
     const block = { width: 24, height: 24, traits: { block_above: {}, block_sides: {}, block_below: {} },
         states: [{ traits: {}, properties: { fps: 8 }, frames: [{}] }] };
     const sprite = { width: 20, height: 20, traits: { companion },
-        states: [{ traits: { companion: { right: {} } }, properties: { fps: 8 }, frames: [{}] }] };
+        states: [{ traits: { companion: { right: {} } }, properties: { fps: 8 }, frames: [{}] },
+            // keep-busy pictures: "sitzt", "beschäftigt sich"
+            ...poses.map(k => ({ traits: { companion: { [`${k}_right`]: {} } }, properties: { fps: 8 }, frames: [{}] }))] };
     const entries = blocks.map(([c, r]) => ({ sprite_index: 0, mesh: { position: { x: c * 24, y: r * 24 } } }));
     const overlaps = (a0, a1, b0, b1) => a0 <= b1 && b0 <= a1;
     const search = axis => ({ search: ([a, b]) => entries.map((e, i) => i).filter(i => axis === 'x' ?
@@ -172,7 +175,7 @@ function world({ blocks, companion = {}, regions = [], player = [0, 24], start =
         collision_candidates: (x0, x1, y0, y1) => entries.map((e, i) => i).filter(i =>
             overlaps(entries[i].mesh.position.x - 12, entries[i].mesh.position.x + 12, x0, x1) &&
             overlaps(entries[i].mesh.position.y, entries[i].mesh.position.y + 24, y0, y1)),
-        geometry_and_material_for_frame: [null, [[{ geometry: 'g', material: 'm' }]]],
+        geometry_and_material_for_frame: [null, sprite.states.map(() => [{ geometry: 'g', material: 'm' }])],
         movement_regions: MovementRegions.resolve({ layers: regions.map(rects => ({ type: 'movement_region', rects, movement: { mode: 'swim' } })) }),
         player_character: p, miny: -96, screen_pixel_height: 240,
         camera: { left: -1e6, right: 1e6, bottom: -1e6, top: 1e6 },
@@ -261,8 +264,50 @@ test('Begleiter that flies crosses a gap without jumping and follows the player 
     const { c, p, run, trace } = world({ blocks, companion: { can_fly: true }, player: [22 * 24, 48] });
     run(7);
     assert.ok(trace.every(s => s.y > 0), 'never fell into the gap');
-    assert.ok(Math.abs(c.mesh.position.x - (p.mesh.position.x - COMPANION.FLY_SIDE)) < 12);
-    assert.ok(c.mesh.position.y > 48 + 10, 'above the player');
+    // it came over (and then keeps busy near the player, who stands still)
+    assert.ok(Math.hypot(c.mesh.position.x - p.mesh.position.x, c.mesh.position.y - p.mesh.position.y) <= COMPANION_IDLE.NEAR + 8);
+    assert.ok(trace.some(s => s.x > 15 * 24 && s.y > 48 + 10), 'it flew up to the player');
+});
+
+test('Begleiter that flies heads for its spot behind and above a walking player', () => {
+    const { c, p, run } = world({ blocks: ground(-5, 60), companion: { can_fly: true }, player: [100, 24] });
+    // the player keeps walking: no time to keep busy
+    for (let i = 0; i < 300; i++) { p.mesh.position.x += 1; run(1 / 60); }
+    assert.ok(Math.abs(c.mesh.position.x - (p.mesh.position.x - COMPANION.FLY_SIDE)) < 24, `x ${c.mesh.position.x}`);
+    assert.ok(c.mesh.position.y > 24 + 10, 'above the player');
+});
+
+// ------------------------------------------------ keeping busy
+
+test('Begleiter keeps busy while the player stands still: strolls on its side, sits, sniffs – and stops when the player moves', () => {
+    // a dog with "sitzt" and "beschäftigt sich" pictures
+    const { c, p, run, trace } = world({ blocks: ground(-5, 40), player: [300, 24], start: [200, 24], poses: ['sit', 'busy'] });
+    const poses = [];
+    for (let i = 0; i < 60 * 20; i++) { run(1 / 60); poses.push(c.ai_pose); }
+    const after = trace.slice(60 * 4);
+    // it moved about a little, sat down and sniffed – always on its side, never far
+    assert.ok(new Set(after.map(s => Math.round(s.x))).size > 3, 'it strolled');
+    assert.ok(poses.includes('sit') && poses.includes('busy'), 'it sat and sniffed');
+    assert.ok(after.every(s => s.x < p.mesh.position.x && p.mesh.position.x - s.x <= COMPANION.FOLLOW), 'on its side, near');
+    // the player walks off: at once no pose, and it follows
+    for (let i = 0; i < 120; i++) { p.mesh.position.x += 2; run(1 / 60); if (i === 1) assert.equal(c.ai_pose, null); }
+    assert.ok(c.mesh.position.x > after[after.length - 1].x + 100);
+});
+
+test('Begleiter keeping busy is the same every time (its own random sequence)', () => {
+    const go = () => { const w = world({ blocks: ground(-5, 40), player: [300, 24], start: [200, 24] }); w.run(12); return w.trace.map(s => s.x.toFixed(2)).join(); };
+    assert.equal(go(), go());
+});
+
+test('Begleiter that flies keeps busy: flutters around, lands, hops and flies up again', () => {
+    const { p, run, trace } = world({ blocks: ground(-5, 40), companion: { can_fly: true }, player: [300, 24], start: [240, 70], poses: ['busy'] });
+    run(40);
+    const idle = trace.slice(60 * 3);
+    assert.ok(idle.some(s => s.y <= 24.5), 'it landed on the ground');
+    const last_landing = idle.findIndex(s => s.y <= 24.5);
+    assert.ok(idle.slice(last_landing).some(s => s.y > 40), 'and flew up again');
+    assert.ok(new Set(idle.map(s => Math.round(s.x / 8))).size > 4, 'it fluttered from spot to spot');
+    assert.ok(idle.every(s => Math.abs(s.x - p.mesh.position.x) <= COMPANION_IDLE.FLUTTER_SIDE + 30), 'near the player');
 });
 
 test('Begleiter that got stuck is lost after a while and comes back – not at once, and behind the player', () => {

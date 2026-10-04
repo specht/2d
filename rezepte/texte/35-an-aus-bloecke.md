@@ -72,9 +72,9 @@ erwartet:
 ## Das brauchst du
 
 - **Das musst du zeichnen:** einen Schalter (aus und an) und zwei Blöcke, die man gut unterscheiden kann – am besten in den Farben des Schalterknopfs.
-- **Das kannst du später dazumalen:** gestrichelte **Umrisse** der Blöcke. Sie zeigen, wo gerade die anderen Blöcke fehlen.
+- **Das kannst du später dazumalen:** gestrichelte **Umrisse** der Blöcke. Sie zeigen, wo gerade die anderen Blöcke fehlen. Mit vier Frames, in denen die Striche jeweils ein Pixel weiterrücken, laufen sie im Kreis.
 
-![Roter Block](katalog:welt/block_rot) ![Grüner Block](katalog:welt/block_gruen) ![Umriss rot](katalog:welt/umriss_rot) ![Umriss grün](katalog:welt/umriss_gruen)
+![Roter Block](katalog:welt/block_rot) ![Grüner Block](katalog:welt/block_gruen) ![Umriss rot](katalog:welt/umriss_rot 6) ![Umriss grün](katalog:welt/umriss_gruen 6)
 
 ## Schritt für Schritt
 
@@ -91,7 +91,7 @@ Unter dem Code steht, was zusammengehört: *»Blöcke tauschen« (Code 1) in die
 
 ## Tipps
 
-- **Umrisse:** Eine Ebene ohne **Kollisionen erkennen** hinter den Blöcken, mit einem gestrichelten Umriss an jeder Stelle eines Blocks. Ist der Block da, verdeckt er seinen Umriss. Ist er weg, sieht man, wo er gleich wieder auftaucht.
+- **Umrisse:** Eine Ebene ohne **Kollisionen erkennen** hinter den Blöcken, mit einem gestrichelten Umriss an jeder Stelle eines Blocks – eine Pixellinie, ein Pixel vom Rand entfernt, damit zwei Umrisse nebeneinander nicht zu einer dicken Linie werden. Ist der Block da, verdeckt er seinen Umriss. Ist er weg, sieht man, wo er gleich wieder auftaucht.
 - **Überblendung** bei der Ebene macht das Erscheinen weich. Fest wird ein Block aber sofort – egal, wie lange er noch einblendet.
 - **Ein Schalter pro Signal:** Jeder Schalter merkt sich selbst, ob er an oder aus ist. Ein zweiter Schalter mit demselben Signal weiß nicht, wie der erste steht – dann passen Hebel und Blöcke nicht mehr zusammen.
 - Mit einer **Druckplatte** statt des Schalters sind die grünen Blöcke nur da, solange jemand auf ihr steht.

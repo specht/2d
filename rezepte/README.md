@@ -220,6 +220,9 @@ szene:
   #     # punkte: [[x, y], …]      control points (0…1 of the effect rectangle)
   #     # bereich: [c, r, w, h]    rectangle in tiles (default: the whole scene) – e.g.
   #     #                          only the air above the ground
+  #     # parallaxe: 0.9           moves with the camera by that share, like a map layer with
+  #     #                          parallaxe (placed so it looks like the map at the start; the
+  #     #                          default rectangle grows to cover the camera's whole way)
   #     # vorne: false             behind all layers · hinter: Figuren | <layer name or id>:
   #     #                          right behind that layer (fireflies between the trees)
   #     # menge: 1.5               snow, rain, dust: amount (1 = normal)
@@ -276,7 +279,9 @@ erwartet:                      # outcome checks
   # begleiter_bleibt_zurueck: { links_von: 12, bis: 7 } (left of column 12 until 7 s – it really
   # could not follow) · begleiter_verloren: 1 (lost and found again at least once) ·
   # begleiter_nie_verloren: true · begleiter_schwimmt: true|false · begleiter_rechts_von: 16 ·
-  # begleiter_immer_hoeher_als: 2 (a flyer never came down into a gap)
+  # begleiter_immer_hoeher_als: 2 (a flyer never came down into a gap) ·
+  # begleiter_zeigt: [sit, busy] (it showed these states while keeping busy) ·
+  # begleiter_landet: true (a flyer landed and flew up again)
   # begleiter_einzeln: { Hund: { schwimmt: false }, Otter: { schwimmt: true } } – the same checks
   # (without "begleiter_") for the Begleiter whose sprite Titel starts with that name
   # Bewegte Plattformen (platforms.js): plattform_weg: 168 (some platform went so many px) ·
@@ -398,13 +403,18 @@ for more frames, and rebuild. Everything uses the Sweetie 16 palette (in
   above the ground). `strohballen` (solid hay bale for the training ground).
 * **Begleiter** (`traits.companion`, recipe *Ein Begleiter kommt mit*: the dog in the
   recording, the others as variants in its text, and all of them in its scene through
-  `szene.zusaetzlich`), fully animated so children can take them into their own games: `hund` (`stehen` 4 with a
-  wagging tail and a blink, `laufen` 6, `springen`, `fallen`), `otter` (`stehen`, `laufen`,
-  `springen`, `schwimmen` – *kann schwimmen*), `vogel` and `fee` (`fliegen`, state *Begleiter
-  fliegt* – *kann fliegen*), `roboter` (`stehen` with a blinking antenna, `rollen` – *kann
-  springen* off), and people: `abenteurerin` (`stehen`, `laufen` 4, `springen`, `fallen` – jumps
-  like Pip, swims), `ritter` (the same states – slower, a weak jump) and `zauberin`
-  (`schweben` – *kann fliegen*). Sprite titles are their names (`begleiter_einzeln` uses them).
+  `szene.zusaetzlich`), fully animated so children can take them into their own games, each with
+  pictures for keeping busy while the player stands still (*Begleiter sitzt*, *Begleiter
+  beschäftigt sich*): `hund` (`stehen` 4 wagging, `laufen` 6, `springen`, `fallen`, `sitzt`,
+  `schnueffelt`), `kaetzchen` (quick, jumps high: `stehen`, `laufen`, `springen`, `fallen`,
+  `sitzt` with the tail around its paws, `putzt_sich`), `kroete` (slow, jumps higher than Pip:
+  `stehen` with a pulsing throat, `huepfen`, `springen`, `fallen`, `doest`, `fliegenfang`),
+  `vogel` and `eule` (*kann fliegen*: `fliegen`, and on the ground `stehen`, `huepfen` /
+  `watscheln`, `pickt` / `dreht_den_kopf`, the bird also `plustert_sich`), `entchen` (*kann
+  schwimmen*: `stehen`, `watscheln`, `springen`, `fallen`, `schwimmen`, `sitzt`, `putzt_sich`)
+  and `roboter` (*kann springen* off: `stehen` with a blinking antenna, `rollen` – it bops on its
+  spring –, `ruht`, `scannt`). They are shaded, with no big flat patches. Sprite titles
+  are their names (`begleiter_einzeln` uses them).
 * **Meer** (`meer/`, recipes *Pip taucht*, *Ein Fisch als Spielfigur*, *Das
   U-Boot und der Sog*, *Ein Hai, der dich jagt*): `pip_taucher` (Pip with
   `pip/schwimmen`, `treiben`, `abtauchen`, `auftauchen` – states *Spielfigur
@@ -505,8 +515,13 @@ shaded with ordered 4×4 Bayer dithering. A big sprite placed in a map starts
 at its cell and stands on the cell's bottom edge. (In the level editor the
 pen puts a sprite with its lower left corner on the grid of the game's
 Rastergröße, so sprites of 48 × 24 and 24 × 24 line up.) The sky is never a sprite
-but the level's colour backdrop (`himmel`). The far mountains have broad, rounded caps;
-only the near ones are pointed.
+but the level's colour backdrop (`himmel`). The mountains are facets: a ragged skyline whose
+corners send ridges and gullies down, faces turned to the left lit, the others in shadow, and snow
+that reaches further down in the gullies.
+
+The Bröckelstein is 24 × 48: the stone in the top half, room below for its pieces to fall
+(`zerbröselt`, 12 frames), and only `block_above`, so the empty half is in nobody's way – a
+recipe map puts it one row below the bridge.
 
 **Figures stand on the bottom row of their sprite:** the engine puts the bottom edge of a sprite
 on the ground, so every frame of a figure's standing and walking states (`right`, `front`,
@@ -526,7 +541,12 @@ Every catalogue sprite is in exactly one group of `sammlung`, or in `nicht_in_sa
 new sprite is in neither. Some sprites are there for children only and appear in no recipe
 (`extra/`: `kiste`, `wolkenplattform`, `lava`, `herz` – Extraleben, `apfel` – Energie,
 `trank` – schneller, `schnecke` – a slow enemy, `baum` 48×72, `busch`, `blumen`, `zaun`,
-`pilz`).
+`pilz`; food in its own group *Essen*: `kirschen`, `erdbeere`, `banane`, `karotte` – Energie,
+`kuchen`, `eiswaffel` – Punkte; things that help: `schutzschild` – unverwundbar, `feder` – springt
+höher, `krone`, `geldsack` – Punkte; decoration: `sonnenblume` 24×48, `kuerbis`,
+`schmetterling`, `wegweiser`, `baumstumpf` and `felsen` 48×24 to stand on, `fass`,
+`burgfahne` 24×48, `kerze`; dangers: `saege`, `lagerfeuer`, `dornen`). Like the Begleiter they
+are shaded with the light from the upper left and outlined – no big flat patches.
 
 `katalog.yaml` turns strips into game sprites: a list of states with `strip`,
 optional `frames: [i, …]`, `fps` and the engine's **state traits** (the keys of

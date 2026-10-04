@@ -117,7 +117,7 @@ schleife: true
 
 > **Tipp:** Je weiter weg, desto **heller, blauer und blasser**. So macht es auch die echte Luft. Nahe Dinge sind kräftig und dunkel, ferne verschwimmen mit dem Himmel.
 
-- **Ferne Berge runder malen:** Von weitem sieht man keine scharfen Zacken mehr. Gib den fernen Bergen breite, runde Gipfel und nur wenige Farben – die nahen Berge dürfen spitzer und kantiger sein.
+- **Grate malen:** Ein Berg ist kein Dreieck. Von jeder Zacke der Kante läuft ein **Grat** schräg nach unten: links davon die helle Seite, die zur Sonne zeigt, rechts die dunkle. Ein paar dünne Rillen in der anderen Farbe machen den Fels zerklüftet, und in den Rinnen liegt der Schnee länger.
 - **Dithering** mischt zwei Farben mit einem Pixelmuster, zum Beispiel wie ein Schachbrett. So bekommst du Übergänge, obwohl die Palette nur wenige Farben hat: Nebel am Fuß der Berge, weiche Schatten an den Hängen, Wolken, die unten grau werden.
 - Für Dithering reichen drei Muster: jedes vierte Pixel (25 %), Schachbrett (50 %) und jedes vierte Pixel frei (75 %).
 - Ebenen mit Parallaxe haben **nie Kollisionen**. Böden und Wände gehören in eine Ebene mit Parallaxe 0.

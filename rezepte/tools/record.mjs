@@ -159,6 +159,8 @@ export async function record(browser, repo, game, recipe) {
             // where each Begleiter is (companion_ai.js), for the begleiter_* checks
             const pals = (g.companions ?? []).map(c => ({ name: c.sprite?.properties?.name ?? '', x: c.mesh.position.x, y: c.mesh.position.y,
                 swim: c.fluid_mode === 'swim', lost: c.companion_stats?.lost ?? 0, returned: c.companion_stats?.returned ?? 0,
+                // the picture it shows (sit / busy while keeping busy), and a flyer standing on the ground
+                state: c.state ?? null, landed: Boolean(c.companion?.fly && !c.ai_no_gravity && c.touching_ground?.()),
                 dist: pc ? Math.hypot(pc.mesh.position.x - c.mesh.position.x, pc.mesh.position.y - c.mesh.position.y) : null }));
             // what each enemy did: position, behaviour mode, "!" shown
             const foes = g.baddies.map(b => ({ x: b.mesh.position.x, y: b.mesh.position.y,
@@ -359,6 +361,12 @@ function check_companions(e, traces) {
         fail.push(`Begleiter schwimmt: ${!e.begleiter_schwimmt} statt ${e.begleiter_schwimmt}`);
     if (e.begleiter_rechts_von !== undefined && !some(tr => last(tr).x > e.begleiter_rechts_von * 24 - 12))
         fail.push(`Begleiter steht am Ende bei x=${traces.map(tr => last(tr).x.toFixed(0)).join(', ')}, erwartet rechts von Spalte ${e.begleiter_rechts_von}`);
+    // keeping busy (companion_ai.js COMPANION_IDLE): it showed these pictures (sit, busy, …)
+    for (const pose of e.begleiter_zeigt ?? [])
+        if (!some(tr => tr.some(s => s.state === pose))) fail.push(`Begleiter hat „${pose}“ nie gezeigt`);
+    // a flyer landed on the ground and flew up again
+    if (e.begleiter_landet && !some(tr => tr.some(s => s.landed) && tr.findIndex(s => s.landed) < tr.findLastIndex(s => !s.landed)))
+        fail.push('Der fliegende Begleiter ist nie gelandet und wieder aufgeflogen');
     // a flyer never came down into the gap: always at least so many tiles high
     if (e.begleiter_immer_hoeher_als !== undefined && !some(tr => tr.every(s => s.y >= e.begleiter_immer_hoeher_als * 24)))
         fail.push(`Begleiter war tiefer als Höhe ${e.begleiter_immer_hoeher_als} (y=${Math.min(...traces.flat().map(s => s.y)).toFixed(0)})`);

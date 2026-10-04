@@ -157,6 +157,9 @@ var STATE_TRAITS_ORDER = {
             ['Taucht ab', ['dive_front', 'dive_back', 'dive_left', 'dive_right']],
             ['Taucht auf', ['rise_front', 'rise_back', 'rise_left', 'rise_right']],
         ]],
+        // keeping busy while the player stands still (companion_ai.js COMPANION_IDLE)
+        ['Sitzt', ['sit_front', 'sit_back', 'sit_left', 'sit_right']],
+        ['Beschäftigt sich (schnüffelt, pickt …)', ['busy_front', 'busy_back', 'busy_left', 'busy_right']],
         // no Klettern (a Begleiter does not climb ladders), no Angriff, Treffer
         // or tot (no combat, no health)
     ],
@@ -176,6 +179,8 @@ var STATE_TRAITS_ORDER = {
     // a Zähler: "zeigt 1" … "zeigt 9" while it counts (only the ones drawn), "erreicht" when full
     counter: ['waiting', ['Zählt', ['count_1', 'count_2', 'count_3', 'count_4', 'count_5', 'count_6', 'count_7', 'count_8', 'count_9']], 'done'],
     bomb: ['fuse', 'explosion'],
+    // a sign or a figure at the roadside that speaks itself: this state while it talks
+    text: ['speaking'],
 };
 
 // Signale: Verzögerung of a sender (placed signal_delay, absent = 0 = at
@@ -616,7 +621,7 @@ var SPRITE_TRAITS = {
             },
             speaker: {
                 label: 'Wer spricht',
-                hint: '„die Spielfigur liest vor“: Der Text erscheint über der Spielfigur, in ihrer Farbe (unter Einstellungen → Texte) – gut für Schilder. „das Sprite spricht selbst“: Der Text erscheint über diesem Sprite, in der Farbe darunter – gut für eine Figur, die etwas sagt.',
+                hint: '„die Spielfigur liest vor“: Der Text erscheint über der Spielfigur, in ihrer Farbe (unter Einstellungen → Texte) – gut für Schilder. „das Sprite spricht selbst“: Der Text erscheint über diesem Sprite, in der Farbe darunter – gut für eine Figur, die etwas sagt. Hat das Sprite einen Zustand „spricht gerade“, zeigt es ihn, solange es redet.',
                 type: 'select',
                 options: typeof SPEECH_SPEAKERS !== 'undefined' ? SPEECH_SPEAKERS : { player: 'die Spielfigur liest vor' },
                 default: 'player',
@@ -1428,6 +1433,16 @@ var STATE_TRAITS = {
         fly_back: { label: 'Begleiter fliegt nach hinten' },
         fly_left: { label: 'Begleiter fliegt nach links' },
         fly_right: { label: 'Begleiter fliegt nach rechts' },
+        // while the player stands still it keeps busy (companion_ai.js): sits down,
+        // sniffs or pecks around – shown only if drawn
+        sit_front: { label: 'Begleiter sitzt, schaut nach vorn' },
+        sit_back: { label: 'Begleiter sitzt, schaut nach hinten' },
+        sit_left: { label: 'Begleiter sitzt, schaut nach links' },
+        sit_right: { label: 'Begleiter sitzt, schaut nach rechts' },
+        busy_front: { label: 'Begleiter beschäftigt sich (vorn)' },
+        busy_back: { label: 'Begleiter beschäftigt sich (hinten)' },
+        busy_left: { label: 'Begleiter beschäftigt sich (links)' },
+        busy_right: { label: 'Begleiter beschäftigt sich (rechts)' },
         // in a Bewegungsbereich (movement_regions.js), like the player character
         swim_front: { label: 'Begleiter schwimmt nach vorn' },
         swim_back: { label: 'Begleiter schwimmt nach hinten' },
@@ -1468,6 +1483,9 @@ var STATE_TRAITS = {
     pressure_plate: {
         up: { label: 'Druckplatte nicht gedrückt' },
         down: { label: 'Druckplatte gedrückt' },
+    },
+    text: {
+        speaking: { label: 'spricht gerade' },
     },
     counter: {
         waiting: { label: 'Zähler wartet' },

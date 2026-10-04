@@ -466,9 +466,16 @@ export async function build_game(catalog, recipe, repo) {
             };
         }
         if (!EFFECT_POINTS[e.effekt]) throw new Error(`${recipe.id}: unbekannter Effekt "${e.effekt}"`);
+        // parallaxe: the effect moves with the camera by that share (stars far away: 0.9);
+        // placed like a parallax map layer, and wide enough for the whole way of the camera
+        const p = scene.parallaxe_aus ? 0 : Number(e.parallaxe ?? 0);
+        const parallax_props = p ? { parallax: p } : {};
+        const whole = { left: -TILE * 4 + X0, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE };
+        const level_rect = p ? { left: whole.left - cam_x * p - cols * TILE * p, bottom: whole.bottom - cam_y * p - rows * TILE * p,
+            width: whole.width + 2 * cols * TILE * p, height: whole.height + 2 * rows * TILE * p } : whole;
         return {
             type: 'backdrop', backdrop_type: 'effect', effect: e.effekt, ...(e.id ? { id: e.id } : {}),
-            properties: { name: e.name ?? e.effekt, ...layer_signal_of(e.signal, `${recipe.id}: `) },
+            properties: { name: e.name ?? e.effekt, ...parallax_props, ...layer_signal_of(e.signal, `${recipe.id}: `) },
             scale: e.skala ?? 1.0, speed: e.tempo ?? 1.0,
             color: e.farbe ?? '#ffffffff', control_points: e.punkte ?? EFFECT_POINTS[e.effekt],
             ...(e.pixel ? { pixelated: true } : {}),
@@ -480,12 +487,12 @@ export async function build_game(catalog, recipe, repo) {
             ...(e.blitz_aufbau !== undefined ? { lightning_rise: Number(e.blitz_aufbau) } : {}),
             // Strömung: the direction of the streaks in degrees (0 right, 90 up)
             ...(e.richtung !== undefined ? { current_angle: Number(e.richtung) } : {}),
-            ...(e.mischmodus ? { properties: { name: e.name ?? e.effekt, blend: blend_of(e.mischmodus, `${recipe.id}: `),
+            ...(e.mischmodus ? { properties: { name: e.name ?? e.effekt, ...parallax_props, blend: blend_of(e.mischmodus, `${recipe.id}: `),
                 ...layer_signal_of(e.signal, `${recipe.id}: `) } } : {}),
             // bereich: [column, row from top, width, height] in tiles – e.g. only the air above the ground
             rects: [e.bereich ?
-                { left: e.bereich[0] * TILE + X0, bottom: (rows - e.bereich[1] - e.bereich[3]) * TILE, width: e.bereich[2] * TILE, height: e.bereich[3] * TILE } :
-                { left: -TILE * 4 + X0, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE }],
+                { left: e.bereich[0] * TILE + X0 - cam_x * p, bottom: (rows - e.bereich[1] - e.bereich[3]) * TILE - cam_y * p, width: e.bereich[2] * TILE, height: e.bereich[3] * TILE } :
+                level_rect],
         };
     };
     // vorne: false = behind all layers; hinter: <Ebene> = right behind that layer

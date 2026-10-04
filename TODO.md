@@ -244,10 +244,7 @@ Do not require accounts, chat, permissions administration, persistent participan
 
 The sprite editor is already comparatively mature.
 
-Focus on workflow improvements rather than redesigning it.
-
-Useful additions include:
-
+Focus on workflow improvements rather than redesigning it. Nothing concrete is open; wait for what children run into.
 
 Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste frames (also between sprites of the same size), move a frame to another state, swap two states' animations, copy a state into another sprite; Onion Skinning (O); Strg+Z / Strg+Y for everything inside a sprite – pixels, frames and states added, moved, duplicated or deleted, Framerate, Titel, traits (`sprite_history.js`); the Vorschau (P): the current state's animation plays in a corner of the drawing area, with play/pause, Framerate − / + and a mirrored view (`sprite_preview.js`); Spiegelnd zeichnen (M: pen, shapes and fill draw mirrored at the middle) and Farbe ersetzen (fill tool with Shift: in the frame, with Strg: in every frame of the sprite) and Umriss zeichnen (Funktionen → Sprite: a one-pixel outline in the current colour, in a frame, a state or the whole sprite; `pixel_tools.js`); several frames selected with Shift / Strg + click, a right-click menu for them (duplicate, reverse the order, copy, cut, delete, move to another state) and dragging them together – to another place or into the trash (`sprite_actions.js`).
 
@@ -255,7 +252,7 @@ Done: right-click menus to duplicate sprites, states and frames, copy/cut/paste 
 
 # Sprites from Other Games
 
-"Sprites holen" exists (sprite list: the basket tile next to +): the Sprite-Katalog (every sprite of the recipes and some extra ones, grouped and searchable; built from `rezepte/katalog.yaml`, not from children's games, so there are no near-duplicates) or another game by its code, a basket across several sources, and one import with states, animations, traits and everything a sprite refers to. Ideas: remembering recently opened source games; a small list of recommended source games for a class; more extra sprites for the catalogue (a second player character, more enemies, a few backgrounds).
+"Sprites holen" exists (sprite list: the basket tile next to +): the Sprite-Katalog (every sprite of the recipes and some extra ones, grouped and searchable; built from `rezepte/katalog.yaml`, not from children's games, so there are no near-duplicates) or another game by its code, a basket across several sources, and one import with states, animations, traits and everything a sprite refers to. Ideas: remembering recently opened source games; a small list of recommended source games for a class; a second player character, more enemies and a few more backgrounds for the catalogue (food, helpful items, decoration and dangers exist).
 
 ---
 
@@ -378,7 +375,7 @@ Once triggers/actions exist, build higher-level systems on top of them.
 Possible progression:
 
 - NPC interaction
-- speech bubbles / dialogue (monologue exists: a sign or the figure says one sentence or `|`-part after the other, speech.js; a conversation between two speakers is still open)
+- speech bubbles / dialogue (monologue exists: a sign, a figure at the roadside (with "spricht gerade", the Wichtel) or the player says one sentence or `|`-part after the other, speech.js; a conversation between two speakers is still open)
 - multi-line conversations
 - collect-and-return tasks
 - defeat-enemy tasks
@@ -435,9 +432,7 @@ Persistence should only be added after deciding whether data belongs to:
 
 Implemented: the rescue copy of unsaved work (`rescue.js`), the server banner and reload offer (`server_watch.js`, `neustart.html`), the robot with Fehlerberichte (`crash_report.js`, `client_errors.rb`, `errors.rb`).
 
-Still open:
-
-Decided against for now: reporting errors inside the game frame (they rarely happen; `standalone.html` and `app.js` are part of the recipe build's engine fingerprint), keeping reports while the server is away, and a web page for the reports (it would need a token or accounts – `errors.rb` in the terminal does the job).
+Nothing concrete is open. Decided against for now: reporting errors inside the game frame (they rarely happen; `standalone.html` and `app.js` are part of the recipe build's engine fingerprint), keeping reports while the server is away, and a web page for the reports (it would need a token or accounts – `errors.rb` in the terminal does the job).
 
 ---
 
@@ -454,12 +449,12 @@ They can easily dominate the architecture while benefiting relatively few games.
 
 # Recipe Ideas: Signale
 
-The Signale recipes have their own category, in this order: Schalter → Tor, Druckplatte → Brücke, Rote und grüne Blöcke (one Schalter, two layers "da, solange an" / "weg, solange an"), Tor mit Zeit, Wächter-Tor, Die Falle schnappt zu (Signalbereich closes the gate behind, "alle Gegner besiegt" opens the exit), Der Edelstein baut die Brücke ("sendet, wenn eingesammelt"), Ein Schild, das von selbst spricht (Signalbereich → "spricht bei Signal"), Wettlauf gegen die Zeit ("sendet beim Start" with a Verzögerung), So wird ein Level geschafft (the exit, and "geschafft bei Signal"). Every Signale recipe names its signals. The smaller ideas live as tips in them instead of recipes of their own: Verzögerung (Tor mit Zeit, Falle), "wechseln" (Schalter, Blöcke), a key or Schalter building a bridge (Druckplatte), a second wave of enemies (Falle), a secret passage with a Signalbereich (Falle → Höhle), an enemy leaving a key behind (Angsthase). Ideas for more, possible with what exists today:
+The Signale recipes have their own category, in this order: Schalter → Tor, Druckplatte → Brücke, Rote und grüne Blöcke (one Schalter, two layers "da, solange an" / "weg, solange an"), Tor mit Zeit, Wächter-Tor, Die Falle schnappt zu (Signalbereich closes the gate behind, "alle Gegner besiegt" opens the exit), Der Edelstein baut die Brücke ("sendet, wenn eingesammelt"), Ein Wichtel, der von selbst spricht (Signalbereich → "spricht bei Signal", with "spricht gerade"), Wettlauf gegen die Zeit ("sendet beim Start" with a Verzögerung), So wird ein Level geschafft (the exit, and "geschafft bei Signal"). Every Signale recipe names its signals. The smaller ideas live as tips in them instead of recipes of their own: Verzögerung (Tor mit Zeit, Falle), "wechseln" (Schalter, Blöcke), a key or Schalter building a bridge (Druckplatte), a second wave of enemies (Falle), a secret passage with a Signalbereich (Falle → Höhle), an enemy leaving a key behind (Angsthase). Ideas for more, possible with what exists today:
 
 - **Eine Falle mit Verzögerung** – a Druckplatte lets spikes appear a second later, so Pip can still run. Left out for now: it is the Druckplatte recipe with one more number (Verzögerung is a tip in Tor mit Zeit and Falle). Worth it once something can drop stones on a Signal.
 - **Licht an** – a Schalter that switches a dark colour layer (abdunkeln) off and a Lichtschein on: a room that becomes light. Could also fit "Level gestalten".
 
-Would need new features: two senders that must both be active (AND), a counter ("drei Schalter umlegen").
+AND and counting exist (the Zähler, recipe *Erst alle drei Schalter*). Would need new features: "oder" between different Codes, a visible countdown.
 
 ---
 

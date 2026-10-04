@@ -3,8 +3,6 @@ titel: Bewegte Plattformen und Aufzüge
 kategorie: Welt bauen
 stufe: 2
 skala: 2
-# a row of sky above the top ledge
-bild_hoch: 1
 kurz: Eine Schwebeplattform trägt Pip über die Stachelgrube, ein Aufzug bringt ihn hinauf. Wer obendrauf steht, fährt mit.
 # the gallery card: Pip on the platform above the spikes
 standbild: 4.0
@@ -15,11 +13,14 @@ szene:
   legende:
     # the platform starts on the right and comes over to Pip first
     p: { sprite: plattform, platziert: { moving: { path_x: -168 } } }
-    a: { sprite: aufzug, platziert: { moving: { path_x: 0, path_y: 120, start: ride } } }
+    a: { sprite: aufzug, platziert: { moving: { path_x: 0, path_y: 168, start: ride } } }
+  # taller than the screen: the camera follows Pip up in the Aufzug
   karte: |
     ..........................
     ..........................
     ....................######
+    ....................======
+    ....................======
     ....................======
     ....................======
     ....................======
@@ -33,11 +34,11 @@ ablauf:
   - { t: 0.3, halten: rechts, dauer: 0.4 }
   - { t: 2.1, halten: rechts, dauer: 0.4 }
   - { t: 4.9, halten: rechts, dauer: 0.8 }
-  - { t: 7.0, halten: rechts, dauer: 0.8 }
-dauer: 9.0
+  - { t: 7.6, halten: rechts, dauer: 0.8 }
+dauer: 9.6
 erwartet:
   figur_rechts_von: 21
-  figur_hoeher_als: 8
+  figur_hoeher_als: 10
   figur_mitgefahren: 250
   plattform_weg: 168
   lebt: true
@@ -85,7 +86,8 @@ varianten:
       plattform_weg: 72
       lebt: true
   # 2: up at a slant, back and forth all the time
-  - szene:
+  - bild_hoch: 1
+    szene:
       legende:
         p: { sprite: plattform, platziert: { moving: { path_x: -96, path_y: -96 } } }
       karte: |
@@ -129,7 +131,7 @@ varianten:
 3. **Eigenschaft hinzufügen → Plattformen → bewegt sich (Plattform, Aufzug)**. Die Schwebeplattform hat **Geschwindigkeit 1,5** und **Pause am Ende 1** Sekunde. Zum Vergleich: Pip läuft mit 3.
 4. Setz die Plattform ins **Level** – in eine Ebene, in der *Kollisionen erkennen* an ist – und klicke sie an. Unter **Weg nach rechts** und **Weg nach oben** steht, wohin sie fährt, in Pixeln: **24 Pixel sind ein Block**. Mit Minus fährt sie nach links oder unten. Im Level siehst du ihren Weg als **gestrichelte Linie** und das Ende als **gestrichelten Rahmen**. Noch einfacher: Wähl die Plattform mit dem **Auswahl-Werkzeug** aus und zieh den runden **Griff** im Rahmen dorthin, wo sie hinfahren soll – er rastet im Gitter ein.
 5. Hier steht die Plattform am Anfang rechts über der Grube und hat **Weg nach rechts: -168** – sieben Blöcke nach links. **Fährt: immer hin und her** – sie kommt zu Pip herüber, wartet kurz und fährt mit ihm zurück.
-6. **Der Aufzug:** Er sitzt in einer Lücke im Boden, genau auf Bodenhöhe. **Weg nach rechts: 0**, **Weg nach oben: 120** (fünf Blöcke) und **Fährt: wenn die Spielfigur draufsteht (Aufzug)**. Er wartet, bis Pip draufsteigt, und bringt ihn nach oben. Bleibt er oben leer, fährt er nach der Pause von allein wieder hinunter.
+6. **Der Aufzug:** Er sitzt in einer Lücke im Boden, genau auf Bodenhöhe. **Weg nach rechts: 0**, **Weg nach oben: 168** (sieben Blöcke) und **Fährt: wenn die Spielfigur draufsteht (Aufzug)**. Er wartet, bis Pip draufsteigt, und bringt ihn nach oben – die Kamera fährt mit. Bleibt er oben leer, fährt er nach der Pause von allein wieder hinunter. Wie schnell er fährt, stellst du beim Sprite unter **Geschwindigkeit** ein (ohne Angabe 1; dieser Aufzug fährt mit 1,5 und wartet oben 1,5 Sekunden).
 7. Probier es aus: Warte an der Kante, bis die Plattform da ist, steig auf und lass dich über die Stacheln tragen.
 
 ## Tipps

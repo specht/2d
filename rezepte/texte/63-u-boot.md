@@ -19,6 +19,8 @@ szene:
     # above the vent the water pulls down and a little to the left
     - { name: Sog, art: wie_darunter, stroemung: [70, 250], rechtecke: [[10, 0, 8, 5]] }
   effekte:
+    # a few faint bubbles rise everywhere in the deep sea
+    - { effekt: bubbles, name: Blasen, farbe: '#94b0c266', skala: 0.8, tempo: 0.7, hinter: Figuren }
     - { effekt: current, name: Sog, farbe: '#73eff7aa', richtung: 250, tempo: 2, bereich: [10, 0, 8, 5], hinter: Figuren }
   ebenen:
     - name: Leuchtplankton
@@ -85,6 +87,7 @@ erwartet:
 
 - Ist die Strömung **schneller** als das U-Boot (hier: Tempo 0,6 × 3 = 1,8 Pixel pro Schritt), kommt es nie frei. Ist sie **etwas langsamer**, wird es spannend – wie hier.
 - Mehrere Sog-Bereiche mit leicht verschiedenen Richtungen nebeneinander ergeben einen Strudel.
+- **Ein paar Blasen:** Ein Hintergrund mit **Effekt: Blasen** über dem ganzen Level, in einer blassen, halb durchsichtigen Farbe und langsam – schon wirkt die Tiefsee lebendig. Kräftige Blasen lenken vom U-Boot ab.
 
 ## Wenn's nicht klappt
 

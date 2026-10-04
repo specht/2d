@@ -4,7 +4,8 @@ kategorie: Begleiter
 stufe: 2
 skala: 3
 schritte: 2
-bild_hoch: 1
+# the camera a little higher: the end up on the ledge is in the picture
+bild_hoch: 2
 kurz: Gib einem Sprite die Eigenschaft Begleiter – dann folgt es deiner Spielfigur. Wie es folgen kann, bestimmen seine eigenen Fähigkeiten.
 # the gallery card: Pip up on the ledge, the dog waiting below
 standbild: 2.6
@@ -14,7 +15,7 @@ szene:
   kamera: { bildhoehe: 144 }
   # every Begleiter of this recipe is in the scene's game, so children can take
   # them into their own games (scene opened from the recipe; the Sprite-Katalog has them, too)
-  zusaetzlich: [roboter, vogel, fee, otter, abenteurerin, ritter, zauberin]
+  zusaetzlich: [roboter, vogel, eule, entchen, kaetzchen, kroete]
   karte: |
     ..........................................
     ..........................................
@@ -36,17 +37,19 @@ erwartet:
     Hund: { bleibt_zurueck: { links_von: 12, bis: 7 }, weg: 150, verloren: 1, folgt: 72 }
 varianten:
   # 1: a robot that cannot jump stays in front of the small step
-  - szene: { legende: { h: roboter } }
+  - bild_hoch: 1
+    szene: { legende: { h: roboter } }
     erwartet:
       begleiter_einzeln:
         Roboter: { bleibt_zurueck: { links_von: 6, bis: 7 }, verloren: 1, folgt: 72 }
-  # 2: a bird and a fairy fly over a gap and up a ledge
-  - szene:
-      legende: { v: vogel, f: fee }
+  # 2: a bird and an owl fly over a gap and up a ledge
+  - bild_hoch: 1
+    szene:
+      legende: { v: vogel, e: eule }
       karte: |
         ......................
         ......................
-        f.....................
+        e.....................
         .v............########
         ...P..........========
         ########..############
@@ -60,11 +63,11 @@ varianten:
       figur_rechts_von: 16
       begleiter_einzeln:
         Vogel: { immer_hoeher_als: 2, hub: 30, rechts_von: 13, folgt: 90 }
-        Fee: { immer_hoeher_als: 2, hub: 20, rechts_von: 13, folgt: 90 }
-  # 3: the otter swims after Pip, the dog waits at the shore
+        Eule: { immer_hoeher_als: 2, hub: 20, rechts_von: 12, folgt: 90 }
+  # 3: the duckling swims after Pip, the dog waits at the shore
   - szene:
       himmel: ['#41a6f6', '#c3e6f6']
-      legende: { h: hund, o: otter, '_': sand, '~': wasser_oben, w: wasser }
+      legende: { h: hund, e: entchen, '_': sand, '~': wasser_oben, w: wasser }
       bewegungsbereiche:
         - { name: See, art: schwimmen, rechtecke: [[7, 3.25, 9, 2.75]] }
       ebenen:
@@ -72,7 +75,7 @@ varianten:
           karte: |
             ......................
             ......................
-            .h.o.P................
+            .h.e.P................
             #######.........######
             =======.........======
             =======.........======
@@ -100,17 +103,18 @@ varianten:
     erwartet:
       figur_rechts_von: 17
       begleiter_einzeln:
-        Otter: { schwimmt: true, rechts_von: 16, folgt: 80 }
+        Entchen: { schwimmt: true, rechts_von: 16, folgt: 80 }
         Hund: { schwimmt: false, bleibt_zurueck: { links_von: 7, bis: 7 } }
-  # 4: friends – an adventurer, a knight and a wizard line up behind Pip
-  - szene:
-      legende: { a: abenteurerin, r: ritter, z: zauberin }
+  # 4: a whole group – the kitten, the toad and the owl line up behind Pip
+  - bild_hoch: 1
+    szene:
+      legende: { k: kaetzchen, t: kroete, e: eule }
       karte: |
         ....................
         ....................
         ....................
-        z...................
-        .r.a.P......#.......
+        e...................
+        .t.k.P......#.......
         ####################
         ====================
     ablauf:
@@ -120,14 +124,16 @@ varianten:
     erwartet:
       figur_rechts_von: 16
       begleiter_einzeln:
-        Abenteurerin: { folgt: 64, rechts_von: 13, nie_verloren: true }
-        Ritter: { folgt: 96, rechts_von: 12, nie_verloren: true }
-        Zauberin: { folgt: 72, rechts_von: 12, immer_hoeher_als: 2 }
-  # 5: a friend waits until Pip comes to her (kommt erst bei Signal mit, a Signalbereich)
-  - szene:
+        Kätzchen: { folgt: 64, rechts_von: 13, nie_verloren: true }
+        Kröte: { folgt: 96, rechts_von: 12, nie_verloren: true }
+        Eule: { folgt: 90, rechts_von: 11, immer_hoeher_als: 2 }
+  # 5: a kitten waits until Pip comes to it (kommt erst bei Signal mit, a Signalbereich);
+  # alone, it keeps busy where it is (the camera lifted: no strip below the ground)
+  - bild_hoch: 1.5
+    szene:
       signale: { 3: Treffpunkt }
       legende:
-        a: { sprite: abenteurerin, platziert: { companion: { waits_for_signal: true, signal_code: 3 } } }
+        k: { sprite: kaetzchen, platziert: { companion: { waits_for_signal: true, signal_code: 3 } } }
       bereiche:
         - { name: Treffpunkt, code: 3, rechtecke: [[6, 2, 5, 3]] }
       karte: |
@@ -135,7 +141,7 @@ varianten:
         ........................
         ........................
         ........................
-        .P......a...............
+        .P......k...............
         ########################
         ========================
     ablauf:
@@ -145,23 +151,45 @@ varianten:
     erwartet:
       signale: ['3 an', '3 aus']
       begleiter_einzeln:
-        Abenteurerin: { bleibt_zurueck: { links_von: 9, bis: 1.8 }, folgt: 72, rechts_von: 13, nie_verloren: true }
+        Kätzchen: { bleibt_zurueck: { links_von: 9, bis: 1.8 }, folgt: 72, rechts_von: 13, nie_verloren: true }
+  # 6: Pip stands still – the dog and the bird keep busy
+  - bild_hoch: 1
+    szene:
+      legende: { h: hund, v: vogel }
+      karte: |
+        ....................
+        ....................
+        ....................
+        .v..................
+        .h..P...............
+        ####################
+        ====================
+    ablauf:
+      - { t: 0.3, halten: rechts, dauer: 0.9 }
+    dauer: 12.0
+    erwartet:
+      begleiter_einzeln:
+        Hund: { zeigt: [sit, busy], nie_verloren: true }
+        Vogel: { landet: true, zeigt: [busy], nie_verloren: true }
+
 ---
 ## Kurz gesagt
 
-1. Zeichne ein Tier, einen Roboter oder einen Freund – deinen **Begleiter** – und gib dem Sprite die Eigenschaft **Begleiter**.
+1. Zeichne ein Tier oder einen Roboter – deinen **Begleiter** – und gib dem Sprite die Eigenschaft **Begleiter**.
 2. Setz ihn ins Level: Er läuft deiner Spielfigur hinterher und bleibt in ihrer Nähe.
 3. **Begleiter** sagt, *dass* er dir folgt. **Wie** er folgen kann, bestimmen seine eigenen Fähigkeiten: springen, schwimmen, fliegen.
 
 ## Das brauchst du
 
 - **Das musst du zeichnen:** deinen Begleiter, nach rechts schauend – ein Bild zum Stehen reicht schon.
-- **Das kannst du später dazumalen:** Laufen, Springen und Fallen.
+- **Das kannst du später dazumalen:** Laufen, Springen und Fallen – und Bilder, mit denen er sich die Zeit vertreibt: sitzen, schnüffeln, picken, sich putzen.
 
-![Hund steht](katalog:hund/stehen 5)
+![Hund steht](katalog:hund/stehen 6)
 ![Hund läuft](katalog:hund/laufen 12)
 ![Hund springt](katalog:hund/springen)
 ![Hund fällt](katalog:hund/fallen)
+![Hund sitzt](katalog:hund/sitzt 5)
+![Hund schnüffelt](katalog:hund/schnueffelt 7)
 
 ## Schritt für Schritt
 
@@ -174,6 +202,7 @@ varianten:
 ## Was der Begleiter macht
 
 - Er läuft dir nach, bis er nah genug ist. Dann bleibt er stehen und schaut dich an. Läufst du nur ein kleines Stück, bleibt er, wo er ist.
+- Bleibst du eine Weile stehen, **beschäftigt er sich**: Er läuft ein paar Schritte auf seiner Seite hin und her, setzt sich oder schnüffelt am Boden – wenn er Bilder für **Begleiter sitzt** und **Begleiter beschäftigt sich** hat. Sobald du weiterläufst, kommt er mit.
 - Er springt über Hindernisse – aber nur so hoch, wie **seine eigene Sprungkraft** reicht. Der Hund hüpft über die kleine Stufe, an der hohen Kante bleibt er zurück.
 - Schafft er einen Weg nicht, darf er zurückbleiben. Solange du ihn sehen kannst, wartet er. Ist er nicht mehr zu sehen und kommt ein paar Sekunden nicht näher, hat er **den Anschluss verloren** – kurz darauf **findet er dich wieder**: Er taucht knapp außerhalb des Bildschirms hinter dir auf und läuft zu dir.
 - Er ist kein Gegner und kein Werkzeug: Er macht keinen Schaden, sammelt nichts ein, öffnet nichts, drückt keine Schalter oder Druckplatten. Du steuerst ihn ja nicht – deshalb verändert er nichts im Level.
@@ -186,40 +215,53 @@ Begleiter ist immer dieselbe Eigenschaft. Die Bewegungseinstellungen machen den 
 
 ### Der Roboter springt gar nicht
 
-**kann springen** ist aus. Schon die kleine Stufe hält ihn auf – später findet er Pip wieder.
+**kann springen** ist aus. Schon die kleine Stufe hält ihn auf – später findet er Pip wieder. Beim Rollen wippt er auf seiner Feder auf und ab.
 
 ![Roboter: kann nicht springen](variante:1)
 
 ![Roboter steht](katalog:roboter/stehen 3)
 ![Roboter rollt](katalog:roboter/rollen 10)
+![Roboter ruht](katalog:roboter/ruht 2)
+![Roboter scannt](katalog:roboter/scannt 4)
 
-### Vogel und Fee fliegen
+### Vogel und Eule fliegen
 
 Mit **kann fliegen** folgen sie dir durch die Luft – über Lücken hinweg, ohne zu springen, ein Stück hinter und über dir. Ihr Flügelschlag bekommt **Begleiter fliegt nach rechts**. Das Bild macht nicht, dass er fliegt – das macht das Häkchen. So werden auch eine Drohne, ein Geist oder ein Ballon zu Fliegern.
 
-![Vogel und Fee: kann fliegen](variante:2)
+![Vogel und Eule: kann fliegen](variante:2)
 
-![Vogel fliegt](katalog:vogel/fliegen 12)
-![Fee fliegt](katalog:fee/fliegen 10)
+![Vogel fliegt](katalog:vogel/fliegen 14)
+![Eule fliegt](katalog:eule/fliegen 10)
 
-### Der Otter schwimmt, der Hund wartet
+### Das Entchen schwimmt, der Hund wartet
 
-Wasser ist ein **Bewegungsbereich** mit **Schwimmen** (siehe *Pip taucht*). Mit **kann schwimmen** folgt der Otter dir hinein und springt am anderen Ufer mit einem Schwimmzug heraus – so hoch, wie seine Sprungkraft reicht. Der Hund kann nicht schwimmen: Er wartet am Ufer. Ein Vogel würde einfach darüber fliegen.
+Wasser ist ein **Bewegungsbereich** mit **Schwimmen** (siehe *Pip taucht*). Mit **kann schwimmen** folgt das Entchen dir hinein und springt am anderen Ufer mit einem Schwimmzug heraus – so hoch, wie seine Sprungkraft reicht. Der Hund kann nicht schwimmen: Er wartet am Ufer. Ein Vogel würde einfach darüber fliegen.
 
-![Otter und Hund am See](variante:3)
+![Entchen und Hund am See](variante:3)
 
-![Otter schwimmt](katalog:otter/schwimmen 8)
-![Otter läuft](katalog:otter/laufen 10)
+![Entchen schwimmt](katalog:entchen/schwimmen 6)
+![Entchen watschelt](katalog:entchen/watscheln 12)
 
-### Freunde kommen mit
+### Eine ganze Gruppe
 
-Ein Begleiter muss kein Tier sein. Die **Abenteurerin** springt so hoch wie Pip und kann schwimmen. Der **Ritter** ist in seiner Rüstung langsamer (**Geschwindigkeit 2,5**) und springt schwach (**Sprungkraft 5**). Die **Zauberin** schwebt (**kann fliegen**). Mehrere Begleiter stellen sich hintereinander auf – wer zuerst im Level steht, läuft vorn.
+Das **Kätzchen** ist flink (**Geschwindigkeit 3,2**) und springt hoch (**Sprungkraft 7,5**). Die **Kröte** ist langsam (**Geschwindigkeit 2,2**), springt aber höher als Pip (**Sprungkraft 8**). Die **Eule** fliegt gemütlich (**Geschwindigkeit 2,5**). Mehrere Begleiter stellen sich hintereinander auf – wer zuerst im Level steht, läuft vorn.
 
-![Abenteurerin, Ritter und Zauberin](variante:4)
+![Kätzchen, Kröte und Eule](variante:4)
 
-![Abenteurerin läuft](katalog:abenteurerin/laufen 8)
-![Ritter läuft](katalog:ritter/laufen 8)
-![Zauberin schwebt](katalog:zauberin/schweben 4)
+![Kätzchen läuft](katalog:kaetzchen/laufen 12)
+![Kröte hüpft](katalog:kroete/huepfen 10)
+![Eule watschelt](katalog:eule/watscheln 8)
+
+### Keine Langeweile
+
+Bleibt Pip stehen, wird es den Begleitern nicht langweilig. Der Hund setzt sich und schnüffelt herum. Der Vogel flattert von Platz zu Platz, landet, hüpft und pickt am Boden – und fliegt wieder auf. Dafür bekommen ihre Bilder **Begleiter sitzt** und **Begleiter beschäftigt sich** (bei **Eigenschaft hinzufügen → Begleiter**). Fehlen die Bilder, laufen sie nur ein paar Schritte hin und her. Ein Flieger, der landet, zeigt am Boden **Begleiter schaut nach rechts** und **Begleiter läuft nach rechts** – zeichne ihn dafür sitzend und hüpfend.
+
+![Hund und Vogel beschäftigen sich](variante:6)
+
+![Vogel pickt](katalog:vogel/pickt 8)
+![Kätzchen putzt sich](katalog:kaetzchen/putzt_sich 5)
+![Kröte fängt eine Fliege](katalog:kroete/fliegenfang 8)
+![Entchen putzt sich](katalog:entchen/putzt_sich 4)
 
 ## Tipps
 
@@ -228,9 +270,9 @@ Ein Begleiter muss kein Tier sein. Die **Abenteurerin** springt so hoch wie Pip 
 - Gib deinem Begleiter seinen Namen als **Titel**. Dann findest du ihn in der Sprite-Liste sofort.
 - Ein Begleiter, der zurückbleiben kann, macht dein Level spannender: Baust du für den Hund eine Treppe neben die hohe Kante?
 - Ist er weit weg, rennt er ein bisschen schneller, um dich einzuholen. Verlierst du ein Leben, ist er gleich wieder bei dir.
-- **Ein Freund, den man erst finden muss:** Klicke den Begleiter im Level an und schalte **kommt erst bei Signal mit** an. Dann wartet er, wo er steht. Leg einen **Signalbereich** um ihn herum und verbinde ihn mit dem Begleiter – sobald Pip zu ihm kommt, läuft er mit und bleibt bei dir:
+- **Ein Freund, den man erst finden muss:** Klicke den Begleiter im Level an und schalte **kommt erst bei Signal mit** an. Dann wartet er, wo er steht – und beschäftigt sich dort, bis Pip in die Nähe kommt. Leg einen **Signalbereich** um ihn herum und verbinde ihn mit dem Begleiter – sobald Pip zu ihm kommt, läuft er mit und bleibt bei dir:
 
-![Die Abenteurerin wartet am Treffpunkt](variante:5)
+![Das Kätzchen wartet am Treffpunkt](variante:5)
 
 ## Wenn's nicht klappt
 
@@ -242,5 +284,5 @@ Ein Begleiter muss kein Tier sein. Die **Abenteurerin** springt so hoch wie Pip 
 
 ## Mach mehr draus
 
-- Zeichne eine Katze, einen Schleim, ein Küken oder deinen besten Freund als Begleiter.
+- Zeichne einen Schleim, eine Schildkröte, eine Drohne oder deinen besten Freund als Begleiter.
 - Mach eine ganze Gruppe: Wer schafft welchen Weg, wer bleibt zurück?

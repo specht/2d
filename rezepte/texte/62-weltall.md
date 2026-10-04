@@ -17,13 +17,15 @@ szene:
     # inside the station there is gravity: Pip walks
     - { name: Station, art: laufen, rechtecke: [[0, 0, 6.5, 6]] }
   effekte:
-    - { effekt: stars, name: Sterne, farbe: '#f4f4f4ff', vorne: false }
+    # far away: the stars move only a little when the camera moves (Parallaxe 0.9)
+    - { effekt: stars, name: Sterne, farbe: '#f4f4f4ff', vorne: false, parallaxe: 0.9 }
     # the inside of the station is darker than its walls
     - { effekt: farbe, name: Innen, farben: ['#8a93b0', '#6c7594'], mischmodus: abdunkeln, bereich: [1, 1, 5, 4], hinter: Fenster }
   ebenen:
     - name: Planet
       kollision: false
-      #parallaxe: 0.7
+      # between the stars and the station: it drifts by slower than the station
+      parallaxe: 0.7
       karte: |
         ..............................
         ..............................
@@ -70,22 +72,24 @@ erwartet:
 # a picture of its own in the text: the same astronaut on the moon
 einzelbilder: true
 varianten:
-  - szene:
+  # the camera a little higher: more sky with the Earth, less under the ground
+  - bild_hoch: 1.5
+    szene:
       himmel: ['#1a1c2c', '#333c57']
       legende: { P: astronaut, M: mondboden, X: mondgestein, s: mondstein, E: erde_planet }
       # on the moon: walking and jumping as always, but with less gravity
       bewegung: { art: laufen, schwerkraft: 60 }
       bewegungsbereiche: []
       effekte:
-        - { effekt: stars, name: Sterne, farbe: '#f4f4f4ff', vorne: false }
+        - { effekt: stars, name: Sterne, farbe: '#f4f4f4ff', vorne: false, parallaxe: 0.9 }
       ebenen:
         - name: Erde
           kollision: false
           parallaxe: 0.7
           karte: |
             ..............................
-            ...........E..................
             ..............................
+            .......E......................
             ..............................
             ..............................
             ..............................
@@ -135,11 +139,11 @@ varianten:
 
 ## Schritt für Schritt
 
-1. **Das All:** In den **Level-Eigenschaften** stellst du **Bewegung im ganzen Level: Schweben** ein, mit **Gleiten 98 %** und **Tempo 0,7 ×**. Einen Sternenhimmel gibt es als **Hintergrund → Effekt → Sternenhimmel**.
+1. **Das All:** In den **Level-Eigenschaften** stellst du **Bewegung im ganzen Level: Schweben** ein, mit **Gleiten 98 %** und **Tempo 0,7 ×**. Einen Sternenhimmel gibt es als **Hintergrund → Effekt → Sternenhimmel**. Gib dieser Ebene **Parallaxe 0,9**: Die Sterne sind am weitesten weg und ziehen fast gar nicht vorbei.
 2. **Die Raumstation:** Wände und Boden sind feste Blöcke. Rechts ist die Luftschleuse offen. Leg über die Station einen **Bewegungsbereich** mit **Bewegung: Laufen – andere Schwerkraft** und **Schwerkraft 100 %**: Drinnen läuft und springt Pip wie immer.
 3. **Pip schwebt:** Gib Pip einen Zustand **Spielfigur schwebt nach rechts** – Arme und Beine gespreizt. Ohne dieses Bild nimmt das Spiel die Bilder fürs Laufen, Springen und Fallen.
 4. Draußen steuern die Pfeiltasten in alle vier Richtungen. Pip kommt aber nur langsam in Fahrt – und lässt du los, treibt sie einfach weiter. Zum Anhalten drückst du in die Gegenrichtung.
-5. Verteil ein paar **Sterne** zum Einsammeln im All. Ein **Satellit** und ein **Planet** (in einer Ebene mit **Parallaxe 0,7**, damit er weit weg wirkt) machen den Weltraum groß.
+5. Verteil ein paar **Sterne** zum Einsammeln im All. Ein **Satellit** und ein **Planet** (in einer Ebene mit **Parallaxe 0,7** – näher als die Sterne, weiter weg als die Station: Er zieht langsamer vorbei als die Station, aber schneller als die Sterne) machen den Weltraum groß.
 6. Probier es aus: Pip läuft aus der Luftschleuse und treibt ins All. Mit **↑** steigt sie zu einem Stern. Dann drückt sie **←**: Sie dreht sich sofort um – treibt aber erst noch ein Stück weiter, bis sie langsam wieder zurückkommt, zum zweiten Stern. So fühlt sich Schweben an: Man lenkt nicht, man gibt Schwung.
 
 ![Auf dem Mond](variante:1)

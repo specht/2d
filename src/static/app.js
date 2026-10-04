@@ -175,7 +175,8 @@ class Character {
         // swim / float / drift / dive / rise: the figure in a Bewegungsbereich
         // (movement_regions.js)
         // fly: a Begleiter that "kann fliegen" (companion_ai.js)
-        for (let kind of ['attack', 'hit', 'hunt', 'flee', 'stunned', 'landed', 'swim', 'float', 'drift', 'dive', 'rise', 'fly']) {
+        // sit / busy: a Begleiter keeping busy while the player stands still
+        for (let kind of ['attack', 'hit', 'hunt', 'flee', 'stunned', 'landed', 'swim', 'float', 'drift', 'dive', 'rise', 'fly', 'sit', 'busy']) {
             let poses = {};
             for (let sti = 0; sti < this.sprite.states.length; sti++) {
                 let tags = this.sprite.states[sti].traits?.[this.character_trait] ?? {};
@@ -771,14 +772,34 @@ void main() {
 		if (this.companion_waiting) {
 			for (const k of [KEY_LEFT, KEY_RIGHT, KEY_JUMP, KEY_UP, KEY_DOWN]) this.pressed_keys[k] = false;
 			this.ai_no_gravity = Boolean(this.companion.fly);
-			if (player?.mesh && Math.abs(player.mesh.position.x - this.mesh.position.x) < 6 * 24)
+			if (player?.mesh && Math.abs(player.mesh.position.x - this.mesh.position.x) < 6 * 24) {
 				this.ai_face = player.mesh.position.x < this.mesh.position.x ? 'left' : 'right';
+				// a bird that was sitting on the ground stays there while it looks
+				if (this.companion.fly && this.touching_ground() && this.companion_home_memory?.idle?.kind === 'ground') this.ai_no_gravity = false;
+				return;
+			}
+			// nobody near: it keeps busy around its own place (companion_ai.js)
+			this.companion_home ??= [this.mesh.position.x, this.mesh.position.y];
+			this.companion_home_memory ??= { seed: 777 + (this.companion_slot ?? 0) * 31 };
+			const w = this.companion_perception(null);
+			const [hx, hy] = this.companion_home;
+			w.player = { dx: hx - this.mesh.position.x, dy: hy - this.mesh.position.y, x: hx, y: hy, facing: 'right', start: 0.5 };
+			if (typeof companion_idle_ready === 'function' && companion_idle_ready(this.companion_home_memory, w))
+				this.apply_companion_decision(this.companion.fly ?
+					companion_idle_fly(this.companion, this.companion_home_memory, w) :
+					companion_idle_walk(this.companion, this.companion_home_memory, w));
 			return;
 		}
 		// while the player is dead or the curtain is down, it waits
 		const alive = player && player !== this && !player.dead() && this.game.running !== false &&
 			!this.game.curtain?.showing;
 		const out = companion_decide(this.companion, this.companion_memory, this.companion_perception(alive ? player : null));
+		this.apply_companion_decision(out);
+		if (alive) this.update_companion_lost(t, player);
+	}
+
+	// The keys, speed and pose a companion decided on (companion_ai.js).
+	apply_companion_decision(out) {
 		this.ai_no_gravity = Boolean(out.no_gravity);
 		this.pressed_keys[KEY_LEFT] = Boolean(out.keys?.left);
 		this.pressed_keys[KEY_RIGHT] = Boolean(out.keys?.right);
@@ -788,7 +809,8 @@ void main() {
 		this.ai_speed = out.speed ?? 1.0;
 		this.ai_dy = out.dy ?? 0;
 		this.ai_face = out.face ?? null;
-		if (alive) this.update_companion_lost(t, player);
+		// "sitzt" / "beschäftigt sich" – shown only if the sprite has such a picture
+		this.ai_pose = out.pose ?? null;
 	}
 
 	// What a companion perceives (see companion_decide).
@@ -809,8 +831,17 @@ void main() {
 			player: player ? {
 				dx: player.mesh.position.x - this.mesh.position.x,
 				dy: player.mesh.position.y - this.mesh.position.y,
+				x: player.mesh.position.x, y: player.mesh.position.y,
 				facing: player.last_horizontal_facing ?? 'right',
 			} : null,
+			// which keep-busy pictures it has ("sitzt", "beschäftigt sich")
+			has_pose: kind => Boolean(this.sti_for_state[kind]),
+			// how far down the ground is (px, at most max), or null
+			ground_below: max => {
+				for (let d = 0; d <= max; d += 2)
+					if (this.has_trait_at(['block_above', 'slope'], -w2 + 1, w2 - 1, -d - 1.0, -d)) return d;
+				return null;
+			},
 			wall: dir => Boolean(dir === 'left' ?
 				this.has_trait_at(['block_sides'], -w2 - 1, -w2, 0.1, h - 0.1) :
 				this.has_trait_at(['block_sides'], w2, w2 + 1, 0.1, h - 0.1)),
@@ -2139,6 +2170,8 @@ class Game {
 		this.geometry_and_material_for_frame = [];
 		this.animated_sprites = [];
 		this.transitioning_sprites = {};
+		// the sprite that shows "spricht gerade" (update_speaking_states)
+		this.speaking_shown = null;
 		this.ts_camera_shake = -1;
 		this.camera_shake_strength = 0;
 
@@ -2759,6 +2792,31 @@ class Game {
 		}, t);
 	}
 
+	// A sprite that speaks itself (speaker "self") shows its state "spricht gerade"
+	// while its sentences are on screen, and its first state again afterwards –
+	// a figure at the roadside moves its mouth. Without such a state nothing changes.
+	update_speaking_states() {
+		const current = this.speech?.active ? this.speech.current : null;
+		const talking = current && current.speaker !== 'player' ? current.speaker : null;
+		const shown = this.speaking_shown ?? null;
+		if (shown && shown.entry_index === talking) return;
+		if (shown) {
+			// back to the state it had before
+			const entry = this.active_level_sprites[shown.entry_index];
+			const mesh_state = entry?.mesh ? this.state_for_mesh[entry.mesh.uuid] : null;
+			if (mesh_state) mesh_state.state_index = shown.before;
+			this.speaking_shown = null;
+		}
+		if (talking === null) return;
+		const entry = this.active_level_sprites[talking];
+		const sprite = entry ? this.data.sprites[entry.sprite_index] : null;
+		const mesh_state = entry?.mesh ? this.state_for_mesh[entry.mesh.uuid] : null;
+		const state_index = sprite?.states.findIndex((state) => 'speaking' in (state.traits?.text ?? {})) ?? -1;
+		if (state_index === -1 || !mesh_state) return;
+		this.speaking_shown = { entry_index: talking, before: mesh_state.state_index };
+		mesh_state.state_index = state_index;
+	}
+
 	// The game's font, loaded before it is needed (a promise; recipes wait for it).
 	speech_fonts_ready() {
 		if (typeof document === 'undefined' || !document.fonts?.load) return Promise.resolve();
@@ -2981,6 +3039,7 @@ class Game {
 
 		// handle animated sprites
 
+		this.update_speaking_states();
 		for (let si of this.animated_sprites) {
 			let sprite = this.data.sprites[si];
 			for (let mesh of this.meshes_for_sprite[si]) {

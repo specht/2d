@@ -47,6 +47,150 @@ const COMPANION = {
     JUMP_HOLD_STEPS: 6,
 };
 
+// Keeping busy: when the player has stood still for a while, a Begleiter does
+// little things nearby instead of standing like a post – a walker strolls a few
+// steps on its own side of the player, sits down or sniffs / pecks around (if it
+// has "sitzt" / "beschäftigt sich" pictures); a flyer flutters from spot to spot
+// around the player and now and then lands, hops and pecks on the ground and
+// flies up again. As soon as the player moves, it stops and follows as usual.
+// A Begleiter that waits for a signal does the same around its own place.
+// Deterministic (its own little random sequence), so a recipe plays the same
+// every time.
+const COMPANION_IDLE = {
+    START: 1.5,              // seconds the player has stood still before it begins
+    STILL: 0.5,              // px the player may move per step and still count as standing
+    NEAR: 84,                // the player is no farther than this (px)
+    STROLL_SPEED: 0.45,      // walking about: this share of its speed
+    STROLL_MIN: 26, STROLL_MAX: 46,    // where a walker strolls to: px from the player, on its side
+    FLUTTER_SPEED: 0.55,
+    FLUTTER_SIDE: 52,        // a flyer flutters within this many px left and right of the player
+    FLUTTER_LOW: 10, FLUTTER_HIGH: 50, // and this high above the player's feet
+    LAND_SPEED: 0.9, TAKEOFF_SPEED: 1.1,
+    TAKEOFF_HEIGHT: 22,      // px above the ground before it flutters on
+};
+
+// its own little random sequence (0 … 1), so every run is the same
+function companion_random(mem) {
+    mem.seed = ((mem.seed ?? 12345) * 1103515245 + 12345) % 2147483648;
+    return mem.seed / 2147483648;
+}
+
+// Has the player stood still long enough (and is near)? Remembers where the
+// player was; w.player.x / y are the player's position in the world.
+function companion_idle_ready(mem, w) {
+    const p = w.player;
+    if (!p || p.x === undefined) return false;
+    const now = w.now ?? 0;
+    const moved = mem.player_at === undefined ||
+        Math.abs(p.x - mem.player_at[0]) > COMPANION_IDLE.STILL || Math.abs(p.y - mem.player_at[1]) > COMPANION_IDLE.STILL;
+    mem.player_at = [p.x, p.y];
+    if (moved || mem.still_since === undefined) mem.still_since = now;
+    return now - mem.still_since >= (p.start ?? COMPANION_IDLE.START) && Math.hypot(p.dx, p.dy) <= COMPANION_IDLE.NEAR;
+}
+
+// The next thing to do (weights: what it can show is more likely).
+function companion_pick_idle(mem, choices) {
+    const total = choices.reduce((s, c) => s + c[1], 0);
+    let r = companion_random(mem) * total;
+    for (const [kind, weight] of choices) { if ((r -= weight) < 0) return kind; }
+    return choices[choices.length - 1][0];
+}
+
+// A walker keeps busy: { keys, speed, pose, face } or null (nothing special).
+function companion_idle_walk(a, mem, w) {
+    const p = w.player, now = w.now ?? 0;
+    const has = k => Boolean(w.has_pose?.(k));
+    const side = p.dx > 0 ? -1 : 1;          // the side of the player it is on
+    let job = mem.idle;
+    const stand = (extra = {}) => ({ keys: { left: false, right: false, jump: false, up: false, down: false },
+        speed: 1, dy: 0, no_gravity: false, face: null, ...extra });
+    if (!job || now >= job.until) {
+        const kind = companion_pick_idle(mem, [['stand', 1], ['look', 1], ['stroll', 3],
+            ...(has('sit') ? [['sit', 2]] : []), ...(has('busy') ? [['busy', 2]] : [])]);
+        const r = companion_random(mem);
+        job = mem.idle = { kind, until: now + ({ stand: 1.0, look: 1.2, stroll: 2.5, sit: 2.5, busy: 2.0 }[kind]) + r * 1.5,
+            ox: side * (COMPANION_IDLE.STROLL_MIN + companion_random(mem) * (COMPANION_IDLE.STROLL_MAX - COMPANION_IDLE.STROLL_MIN)) };
+    }
+    const toward_player = p.dx < 0 ? 'left' : 'right';
+    if (job.kind === 'sit' || job.kind === 'busy') return stand({ pose: job.kind, face: toward_player });
+    if (job.kind === 'look') return stand({ face: toward_player === 'left' ? 'right' : 'left' });
+    if (job.kind === 'stroll') {
+        const tx = p.dx + job.ox;             // the spot relative to the companion
+        if (Math.abs(tx) > 2) {
+            const dir = tx < 0 ? 'left' : 'right';
+            const blocked = w.wall(dir) || !w.ground(dir) || (!a.swim && w.water?.(dir));
+            if (!blocked) return { keys: { left: dir === 'left', right: dir === 'right', jump: false, up: false, down: false },
+                speed: COMPANION_IDLE.STROLL_SPEED, dy: 0, no_gravity: false, face: null };
+        }
+        job.until = Math.min(job.until, now + 0.6);
+    }
+    return stand({ face: toward_player });
+}
+
+// A flyer keeps busy: fluttering from spot to spot around the player, landing,
+// hopping and pecking on the ground, flying up again.
+function companion_idle_fly(a, mem, w) {
+    const p = w.player, now = w.now ?? 0;
+    const has = k => Boolean(w.has_pose?.(k));
+    const keys = dir => ({ left: dir === 'left', right: dir === 'right', jump: false, up: false, down: false });
+    const toward_player = p.dx < 0 ? 'left' : 'right';
+    let job = mem.idle;
+    if (job && job.kind === 'ground' && !w.on_ground) job = mem.idle = { kind: 'takeoff', until: now + 1.2 };
+    if (!job || now >= job.until) {
+        if (job?.kind === 'ground') {
+            job = mem.idle = { kind: 'takeoff', until: now + 1.2 };
+        } else {
+            const can_land = w.ground_below?.(72) !== null && w.ground_below?.(72) !== undefined;
+            const kind = companion_pick_idle(mem, [['hover', 1], ['flutter', 3], ...(can_land ? [['land', 2]] : [])]);
+            job = mem.idle = { kind, until: now + ({ hover: 1.0, flutter: 2.4, land: 3.0 }[kind]) + companion_random(mem),
+                tx: (companion_random(mem) * 2 - 1) * COMPANION_IDLE.FLUTTER_SIDE,
+                ty: COMPANION_IDLE.FLUTTER_LOW + companion_random(mem) * (COMPANION_IDLE.FLUTTER_HIGH - COMPANION_IDLE.FLUTTER_LOW) };
+        }
+    }
+    if (job.kind === 'hover') {
+        const bob = Math.sin(now * Math.PI * 1.6) * 0.25;
+        return { keys: keys(null), speed: 1, dy: bob, no_gravity: true, face: toward_player };
+    }
+    if (job.kind === 'flutter') {
+        // the spot is relative to the player: p.dx + tx from the companion
+        const dx = p.dx + job.tx, dy = p.dy + job.ty;
+        const step = a.vrun * COMPANION_IDLE.FLUTTER_SPEED;
+        if (Math.hypot(dx, dy) < 3) job.until = Math.min(job.until, now + 0.4);
+        const dir = Math.abs(dx) > 2 ? (dx < 0 ? 'left' : 'right') : null;
+        // a little up and down while it flies, like wings beating
+        const flap = Math.sin(now * Math.PI * 4) * 0.35;
+        return { keys: keys(dir), speed: COMPANION_IDLE.FLUTTER_SPEED, dy: Math.max(-step, Math.min(step, dy)) + flap,
+            no_gravity: true, face: dir ? null : toward_player };
+    }
+    if (job.kind === 'land') {
+        if (w.on_ground) {
+            // on the ground: it hops a little, pecks, sits – with gravity, like a walker
+            job = mem.idle = { kind: 'ground', until: now + 3 + companion_random(mem) * 3, next: 0 };
+        } else {
+            return { keys: keys(null), speed: 1, dy: -COMPANION_IDLE.LAND_SPEED, no_gravity: true, face: toward_player };
+        }
+    }
+    if (job.kind === 'ground') {
+        if (now >= job.next) {
+            const kind = companion_pick_idle(mem, [['stand', 1], ['hop', 2], ...(has('busy') ? [['busy', 3]] : []), ...(has('sit') ? [['sit', 1]] : [])]);
+            // hops stay near the player: back towards it when it is more than a little away
+            const away = Math.abs(p.dx) > COMPANION_IDLE.FLUTTER_SIDE * 0.6;
+            const dir = away ? toward_player : (companion_random(mem) < 0.5 ? 'left' : 'right');
+            job.step = { kind, until: now + 0.4 + companion_random(mem) * 0.8, dir };
+            job.next = job.step.until;
+        }
+        const st = job.step;
+        if (st.kind === 'hop' && !w.wall(st.dir) && w.ground(st.dir))
+            return { keys: keys(st.dir), speed: COMPANION_IDLE.STROLL_SPEED, dy: 0, no_gravity: false, face: null };
+        const pose = st.kind === 'busy' || st.kind === 'sit' ? st.kind : null;
+        return { keys: keys(null), speed: 1, dy: 0, no_gravity: false, face: pose ? st.dir : toward_player, pose };
+    }
+    // takeoff: straight up a little, then flutter on
+    const above = w.ground_below?.(COMPANION_IDLE.TAKEOFF_HEIGHT + 2);
+    if (above === null || above === undefined || above >= COMPANION_IDLE.TAKEOFF_HEIGHT) job.until = Math.min(job.until, now);
+    return { keys: keys(null), speed: 1, dy: COMPANION_IDLE.TAKEOFF_SPEED, no_gravity: true, face: toward_player };
+}
+
 // The settings of a companion with their defaults (absent fields as in a new
 // trait). Pure, never changes the traits.
 function companion_abilities(traits) {
@@ -101,8 +245,12 @@ function companion_decide(a, mem, w) {
     // the second, third … Begleiter keep a place farther back
     const extra = (w.slot ?? 0) * COMPANION.SLOT_SPACING;
 
+    const idle = companion_idle_ready(mem, w);
+    if (!idle) mem.idle = null;
+
     // ---- flying: through the air to a spot behind and above the player
     if (a.fly) {
+        if (idle) return companion_idle_fly(a, mem, w);
         const behind = p.facing === 'left' ? -1 : 1;
         const tx = p.dx - behind * (COMPANION.FLY_SIDE + extra);
         const ty = p.dy + COMPANION.FLY_ABOVE + ((w.slot ?? 0) % 2) * 10;
@@ -162,6 +310,7 @@ function companion_decide(a, mem, w) {
     mem.moving = companion_keeps_following(mem.moving, distance, COMPANION.STOP + extra, COMPANION.FOLLOW + extra);
     if (!mem.moving) {
         mem.air = null;
+        if (idle && !w.fluid) return companion_idle_walk(a, mem, w);
         return stand({ face: toward(p.dx) });
     }
     const dir = toward(p.dx);
@@ -255,7 +404,8 @@ function companion_pick_spot(spots, player_y) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        COMPANION, companion_abilities, companion_keeps_following, companion_jump_height, companion_decide,
+        COMPANION, COMPANION_IDLE, companion_abilities, companion_keeps_following, companion_jump_height, companion_decide,
+        companion_idle_ready, companion_idle_walk, companion_idle_fly,
         companion_lost_step, companion_returned, companion_return_xs, companion_pick_spot,
     };
 }

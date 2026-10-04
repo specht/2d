@@ -12,6 +12,7 @@ szene:
     ............
     ............
     .P..........
+    ###....#####
     ###BBBB#####
     ###..g.#####
     ############
@@ -33,7 +34,7 @@ erwartet:
 - **Das kannst du später dazumalen:** Risse, die zeigen, dass die Steine gleich nachgeben.
 
 ![Bröckelstein](katalog:welt/broeckel)
-![Zerfall](katalog:welt/broeckel_zerfall 8)
+![Zerfall](katalog:welt/broeckel_zerfall 24)
 ![Glibber](katalog:glibber/laufen 8)
 
 ## Schritt für Schritt
