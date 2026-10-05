@@ -39,6 +39,62 @@ const pixel_fit = (() => {
     };
 })();
 
+// A guide's card shows a screenshot of the studio: thin lines and small text,
+// shrunk to about a quarter. Browsers shrink an <img> that much with a coarse
+// filter (it looks like nearest neighbour), so the card draws it on a canvas
+// instead, halving it step by step and then scaling the rest – smooth in every
+// browser, at the card's size on screen (also on sharp screens), again when the
+// card changes size. Cropped like the cards (object-fit: cover, from the top).
+const smooth_still = (() => {
+    const draw = (canvas, image) => {
+        const box = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.round(box.width * dpr), h = Math.round(box.height * dpr);
+        if (!w || !h || !image.naturalWidth) return;
+        const scale = Math.max(w / image.naturalWidth, h / image.naturalHeight);
+        let source = image, sw = image.naturalWidth, sh = image.naturalHeight;
+        // halve while the card shows less than half of what is left
+        while (image.naturalWidth * scale * 2 <= sw && sw > 2) {
+            const half = document.createElement('canvas');
+            half.width = Math.max(1, Math.round(sw / 2));
+            half.height = Math.max(1, Math.round(sh / 2));
+            const c = half.getContext('2d');
+            c.imageSmoothingEnabled = true;
+            c.imageSmoothingQuality = 'high';
+            c.drawImage(source, 0, 0, sw, sh, 0, 0, half.width, half.height);
+            source = half; sw = half.width; sh = half.height;
+        }
+        const k = sw / image.naturalWidth;               // what the halving left
+        const cw = w / scale * k, ch = h / scale * k;    // the part of it the card shows
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(source, (sw - cw) / 2, 0, cw, ch, 0, 0, w, h);
+    };
+    const observer = typeof ResizeObserver === 'function' ?
+        new ResizeObserver(entries => entries.forEach(e => e.target.smooth_image?.complete && draw(e.target, e.target.smooth_image))) : null;
+    return {
+        canvas(url, label) {
+            const canvas = document.createElement('canvas');
+            canvas.className = 'rezept-still';
+            canvas.setAttribute('role', 'img');
+            canvas.setAttribute('aria-label', label);
+            const image = new Image();
+            image.decoding = 'async';
+            image.onload = () => draw(canvas, image);
+            image.src = url;
+            canvas.smooth_image = image;
+            observer?.observe(canvas);
+            return canvas;
+        },
+        forget(root) {
+            for (const canvas of $(root).find('canvas.rezept-still')) observer?.unobserve(canvas);
+        },
+    };
+})();
+
 class RecipeGallery {
     constructor(container) {
         this.container = $(container);
@@ -205,6 +261,13 @@ class RecipeGallery {
     card(recipe, extra_class = '', label = null) {
         const card = $('<button>').addClass('rezept-karte').addClass(extra_class).toggleClass('anleitung', !!recipe.anleitung)
             .on('click', () => this.show_recipe(recipe.id));
+        // a guide: one still of the studio, drawn smoothly (smooth_still)
+        if (recipe.anleitung) {
+            $('<div>').addClass('rezept-bild').css('background', recipe.himmel ?? '')
+                .append(smooth_still.canvas(this.still_url(recipe), recipe.titel)).appendTo(card);
+            this.card_text(card, recipe, label);
+            return card;
+        }
         // The recording fills the card, anchored at the bottom (see styles.css).
         const img = $('<img>').attr({ src: this.still_url(recipe), alt: recipe.titel, loading: 'lazy', decoding: 'async' })
             .attr('data-still', this.still_url(recipe)).attr('data-animation', this.media_url(recipe));
@@ -221,6 +284,11 @@ class RecipeGallery {
         }
         if (this.observer) this.observer.observe(img[0]);
         pixel_fit.watch(img[0]);
+        this.card_text(card, recipe, label);
+        return card;
+    }
+
+    card_text(card, recipe, label) {
         const text = $('<div>').addClass('rezept-text').appendTo(card);
         $('<div>').addClass('rezept-kopf')
             .append($('<span>').addClass('rezept-kategorie')
@@ -229,7 +297,6 @@ class RecipeGallery {
             .appendTo(text);
         $('<div>').addClass('rezept-titel').text(recipe.titel).appendTo(text);
         if (!label) $('<div>').addClass('rezept-kurz').text(recipe.kurz).appendTo(text);
-        return card;
     }
 
     // The gallery is only rebuilt when the filter changes: its scroll position stays.
@@ -239,6 +306,7 @@ class RecipeGallery {
         const self = this;
         for (const img of this.container.find('.rezept-bild img')) this.observer?.unobserve(img);
         pixel_fit.forget(this.container);
+        smooth_still.forget(this.container);
         this.container.empty();
         const chips = $('<div>').addClass('rezept-filter').appendTo(this.container);
         for (const category of [null, ...this.categories]) {
@@ -314,7 +382,7 @@ class RecipeGallery {
         this.open_id = null;
         window.anleitung_films?.unmount_all();
         for (const img of this.popup_body?.find('.rezept-bild img') ?? []) this.observer?.unobserve(img);
-        if (this.popup_body) pixel_fit.forget(this.popup_body);
+        if (this.popup_body) { pixel_fit.forget(this.popup_body); smooth_still.forget(this.popup_body); }
         this.popup_body?.empty();
         this.popup_el?.hide();
         this.popup_el?.find('.rezept-dialog').removeClass('anleitung');
@@ -336,6 +404,7 @@ class RecipeGallery {
         for (const img of this.popup_body.find('.rezept-bild img')) this.observer?.unobserve(img);
         window.anleitung_films?.unmount_all();
         pixel_fit.forget(this.popup_body);
+        smooth_still.forget(this.popup_body);
         this.popup_body.empty();
         const article = $('<article>').addClass('rezept').appendTo(this.popup_body);
         $('<div>').addClass('rezept-kopf')

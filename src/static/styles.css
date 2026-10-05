@@ -2538,7 +2538,8 @@ a, a:visited {
     outline: none;
 }
 
-.rezept-karte:hover .rezept-bild img, .rezept-karte:focus-visible .rezept-bild img {
+.rezept-karte:hover .rezept-bild img, .rezept-karte:focus-visible .rezept-bild img,
+.rezept-karte:hover .rezept-bild canvas, .rezept-karte:focus-visible .rezept-bild canvas {
     transform: scale(1.035);
 }
 
@@ -2789,6 +2790,16 @@ a, a:visited {
    hard pixels would drop rows and columns unevenly */
 img.verkleinert {
     image-rendering: auto !important;
+}
+/* a guide's card: its still drawn smoothly on a canvas (rezepte.js smooth_still) */
+.rezept-bild canvas.rezept-still {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    transition: transform 0.25s ease;
+    transform-origin: center top;
 }
 /* a card of a guide shows the studio, not pixel art: smooth when scaled */
 .rezept-karte.anleitung .rezept-bild img {
