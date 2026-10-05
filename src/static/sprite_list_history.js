@@ -103,11 +103,26 @@ class SpriteListHistory {
 // too (references, placed copies, materials, titles, the level editor).
 function game_sprite_list_ops(game) {
     const sprites = () => game.data.sprites;
+    // The drawing area must show a sprite of the list afterwards – never one
+    // that was just taken out (it stayed on screen with nothing selected, and
+    // the next stroke had no sprite to go to). The sprite shown before stays
+    // shown wherever it is now; if it was taken out, its neighbour; a sprite
+    // put back by Wiederholen is shown, as when it was added.
+    const shown_index = typeof canvas !== 'undefined' ? canvas.sprite_index : null;
+    let show_id = shown_index !== null && shown_index !== undefined ? sprites()[shown_index]?.id ?? null : null;
+    let put_back = false;
+    const show_sprite = () => {
+        if (!sprites().length) return;
+        let index = show_id !== null ? sprites().findIndex(s => s.id === show_id) : -1;
+        if (index < 0) index = Math.max(0, Math.min(shown_index ?? 0, sprites().length - 1));
+        game.sprites_widget?.select_index?.(index);
+    };
     const refresh = () => {
         if (typeof canvas !== 'undefined') canvas.detachSprite?.();
         for (let si = 0; si < sprites().length; si++) game.create_geometry_and_material_for_sprite(si);
         game.refresh_frames_on_screen?.();
         game.sprites_widget?.rebuild?.();
+        show_sprite();
         game.refresh_sprite_reference_pickers?.();
         game.refresh_sprite_titles?.();
         const le = game.level_editor;
@@ -131,7 +146,10 @@ function game_sprite_list_ops(game) {
             return { json: JSON.stringify(sprite), index, levels_before, levels_after };
         },
         put(json, index) {
-            sprites().splice(Math.min(index, sprites().length), 0, JSON.parse(json));
+            const sprite = JSON.parse(json);
+            // the first sprite put back is the one shown (Wiederholen of an insert)
+            if (!put_back) { put_back = true; show_id = sprite.id; }
+            sprites().splice(Math.min(index, sprites().length), 0, sprite);
             game.fix_game_data();
             refresh();
         },
