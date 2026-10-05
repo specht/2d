@@ -35,13 +35,15 @@ function bytes_to_str(i) {
     return `${(i / 1024 / 1024 / 1024 / 1024).toFixed(1)} TB`;
 }
 
-// The sprite pane's columns (pure): tools and colours | drawing area |
-// "this sprite" (Titel, Eigenschaften) | its Zustände | every sprite of the
-// game. The tools column has one width everywhere: six tools, eight colours
-// and eleven variations in a row, edge to edge. The drawing area stays square
-// and as big as the height allows; the Zustände get a column of their own when
-// that costs it little (1920 × 1080), otherwise they come below the
-// Eigenschaften.
+// The sprite pane's columns (pure), from the general to the particular:
+// every sprite of the game | tools and colours | drawing area | "this sprite"
+// (Titel, Eigenschaften) | its Zustände. So the sprites are on the left in
+// both editors (the level editor's palette), the tools beside the drawing
+// area, and what is being edited on its right. The tools column has one
+// width everywhere: six tools, eight colours and eleven variations in a row,
+// edge to edge. The drawing area stays square and as big as the height
+// allows; the Zustände get a column of their own when that costs it little
+// (1920 × 1080), otherwise they come below the Eigenschaften.
 const SPRITE_LEFT_COLUMN = 240;
 
 // The sprite list shows whole tiles (68 px each, plus its padding and room
@@ -56,26 +58,25 @@ function sprite_pane_layout(width, height) {
     const column_w = wide ? 250 : 236;
     // at least three tiles of the sprite list; on a tablet two (the drawing area needs the room)
     const library_min = SPRITE_LIBRARY_PADDING + (width < 1400 ? 2 : 3) * SPRITE_TILE_STEP;
-    const x_canvas = gap + left_w + gap;
-    const fit = (columns) => Math.max(100, Math.min(height - 218,
-        width - x_canvas - (columns * (gap + column_w) + gap + library_min + gap)));
+    // everything but the drawing area and the list: tools, gaps, the columns
+    const others = (columns) => gap + gap + left_w + gap + gap + columns * (column_w + gap);
+    const fit = (columns) => Math.max(100, Math.min(height - 218, width - others(columns) - library_min));
     const states_column = fit(2) >= fit(1) * 0.93;
     const size = states_column ? fit(2) : fit(1);
     const columns = states_column ? 2 : 1;
-    // the room right of the drawing area: the columns, then whole tiles of the list
-    const room = width - (x_canvas + size + gap) - columns * (column_w + gap) - gap;
+    // the room for the list: whole tiles; the rest widens the columns
+    const room = width - others(columns) - size;
     const tiles = Math.max(2, Math.floor((Math.max(room, library_min) - SPRITE_LIBRARY_PADDING) / SPRITE_TILE_STEP));
     const library_w = SPRITE_LIBRARY_PADDING + tiles * SPRITE_TILE_STEP;
     const spare = Math.max(0, room - library_w);
     const sprite_w = column_w + Math.floor(spare / columns);
     const states_w = states_column ? column_w + Math.floor(spare / columns) : column_w;
+    const x_library = gap;
+    const x_tools = x_library + library_w + gap;
+    const x_canvas = x_tools + left_w + gap;
     const x_sprite = x_canvas + size + gap;
     const x_states = x_sprite + sprite_w + gap;
-    const x_library = (states_column ? x_states + states_w : x_sprite + sprite_w) + gap;
-    return {
-        gap, left_w, sprite_w, states_w, states_column, size,
-        x_canvas, x_sprite, x_states, x_library, library_w: Math.max(library_w, width - x_library - gap),
-    };
+    return { gap, left_w, sprite_w, states_w, states_column, size, x_library, library_w, x_tools, x_canvas, x_sprite, x_states };
 }
 
 // Folding panels (the settings of the level and of the layer in the level
@@ -163,7 +164,7 @@ function handleResize() {
     $('#undo_stack').css({ left: `${layout.x_canvas}px`, width: `${size}px` });
     $('#menu_frames').css({ left: `${layout.x_canvas}px`, top: `${size + 120}px`, width: `${size}px` });
     // the boxes are left_w wide; the column is a little wider, for its scrollbar (styles.css)
-    $('#main_div_sprites > .menu_container').first().css({ left: `${layout.gap}px`, width: `${layout.left_w + 12}px`,
+    $('#main_div_sprites > .menu_container').first().css({ left: `${layout.x_tools}px`, width: `${layout.left_w + 12}px`,
         '--sprite-left-column': `${layout.left_w}px` });
     $('#main_div_sprites .right_menu_container').css({ left: `${layout.x_sprite}px`, width: `${layout.sprite_w}px` });
     // the Zustände: their own column, or below the Eigenschaften
