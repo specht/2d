@@ -3052,6 +3052,23 @@ a, a:visited {
     border-color: rgba(255, 205, 117, 0.6);
     color: #fff;
 }
+/* the step's longer explanation (anleitung `mehr`): only under the current
+   step, so the list stays short; a step that is not current shows it on hover */
+.film-schritte .film-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.film-schritte .film-mehr {
+    display: none;
+    font-size: 88%;
+    line-height: 1.4;
+    color: #cfd6e4;
+}
+.film-schritte li.aktiv .film-mehr,
+.film-schritte li:hover .film-mehr {
+    display: block;
+}
 .film-schritte li.aktiv .film-nr {
     background: #ffcd75;
     color: #1a1c2c;
@@ -5506,6 +5523,23 @@ button.resize-cell.active {
     aspect-ratio: 1;
     margin: 0;
     box-sizing: border-box;
+}
+/* the colour itself among its variations (studio.js setCurrentColor) */
+#color_variations_menu > .button.basis {
+    position: relative;
+}
+#color_variations_menu > .button.basis::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 5px;
+    height: 5px;
+    margin: -2.5px 0 0 -2.5px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.75);
+    pointer-events: none;
 }
 #color_variations_menu > br {
     display: none;

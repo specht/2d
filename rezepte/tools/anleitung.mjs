@@ -110,7 +110,7 @@ export class GuidePlayer {
         // caption, the keys held or pressed and what the mouse does
         // (Rechtsklick, ziehen). Never drawn into the picture: the player lists
         // the steps beside the video and shows the keys over it.
-        this.band = { nr: null, text: '', keys: [], maus: '' };
+        this.band = { nr: null, text: '', mehr: '', keys: [], maus: '' };
     }
 
     async init() {
@@ -423,14 +423,14 @@ export class GuidePlayer {
         // every key must mean something: a YAML slip (a comma in a caption
         // without quotes) would otherwise pass silently
         const actions = ['bewegen', 'klick', 'doppelklick', 'rechtsklick', 'ziehen', 'malen', 'taste', 'tippen', 'warten', 'pause', 'js', 'pruefen', 'menue', 'ansicht'];
-        const extras = ['hinweis', 'nr', 'mit', 'dauer', 'halten', 'zeigen', 'meldung'];
+        const extras = ['hinweis', 'nr', 'mehr', 'mit', 'dauer', 'halten', 'zeigen', 'meldung'];
         const unknown = Object.keys(s ?? {}).filter(k => !actions.includes(k) && !extras.includes(k));
         if (unknown.length) this.fail(`unbekannt: ${unknown.join(', ')} (Komma in einem Text ohne Anführungszeichen?)`);
         if (Object.keys(s).filter(k => actions.includes(k)).length > 1) this.fail(`mehrere Aktionen in einem Schritt: ${JSON.stringify(s)}`);
         const page = this.page;
         if (s.hinweis !== undefined) {
-            await this.set_band({ text: s.hinweis || '', nr: s.nr ?? null });
-            if (Object.keys(s).every(k => k === 'hinweis' || k === 'nr')) { await this.frame(10); return; }
+            await this.set_band({ text: s.hinweis || '', nr: s.nr ?? null, mehr: s.mehr ?? '' });
+            if (Object.keys(s).every(k => ['hinweis', 'nr', 'mehr'].includes(k))) { await this.frame(10); return; }
         }
         if (s.bewegen !== undefined) await this.move_to(await this.point(s.bewegen), s.dauer ? s.dauer * 1000 : undefined);
         else if (s.klick !== undefined) await this.click(s.klick, { mit: s.mit });

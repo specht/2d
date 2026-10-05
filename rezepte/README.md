@@ -696,7 +696,7 @@ Steps (one action per step; captions and modifiers may go with it):
 
 | Step | Does |
 | --- | --- |
-| `{ hinweis: Text, nr: 3 }` | from here on step ③ *Text* is the current one beside the film (alone: also a short pause) |
+| `{ hinweis: Text, nr: 3, mehr: "…" }` | from here on step ③ *Text* is the current one beside the film (alone: also a short pause); `mehr` is a sentence or two shown under the current step |
 | `klick: <ziel>` · `doppelklick` · `rechtsklick` | moves the pointer there and clicks; `mit: Control` holds keys |
 | `malen: [<ziel>, <ziel>, …]` | drags through the points with the button held (`mit:` as above) |
 | `ziehen: { von, nach }` | drags from one point to another |
@@ -721,5 +721,8 @@ match the numbers in the videos → Wenn's nicht klappt → Mach mehr draus),
 with `<kbd>Strg</kbd>` for keys and `[Text](rezept:id)` for links to recipes
 and other guides (checked by the build). The Hilfe tab shows the guides first,
 as *Erste Schritte* (*Teil 1, 2 …*), separated from the recipes by a line.
-The `hinweis` captions of a film become its list of steps: keep them short
-(they stand in a narrow column) and number them like the text.
+The `hinweis` captions of a film become its list of steps beside it: keep
+them short (they stand in a narrow column) and put what else a child needs to
+know into `mehr`. The text below a film does not repeat the steps – it adds
+what is not a step (a list of choices, a tip, what to do when it fails). Say
+what to click with *anklicken*, *auswählen* or *wählen*.

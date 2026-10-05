@@ -1,6 +1,6 @@
 ---
 titel: Das erste Level
-kurz: Boden legen, die Figur hineinsetzen, mit T testen – und Fehler wieder wegmachen.
+kurz: Boden legen, die Figur hineinsetzen, mit T testen – und falsch gesetzte Blöcke wieder löschen.
 start:
   szene:
     zusaetzlich: [boden, pip]
@@ -20,19 +20,19 @@ aufnahmen:
           game._load();
     ausschnitt: [0, 0, 1600, 862]
     schritte:
-      - { hinweis: Oben auf „Level“ klicken, nr: 1 }
+      - { hinweis: Oben auf „Level“ klicken, nr: 1, mehr: "In der Mitte ist dein Level, links stehen Werkzeuge und Sprites." }
       - klick: '#mi_level'
       - ansicht: [-1, -2, 14, 7]
-      - { hinweis: Den Boden anklicken, nr: 2 }
+      - { hinweis: Den Boden anklicken, nr: 2, mehr: "Links bei „Sprites“." }
       - klick: '#menu_level_sprites .button[title="Boden"]'
-      - { hinweis: Zeichnen nehmen (W), nr: 3 }
+      - { hinweis: Zeichnen auswählen (W), nr: 3, mehr: "Der Stift bei den Werkzeugen." }
       - klick: '#tool_menu_level .button[title^="Zeichnen"]'
-      - { hinweis: Ein Klick – ein Block, nr: 4 }
+      - { hinweis: Ein Klick – ein Block, nr: 4, mehr: "Er rastet im Gitter ein." }
       - klick: { feld: [0, 0] }
       - klick: { feld: [1, 0] }
-      - { hinweis: Ziehen – eine ganze Reihe, nr: 5 }
+      - { hinweis: Ziehen – eine ganze Reihe, nr: 5, mehr: "Mit gedrückter Maustaste." }
       - malen: [{ feld: [2, 0] }, { feld: [12, 0] }]
-      - { hinweis: Strg + ziehen – ein ganzes Rechteck, nr: 6 }
+      - { hinweis: Strg + ziehen – ein ganzes Rechteck, nr: 6, mehr: "Halt Strg gedrückt und zieh: Das Rechteck wird ganz gefüllt." }
       - malen: [{ feld: [7, 1] }, { feld: [9, 2] }]
         mit: Control
       - pause: 0.6
@@ -42,38 +42,38 @@ aufnahmen:
     titel: Figur hinein und testen
     ausschnitt: [0, 0, 1600, 862]
     schritte:
-      - { hinweis: Die Figur anklicken und hinsetzen, nr: 7 }
+      - { hinweis: Die Figur anklicken und hinsetzen, nr: 7, mehr: "Ein Klick über den Boden." }
       - klick: '#menu_level_sprites .button[title="Pip"]'
       - klick: { feld: [1, 1] }
-      - { hinweis: T – das Level testen, nr: 8 }
+      - { hinweis: T – das Level testen, nr: 8, mehr: "Oder der grüne Pfeil bei den Werkzeugen." }
       - taste: KeyT
       - warten: 1
-      - { hinweis: Pfeiltasten und Leertaste, nr: 9 }
+      - { hinweis: Pfeiltasten und Leertaste, nr: 9, mehr: "Laufen mit den Pfeiltasten oder A und D, springen mit der Leertaste. R fängt von vorn an." }
       - taste: ArrowRight
         halten: 0.9
       - taste: Space
       - taste: ArrowRight
         halten: 0.9
       - warten: 0.6
-      - { hinweis: Esc – zurück zum Level, nr: 10 }
+      - { hinweis: Esc – zurück zum Level, nr: 10, mehr: "Genau dorthin, wo du warst." }
       - taste: Escape
       - warten: 0.8
       - pruefen: "current_pane === 'level'"
         meldung: Esc hat nicht zum Level zurückgeführt
 
-  - name: wegmachen
+  - name: loeschen
     art: video
-    titel: Wegmachen
+    titel: Löschen und radieren
     ausschnitt: [0, 0, 1600, 862]
     schritte:
-      - { hinweis: Auswählen (E) und einen Block anklicken, nr: 11 }
+      - { hinweis: Auswählen (E) und einen Block anklicken, nr: 11, mehr: "Rechts stehen dann seine Einstellungen." }
       - klick: '#tool_menu_level .button[title^="Auswählen"]'
       - klick: { feld: [12, 0] }
-      - { hinweis: Rechtsklick – was kann ich damit tun?, nr: 12 }
+      - { hinweis: Rechtsklick – was kann ich damit tun?, nr: 12, mehr: "Ausschneiden, Kopieren, Duplizieren, Löschen und mehr." }
       - rechtsklick: { feld: [12, 0] }
       - pause: 1.2
       - menue: Löschen
-      - { hinweis: Oder mit dem Stift und X radieren, nr: 13 }
+      - { hinweis: Oder mit dem Stift und X radieren, nr: 13, mehr: "X macht den Stift zum Radiergummi, noch einmal X wieder zum Stift." }
       - klick: '#tool_menu_level .button[title^="Zeichnen"]'
       - klick: '#menu_level_sprites .button[title="Boden"]'
       - taste: KeyX
@@ -86,7 +86,7 @@ aufnahmen:
 ---
 ## Kurz gesagt
 
-1. Klick oben auf **Level**, dann links auf einen Sprite und nimm **Zeichnen** (<kbd>W</kbd>).
+1. Klick oben auf **Level**, dann links auf einen Sprite und wähle **Zeichnen** (<kbd>W</kbd>).
 2. Klicken setzt einen Block, Ziehen eine Reihe, **Strg + ziehen** ein ganzes Rechteck.
 3. Setz deine Spielfigur hinein und drück <kbd>T</kbd> – schon spielst du dein Level.
 
@@ -94,33 +94,17 @@ aufnahmen:
 
 ![Boden legen](aufnahme:boden)
 
-1. Klick oben auf **Level**. In der Mitte ist dein Level, links stehen **Werkzeuge** und deine **Sprites**.
-2. Klick bei **Sprites** auf den Boden.
-3. Nimm das Werkzeug **Zeichnen** (der Stift, Taste <kbd>W</kbd>).
-4. Jeder Klick ins Level setzt einen Block. Er rastet im Gitter ein.
-5. Mit gedrückter Maustaste setzt du eine ganze Reihe.
-6. Halt <kbd>Strg</kbd> gedrückt und zieh ein Rechteck auf: Es wird ganz gefüllt.
-
 ## Figur hinein und testen
 
 ![Spielfigur hineinsetzen und mit T testen](aufnahme:testen)
 
-7. Klick links auf deine Spielfigur und setz sie mit einem Klick über den Boden.
-8. <kbd>T</kbd> (oder der grüne Pfeil bei den Werkzeugen) startet einen **Test** dieses Levels.
-9. Laufen mit den Pfeiltasten oder <kbd>A</kbd> und <kbd>D</kbd>, springen mit der <kbd>Leertaste</kbd>. Mit <kbd>R</kbd> fängst du von vorn an.
-10. <kbd>Esc</kbd> bringt dich zurück zum Level – genau dorthin, wo du warst.
-
 > **Tipp:** Ein Test verändert dein Spiel nicht. Probier ruhig alles aus, so oft du willst.
 
-## Wegmachen
+## Löschen und radieren
 
-![Auswählen, Rechtsklick und Radieren](aufnahme:wegmachen)
+![Auswählen, Rechtsklick und Radieren](aufnahme:loeschen)
 
-11. Mit **Auswählen** (<kbd>E</kbd>) klickst du einen Block an. Rechts stehen dann seine Einstellungen.
-12. Ein **Rechtsklick** zeigt, was du damit machen kannst: Ausschneiden, Kopieren, Duplizieren, **Löschen** und mehr.
-13. Schneller geht's mit dem Stift: <kbd>X</kbd> macht ihn zum Radiergummi, noch einmal <kbd>X</kbd> wieder zum Stift.
-
-Daneben gesetzt? <kbd>Strg</kbd> + <kbd>Z</kbd> nimmt es zurück – auch hier im Level.
+> **Tipp:** Daneben gesetzt? <kbd>Strg</kbd> + <kbd>Z</kbd> macht es rückgängig – auch hier im Level.
 
 ## Wenn's nicht klappt
 

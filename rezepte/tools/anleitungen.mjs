@@ -149,7 +149,8 @@ function render_body(md, media, id = '') {
         if (!m) return '';      // not recorded (the guide failed before it)
         if (m.art === 'video') {
             const steps = (m.schritte ?? []).map(st =>
-                `<li data-t="${st.t}"><span class="film-nr">${esc(st.nr)}</span><span class="film-text">${esc(st.text)}</span></li>`).join('');
+                `<li data-t="${st.t}"><span class="film-nr">${esc(st.nr)}</span><span class="film-text">${esc(st.text)}` +
+                (st.mehr ? `<span class="film-mehr">${esc(st.mehr)}</span>` : '') + `</span></li>`).join('');
             return `<figure class="anleitung-film" data-film="/anleitungen/${m.film}?${m.version}" style="--film-w: ${m.breite}; --film-h: ${m.hoehe}">` +
                 `<div class="film-reihe"><div class="film-buehne"><canvas width="${m.breite}" height="${m.hoehe}" role="img" aria-label="${esc(label)}"></canvas></div>` +
                 (steps ? `<ol class="film-schritte">${steps}</ol>` : '') + `</div>` +
@@ -194,12 +195,12 @@ async function record_guide(browser, guide, start) {
                 await page.evaluate(() => window.__guide.marks([]));
                 media[a.name] = { art: 'bild', frames: [f] };
             } else {
-                await player.set_band({ nr: null, text: a.titel ?? '', keys: [], maus: '' });
+                await player.set_band({ nr: null, text: a.titel ?? '', mehr: '', keys: [], maus: '' });
                 await player.start_video(clip);
                 await player.hold(0.6);
                 await player.steps(a.schritte);
                 await player.hold(a.ende ?? 1.6);
-                await player.set_band({ nr: null, text: '', keys: [], maus: '' });
+                await player.set_band({ nr: null, text: '', mehr: '', keys: [], maus: '' });
                 const { frames, timeline } = player.stop_video();
                 media[a.name] = { art: 'video', frames, timeline, standbild: a.standbild };
             }

@@ -214,33 +214,31 @@ function setCurrentColor(color) {
         return;
     }
     $('#color_variations_menu').empty();
-    // rows of variations of the colour, each with what it is for (hover)
-    const add_row = (colors, title) => {
-        for (const variation of colors) {
-            const swatch = $("<span class='button button-9'>").attr('title', title);
+    // rows of variations of the colour, each with what it is for (hover);
+    // the colour itself is marked (pixel_tools.js color_variations: OKLCH, so
+    // it is not always in the middle – a light colour has more room to get darker)
+    const add_row = (colors, title, base_index = -1) => {
+        colors.forEach((variation, i) => {
+            const swatch = $("<span class='button button-9'>").attr('title', title).toggleClass('basis', i === base_index);
             swatch.css('background', `linear-gradient(${variation.toRgbString()},${variation.toRgbString()}), url(transparent.png), #777`);
             swatch.data('html_color', variation.toRgbString());
             const rgb = variation.toRgb();
             swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
             $('#color_variations_menu').append(swatch);
-        }
+        });
     };
     const base = tinycolor(color);
     const alpha = base.getAlpha();
-    add_row(base.analogous(12).slice(1, 12), 'Ähnliche Farbtöne');
-    // pixel-art shades: darker ones cooler, lighter ones warmer (pixel_tools.js shade_ramp)
-    add_row(shade_ramp(base.toHsl(), 5).map(c => tinycolor({ h: c.h, s: c.s, l: c.l, a: alpha })),
-        'Schatten und Licht wie in Pixel-Art: dunkler wird kühler (bläulicher), heller wird wärmer (gelblicher)');
-    add_row([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].map(h => {
-        const variation = tinycolor(color);
-        return h < 0 ? variation.darken(Math.abs(h / 5) * 40) : variation.brighten(Math.abs(h / 5) * 40);
-    }), 'Dunkler und heller (derselbe Farbton)');
-    add_row([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].map(h => {
-        const variation = tinycolor(color);
-        return h < 0 ? variation.desaturate(-h * 16) : variation.saturate(h * 16);
-    }), 'Blasser und kräftiger');
+    const own = base.toRgb();
+    const v = color_variations([own.r, own.g, own.b]);
+    const as_colors = (row) => row.map(([r, g, b]) => tinycolor({ r, g, b, a: alpha }));
+    add_row(as_colors(v.similar), 'Ähnliche Farbtöne – gleich hell, gleich kräftig', v.similar_index);
+    add_row(as_colors(v.light_shadow),
+        'Schatten und Licht wie in Pixel-Art: dunkler wird kühler (bläulicher), heller wird wärmer (gelblicher)', v.light_shadow_index);
+    const grid_titles = ['Dunkler und heller – so kräftig, wie es geht', 'Dunkler und heller – mittel', 'Dunkler und heller – blass'];
+    v.grid.forEach((row, ri) => add_row(as_colors(row), grid_titles[ri], ri === v.grid_index[0] ? v.grid_index[1] : -1));
     add_row([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(h => tinycolor(color).setAlpha(h / 11)),
-        'Durchsichtiger – ganz links fast unsichtbar');
+        'Durchsichtiger – ganz links fast unsichtbar', Math.max(0, Math.round(alpha * 11) - 1));
     $('#color_variations_menu .button').click(function (e) {
         remember_color_before_transparent();
         let list_color = $(e.target).data('list_color');

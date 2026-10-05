@@ -29,7 +29,7 @@ aufnahmen:
       - { hinweis: Auswählen (E) und das zweite Tor anklicken, nr: 1 }
       - klick: '#tool_menu_level .button[title^="Auswählen"]'
       - klick: { feld: [11, 1] }
-      - { hinweis: "Neben Code: das Signal aus der Liste wählen", nr: 2 }
+      - { hinweis: "Neben Code: das Signal aus der Liste wählen", nr: 2, mehr: "Die Liste zeigt alle Signale dieses Levels mit ihren Namen." }
       - klick: '#menu_placed_properties .signal-code-pick'
       - pause: 1
       - menue: Tor auf · 1
@@ -37,7 +37,7 @@ aufnahmen:
       - klick: { ziel: '#menu_placed_properties .item:has-text("Bei Signal")', x: 0.85 }
       - pause: 0.8
       - menue: öffnen
-      - { hinweis: Die Übersicht zählt mit, nr: 4 }
+      - { hinweis: Die Übersicht zählt mit, nr: 4, mehr: "„öffnet sich »Gittertor« (2×)“: Beide Tore hören auf denselben Schalter." }
       - bewegen: { ziel: '.signal-overview .signal-rule', x: 0.6, y: 0.6 }
       - pause: 1.8
       - pruefen: |
@@ -50,9 +50,9 @@ aufnahmen:
     ausschnitt: [0, 44, 1600, 818]
     standbild: 9
     schritte:
-      - { hinweis: Den Schalter anklicken, nr: 5 }
+      - { hinweis: Den Schalter anklicken, nr: 5, mehr: "Die Verzögerung gehört zu dem, was sendet." }
       - klick: { feld: [3, 1] }
-      - { hinweis: Verzögerung – in Sekunden, nr: 6 }
+      - { hinweis: "Verzögerung: 1.5 und Enter", nr: 6, mehr: "Auf der Linie steht jetzt ⏱ 1,5 s, und die Übersicht sagt „kommt nach 1,5 s an“." }
       - klick: { ziel: '#menu_placed_properties .item:has-text("Verzögerung") input' }
       - taste: Control+KeyA
         zeigen: false
@@ -60,7 +60,7 @@ aufnahmen:
       - taste: Enter
       - bewegen: { feld: [5, 3] }
       - pause: 1.5
-      - { hinweis: "Testen: Maus auf den Schalter, T, dann F", nr: 7 }
+      - { hinweis: "Testen: Maus auf den Schalter, T, dann F", nr: 7, mehr: "Der Schalter springt sofort um, die Tore gehen erst 1,5 Sekunden später auf." }
       - bewegen: { feld: [3, 1] }
       - taste: KeyT
       - bewegen: { punkt: [1420, 640] }
@@ -84,7 +84,7 @@ aufnahmen:
     schritte:
       - { hinweis: Das zweite Tor anklicken, nr: 9 }
       - klick: { feld: [11, 1] }
-      - { hinweis: "Neben Code: Kein Signal", nr: 10 }
+      - { hinweis: "Neben Code: Kein Signal", nr: 10, mehr: "Das Tor hört auf nichts mehr, die Übersicht zeigt nur noch das erste." }
       - klick: '#menu_placed_properties .signal-code-pick'
       - pause: 0.8
       - menue: Kein Signal
@@ -111,21 +111,11 @@ Einen Schalter, der schon ein Tor öffnet – so wie am Ende von [Signale: Schal
 
 ![Das zweite Tor bekommt dasselbe Signal](aufnahme:zweites-tor)
 
-1. Nimm **Auswählen** (<kbd>E</kbd>) und klick auf das zweite Tor.
-2. Klick rechts neben **Code** auf den Knopf (*kein Signal*). Die Liste zeigt alle Signale dieses Levels mit ihren Namen. Wähl **Tor auf**.
-3. Stell **Bei Signal** auf **öffnen**.
-4. In der Signale-Übersicht steht jetzt *öffnet sich »Gittertor« (2×)*: Beide Tore hören auf denselben Schalter.
-
-> **Tipp:** Du kannst auch wieder **Verbinden** (<kbd>R</kbd>) nehmen: Schalter anklicken, dann das zweite Tor. Hat der Schalter schon ein Signal, bekommt das Tor genau dieses.
+> **Tipp:** Du kannst auch wieder **Verbinden** (<kbd>R</kbd>) auswählen: Schalter anklicken, dann das zweite Tor. Hat der Schalter schon ein Signal, bekommt das Tor genau dieses.
 
 ## Verzögerung
 
 ![Das Signal kommt 1,5 Sekunden später an](aufnahme:verzoegerung)
-
-5. Klick auf den Schalter.
-6. Tipp bei **Verzögerung** eine Zahl ein, zum Beispiel **1.5**, und drück <kbd>Enter</kbd>. Auf der Linie steht jetzt **⏱ 1,5 s**, und die Übersicht sagt *kommt nach 1,5 s an*.
-7. Teste es: Maus auf den Schalter, <kbd>T</kbd>, dann <kbd>F</kbd>. Der Schalter springt sofort um, die Tore gehen aber erst nach 1,5 Sekunden auf.
-8. <kbd>Esc</kbd> bringt dich zurück zum Level.
 
 Damit baust du Fallen, die kurz nach dem Betreten zuschnappen, oder ein Tor, zu dem man nach dem Umlegen erst hinrennen muss.
 
@@ -133,11 +123,7 @@ Damit baust du Fallen, die kurz nach dem Betreten zuschnappen, oder ein Tor, zu 
 
 ![Kein Signal – und Strg + Z](aufnahme:loesen)
 
-9. Klick auf das Tor, das nicht mehr reagieren soll.
-10. Wähl neben **Code** den Eintrag **Kein Signal**. Das Tor hört auf nichts mehr, und die Übersicht zeigt nur noch das erste Tor.
-11. Doch falsch? <kbd>Strg</kbd> + <kbd>Z</kbd> macht es rückgängig.
-
-> **Tipp:** In der Signale-Übersicht hat jede Zeile beim Darüberfahren ein **×** (nimmt genau das aus dem Signal heraus), und jede Karte einen Mülleimer (löst das ganze Signal auf).
+> **Tipp:** In der Signale-Übersicht hat jede Zeile beim Darüberfahren ein **×** (löst genau das aus dem Signal), und jede Karte einen Mülleimer (löst das ganze Signal auf).
 
 ## Wenn's nicht klappt
 

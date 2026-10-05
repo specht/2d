@@ -23,14 +23,14 @@ aufnahmen:
       - ansicht: [-1, -1, 10, 5]
     ausschnitt: [0, 44, 1600, 818]
     schritte:
-      - { hinweis: Das Werkzeug Verbinden nehmen (R), nr: 1 }
+      - { hinweis: Das Werkzeug Verbinden auswählen (R), nr: 1 }
       - klick: '#tool_menu_level .button[title^="Verbinden"]'
       - { hinweis: "Zuerst, was sendet: der Schalter", nr: 2 }
       - klick: { feld: [3, 1] }
-      - { hinweis: "Dann, was reagiert: das Tor", nr: 3 }
+      - { hinweis: "Dann, was reagiert: das Tor", nr: 3, mehr: "Eine gestrichelte Linie zeigt die Verbindung." }
       - klick: { feld: [7, 1] }
       - pause: 0.8
-      - { hinweis: Dem Signal einen Namen geben – Enter, nr: 4 }
+      - { hinweis: Dem Signal einen Namen geben – Enter, nr: 4, mehr: "Mit Esc bleibt das Signal ohne Namen." }
       - tippen: Tor auf
       - taste: Enter
       - bewegen: { feld: [5, 3] }
@@ -49,16 +49,16 @@ aufnahmen:
     titel: Die Signale-Übersicht
     ausschnitt: [0, 44, 1600, 818]
     schritte:
-      - { hinweis: S zeigt alle Signale des Levels, nr: 5 }
+      - { hinweis: S zeigt alle Signale des Levels, nr: 5, mehr: "Jedes Signal ist eine Karte: Wenn … dann … Über einer Karte siehst du nur ihre Linien." }
       - taste: KeyS
       - bewegen: { ziel: '.signal-overview .signal-rule', x: 0.5, y: 0.5 }
       - pause: 1.5
-      - { hinweis: Auswählen (E) und das Tor anklicken, nr: 6 }
+      - { hinweis: Auswählen (E) und das Tor anklicken, nr: 6, mehr: "Rechts unter „Auswahl“ steht sein Code mit dem Namen des Signals." }
       - klick: '#tool_menu_level .button[title^="Auswählen"]'
       - klick: { feld: [7, 1] }
       - bewegen: '#menu_placed_properties .signal-code-pick'
       - pause: 1
-      - { hinweis: Bei Signal – was das Tor dann tut, nr: 7 }
+      - { hinweis: Bei Signal – was das Tor dann tut, nr: 7, mehr: "Die Möglichkeiten stehen unter dem Video." }
       - klick: { ziel: '#menu_placed_properties .item:has-text("Bei Signal")', x: 0.85 }
       - pause: 1.5
       - menue: öffnen
@@ -70,7 +70,7 @@ aufnahmen:
     ausschnitt: [0, 44, 1600, 818]
     standbild: 4
     schritte:
-      - { hinweis: "Die Maus auf den Schalter, dann T", nr: 8 }
+      - { hinweis: "Die Maus auf den Schalter, dann T", nr: 8, mehr: "Der Test beginnt dort, wo die Maus ist – die Figur steht gleich am Schalter." }
       - bewegen: { feld: [3, 1] }
       - taste: KeyT
       - bewegen: { punkt: [1420, 640] }
@@ -78,7 +78,7 @@ aufnahmen:
       - { hinweis: F legt den Schalter um, nr: 9 }
       - taste: KeyF
       - warten: 0.8
-      - { hinweis: Das Tor geht auf – und die Regel leuchtet auf, nr: 10 }
+      - { hinweis: Das Tor geht auf – und die Regel leuchtet auf, nr: 10, mehr: "Neben dem Spiel zeigt die Karte, ob ihr Signal an oder aus ist." }
       - taste: ArrowRight
         halten: 0.6
       - warten: 0.8
@@ -92,7 +92,7 @@ aufnahmen:
 ## Kurz gesagt
 
 1. Ein **Signal** verbindet zwei Dinge im Level: eins **sendet**, eins **reagiert**.
-2. Nimm das Werkzeug **Verbinden** (<kbd>R</kbd>), klick erst den Schalter an, dann das Tor.
+2. Wähle das Werkzeug **Verbinden** (<kbd>R</kbd>), klick erst den Schalter an, dann das Tor.
 3. Gib dem Signal einen **Namen** – zum Beispiel *Tor auf*.
 4. Mit <kbd>S</kbd> siehst du alle Signale als Regeln: *Wenn … dann …*
 
@@ -106,33 +106,21 @@ Jedes Signal hat eine Nummer, den **Code**. Was denselben Code hat, gehört zusa
 
 ![Mit dem Werkzeug Verbinden: Schalter, Tor, Name](aufnahme:verbinden)
 
-1. Nimm bei den Werkzeugen **Verbinden** (<kbd>R</kbd>).
-2. Klick zuerst auf das, was **sendet** – hier den Schalter.
-3. Klick dann auf das, was **reagieren** soll – das Tor. Eine gestrichelte Linie zeigt die Verbindung.
-4. Tipp einen Namen ein und drück <kbd>Enter</kbd>. Mit <kbd>Esc</kbd> bleibt das Signal ohne Namen.
-
 ## Die Signale-Übersicht
 
 ![Die Übersicht und die Einstellungen des Tors](aufnahme:uebersicht)
 
-5. <kbd>S</kbd> öffnet rechts die **Signale-Übersicht**. Jedes Signal ist eine Karte mit einem Satz: *Wenn »Schalter« umgelegt wird, dann öffnet sich »Gittertor«*. Fährst du mit der Maus über eine Karte, siehst du nur ihre Linien.
-6. Nimm **Auswählen** (<kbd>E</kbd>) und klick auf das Tor. Rechts unter **Auswahl** steht sein **Code** mit dem Namen des Signals.
-7. **Bei Signal** sagt, was das Tor tut, wenn das Signal kommt:
-   - **öffnen** – es geht auf und bleibt offen,
-   - **offen, solange an** – es ist offen, solange der Schalter an ist,
-   - **wechseln** – jedes Umlegen macht es auf oder zu,
-   - **schließen** – es geht zu,
-   - **aufschließen** – es wartet, bis die Figur davorsteht (wie mit einem Schlüssel).
+**Bei Signal** sagt, was das Tor tut, wenn das Signal kommt:
+
+- **öffnen** – es geht auf und bleibt offen,
+- **offen, solange an** – es ist offen, solange der Schalter an ist,
+- **wechseln** – jedes Umlegen macht es auf oder zu,
+- **schließen** – es geht zu,
+- **aufschließen** – es wartet, bis die Figur davorsteht (wie mit einem Schlüssel).
 
 ## Testen
 
 ![Im Test leuchtet die Regel auf](aufnahme:testen)
-
-8. Halt die Maus über den Schalter und drück <kbd>T</kbd>. Der Test beginnt genau dort, wo die Maus ist – die Figur steht gleich am Schalter.
-9. Drück <kbd>F</kbd>: Die Figur legt den Schalter um.
-10. Das Tor geht auf. Ist die Übersicht an, steht sie neben dem Spiel: Die Karte leuchtet auf, sobald ihr Signal ankommt, und zeigt **an** oder **aus**.
-
-11. <kbd>Esc</kbd> bringt dich zurück zum Level.
 
 > **Tipp:** Leuchtet im Test keine Karte auf, kommt das Signal gar nicht an – dann liegt es am Sender. Leuchtet sie, aber nichts passiert, schau beim Empfänger unter **Bei Signal**.
 

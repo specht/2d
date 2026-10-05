@@ -20,16 +20,16 @@ aufnahmen:
           game._load();
     ausschnitt: [0, 44, 1600, 818]
     schritte:
-      - { hinweis: Deine Figur anklicken, nr: 1 }
+      - { hinweis: Deine Figur anklicken, nr: 1, mehr: "Links bei „Sprites“." }
       - klick: '#menu_sprites ._dnd_item:nth-child(1)'
-      - { hinweis: Eigenschaft hinzufügen, nr: 2 }
+      - { hinweis: Eigenschaft hinzufügen, nr: 2, mehr: "Rechts, unter dem Namen des Sprites." }
       - klick: '#menu_sprite_traits_add .item'
       - { hinweis: Spielfigur → Spielfigur, nr: 3 }
       - menue: [Spielfigur, Spielfigur]
-      - { hinweis: Geschwindigkeit und Sprungkraft, nr: 4 }
+      - { hinweis: Geschwindigkeit und Sprungkraft, nr: 4, mehr: "Größere Zahlen machen die Figur schneller oder lassen sie höher springen." }
       - bewegen: { ziel: '#menu_sprite_properties_variable_part_following', x: 0.5, y: 0.25 }
       - pause: 0.8
-      - { hinweis: „Wer zeigt was?“ – was du noch zeichnen kannst, nr: 5 }
+      - { hinweis: „Wer zeigt was?“ – was du noch zeichnen kannst, nr: 5, mehr: "Unter den Zuständen – mehr dazu weiter unten." }
       - bewegen: { ziel: '#who_shows_what', x: 0.4, y: 0.15 }
       - pause: 1.2
 
@@ -40,13 +40,13 @@ aufnahmen:
     schritte:
       - { hinweis: Den Boden anklicken, nr: 6 }
       - klick: '#menu_sprites ._dnd_item:nth-child(2)'
-      - { hinweis: Blöcke → nicht von oben reinfallen, nr: 7 }
+      - { hinweis: Blöcke → nicht von oben reinfallen, nr: 7, mehr: "Die Figur steht darauf." }
       - klick: '#menu_sprite_traits_add .item'
       - menue: [Blöcke, man kann nicht von oben reinfallen]
-      - { hinweis: … nicht von den Seiten reinlaufen, nr: 7 }
+      - { hinweis: … nicht von den Seiten reinlaufen, nr: 8, mehr: "Sie läuft nicht hinein." }
       - klick: '#menu_sprite_traits_add .item'
       - menue: [Blöcke, man kann nicht von den Seiten reinlaufen]
-      - { hinweis: … nicht von unten reinspringen, nr: 7 }
+      - { hinweis: … nicht von unten reinspringen, nr: 9, mehr: "Sie stößt sich den Kopf." }
       - klick: '#menu_sprite_traits_add .item'
       - menue: [Blöcke, man kann nicht von unten reinspringen]
       - pause: 1
@@ -76,21 +76,9 @@ Zwei Sprites: deine Figur und einen Boden-Block. Wie man zeichnet, zeigt [Ein Sp
 
 ![Eigenschaft hinzufügen → Spielfigur](aufnahme:spielfigur)
 
-1. Klick links bei **Sprites** auf deine Figur.
-2. Klick rechts auf **Eigenschaft hinzufügen**.
-3. Wähle **Spielfigur** und darin noch einmal **Spielfigur**.
-4. Jetzt stehen dort **Geschwindigkeit** und **Sprungkraft**. Größere Zahlen machen die Figur schneller oder lassen sie höher springen.
-5. Unter den Zuständen erscheint **Wer zeigt was?**.
-
 ## Der Boden
 
 ![Drei Blöcke-Eigenschaften für den Boden](aufnahme:boden)
-
-6. Klick auf deinen Boden.
-7. Gib ihm über **Eigenschaft hinzufügen → Blöcke** nacheinander alle drei:
-   - *man kann nicht von oben reinfallen* – die Figur steht darauf,
-   - *man kann nicht von den Seiten reinlaufen* – sie läuft nicht hinein,
-   - *man kann nicht von unten reinspringen* – sie stößt sich den Kopf.
 
 Nur *von oben* ergibt eine Plattform, durch die man von unten hindurchspringen kann.
 

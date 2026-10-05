@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { mirror_points, mirror_axis, replace_color_in, outline_pixels, rgba_of } = require('../src/static/pixel_tools.js');
+const px = require('../src/static/pixel_tools.js');
 
 test('mirrored drawing: every point and its mirror image, each once', () => {
     assert.deepEqual(mirror_points([[0, 0], [1, 2]], 8), [[0, 0], [7, 0], [1, 2], [6, 2]]);
@@ -39,7 +40,6 @@ test('an outline goes around everything drawn, left, right, above and below', ()
 });
 
 test('selections: copy, clear, paste, move and flip work on the selected pixels only', () => {
-    const px = require('../src/static/pixel_tools.js');
     const w = 4, h = 3;
     // pixels: red at (1,1) and (2,1), blue at (0,0)
     const pixels = new Uint8ClampedArray(w * h * 4);
@@ -72,15 +72,50 @@ test('selections: copy, clear, paste, move and flip work on the selected pixels 
     assert.equal(flipped.pixels[(1 * w + 1) * 4], 255);
 });
 
-test('shades like in pixel art: darker cooler, lighter warmer, the colour itself in the middle', () => {
-    const px = require('../src/static/pixel_tools.js');
-    const ramp = px.shade_ramp({ h: 20, s: 0.7, l: 0.5 }, 5);
-    assert.equal(ramp.length, 11);
-    assert.deepEqual(ramp[5], { h: 20, s: 0.7, l: 0.5 });
-    assert.ok(ramp[0].l < ramp[4].l && ramp[4].l < 0.5 && ramp[10].l > ramp[6].l);
-    // orange: the dark end moves towards blue (down through red, 20 → 352), the light end towards yellow
-    assert.ok(ramp[0].h > 300 || ramp[0].h < 20);
-    assert.ok(ramp[10].h > 20 && ramp[10].h <= 60);
+test('hue_toward moves the short way round, at most so far', () => {
     assert.equal(px.hue_toward(350, 10, 5), 355);
     assert.equal(px.hue_toward(100, 60, 100), 60);
+});
+
+test('OKLCH: a colour comes back exactly, and nothing leaves the screen', () => {
+    for (const c of [[255, 230, 23], [13, 96, 174], [234, 40, 48], [0, 0, 0], [255, 255, 255], [71, 77, 77]]) {
+        const o = px.srgb_to_oklch(c);
+        assert.deepEqual(px.oklch_to_srgb(o.L, o.C, o.h), c);
+    }
+    // more chroma than the screen can show: lightness and hue stay, chroma shrinks
+    const rgb = px.oklch_to_srgb(0.9, 0.4, 150);
+    assert.ok(rgb.every(v => v >= 0 && v <= 255));
+    assert.ok(Math.abs(px.srgb_to_oklch(rgb).L - 0.9) < 0.01);
+    assert.ok(px.oklch_max_chroma(0.5, 30) > px.oklch_max_chroma(0.97, 30));
+    const s = px.steps_around(0.92, 0.15, 0.97);
+    assert.equal(s.values.length, 11);
+    assert.equal(s.values[s.base_index], 0.92);
+    assert.equal(s.base_index, 9);      // a light colour: more room to get darker
+});
+
+test('colour variations: the colour is in every row, rows differ and keep what they promise', () => {
+    const dist = (a, b) => { const p = px.srgb_to_oklch(a), q = px.srgb_to_oklch(b);
+        const ap = p.C * Math.cos(p.h * Math.PI / 180), bp = p.C * Math.sin(p.h * Math.PI / 180);
+        const aq = q.C * Math.cos(q.h * Math.PI / 180), bq = q.C * Math.sin(q.h * Math.PI / 180);
+        return Math.hypot(p.L - q.L, ap - aq, bp - bq); };
+    for (const c of [[255, 230, 23], [13, 96, 174], [234, 40, 48], [233, 212, 167], [74, 160, 63], [71, 77, 77]]) {
+        const v = px.color_variations(c);
+        assert.deepEqual(v.similar[v.similar_index], c);
+        assert.deepEqual(v.light_shadow[v.light_shadow_index], c);
+        assert.deepEqual(v.grid[v.grid_index[0]][v.grid_index[1]], c);
+        assert.equal(v.grid.length, 3);
+        for (const row of [v.similar, v.light_shadow, ...v.grid]) assert.equal(row.length, 11);
+        const L = px.srgb_to_oklch(c).L;
+        // similar hues: as light as the colour (within rounding and the screen's limits)
+        for (const s of v.similar) assert.ok(Math.abs(px.srgb_to_oklch(s).L - L) < 0.03, `${c} → ${s}`);
+        // light and shadow: from dark to light, every swatch visibly different from its neighbour
+        for (let i = 1; i < 11; i++) {
+            assert.ok(px.srgb_to_oklch(v.light_shadow[i]).L > px.srgb_to_oklch(v.light_shadow[i - 1]).L - 0.005);
+            assert.ok(dist(v.light_shadow[i], v.light_shadow[i - 1]) >= 0.02, `${c}: Licht und Schatten ${i}`);
+        }
+        // the grid: top row at least as colourful as the bottom one
+        for (let i = 0; i < 11; i++) assert.ok(px.srgb_to_oklch(v.grid[0][i]).C >= px.srgb_to_oklch(v.grid[2][i]).C - 0.005);
+    }
+    // a light yellow has most of its room below: its place is near the right end
+    assert.ok(px.color_variations([255, 230, 23]).light_shadow_index >= 8);
 });

@@ -17,16 +17,16 @@ aufnahmen:
     schritte:
       - { hinweis: Oben auf „Einstellungen“ klicken, nr: 1 }
       - klick: '#mi_settings'
-      - { hinweis: Titel und Autor eintippen, nr: 2 }
+      - { hinweis: Titel und Autor eintippen, nr: 2, mehr: "Dein Name bei Autor – so findest du dein Spiel später leichter." }
       - klick: '#game-settings-here .item:has-text("Titel") input'
       - tippen: Pips Abenteuer
       - klick: '#game-settings-here .item:has-text("Autor") input'
       - tippen: Mia
       - bewegen: { punkt: [800, 820] }
-      - { hinweis: Strg + S – speichern, nr: 3 }
+      - { hinweis: Strg + S – speichern, nr: 3, mehr: "Unten rechts erscheint kurz ein Tier: Es ist gespeichert." }
       - taste: Control+KeyS
       - warten: 1
-      - { hinweis: Das ist der Code deines Spiels, nr: 4 }
+      - { hinweis: Das ist der Code deines Spiels, nr: 4, mehr: "Mit dem Link darunter können andere dein Spiel spielen." }
       - bewegen: '#game_code'
       - pause: 2
       - pruefen: "/^[a-z0-9]{7}$/.test($('#game_code').text())"
@@ -37,10 +37,10 @@ aufnahmen:
     titel: Laden
     ausschnitt: [0, 0, 1600, 862]
     schritte:
-      - { hinweis: Strg + O – laden, nr: 5 }
+      - { hinweis: Strg + O – laden, nr: 5, mehr: "Die Liste deiner Spiele." }
       - taste: Control+KeyO
       - warten: 1
-      - { hinweis: Dein Spiel anklicken, nr: 6 }
+      - { hinweis: Dein Spiel anklicken, nr: 6, mehr: "Es ist sofort wieder da, mit allen Sprites und Leveln." }
       - klick: { ziel: '#load_games_list tr:has-text("Pips Abenteuer")', x: 0.3 }
       - warten: 1.2
       - pruefen: "game.data.properties.title === 'Pips Abenteuer'"
@@ -61,19 +61,11 @@ aufnahmen:
 
 ![Titel, Autor und Strg + S](aufnahme:speichern)
 
-1. Klick oben auf **Einstellungen**.
-2. Gib deinem Spiel einen **Titel** und schreib bei **Autor** deinen Namen hin. So findest du es später leichter.
-3. Drück <kbd>Strg</kbd> + <kbd>S</kbd>. Unten rechts erscheint kurz ein Tier – das Zeichen, dass gespeichert wurde.
-4. Unter **Link zum Spiel** steht jetzt der **Code** deines Spiels und ein Link. Mit dem Link können andere dein Spiel spielen.
-
 > **Tipp:** Schreib dir den Code auf! Mit ihm findest du genau diesen Stand wieder.
 
 ## Laden
 
 ![Strg + O und ein Klick](aufnahme:laden)
-
-5. <kbd>Strg</kbd> + <kbd>O</kbd> öffnet **Spiel laden**.
-6. Klick auf dein Spiel – es ist sofort wieder da, mit allen Sprites und Leveln.
 
 Hast du ein Spiel öfter gespeichert, steht bei **Versionen** ein Knopf. Dort kannst du auch einen älteren Stand laden.
 
@@ -90,7 +82,6 @@ Unten rechts im Studio stehen die wichtigsten Knöpfe immer bereit – mit ihren
 
 ## Wenn's nicht klappt
 
-- **Strg + S tut nichts:** Steht der Cursor in einem Textfeld? Klick einmal daneben und drück noch einmal.
 - **Ich finde mein Spiel nicht:** Hast du einen Titel eingetragen? Der Code steht unter *Einstellungen → Link zum Spiel*.
 - **Der Browser ist abgestürzt:** Keine Sorge – das Studio hebt deine ungespeicherte Arbeit auf und bietet sie dir beim nächsten Öffnen wieder an.
 

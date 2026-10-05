@@ -124,7 +124,8 @@ export async function encode_film(frames, timeline = []) {
 }
 
 // The steps of a film (its numbered captions, in order), for the list beside
-// it: [{ nr, text, t }]. A caption without a number (the film's title) is not a step.
+// it: [{ nr, text, mehr?, t }] – `mehr` is the longer explanation the list shows
+// under the current step. A caption without a number (the film's title) is not a step.
 export function film_steps(timeline) {
     const steps = [];
     let last = null;
@@ -133,7 +134,7 @@ export function film_steps(timeline) {
         const key = `${e.nr}|${e.text}`;
         if (key === last) continue;
         last = key;
-        steps.push({ nr: e.nr, text: e.text, t: e.t });
+        steps.push({ nr: e.nr, text: e.text, ...(e.mehr ? { mehr: e.mehr } : {}), t: e.t });
     }
     return steps;
 }
