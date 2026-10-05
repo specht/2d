@@ -5787,6 +5787,26 @@ button.resize-cell.active {
     min-height: 0;
     max-height: none;
     overflow-y: auto;
+    /* the sprites fill the rows edge to edge (as many as fit: five in the wide
+       column, four in the narrow one), and the scrollbar has its place from the
+       start, so a long list does not lose a column when it appears */
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+    grid-auto-rows: min-content;
+    align-content: start;
+    gap: 4px;
+    padding: 1px 2px 2px 1px;
+    scrollbar-gutter: stable;
+}
+.level-palette > #menu_level_sprites > .button-3 {
+    width: auto;
+    height: auto;
+    aspect-ratio: 1;
+    margin: 0;
+}
+/* a hint instead of sprites, or anything else in the list: the whole row */
+.level-palette > #menu_level_sprites > :not(.button) {
+    grid-column: 1 / -1;
 }
 .view-toggles {
     display: flex;

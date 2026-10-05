@@ -181,7 +181,8 @@ function handleResize() {
     // the level view takes what is left.
     const wide = window.innerWidth >= 1600;
     const right_width = wide ? 300 : 216;
-    const left_width = wide ? 276 : 222;
+    // left: five sprites per row on wide screens, four otherwise (styles.css #menu_level_sprites)
+    const left_width = wide ? 296 : 228;
     $('.full_right_menu_container').css({ left: `${window.innerWidth - right_width - 20}px`, width: `${right_width}px` });
     $('.full_left_menu_container').css('left', `20px`);
     $('#main_div_level .full_left_menu_container').css('width', `${left_width}px`);
