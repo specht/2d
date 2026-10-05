@@ -2,7 +2,7 @@
 titel: So wird ein Level geschafft
 kategorie: Signale
 stufe: 2
-skala: 3
+skala: 4
 kurz: Ein Level ist geschafft, wenn die Spielfigur das Ziel erreicht – oder wenn ein Signal es sagt, zum Beispiel ein eingesammelter Edelstein.
 szene:
   karte: |

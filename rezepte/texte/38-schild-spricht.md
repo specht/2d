@@ -2,7 +2,7 @@
 titel: Ein Wichtel, der von selbst spricht
 kategorie: Signale
 stufe: 2
-skala: 3
+skala: 2
 kurz: Pip läuft am Wichtel vorbei – und der spricht ihn an, ohne dass jemand F drückt. Beim Reden bewegt er den Mund.
 szene:
   signale: { 6: Beim Wichtel }

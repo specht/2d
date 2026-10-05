@@ -2,7 +2,7 @@
 titel: Ein Begleiter kommt mit
 kategorie: Begleiter
 stufe: 2
-skala: 3
+skala: 4
 schritte: 2
 # the camera a little higher: the end up on the ledge is in the picture
 bild_hoch: 2
