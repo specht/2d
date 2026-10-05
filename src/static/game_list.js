@@ -126,7 +126,11 @@ function game_list_row_html(node, columns) {
 // in between. `keep` tags are never folded.
 // nodes: [{ tag, parent, ts_created, … }] → { nodes: [{ …node, x, y, tip }],
 //   edges: [{ from, to, folded }], columns, rows }
-function game_family_layout(nodes, { main_tag = null, keep = [], fold = null, label_columns = 2.5 } = {}) {
+// `title`: the family's name (a tip's label shows its title only when it
+// differs); `measure(text)`: a label's width in pixels (the browser measures
+// it; the estimate is for the tests). Every branch keeps room for the label
+// of its last version, so labels never run into anything.
+function game_family_layout(nodes, { main_tag = null, keep = [], fold = null, title = null, measure = game_family_estimate } = {}) {
     const by_tag = new Map(nodes.map(n => [n.tag, n]));
     const children = new Map(nodes.map(n => [n.tag, []]));
     for (const n of nodes)
@@ -212,7 +216,12 @@ function game_family_layout(nodes, { main_tag = null, keep = [], fold = null, la
         let end = start;
         while (placed.get(end).kids.length) end = placed.get(end).kids[0];
         const xs = placed.get(start).x;
-        const span = [xs - 0.2, placed.get(end).x + label_columns];
+        const label = game_family_label(placed.get(end), title);
+        const label_columns = (GAME_FAMILY_LABEL_GAP + measure(label) + 14) / GAME_FAMILY_COLUMN;
+        // a branch that starts with folded versions keeps room for their count
+        // (left of its first version)
+        const counted = parent && edges.some(e => e.to === start && e.folded);
+        const span = [xs - (counted ? 0.6 : 0.2), placed.get(end).x + label_columns];
         const from_row = parent ? placed.get(parent).y : 0;
         const curve = [xs - 0.75, xs - 0.25];
         const between = (row) => {
@@ -269,11 +278,26 @@ function game_family_ancestors(nodes, tag) {
 const GAME_FAMILY_COLUMN = 52;
 const GAME_FAMILY_ROW = 38;
 const GAME_FAMILY_MARGIN = 22;
+const GAME_FAMILY_LABEL_GAP = 18;
+const GAME_FAMILY_TITLE_MAX = 28;
+
+// The label of the newest version of a branch: its date, and its title when
+// it is not the family's
+function game_family_label(node, title = null) {
+    let t = node.title && node.title !== title ? node.title : null;
+    if (t && t.length > GAME_FAMILY_TITLE_MAX) t = t.slice(0, GAME_FAMILY_TITLE_MAX - 1) + '…';
+    return [t, game_list_short_date(node.ts_created) || node.tag].filter(Boolean).join(' · ');
+}
+
+// a label's width in pixels without a browser (15 px text, wide letters)
+function game_family_estimate(text) {
+    return String(text).length * 8.6;
+}
 
 // The tree as SVG: a dot per version (newer ones brighter), the newest
 // version of each branch with its date (and its title, when it is not the
 // family's `title`), the way to `selected` highlighted.
-function game_family_svg(layout, selected = null, { title = null } = {}) {
+function game_family_svg(layout, selected = null, { title = null, measure = game_family_estimate } = {}) {
     const by_tag = new Map(layout.nodes.map(n => [n.tag, n]));
     const on_path = new Set();
     // the highlighted way: from the selected version back along the drawn edges
@@ -296,20 +320,24 @@ function game_family_svg(layout, selected = null, { title = null } = {}) {
         const d = y1 === y2 ? `M${x1} ${y1}H${x2}` : `M${x1} ${y1}C${mid} ${y1} ${mid} ${y2} ${x2} ${y2}`;
         const hl = on_path.has(e.from) && on_path.has(e.to) ? ' highlight' : '';
         parts.push(`<path class="family-edge${hl}" d="${d}"/>`);
-        if (e.folded)
+        if (e.folded && y1 === y2)
             parts.push(`<text class="family-folded" x="${(x1 + x2) / 2}" y="${y2 - 9}">+${e.folded}</text>`);
+        else if (e.folded)
+            parts.push(`<text class="family-folded" x="${x2 - 14}" y="${y2 - 9}" text-anchor="end">+${e.folded}</text>`);
     }
     for (const n of layout.nodes) {
         const hl = on_path.has(n.tag) ? ' highlight' : '';
         const sel = n.tag === selected ? ' selected' : '';
-        const tip_text = [n.title && n.title !== title ? n.title : null, game_list_short_date(n.ts_created) || n.tag].filter(Boolean).join(' · ');
+        const tip_text = n.tip ? game_family_label(n, title) : '';
+        // opaque, newer ones brighter: the lines end at the dots instead of showing through
+        const grey = Math.round(0x70 + (0xee - 0x70) * age(n));
         const tooltip = [n.tag, n.title, n.author, game_list_date(n.ts_created)].filter(Boolean).join(' – ');
         parts.push(`<g class="family-node${hl}${sel}" data-tag="${game_list_escape(n.tag)}">` +
             `<title>${game_list_escape(tooltip)}</title>` +
-            `<circle cx="${X(n)}" cy="${Y(n)}" r="${n.tip ? 10 : 8}" style="opacity:${(0.45 + 0.55 * age(n)).toFixed(2)}"/>` +
-            (n.tip ? `<text x="${X(n) + 18}" y="${Y(n) + 5}">${game_list_escape(tip_text.length > 40 ? tip_text.slice(0, 39) + '…' : tip_text)}</text>` : '') +
+            `<circle cx="${X(n)}" cy="${Y(n)}" r="${n.tip ? 10 : 8}" fill="rgb(${grey},${grey},${grey})"/>` +
+            (n.tip ? `<text x="${X(n) + GAME_FAMILY_LABEL_GAP}" y="${Y(n) + 5}">${game_list_escape(tip_text)}</text>` : '') +
             `</g>`);
-        if (n.tip) label_room = Math.max(label_room, X(n) + 18 + Math.min(40, tip_text.length) * 8.5);
+        if (n.tip) label_room = Math.max(label_room, X(n) + GAME_FAMILY_LABEL_GAP + measure(tip_text) + 8);
     }
     const width = Math.max(label_room, (layout.columns - 1) * GAME_FAMILY_COLUMN + 2 * GAME_FAMILY_MARGIN) + 8;
     const height = Math.max(0, layout.rows - 1) * GAME_FAMILY_ROW + 2 * GAME_FAMILY_MARGIN;
@@ -426,6 +454,12 @@ class GameFamily {
         this.nodes = [];
         this.layout = null;
         this.selected = null;
+        // labels measured in the font they are drawn with
+        const context = document.createElement('canvas').getContext('2d');
+        this.measure = (text) => {
+            context.font = `15px ${getComputedStyle(container).fontFamily}`;
+            return context.measureText(String(text)).width;
+        };
         container.addEventListener('click', e => {
             const g = e.target.closest('.family-node');
             if (g) this.select(g.dataset.tag);
@@ -436,7 +470,7 @@ class GameFamily {
         this.nodes = nodes;
         // the family's name: the title of its newest version
         this.title = nodes.reduce((a, b) => ((b.ts_created ?? 0) >= (a?.ts_created ?? 0) ? b : a), null)?.title ?? null;
-        this.layout = game_family_layout(nodes, { main_tag: tag });
+        this.layout = game_family_layout(nodes, { main_tag: tag, title: this.title, measure: this.measure });
         this.select(tag);
     }
 
@@ -444,9 +478,9 @@ class GameFamily {
         // a folded version cannot be clicked, but it can be selected from
         // the table: draw it, then
         if (this.layout && !this.layout.nodes.some(n => n.tag === tag))
-            this.layout = game_family_layout(this.nodes, { main_tag: this.layout.main_tag, keep: [tag] });
+            this.layout = game_family_layout(this.nodes, { main_tag: this.layout.main_tag, keep: [tag], title: this.title, measure: this.measure });
         this.selected = tag;
-        this.container.innerHTML = this.layout ? game_family_svg(this.layout, tag, { title: this.title }) : '';
+        this.container.innerHTML = this.layout ? game_family_svg(this.layout, tag, { title: this.title, measure: this.measure }) : '';
         this.on_select?.(tag);
     }
 }
@@ -454,6 +488,6 @@ class GameFamily {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         GAME_LIST_COLUMNS, game_list_normalize, game_list_code, game_list_search_text, game_list_matches,
-        game_list_sort, game_list_row_html, game_family_layout, game_family_ancestors, game_family_svg,
+        game_list_sort, game_list_row_html, game_family_layout, game_family_ancestors, game_family_svg, game_family_label,
     };
 }

@@ -2346,15 +2346,60 @@ a, a:visited {
     flex-shrink: 0;
 }
 
-.load-games-search input {
+/* the search field: icon, field and × in one box, which lights up softly
+   while it has the focus (no browser outline) */
+.load-games-searchbox {
     flex: 1;
     max-width: 36em;
-    background-color: #222;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 6px 0 12px;
+    background-color: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 6px;
+    color: #888;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.load-games-searchbox:focus-within {
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+    color: #ddd;
+}
+
+.load-games-searchbox input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none;
     color: #fff;
     font-size: 15px;
-    padding: 0.5em 0.8em;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 4px;
+    padding: 9px 0 !important;
+}
+
+.load-games-searchbox input[type="text"]::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.load-games-search-clear {
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    padding: 4px 6px;
+    visibility: hidden;
+}
+
+.load-games-search-clear:hover {
+    color: #fff;
+    border: none;
+}
+
+.load-games-searchbox.has-text .load-games-search-clear {
+    visibility: visible;
 }
 
 #load_games_count {
@@ -2394,10 +2439,22 @@ table.game-list th {
     z-index: 1;
 }
 
+/* every row equally high, with or without title, author or Versionen button */
+table.game-list tbody tr {
+    height: 32px;
+}
+
+table.game-list tbody td {
+    height: 32px;
+    padding-top: 0;
+    padding-bottom: 0;
+    vertical-align: middle;
+    line-height: 20px;
+    box-sizing: border-box;
+}
+
 table.game-list td.game-list-icon {
     width: 24px;
-    padding-top: 2px;
-    padding-bottom: 2px;
 }
 
 table.game-list td.game-list-icon img {
@@ -2409,6 +2466,10 @@ table.game-list td.game-list-icon img {
 table.game-list button.game-list-versions {
     font-size: 90%;
     width: 9.2em;
+    height: 24px;
+    padding: 0 8px;
+    line-height: 22px;
+    vertical-align: middle;
 }
 
 table.game-list tr.clickable_row {
@@ -2471,8 +2532,11 @@ svg.game-family .family-node {
     cursor: pointer;
 }
 
+/* the dots: opaque (game_family_svg sets their grey), with a ring in the
+   background's colour, so the lines stop short of them */
 svg.game-family .family-node circle {
-    fill: #fff;
+    stroke: #1a1a1a;
+    stroke-width: 3;
 }
 
 svg.game-family .family-node text {
@@ -2483,7 +2547,6 @@ svg.game-family .family-node text {
 svg.game-family .family-node.highlight circle,
 svg.game-family .family-node:hover circle {
     fill: var(--graph-highlight-color);
-    opacity: 1 !important;
 }
 
 svg.game-family .family-node.selected circle {

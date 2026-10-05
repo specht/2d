@@ -1149,6 +1149,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 
     function load_games_search_changed() {
         const text = $('#ti_load_games_search').val();
+        $('.load-games-searchbox').toggleClass('has-text', text.length > 0);
         const code = game_list_code(text);
         load_games.list?.set_query(text.trim());
         if (code === load_games.code) return;
@@ -1199,9 +1200,12 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         <div id='load_games' class='load-games'>
             <div class='load-games-page load-games-page-list'>
                 <div class='load-games-search'>
-                    <i class='fa fa-search'></i>
-                    <input id='ti_load_games_search' type='text' autocomplete='off' spellcheck='false'
-                        placeholder='Suchen: Titel, Name oder Code (z. B. k3x9a1b) …'/>
+                    <label class='load-games-searchbox'>
+                        <i class='fa fa-search'></i>
+                        <input id='ti_load_games_search' type='text' autocomplete='off' spellcheck='false'
+                            placeholder='Suchen: Titel, Name oder Code (z. B. k3x9a1b) …'/>
+                        <button type='button' class='load-games-search-clear' tabindex='-1' title='Suche löschen'><i class='fa fa-times'></i></button>
+                    </label>
                     <span id='load_games_count'></span>
                 </div>
                 <div id='load_games_code' class='load-games-code'></div>
@@ -1235,6 +1239,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             load_games.family = new GameFamily({
                 container: document.getElementById('games_sublist_graph'),
                 on_select: (tag) => load_games.versions.set_nodes(game_family_ancestors(load_games.family.nodes, tag)),
+            });
+            $('.load-games-search-clear').on('click', (e) => {
+                e.preventDefault();
+                $('#ti_load_games_search').val('').trigger('focus');
+                load_games_search_changed();
             });
             $('#ti_load_games_search').on('input', load_games_search_changed).on('keydown', function (e) {
                 if (e.key === 'Enter') {
