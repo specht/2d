@@ -505,6 +505,8 @@ function show_context_menu(x, y, entries, options = {}) {
             // the shortcut that does the same, so it can be learnt
             if (entry.key) $('<span>').addClass('context-menu-key').text(entry.key).appendTo(item);
             if (entry.hint) item.attr('title', entry.hint);
+            // resting on an entry opens its submenu – or closes the open one of this level
+            item.on('mouseenter', () => hover_context_menu_item(container, item));
             if (entry.disabled) { item.addClass('disabled'); continue; }
             if (entry.children) {
                 item.addClass('has-children').append($('<i>').addClass('fa fa-angle-right context-menu-arrow'));
@@ -523,16 +525,15 @@ function show_context_menu(x, y, entries, options = {}) {
                     const top = Math.max(4, Math.min(at.top - 5, window.innerHeight - 4 - box.height));
                     sub.css({ position: 'fixed', left: `${left}px`, top: `${top}px`, right: 'auto' });
                 };
-                item.on('mouseenter', place);
-                // a tap (no hover on a tablet) opens it, and closes the others of this level
+                item.data('place_submenu', place);
+                // a click or a tap (no hover on a tablet) opens it at once, and
+                // closes the others of this level
                 item.on('click', (e) => {
                     // only a tap on the entry itself, not one inside its submenu
                     if ($(e.target).closest('.context-menu-item')[0] !== item[0]) return;
                     e.stopPropagation();
-                    const open = !item.hasClass('open');
-                    item.siblings('.has-children').removeClass('open');
-                    item.toggleClass('open', open);
-                    if (open) { sub.css('display', 'block'); place(); sub.css('display', ''); }
+                    clearTimeout(container.data('submenu_timer'));
+                    if (!item.hasClass('open')) open_submenu(container, item);
                 });
                 continue;
             }
@@ -578,6 +579,38 @@ function show_context_menu(x, y, entries, options = {}) {
 }
 
 let context_menu_outside_press = null;
+
+// Submenus are forgiving: an open one stays open when the mouse slips off it –
+// on the way to it across a neighbour, or outside the menu altogether. Only an
+// entry of the same level that the mouse rests on for SUBMENU_SWITCH_MS
+// closes it (and opens its own); coming back in time keeps everything as it was.
+// With none open, a submenu opens after SUBMENU_OPEN_MS, so entries the mouse
+// only passes on its way do not open theirs. A click or tap opens it at once.
+const SUBMENU_SWITCH_MS = 350;
+const SUBMENU_OPEN_MS = 120;
+
+function close_submenus(container) {
+    container.find('.context-menu-item.open').removeClass('open');
+}
+
+function open_submenu(container, item) {
+    close_submenus(container);
+    if (!item.hasClass('has-children')) return;
+    item.addClass('open');
+    item.data('place_submenu')?.();
+}
+
+function hover_context_menu_item(container, item) {
+    clearTimeout(container.data('submenu_timer'));
+    // the mouse came back to the entry whose submenu is open (or into that submenu)
+    if (item.hasClass('open')) return;
+    const other_open = container.children('.context-menu-item.open').length > 0;
+    // nothing to open, nothing to close
+    if (!other_open && !item.hasClass('has-children')) return;
+    container.data('submenu_timer', setTimeout(() => {
+        if (item.closest('body').length && item.is(':hover')) open_submenu(container, item);
+    }, other_open ? SUBMENU_SWITCH_MS : SUBMENU_OPEN_MS));
+}
 
 // Touch: a finger held still for LONG_PRESS_MS is a right-click – a
 // contextmenu event on what is under it, so every right-click menu (lists,

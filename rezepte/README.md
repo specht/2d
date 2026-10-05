@@ -703,7 +703,7 @@ Steps (one action per step; captions and modifiers may go with it):
 | `ziehen: { von, nach }` | drags from one point to another |
 | `bewegen: <ziel>` | only moves the pointer (`dauer` in s) |
 | `rad: <ziel>` (`um: -4`) | turns the mouse wheel over it, `um` notches (negative = towards you: in the level, zoom in; default −3) |
-| `menue: [Blöcke, man kann …]` | walks a right-click menu, dropdown or submenu by its labels |
+| `menue: [Blöcke, man kann …]` | walks a right-click menu, dropdown or submenu by its labels (each next label inside the submenu of the one before, which it waits to open) |
 | `taste: Control+KeyZ` | presses a key (`halten: 1.2` holds it that long, `zeigen: false` hides the caps) |
 | `tippen: Tor auf` | types text |
 | `warten: 1` | lets time pass (frames as they come: test runs) |

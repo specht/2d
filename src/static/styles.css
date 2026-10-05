@@ -4521,8 +4521,14 @@ button.basket-tray-item:hover .fa {
     right: 100%;
 }
 
-.context-menu-item.has-children:hover > .context-menu-sub {
+/* open: by resting on the entry or tapping it (widgets.js open_submenu); the
+   entry stays lit, so the way back to it is clear */
+.context-menu-item.has-children.open > .context-menu-sub {
     display: block;
+}
+
+.context-menu-item.has-children.open {
+    background: rgba(255, 255, 255, 0.12);
 }
 
 /* Bild einfügen (image_import.js) */
@@ -6334,9 +6340,6 @@ input.dnd-rename {
    A tablet without a mouse: a tap opens a submenu (widgets.js), the drawing
    areas belong to the fingers (no page zoom or scroll there), pictures do not
    offer "save image", and list handles are big enough to grab. */
-.context-menu-item.has-children.open > .context-menu-sub {
-    display: block;
-}
 #canvas, #level {
     touch-action: none;
 }

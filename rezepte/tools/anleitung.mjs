@@ -380,18 +380,34 @@ export class GuidePlayer {
     // Funktionen, dropdowns): the entries by their label, the last is clicked.
     async menu(labels) {
         labels = [].concat(labels);
+        await this.page.evaluate(() => document.querySelectorAll('[data-guide-entry]').forEach(el => delete el.dataset.guideEntry));
+        let entry = null;
         for (let i = 0; i < labels.length; i++) {
             const label = String(labels[i]).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-            // the deepest open menu that has it (a submenu lies after its parent)
-            const sel = `.context-menu-item:visible:has(> .context-menu-label:text-is("${label}"))`;
-            const b = await this.box(sel, 'last');
+            const has = `:has(> .context-menu-label:text-is("${label}"))`;
+            // the first in the deepest open menu that has it (a submenu lies
+            // after its parent), the next ones in the submenu of the one before
+            const cls = c => `contains(concat(" ", @class, " "), " ${c} ")`;
+            entry = entry ? entry.locator(`xpath=./div[${cls('context-menu-sub')}]/div[${cls('context-menu-item')}]` +
+                `[span[${cls('context-menu-label')}][normalize-space(.)="${label}"]]`).first()
+                : this.page.locator(`.context-menu-item:visible${has}`).last();
+            try {
+                await entry.waitFor({ state: 'visible', timeout: SELECTOR_TIMEOUT });
+            } catch {
+                this.fail(`Im Menü steht kein „${labels[i]}“ (umbenannt oder verschoben?)`);
+            }
+            // pinned to this element: a locator is looked up again on every use,
+            // and "the last visible one" changes as soon as its submenu opens
+            await entry.evaluate((el, n) => { el.dataset.guideEntry = n; }, String(i));
+            entry = this.page.locator(`[data-guide-entry="${i}"]`);
+            const b = await entry.boundingBox();
             const p = { x: b.x + Math.min(b.width / 2, 60), y: b.y + b.height / 2 };
-            // into a submenu sideways first: it spans its entry's height, so the
-            // pointer never leaves the menus (a slant could, and they would close)
-            if (i > 0 && Math.abs(p.y - this.y) > 4) await this.move_to({ x: p.x, y: this.y });
             if (i < labels.length - 1) {
                 await this.move_to(p);
-                await this.page.waitForTimeout(150);
+                // a submenu opens at once – or, when another one of that menu is
+                // open, after the mouse rested a moment (widgets.js SUBMENU_SWITCH_MS)
+                for (let n = 0; n < 60 && !(await entry.evaluate(el => el.classList.contains('open'))); n++)
+                    await (this.recording ? this.frame(2) : this.page.waitForTimeout(40));
                 await this.frame(5);
             } else await this.click({ punkt: [p.x, p.y] });
         }
