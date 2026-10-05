@@ -5984,6 +5984,20 @@ body {
 #status-bar > .status-bar-tools::-webkit-scrollbar {
     display: none;
 }
+/* more hints than fit: the side with more beyond it fades out (menu.js
+   refresh_status_bar_fade) – scroll with the mouse wheel or a finger */
+#status-bar > .status-bar-tools.more-right {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent);
+}
+#status-bar > .status-bar-tools.more-left {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 56px);
+    mask-image: linear-gradient(to right, transparent, #000 56px);
+}
+#status-bar > .status-bar-tools.more-left.more-right {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+}
 #status-bar > .status-bar-general {
     display: flex;
     flex: none;

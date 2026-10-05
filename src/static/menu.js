@@ -58,6 +58,20 @@ if (typeof document !== 'undefined') {
     document.addEventListener('webkitfullscreenchange', refresh_studio_fullscreen_button);
 }
 
+// The tool's hints on the left of the status bar scroll sideways when they do
+// not fit: a side with more hints beyond it fades out, so it is clear that
+// there is more (styles.css .status-bar-tools.more-left / .more-right).
+function refresh_status_bar_fade(el) {
+    if (!el?.isConnected) return;
+    const rest = el.scrollWidth - el.clientWidth;
+    el.classList.toggle('more-left', rest > 1 && el.scrollLeft > 1);
+    el.classList.toggle('more-right', rest > 1 && el.scrollLeft < rest - 1);
+}
+// the visible part changes with the window and when an entry on the right
+// changes its width (Zusammenarbeiten during a session)
+const status_bar_resize_observer = typeof ResizeObserver === 'function' ?
+    new ResizeObserver((entries) => { for (const entry of entries) refresh_status_bar_fade(entry.target); }) : null;
+
 class Menu {
     constructor(element, pane, info, canvas, callback) {
         this.element = element;
@@ -272,6 +286,9 @@ class Menu {
             el.scrollLeft += e.originalEvent.deltaY || e.originalEvent.deltaX;
             e.preventDefault();
         });
+        // a side with more hints beyond it fades out (refresh_status_bar_fade)
+        statusBar.on('scroll', () => refresh_status_bar_fade(statusBar[0]));
+        status_bar_resize_observer?.observe(statusBar[0]);
         let hints = (active_command.hints || []).slice(0);
         if (active_command.label) hints.unshift(`<b>${active_command.label}</b>`);
         // Level editor (level_editor.js): right after the tool, before the general keys
@@ -495,6 +512,7 @@ class Menu {
             }
         }
         window.collaboration?.append_status_control?.(bar);
+        refresh_status_bar_fade(statusBar[0]);
         if (this.pane === 'level') game?.level_editor?.update_history_buttons?.();
         if (this.pane === 'sprites') window.sprite_history?.update_buttons?.();
     }
