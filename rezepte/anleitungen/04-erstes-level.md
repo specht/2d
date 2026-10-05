@@ -48,6 +48,8 @@ aufnahmen:
       - { hinweis: T – das Level testen, nr: 8, mehr: "Oder der grüne Pfeil bei den Werkzeugen." }
       - taste: KeyT
       - warten: 1
+        bis: "document.getElementById('play_iframe').contentWindow.game?.running === true && !!document.getElementById('play_iframe').contentWindow.game.player_character"
+        meldung: Der Test ist nicht losgegangen
       - { hinweis: Pfeiltasten und Leertaste, nr: 9, mehr: "Laufen mit den Pfeiltasten oder A und D, springen mit der Leertaste. R fängt von vorn an." }
       - taste: ArrowRight
         halten: 0.9

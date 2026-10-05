@@ -17,6 +17,20 @@
     const reduce_motion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
     const players = new Set();
+    let current = null;   // the film played last
+
+    // The Leertaste is "Weiter" (and pause / play on) for the film in view, wherever
+    // the focus is – without this it would scroll the page. Fields keep their
+    // spaces; a focused film handles its keys itself.
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== ' ' || e.ctrlKey || e.altKey || e.metaKey || !players.size) return;
+        if (e.target?.closest?.('input, textarea, select, [contenteditable], .film-buehne')) return;
+        const p = [current, ...players].find(q => q && players.has(q) && q.film && q.visible);
+        if (!p) return;
+        e.preventDefault();
+        if (e.repeat) return;
+        if (p.waiting_at !== null) p.advance(); else p.toggle();
+    });
 
     function format_time(ms) {
         const s = Math.max(0, Math.round(ms / 1000));
@@ -88,6 +102,11 @@
             this.again_button.innerHTML = '<i class="fa fa-undo"></i> Nochmal';
             this.next_button = el('button', 'film-weiter-knopf', this.next);
             this.next_button.type = 'button';
+            // never focused: the Leertaste stays "Weiter" and does not press a button again
+            for (const b of [this.again_button, this.next_button]) {
+                b.tabIndex = -1;
+                b.addEventListener('mousedown', (e) => e.preventDefault());
+            }
             this.again_button.addEventListener('click', (e) => { e.stopPropagation(); this.again(); });
             this.next_button.addEventListener('click', (e) => { e.stopPropagation(); this.advance(); });
             const list = this.figure.querySelector('.film-schritte');
@@ -107,6 +126,7 @@
                 if (!this.film) return;
                 if (e.key === ' ' || e.key === 'Enter') {
                     e.preventDefault();
+                    if (e.repeat) return;
                     if (this.waiting_at !== null) this.advance(); else this.toggle();
                 }
                 if (e.key === 'ArrowRight') { e.preventDefault(); this.seek(this.time + 2000); }
@@ -286,6 +306,7 @@
             this.waiting_at = null;
             this.stop_at = this.boundary_after(this.time);
             this.playing = true;
+            current = this;
             this.last = performance.now();
             const tick = (now) => {
                 if (!this.playing) return;
@@ -368,6 +389,7 @@
         }
 
         destroy() {
+            if (current === this) current = null;
             this.pause();
             this.observer.disconnect();
             this.near.disconnect();

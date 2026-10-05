@@ -1,6 +1,6 @@
 ---
 titel: "Signale: Schalter und Tor verbinden"
-kurz: Ein Schalter sendet ein Signal, ein Tor reagiert darauf. Mit dem Werkzeug Verbinden ist das in drei Klicks gemacht.
+kurz: Ein Schalter sendet ein Signal, ein Tor reagiert darauf – und gibt den Weg zum Ziel frei. Mit dem Werkzeug Verbinden ist das in drei Klicks gemacht.
 start:
   eine_ebene: true
   szene:
@@ -8,19 +8,19 @@ start:
       S: { sprite: schalter, platziert: { switch: { signal_code: null } } }
       G: { sprite: gittertor, platziert: { door: { signal_code: null } } }
     karte: |
-      .......M..
-      .......M..
-      .......M..
-      .......M..
-      .P.S...G..
-      ##########
+      .......M....
+      .......M....
+      .......M....
+      .......M....
+      .P.S...G..!.
+      ############
 aufnahmen:
   - name: verbinden
     art: video
     titel: Verbinden
     vorher:
       - klick: '#mi_level'
-      - ansicht: [-1, -1, 10, 5]
+      - ansicht: [-1, -1, 12, 5]
     ausschnitt: [0, 44, 1600, 818]
     schritte:
       - { hinweis: Das Werkzeug Verbinden auswählen (R), nr: 1 }
@@ -49,7 +49,7 @@ aufnahmen:
     titel: Die Signale-Übersicht
     ausschnitt: [0, 44, 1600, 818]
     schritte:
-      - { hinweis: S zeigt alle Signale des Levels, nr: 5, mehr: "Jedes Signal ist eine Karte: Wenn … dann … Über einer Karte siehst du nur ihre Linien." }
+      - { hinweis: S zeigt alle Signale des Levels, nr: 5, mehr: "Jedes Signal ist eine Karte: Wenn … dann … Ganz oben steht immer „Level geschafft“ – hier: wenn die Spielfigur das Ziel hinter dem Tor erreicht." }
       - taste: KeyS
       - bewegen: { ziel: '.signal-overview .signal-rule', x: 0.5, y: 0.5 }
       - pause: 1.5
@@ -75,9 +75,13 @@ aufnahmen:
       - taste: KeyT
       - bewegen: { punkt: [1420, 640] }
       - warten: 0.8
+        bis: "document.getElementById('play_iframe').contentWindow.game?.running === true && !!document.getElementById('play_iframe').contentWindow.game.player_character"
+        meldung: Der Test ist nicht losgegangen
       - { hinweis: F legt den Schalter um, nr: 9 }
       - taste: KeyF
       - warten: 0.8
+        bis: "document.getElementById('play_iframe').contentWindow.game.signals.sent.length > 0"
+        meldung: Im Test kam kein Signal an
       - { hinweis: Das Tor geht auf – und die Regel leuchtet auf, nr: 10, mehr: "Neben dem Spiel zeigt die Karte, ob ihr Signal an oder aus ist." }
       - taste: ArrowRight
         halten: 0.6

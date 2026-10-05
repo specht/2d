@@ -26,6 +26,8 @@ aufnahmen:
       - bewegen: { feld: [1, 1] }
       - taste: KeyT
       - warten: 0.8
+        bis: "document.getElementById('play_iframe').contentWindow.game?.running === true && !!document.getElementById('play_iframe').contentWindow.game.player_character"
+        meldung: Der Test ist nicht losgegangen
       - { hinweis: → und ← – laufen, nr: 2, mehr: "Oder D und A." }
       - taste: ArrowRight
         halten: 0.6
@@ -70,6 +72,8 @@ aufnahmen:
       - bewegen: { feld: [1, 1] }
       - taste: KeyT
       - warten: 0.8
+        bis: "document.getElementById('play_iframe').contentWindow.game?.running === true && !!document.getElementById('play_iframe').contentWindow.game.player_character"
+        meldung: Der Test ist nicht losgegangen
       - taste: ArrowUp
       - warten: 0.4
       - taste: ArrowRight

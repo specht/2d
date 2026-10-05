@@ -659,7 +659,8 @@ and *Weiter mit Schritt n* over the film (a tap or the Leertaste is *Weiter*;
 a line above the steps says so), so a child can do each step alongside – a
 tap while it plays pauses it, the progress line is always there and becomes a bar
 to wind the film under the mouse or a finger (with the time and a mark per
-step), the steps beside it light up as it plays and a click on one jumps
+step; the Leertaste is *Weiter* for the film in view wherever the focus is,
+so it never scrolls the page), the steps beside it light up as it plays and a click on one jumps
 there, only one film plays at a time, and the film is never taller than the
 screen (below 900 px the steps go under it). The studio is recorded at a
 1600 × 900 viewport. While recording, every frame is kept deflated
@@ -712,7 +713,7 @@ Steps (one action per step; captions and modifiers may go with it):
 | `menue: [Blöcke, man kann …]` | walks a right-click menu, dropdown or submenu by its labels (each next label inside the submenu of the one before, which it waits to open) |
 | `taste: Control+KeyZ` | presses a key (`halten: 1.2` holds it that long, `zeigen: false` hides the caps) |
 | `tippen: Tor auf` | types text |
-| `warten: 1` | lets time pass (frames as they come: test runs) |
+| `warten: 1` | lets time pass (frames as they come: test runs); with `bis: <js>` it goes on until that is `true` (at most 10 s more, else it fails with `meldung`) – after T, wait for the test run, never for a fixed time a slower or faster computer may not keep |
 | `pause: 1` | holds the current picture |
 | `ansicht: [c0, r0, c1, r1]` | the level view shows these cells (row 0 = the lowest) |
 | `js: …` · `pruefen: …` (`meldung:`) | runs JavaScript; a `pruefen` must return `true` |

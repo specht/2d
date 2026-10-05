@@ -91,6 +91,8 @@ aufnahmen:
       - bewegen: { feld: [1, 1] }
       - taste: KeyT
       - warten: 1
+        bis: "document.getElementById('play_iframe').contentWindow.game?.running === true && !!document.getElementById('play_iframe').contentWindow.game.player_character"
+        meldung: Der Test ist nicht losgegangen
       - taste: ArrowRight
         halten: 2.6
       - warten: 0.6

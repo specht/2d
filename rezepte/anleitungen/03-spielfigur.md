@@ -70,6 +70,8 @@ aufnahmen:
       - bewegen: { feld: [1, 1] }
       - taste: KeyT
       - warten: 1
+        bis: "document.getElementById('play_iframe').contentWindow.game?.running === true && !!document.getElementById('play_iframe').contentWindow.game.player_character"
+        meldung: Der Test ist nicht losgegangen
       - { hinweis: Leertaste – so hoch springt Pip jetzt, nr: 11, mehr: "Mit den Pfeiltasten läuft er. Zu hoch, zu niedrig? Ändere die Sprungkraft und teste noch einmal." }
       - taste: Space
       - warten: 1

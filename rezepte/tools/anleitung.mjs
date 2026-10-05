@@ -489,7 +489,7 @@ export class GuidePlayer {
         // every key must mean something: a YAML slip (a comma in a caption
         // without quotes) would otherwise pass silently
         const actions = ['bewegen', 'klick', 'doppelklick', 'rechtsklick', 'ziehen', 'malen', 'taste', 'tippen', 'warten', 'pause', 'js', 'pruefen', 'menue', 'ansicht', 'rad'];
-        const extras = ['hinweis', 'nr', 'mehr', 'mit', 'dauer', 'halten', 'zeigen', 'meldung', 'um'];
+        const extras = ['hinweis', 'nr', 'mehr', 'mit', 'dauer', 'halten', 'zeigen', 'meldung', 'um', 'bis'];
         const unknown = Object.keys(s ?? {}).filter(k => !actions.includes(k) && !extras.includes(k));
         if (unknown.length) this.fail(`unbekannt: ${unknown.join(', ')} (Komma in einem Text ohne Anführungszeichen?)`);
         if (Object.keys(s).filter(k => actions.includes(k)).length > 1) this.fail(`mehrere Aktionen in einem Schritt: ${JSON.stringify(s)}`);
@@ -509,7 +509,18 @@ export class GuidePlayer {
         else if (s.tippen !== undefined) await this.type(s.tippen);
         else if (s.menue !== undefined) await this.menu(s.menue);
         else if (s.ansicht !== undefined) await this.view(s.ansicht);
-        else if (s.warten !== undefined) await this.live(Number(s.warten));
+        else if (s.warten !== undefined) {
+            await this.live(Number(s.warten));
+            // `bis: <js>`: then on until it is true (a test run has started, a
+            // signal has arrived …) – a slower or faster computer gets the same film
+            if (s.bis !== undefined) {
+                const until = Date.now() + 10000;
+                while ((await page.evaluate(s.bis).catch(() => false)) !== true) {
+                    if (Date.now() > until) this.fail(`${s.meldung ?? 'Es kam nicht so weit'} (bis: ${s.bis})`);
+                    await this.live(0.1);
+                }
+            }
+        }
         else if (s.pause !== undefined) await this.hold(Number(s.pause));
         else if (s.js !== undefined) {
             try { await page.evaluate(s.js); } catch (e) { this.fail(`js: ${e.message}`); }
