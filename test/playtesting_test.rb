@@ -137,4 +137,39 @@ class PlaytestingTest < Minitest::Test
             assert_equal ["bbbbbbb", "A 2"], store.read["submissions"].values.first.values_at("tag", "title")
         end
     end
+    def test_the_teachers_overview_shows_progress_per_game_tester_and_running_test
+        state = on_state   # a test runs 5 minutes
+        t0 = Time.utc(2026, 10, 6, 8, 0)
+        pip, = Playtesting.submit(state, "pipaaaa", game("Pip", "Lea"), "lea", t0)
+        rex, = Playtesting.submit(state, "rexaaaa", game("Rex", "Max"), "max", t0 + 1)
+        gone, = Playtesting.submit(state, "gonaaaa", game("Weg", "Ida"), "ida", t0 + 2)
+        gone["withdrawn"] = true
+        # Ida started Rex an hour ago and never finished: abandoned
+        state["assignments"]["old"] = { "id" => "old", "submission" => rex["id"], "browser" => "ida", "name" => "Ida",
+                                        "started_at" => (t0 - 3600).utc.iso8601 }
+        # Max tests Pip and finishes; Lea tests Rex, her time ran out a minute
+        # ago: she is at the survey; Ida (who had Rex) tests Pip, 3 minutes left
+        a = Playtesting.next_assignment(state, "max", "Max", t0 + 60)
+        Playtesting.give_feedback(state, a["id"], "max", answers, t0 + 300)
+        c = Playtesting.next_assignment(state, "lea", "Lea", t0 + 360)
+        assert_equal rex["id"], c["submission"]
+        b = Playtesting.next_assignment(state, "ida", "Ida", t0 + 600)
+        assert_equal pip["id"], b["submission"]
+
+        o = Playtesting.overview(state, t0 + 720)
+        assert_equal [true, 5, 1, 1], o.values_at("enabled", "minutes", "finished", "abandoned")
+        assert_equal %w(Pip Rex Weg), o["games"].map { |g| g["title"] }
+        pip_row, rex_row, gone_row = o["games"]
+        assert_equal [1, 1, 4.0, 0], pip_row.values_at("done", "running", "fun", "left")   # Lea made it, Max and Ida had it
+        assert_equal [0, 1, nil], rex_row.values_at("done", "running", "fun")
+        assert_equal 0, rex_row["left"]       # Max made it, Ida (abandoned) and Lea had it
+        assert gone_row["withdrawn"]
+
+        assert_equal [["Lea", "survey", 0, 60], ["Ida", "play", 180, 0]],
+            o["running"].map { |r| r.values_at("name", "phase", "seconds_left", "seconds_over") }
+
+        testers = o["testers"].to_h { |t| [t["name"], t.values_at("done", "running", "left")] }
+        assert_equal({ "Max" => [1, 0, 0], "Ida" => [0, 1, 0], "Lea" => [0, 1, 0] }, testers)
+        assert_equal "Max", o["testers"].first["name"]
+    end
 end

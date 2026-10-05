@@ -596,38 +596,41 @@ The server can be restarted while a class is working (for example to apply a fix
 - **A copy found otherwise** (the tab was closed, the browser crashed) is offered when the studio opens, naming the game and the time.
 - **When something goes wrong** in the studio, the robot appears: the work is copied first, then it offers "Neu laden" (everything comes back) or "Weiterarbeiten". The error is reported to the server with the last clicks and keys, the pane and tool, the studio version and the code of a temporary copy of the game (`crash_report.js`), and appended to `data/raw/client-errors/<date>.jsonl` (not served by nginx).
 
-To see what went wrong:
+To see what went wrong, in the Ruby container (`./config.rb exec ruby sh`; from outside, write `./config.rb exec ruby ruby errors.rb …` instead of `./errors.rb …`):
 
 ```bash
-./config.rb exec ruby ruby errors.rb                  # today, grouped, most frequent first
-./config.rb exec ruby ruby errors.rb list 7           # the last seven days (list all: everything)
-./config.rb exec ruby ruby errors.rb show 3f2a1c      # one group: stack, the clicks before, the games
-./config.rb exec ruby ruby errors.rb watch            # new reports as they come in, during a lesson
-./config.rb exec ruby ruby errors.rb game 3f2a1c > spiel.json   # the group's game as a file (--ohne-bilder: much smaller)
-./config.rb exec ruby ruby errors.rb resolve 3f2a1c   # fixed: hidden until it happens again
-./config.rb exec ruby ruby errors.rb prune 30         # delete days older than 30 days
-./config.rb exec ruby ruby errors.rb clear            # delete every report (asks first; --ja does not)
+./errors.rb                           # today, grouped, most frequent first
+./errors.rb list 7                    # the last seven days (list all: everything)
+./errors.rb show 3f2a1c               # one group: stack, the clicks before, the games
+./errors.rb watch                     # new reports as they come in, during a lesson
+./errors.rb game 3f2a1c > spiel.json  # the group's game as a file (--ohne-bilder: much smaller)
+./errors.rb resolve 3f2a1c            # fixed: hidden until it happens again
+./errors.rb prune 30                  # delete days older than 30 days
+./errors.rb clear                     # delete every report (asks first; --ja does not)
 ```
 
-Each group has a short code and is one bug: the same message reached the same way (the first two frames of the studio's own code in the stack), whatever the line numbers of the version and whether it arrived as an error or a rejected promise. Groups that happened on the same page at the same moment are listed "zusammen mit" each other – often one cause that threw twice. `show` gives the message, where it happened, what the child did just before, and `/?<code>` to open the child's game as it was at that moment – reproduce the bug there, fix it and add a regression test, then `resolve` it. `game` writes that game as one JSON file with its pictures (the reports themselves carry only the code: copies share their pictures on the server). Codes from before October 2026 (by file and line) still work for `show` and `resolve`; `clear` keeps what was resolved, so a fixed bug that comes back is still marked.
+Each group has a short code and is one bug: the same message reached the same way (the first two frames of the studio's own code in the stack), whatever the line numbers of the version and whether it arrived as an error or a rejected promise. Groups that happened on the same page at the same moment are listed "zusammen mit" each other – often one cause that threw twice. `show` gives the message, where it happened, what the child did just before, and `/?<code>` to open the child's game as it was at that moment – reproduce the bug there, fix it and add a regression test, then `resolve` it. `game` writes that game as one JSON file with its pictures (the reports themselves carry only the code: copies share their pictures on the server). In a terminal the output is coloured (the place where it broke, the child's last click, the game codes); `NO_COLOR=1` switches that off, `FORCE_COLOR=1` keeps it for `| less -R`. Codes from before October 2026 (by file and line) still work for `show` and `resolve`; `clear` keeps what was resolved, so a fixed bug that comes back is still marked. Every command ends with the commands one would likely type next ("Weiter:"), the codes filled in.
 
 When the Ruby container is recreated rather than restarted, nginx may keep the old address and answer 502 until it is restarted as well (`./config.rb restart nginx`).
 
 ### Playtesting in class
 
-Children test each other's games and give feedback; the teacher prints it per game. It is run from the terminal:
+Children test each other's games and give feedback; the teacher prints it per game. It is run from the terminal, in the Ruby container like `errors.rb`:
 
 ```bash
-./config.rb exec ruby ruby playtest.rb              # how the round stands
-./config.rb exec ruby ruby playtest.rb on 3         # switch on, a test runs 3 minutes (the default)
-./config.rb exec ruby ruby playtest.rb minutes 4    # change how long a test runs
-./config.rb exec ruby ruby playtest.rb games        # the submitted games: tests, fun, versions
-./config.rb exec ruby ruby playtest.rb testers      # who has tested how many games
-./config.rb exec ruby ruby playtest.rb remove 3fa2  # take a game out of the round (its feedback stays)
-./config.rb exec ruby ruby playtest.rb off          # switch off (surveys being filled in still arrive)
-./config.rb exec ruby ruby playtest.rb pdf          # the feedback as a PDF to print
-./config.rb exec ruby ruby playtest.rb reset        # a new round; the old one goes to archive/
+./playtest.rb              # how the round stands (see below)
+./playtest.rb watch        # the same, redrawn every 5 seconds during the lesson (Strg+C ends)
+./playtest.rb on 3         # switch on, a test runs 3 minutes (the default)
+./playtest.rb minutes 4    # change how long a test runs
+./playtest.rb games        # the submitted games: tests, fun, versions
+./playtest.rb testers      # who has tested how many games
+./playtest.rb remove 3fa2  # take a game out of the round (its feedback stays)
+./playtest.rb off          # switch off (surveys being filled in still arrive)
+./playtest.rb pdf          # the feedback as a PDF to print
+./playtest.rb reset        # a new round; the old one goes to archive/
 ```
+
+The overview (`Playtesting.overview`, tested) shows every game with a bar of its finished (█) and running (▒) tests, its average Spaß and "nicht spielbar" reports – the games with the fewest tests in bold, "niemand mehr frei" when no tester can get it any more –, who is playing what right now with the time left or how long they have been at the survey, and every tester with their finished tests (✓: has tested every game they can get). Like `errors.rb`, it is coloured in a terminal and ends with the likely next commands.
 
 While it is on, the studio shows a **Playtesting** tab (within half a minute: the studio's ping carries it):
 

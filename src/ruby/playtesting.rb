@@ -224,6 +224,59 @@ module Playtesting
         }
     end
 
+    # ------------------------------------------------ the teacher's overview
+    # (playtest.rb status and watch): how far the round is, per game and per
+    # tester, and who is testing what right now.
+    #   games:   submission order; done = finished tests, running = tests
+    #            under way (playing or filling in the survey), left = how
+    #            many testers could still get it (never their own, never twice)
+    #   running: oldest first; phase "play" with seconds_left, or "survey"
+    #            once the time is up (seconds_over)
+    #   testers: per browser (names may repeat), the most tests first;
+    #            left = games this browser could still get
+    #   abandoned: tests started and never finished, past the grace time
+    def self.overview(state, now = Time.now)
+        minutes = state["minutes"].to_i
+        assignments = state["assignments"].values
+        active = state["submissions"].values.reject { |s| s["withdrawn"] }
+        browsers = assignments.map { |a| a["browser"] }.uniq
+        available = lambda do |browser, submission|
+            submission["owner"] != browser &&
+                assignments.none? { |a| a["browser"] == browser && a["submission"] == submission["id"] }
+        end
+        games = state["submissions"].values.sort_by { |s| s["submitted_at"].to_s }.map do |s|
+            mine = assignments.select { |a| a["submission"] == s["id"] }
+            feedback = feedback_of(state, s["id"])
+            { "id" => s["id"], "title" => s["title"], "author" => s["author"], "tag" => s["tag"],
+              "versions" => (s["tags"] || []).size, "withdrawn" => !!s["withdrawn"],
+              "done" => feedback.size,
+              "running" => mine.count { |a| running?(a, minutes, now) },
+              "broken" => feedback.count { |a| a["answers"]["broken"] },
+              "fun" => fun_average(state, s["id"]),
+              "left" => s["withdrawn"] ? 0 : browsers.count { |b| available.call(b, s) } }
+        end
+        running = assignments.select { |a| running?(a, minutes, now) && state["submissions"][a["submission"]] }
+                             .sort_by { |a| a["started_at"].to_s }.map do |a|
+            submission = state["submissions"][a["submission"]]
+            ends = Time.parse(a["started_at"]) + minutes * 60
+            left = (ends - now).round
+            { "name" => a["name"].to_s, "title" => submission["title"], "author" => submission["author"],
+              "phase" => left > 0 ? "play" : "survey", "seconds_left" => [left, 0].max, "seconds_over" => [-left, 0].max }
+        end
+        testers = assignments.group_by { |a| a["browser"] }.map do |browser, list|
+            { "name" => list.map { |a| a["name"].to_s }.reject(&:empty?).last.to_s,
+              "done" => list.count { |a| a["finished_at"] },
+              "running" => list.count { |a| running?(a, minutes, now) },
+              "left" => active.count { |s| available.call(browser, s) } }
+        end.sort_by { |t| [-t["done"], t["name"].downcase] }
+        {
+            "enabled" => !!state["enabled"], "minutes" => minutes, "round" => state["round"],
+            "games" => games, "running" => running, "testers" => testers,
+            "finished" => assignments.count { |a| a["finished_at"] },
+            "abandoned" => assignments.count { |a| !a["finished_at"] && !running?(a, minutes, now) },
+        }
+    end
+
     def self.assignment_for_client(state, assignment, now = Time.now)
         submission = state["submissions"][assignment["submission"]]
         ends = Time.parse(assignment["started_at"]) + state["minutes"].to_i * 60
