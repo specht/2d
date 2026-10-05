@@ -183,6 +183,8 @@ class Canvas {
         // right-click: always a menu (canvas_menu) – with every tool, so the
         // right button never paints by surprise. Durchsichtig is X (studio.js).
         this.element.on('contextmenu', function (e) {
+            // a finger held still (widgets.js long press): what it painted goes away first
+            self.cancel_touch_stroke();
             if (typeof show_context_menu === 'function')
                 show_context_menu(e.clientX, e.clientY, self.canvas_menu(e));
             return false;
@@ -238,15 +240,25 @@ class Canvas {
 
     handle_down(e) {
         this.last_touch_distance = null;
-        if ((e.touches || []).length === 2) {
+        // a finger: no mouse events after it (they would draw a second time)
+        if (e.touches && e.cancelable !== false) e.preventDefault?.();
+        if ((e.touches || []).length >= 2) {
+            // a second finger: what the first one painted goes away, and the
+            // two fingers zoom and move the view (handle_move)
+            this.cancel_touch_stroke();
             this.is_double_touch = true;
+            this.last_touch_mid = null;
             this.double_touch_points = [
                 [e.touches[0].clientX, e.touches[0].clientY],
                 [e.touches[1].clientX, e.touches[1].clientY]
             ];
+            return;
         } else {
             this.is_double_touch = false;
         }
+        // the frame as it was, so that a long press (the menu) or a second
+        // finger can take back what this finger paints (cancel_touch_stroke)
+        this.touch_backup = e.touches ? this.bitmap.getContext('2d').getImageData(0, 0, this.bitmap.width, this.bitmap.height) : null;
         let p = this.get_touch_point(e);
         this.last_mouse_x = p[0] - this.element.position().left;
         this.last_mouse_y = p[1] - this.element.position().top;
@@ -778,6 +790,13 @@ class Canvas {
 
     handle_up(e) {
         if (current_pane !== 'sprites') return;
+        // two fingers: done once both are off (nothing was painted)
+        if (this.is_double_touch) {
+            if (!(e.touches?.length)) { this.is_double_touch = false; this.last_touch_mid = null; }
+            this.mouse_down = false;
+            return;
+        }
+        this.touch_backup = null;
         if (this.grab_panning) {
             this.grab_panning = false;
             if (!this.space_pan) this.element.removeClass('grab-panning');
@@ -982,16 +1001,17 @@ class Canvas {
             if (this.last_touch_distance !== null)
                 touch_distance_delta = this_touch_distance - this.last_touch_distance;
             this.last_touch_distance = this_touch_distance;
-            if (touch_distance_delta !== null) {
-                {
-                    // two fingers zoom with every tool
-                    let tx = (this_touch_points[0][0] + this_touch_points[1][0]) * 0.5;
-                    let ty = (this_touch_points[0][1] + this_touch_points[1][1]) * 0.5;
-                    let cx = tx - this.element.position().left;
-                    let cy = ty - this.element.position().top;
-                    this.zoom_at_point(-touch_distance_delta * 3, cx, cy);
-                }
+            // two fingers, every tool: closer / apart zooms, together moves the view
+            let tx = (this_touch_points[0][0] + this_touch_points[1][0]) * 0.5;
+            let ty = (this_touch_points[0][1] + this_touch_points[1][1]) * 0.5;
+            if (this.last_touch_mid) {
+                this.offset_x += tx - this.last_touch_mid[0];
+                this.offset_y += ty - this.last_touch_mid[1];
             }
+            this.last_touch_mid = [tx, ty];
+            if (touch_distance_delta !== null)
+                this.zoom_at_point(-touch_distance_delta * 3, tx - this.element.position().left, ty - this.element.position().top);
+            else this.handleResize();
             return;
         }
         let p = this.get_touch_point(e);
@@ -1338,6 +1358,20 @@ class Canvas {
             this.nudge_selection_pixels(dx, dy);
             done();
         }
+    }
+
+    // A finger's stroke that turned out to be a long press or the start of
+    // two fingers: the frame as it was before it, nothing written.
+    cancel_touch_stroke() {
+        if (this.touch_backup && this.mouse_down) {
+            this.bitmap.getContext('2d').putImageData(this.touch_backup, 0, 0);
+            this.stop_ticker();
+            this.clear?.(this.overlay_bitmap);
+            this.handleResize();
+        }
+        this.touch_backup = null;
+        this.mouse_down = false;
+        this.mouse_down_point = null;
     }
 
     // The right-click menu of the drawing area: what can be done with the

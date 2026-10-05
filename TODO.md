@@ -33,11 +33,7 @@ The next phase concentrates on **authoring rather than engine breadth**:
 
 - several selected sprites show no settings: show the ones they share ("verschieden" where they differ) and write to all of them – careful with Codes
 - align or arrange several selected sprites
-- rectangles of a Hintergrund, Signalbereich or Bewegungsbereich can be resized but not moved, and can only be chosen in their list ("Rechteck"); a click in the view could pick one
-- Signalbereiche and Bewegungsbereiche are visible only while their layer is the current one (faint outlines of all of them as a view option)
-- dimming the layers that are not the current one, so it is clear what belongs to it
 - zoom with keys, "Zur Auswahl"; Strg+click to take one sprite out of a selection
-- levels themselves (adding, reordering) are not part of undo/redo yet
 
 Avoid requiring children to delete and recreate things simply because they changed their mind.
 
@@ -64,13 +60,11 @@ As more systems are added, keep it easy to see what an object is, which traits i
 
 # Levels and How They Connect
 
-- the Levelübersicht (L) shows exits, not what opens them: an exit behind a locked door or one that needs a Signal looks like any other
 - telling the player what is still missing (an exit that does not open yet says nothing)
 - a recipe for doors to different levels, a hub and a shop: the recipe build records one level per scene
 - teleporting doors within one level
 - points as a condition ("geschafft bei 100 Punkten")
 - combinations of conditions – a Zähler does "und" (several senders on one Code) and "so viele"; "oder" is open (see Signale)
-- the old level conditions in the level panel ("Punkte gesammelt", "Sprite eingesammelt", "Gegner getötet") are stored but never checked: remove them from the editor or give them a meaning (never silently for old games)
 
 ---
 
@@ -121,7 +115,7 @@ Fine-grained simultaneous editing of the same frame or level region only if real
 
 # Sprites and Pictures
 
-- Sprite editor: a "Wer zeigt was?" overview of the pictures the game uses for Stehen, Laufen, Springen … left and right (drawn, mirrored, missing); a frame that is held longer than the others (needs the engine); the spray can sprays over an area of one colour rather than around the mouse (an airbrush mode?); + adds an empty frame (a copy of the current one may be what animators want); onion skin of another state. *Sprite verschieben* has no key since X became Farbe ↔ durchsichtig – give it one if children miss it (the tool grid follows the keyboard rows, so it would mean moving a button). Rectangles of erasing in the level editor (Strg + ziehen while Radieren is on) are not there yet.
+- Sprite editor: Wer zeigt was? could offer to create a missing state (e.g. "laufen links" as a mirrored copy of "laufen rechts"); a frame that is held longer than the others (needs the engine); the spray can sprays over an area of one colour rather than around the mouse (an airbrush mode?); + adds an empty frame (a copy of the current one may be what animators want); onion skin of another state. *Sprite verschieben* has no key since X became Farbe ↔ durchsichtig – give it one if children miss it (the tool grid follows the keyboard rows, so it would mean moving a button). Rectangles of erasing in the level editor (Strg + ziehen while Radieren is on) are not there yet.
 - Sprites holen: remembering recently opened source games; a small list of recommended source games for a class; a second player character, more enemies and a few more backgrounds for the catalogue.
 - Picture import: a hand-drawn grid in the dialog when the guess is wrong in a way the numbers cannot fix (frames of different widths); remembering the last choice of "Einfügen" per sprite.
 
@@ -171,7 +165,7 @@ Any new attack family must work for player characters and enemies through the sa
 
 # Screens and Devices
 
-The studio is made for 1920 × 1080 and works down to about 1366 × 768. On tablets in landscape (1024 × 768) both editors are usable with a mouse but cramped; in portrait, and on phones, they are not usable – only the Hilfe tab and playing are. Touch: the level editor opens its menu with a long press, two fingers zoom; hover texts, right-click menus in the sprite editor and keyboard shortcuts have no touch equivalent yet. Decide whether tablets should be supported (a layout with the side columns as drawers) before adding touch-only features.
+The studio is made for 1920 × 1080 and works down to about 1366 × 768; tablets in landscape (from about 1024 × 768) work with fingers only (README: On a tablet). Portrait and phones are not usable – only the Hilfe tab and playing are. Open for touch: Strg + drag shapes and the arrow-key nudge in the level editor, the frames' multi-select (Shift / Strg + click), a way to see hover texts, the level editor's Signale-Übersicht cards (their lines show on hover), and dragging list items without the handle. In the Levelübersicht, a door in front of an exit is not shown (only placement links them; a heuristic by position could).
 
 # Large or Experimental
 

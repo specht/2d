@@ -220,6 +220,10 @@ class Menu {
         if (this.active_key)
             active_command = this.commands[this.active_key];
         let self = this;
+        // a Shift / Strg / Alt tapped on (a tablet has no keys) ends with the
+        // tool it belonged to – it must not stay on unseen
+        for (const entry of Object.values(this.status_buttons ?? {}))
+            if (entry.type === 'checkbox' && entry.value) { entry.value = false; entry.callback(false); }
         this.status_buttons = {};
         this.status_shortcuts = {};
         let statusBar = $('#status-bar');
@@ -241,8 +245,10 @@ class Menu {
                 show_minimap: 'Zeigt unten links das ganze Level klein. Klick oder zieh auf der Karte, um dorthin zu springen.',
                 animate_level: 'Sprites und Effekte bewegen sich schon hier im Editor, so wie im Spiel.',
                 show_level_map: 'Zeigt alle Level deines Spiels und wohin ihre Ausgänge führen.',
+                show_regions: 'Zeigt die Rechtecke aller Hintergründe, Signalbereiche und Bewegungsbereiche als dünne Linien.',
+                dim_other_layers: 'Die anderen Ebenen werden dunkler, die Ebene, an der du arbeitest, steht ganz vorn.',
             };
-            for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['S', 'show_signal_overview', 'Signale'], ['M', 'show_minimap', 'Karte'], ['L', 'show_level_map', 'Levelübersicht'], ['A', 'animate_level', 'Level animieren']]) {
+            for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['S', 'show_signal_overview', 'Signale'], ['M', 'show_minimap', 'Karte'], ['L', 'show_level_map', 'Levelübersicht'], ['B', 'show_regions', 'Bereiche'], ['D', 'dim_other_layers', 'Hervorheben'], ['A', 'animate_level', 'Level animieren']]) {
                 hints.push({ key, type: 'toggle', label, title: titles[option],
                     get: () => !!game.level_editor?.[option],
                     callback: (value) => game.level_editor?.set_view_option?.(option, value) });

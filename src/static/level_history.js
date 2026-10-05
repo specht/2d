@@ -22,13 +22,24 @@ class LevelHistory {
     constructor({ max_steps = LEVEL_HISTORY_MAX_STEPS, max_chars = LEVEL_HISTORY_MAX_CHARS } = {}) {
         this.max_steps = max_steps;
         this.max_chars = max_chars;
-        this.levels = new Map(); // id → { baseline, undo: [], redo: [] }
+        this.levels = new Map(); // id → { baseline, undo: [], redo: [], undo_seq: [], redo_seq: [] }
+        this.local_seq = 0;
+    }
+
+    // Every step gets a number from the counter it shares with the level
+    // list's history (level_list_history.js), so Strg+Z can undo whichever
+    // happened last.
+    seq() {
+        return typeof next_undo_seq === 'function' ? next_undo_seq() : ++this.local_seq;
     }
 
     entry(id) {
-        if (!this.levels.has(id)) this.levels.set(id, { baseline: null, undo: [], redo: [] });
+        if (!this.levels.has(id)) this.levels.set(id, { baseline: null, undo: [], redo: [], undo_seq: [], redo_seq: [] });
         return this.levels.get(id);
     }
+
+    last_undo_seq(id) { return this.levels.get(id)?.undo_seq.at(-1) ?? 0; }
+    last_redo_seq(id) { return this.levels.get(id)?.redo_seq.at(-1) ?? 0; }
 
     // Returns 'baseline' (first look at this level), 'same' or 'step'.
     observe(id, serialized) {
@@ -40,7 +51,9 @@ class LevelHistory {
         }
         if (serialized === entry.baseline) return 'same';
         entry.undo.push(entry.baseline);
+        entry.undo_seq.push(this.seq());
         entry.redo = [];
+        entry.redo_seq = [];
         entry.baseline = serialized;
         this.trim(entry);
         return 'step';
@@ -60,7 +73,9 @@ class LevelHistory {
         const entry = this.levels.get(id);
         if (!entry?.undo.length) return null;
         entry.redo.push(entry.baseline);
+        entry.redo_seq.push(this.seq());
         entry.baseline = entry.undo.pop();
+        entry.undo_seq.pop();
         return entry.baseline;
     }
 
@@ -70,7 +85,9 @@ class LevelHistory {
         const entry = this.levels.get(id);
         if (!entry?.redo.length) return null;
         entry.undo.push(entry.baseline);
+        entry.undo_seq.push(this.seq());
         entry.baseline = entry.redo.pop();
+        entry.redo_seq.pop();
         this.trim(entry);
         return entry.baseline;
     }
@@ -98,6 +115,7 @@ class LevelHistory {
         while (entry.undo.length > 0 &&
             (entry.undo.length > this.max_steps || chars > this.max_chars)) {
             chars -= entry.undo.shift().length;
+            entry.undo_seq.shift();
         }
     }
 }

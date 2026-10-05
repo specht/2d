@@ -5148,7 +5148,8 @@ button.resize-cell.active {
 #color_menu, #color_variations_menu {
     display: grid;
     gap: 3px;
-    padding-bottom: 3px;
+    /* room for the outline of the chosen colour (the column scrolls and would cut it off) */
+    padding: 3px;
 }
 #color_menu {
     grid-template-columns: repeat(8, 1fr);
@@ -5712,12 +5713,20 @@ input.dnd-rename {
     gap: 4px;
     padding: 3px 3px 3px 6px;
 }
-/* the tools column scrolls when the screen is low (1366 × 768) */
+/* the tools column scrolls when the screen is low (1366 × 768). Its
+   scrollbar sits in a gutter beside the boxes, so it never takes width from
+   them – six tools stay in a row (studio.js SPRITE_LEFT_COLUMN). */
 #main_div_sprites > .menu_container:first-child {
     max-height: calc(100vh - 90px);
     overflow-y: auto;
+    overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+    scrollbar-gutter: stable;
+}
+#main_div_sprites > .menu_container:first-child > * {
+    width: var(--sprite-left-column, 240px);
+    box-sizing: border-box;
 }
 #sprite_view_toggles .view-toggle .key.widget-key {
     margin-left: auto;
@@ -5735,4 +5744,218 @@ input.dnd-rename {
 .eraser-toggle.active .view-toggle-dot {
     background: #ef7d57;
     box-shadow: 0 0 5px #ef7d57;
+}
+
+/* No tool on a Hintergrund, Signalbereich or Bewegungsbereich: a rectangle
+   can be grabbed and moved (level_editor.js start_rect_move) */
+#level.over-rect {
+    cursor: move;
+}
+#level.moving-rect {
+    cursor: grabbing;
+}
+/* fingers need bigger handles */
+@media (pointer: coarse) {
+    .backdrop-handle {
+        width: 22px;
+        height: 22px;
+    }
+    .backdrop-swatch {
+        width: 26px;
+        height: 26px;
+    }
+}
+/* an exit that waits for a Code nothing sends (level_map.js level_map_gate) */
+.level-map-badge.never {
+    border-color: #ef7d57;
+    color: #ef7d57;
+}
+
+/* The sprite editor's tools: six columns, whatever the page zoom rounds the
+   borders to (a row of exactly 6 × 38 px wrapped at some zoom levels). */
+#tool_menu {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    padding: 2px;
+}
+#tool_menu > .button {
+    width: auto;
+    height: auto;
+    aspect-ratio: 1;
+    margin: 0;
+    box-sizing: border-box;
+}
+#tool_menu > hr {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin: 4px 0;
+}
+/* the view switches: two in the first row, one in the second */
+#sprite_view_toggles {
+    display: grid;
+    grid-template-columns: auto auto;
+}
+#sprite_view_toggles .view-toggle:last-child {
+    grid-column: 1 / -1;
+}
+
+/* ------------------------------------------- Wer zeigt was? (who_shows_what.js) */
+.who-shows-what > summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: #ccc;
+    padding: 2px 2px 4px;
+}
+.who-shows-what .wsw-count {
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 8px;
+    font-size: 11px;
+    color: #ef7d57;
+    border: 1px solid rgba(239, 125, 87, 0.6);
+}
+.wsw-table {
+    display: grid;
+    gap: 3px;
+    padding: 0 2px;
+}
+.wsw-row {
+    display: grid;
+    grid-template-columns: 1fr 40px 40px 40px;
+    gap: 4px;
+    align-items: center;
+    font-size: 12px;
+}
+.wsw-head span {
+    text-align: center;
+    color: #8a96a3;
+    font-size: 11px;
+}
+.wsw-label {
+    color: #bbb;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.wsw-row .wsw-label-wide {
+    grid-column: 1 / 4;
+}
+.wsw-cell {
+    position: relative;
+    height: 32px;
+    border-radius: 4px;
+    border: 2px solid;
+    box-sizing: border-box;
+    background: url(transparent.png), #555;
+    background-size: 8px 8px;
+    cursor: pointer;
+    overflow: hidden;
+}
+.wsw-cell.wsw-wide {
+    grid-column: 2 / -1;
+}
+.wsw-cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    -webkit-touch-callout: none;
+}
+.wsw-cell img.flipped {
+    transform: scaleX(-1);
+}
+.wsw-cell.current {
+    outline: 2px solid #fff;
+    outline-offset: 1px;
+}
+.wsw-mark {
+    position: absolute;
+    right: 1px;
+    bottom: -1px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 3px #000, 0 0 2px #000;
+}
+.wsw-drawn, .wsw-legend i.wsw-drawn { border-color: #a7f070; }
+.wsw-mirrored, .wsw-legend i.wsw-mirrored { border-color: #73eff7; }
+.wsw-other, .wsw-legend i.wsw-other { border-color: #ffcd75; }
+.wsw-missing, .wsw-legend i.wsw-missing { border-color: #ef7d57; border-style: dashed; }
+.wsw-missing img { opacity: 0.45; }
+.wsw-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    font-size: 11px;
+    color: #9aa;
+    padding: 6px 2px 2px;
+}
+.wsw-legend i {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border: 2px solid;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: -1px;
+}
+.wsw-hint {
+    font-size: 11px;
+    color: #9aa;
+    padding: 4px 2px 2px;
+}
+
+/* ------------------------------------------------------------ touch
+   A tablet without a mouse: a tap opens a submenu (widgets.js), the drawing
+   areas belong to the fingers (no page zoom or scroll there), pictures do not
+   offer "save image", and list handles are big enough to grab. */
+.context-menu-item.has-children.open > .context-menu-sub {
+    display: block;
+}
+#canvas, #level {
+    touch-action: none;
+}
+body {
+    -webkit-touch-callout: none;
+}
+@media (pointer: coarse) {
+    .drag_handle {
+        width: 22px !important;
+        opacity: 0.6 !important;
+    }
+    .context-menu-item {
+        padding-top: 9px;
+        padding-bottom: 9px;
+    }
+}
+
+/* Einstellungen: the buttons as dark as the rest of the studio (panels, list
+   items, switches) instead of the grey of a plain <button> */
+#main_div_settings button:not(.btn):not(.btn-checkbox):not(.controls-key) {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ddd;
+}
+#main_div_settings button:not(.btn):not(.btn-checkbox):not(.controls-key):hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #fff;
+}
+#main_div_settings .controls-key {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-bottom-width: 3px;
+}
+#main_div_settings .controls-key.empty {
+    border-style: dashed;
+    color: #888;
+}
+#main_div_settings .controls-key.waiting {
+    border-color: #ffcd75;
+    color: #ffcd75;
+}
+#main_div_settings .controls-key:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.5);
 }

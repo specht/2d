@@ -44,12 +44,14 @@
     <script defer src="movement_regions.js?#{@@cache_buster}"></script>
     <script defer src="level_history.js?#{@@cache_buster}"></script>
     <script defer src="sprite_list_history.js?#{@@cache_buster}"></script>
+    <script defer src="level_list_history.js?#{@@cache_buster}"></script>
     <script defer src="sprite_history.js?#{@@cache_buster}"></script>
     <script defer src="sprite_preview.js?#{@@cache_buster}"></script>
     <script defer src="level_selection.js?#{@@cache_buster}"></script>
     <script defer src="level_minimap.js?#{@@cache_buster}"></script>
     <script defer src="level_flow.js?#{@@cache_buster}"></script>
     <script defer src="level_map.js?#{@@cache_buster}"></script>
+    <script defer src="who_shows_what.js?#{@@cache_buster}"></script>
     <script defer src="level_rects.js?#{@@cache_buster}"></script>
     <script defer src="sprite_filter.js?#{@@cache_buster}"></script>
     <script defer src="level_editor.js?#{@@cache_buster}"></script>
@@ -162,6 +164,8 @@
                             scroll_helper_vertical" style="max-height: calc(50vh -
                             90px); line-height: 12px;"></div>
                 </div>
+                <!-- Wer zeigt was? (who_shows_what.js) -->
+                <div class="menu" id="who_shows_what" style="display: none;"></div>
                 <div class="menu" id="menu_state_properties_fixed">
                 </div>
                 <div id='menu_state_properties_variable_part_following' class="menu">

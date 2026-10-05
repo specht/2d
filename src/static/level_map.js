@@ -4,6 +4,57 @@
 // editor (level_editor.js refresh_level_map) draws it.
 //
 // traits_of(sprite ref) → the traits of a placed sprite's drawing, or null.
+//
+// What opens an exit (exit.gate) comes from the Signale (signals.js): an exit
+// on a layer that reacts to a Code is only there when that layer is, and
+// "geschafft bei Signal" waits for its Code. A door in front of an exit is
+// only where things are placed – nothing in the game links the two – so it
+// is not shown.
+
+// Who sends a Code in this level, as short German words ("1 Schalter",
+// "Signalbereich »Falle«", "Levelstart"); [] when nothing does.
+function level_map_senders(level, code, traits_of) {
+    if (typeof signal_partners !== 'function') return null;
+    const partners = signal_partners(level, code, traits_of);
+    const roles = [...(typeof SIGNAL_SPRITE_ROLES !== 'undefined' ? SIGNAL_SPRITE_ROLES : []),
+        ...(typeof SIGNAL_LOOT_ROLE !== 'undefined' ? [SIGNAL_LOOT_ROLE] : []),
+        ...(typeof SIGNAL_COUNTER_OUT_ROLE !== 'undefined' ? [SIGNAL_COUNTER_OUT_ROLE] : [])];
+    return [
+        ...roles.filter(role => role.sends && partners.counts[role.id ?? role.trait]).map(role => {
+            const n = partners.counts[role.id ?? role.trait];
+            return `${n} ${n === 1 ? role.one : role.many}`;
+        }),
+        ...partners.areas.map(name => `Signalbereich »${name}«`),
+        ...(partners.all_defeated ? ['alle Gegner besiegt'] : []),
+        ...(partners.level_start ? ['Levelstart'] : []),
+    ];
+}
+
+const LEVEL_MAP_GATE_WORDS = {
+    appear: 'erscheint erst bei {c}', while_on: 'ist nur da, solange {c} an ist', disappear: 'verschwindet bei {c}',
+    while_off: 'ist weg, solange {c} an ist', toggle: 'erscheint und verschwindet bei {c}',
+};
+
+// What an exit waits for: { code, name, text, senders, closed } or null.
+//   closed: the exit is not there (or the level not geschafft) until the Code comes
+function level_map_gate(level, layer, signal_exit, traits_of) {
+    let code = null, text = null, closed = false;
+    if (signal_exit) {
+        code = level.properties.signal_level_complete;
+        closed = true;
+    } else if (typeof layer_reacts_to_signals === 'function' && layer_reacts_to_signals(layer?.properties)) {
+        code = typeof stored_signal_code === 'function' ? stored_signal_code(layer.properties.signal_code) : layer.properties.signal_code;
+        if (code === null) return null;
+        closed = typeof layer_visible_at_start === 'function' && !layer_visible_at_start(layer.properties.signal_reaction);
+    } else return null;
+    const name = typeof signal_name === 'function' ? signal_name(level, code) : '';
+    const code_text = typeof signal_code_text === 'function' ? signal_code_text(code, name) : `Code ${code}`;
+    const senders = level_map_senders(level, code, traits_of);
+    if (signal_exit) text = `„geschafft bei Signal“ wartet auf ${code_text}`;
+    else text = `Der Ausgang in der Ebene »${layer.properties?.name || 'ohne Namen'}« ${(LEVEL_MAP_GATE_WORDS[layer.properties.signal_reaction] ?? 'reagiert auf {c}').replace('{c}', code_text)}`;
+    if (senders) text += senders.length ? ` – sendet: ${senders.join(', ')}` : ' – aber nichts sendet diesen Code';
+    return { code, name, text, senders, closed };
+}
 
 // Every exit of a level: placed sprites with "Levelwechsel" and, as one
 // more, "geschafft bei Signal". working: false for an exit the game never
@@ -17,11 +68,12 @@ function level_map_exits(level, traits_of) {
             if (!Array.isArray(placed) || !traits_of(placed[0])?.level_complete) return;
             const props = placed[3]?.level_complete ?? {};
             exits.push({ layer: li, index: si, target: props.target ?? null, delta: Number.isFinite(props.delta) ? props.delta : 1,
-                action_key: props.action_key === true, working });
+                action_key: props.action_key === true, working, gate: level_map_gate(level, layer, false, traits_of) });
         });
     });
     if (Number.isInteger(level?.properties?.signal_level_complete))
-        exits.push({ signal: true, target: level.properties.signal_level_complete_target ?? null, delta: 1, action_key: false, working: true });
+        exits.push({ signal: true, target: level.properties.signal_level_complete_target ?? null, delta: 1, action_key: false, working: true,
+            gate: level_map_gate(level, null, true, traits_of) });
     return exits;
 }
 
@@ -60,6 +112,14 @@ function level_map(levels, traits_of) {
         }
         if (exits.some(e => !e.working))
             nodes[i].warnings.push('Ein Ausgang liegt in einer Ebene ohne Kollisionen (oder mit Parallaxe) und funktioniert im Spiel nicht.');
+        // an exit that waits for a Code nothing sends never opens
+        const waiting = new Set(exits.filter(e => e.working && e.gate?.closed && e.gate.senders && !e.gate.senders.length)
+            .map(e => e.gate.code));
+        for (const code of waiting) {
+            const gate = exits.find(e => e.gate?.code === code).gate;
+            const code_text = typeof signal_code_text === 'function' ? signal_code_text(code, gate.name) : `Code ${code}`;
+            nodes[i].warnings.push(`Ein Ausgang wartet auf ${code_text}, aber nichts in diesem Level sendet ihn – so geht es hier nie weiter.`);
+        }
         for (const exit of exits.filter(e => e.working)) {
             const t = effective_level_target(levels, i, exit.target);
             if (t === LEVEL_TARGET_END) { edge_to(i, 'end', 'end', exit); continue; }
@@ -127,5 +187,5 @@ function level_map(levels, traits_of) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { level_map_exits, level_map };
+    module.exports = { level_map_exits, level_map, level_map_gate, level_map_senders };
 }

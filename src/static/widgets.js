@@ -394,6 +394,8 @@ class DragAndDropWidget {
             if (body.data('_dnd_moving')) {
                 if (!body.data('_dnd_has_moved')) {
                     self.options.onclick(self.mouse_down_element.children().eq(0)[0], self.mouse_down_element.index());
+                    // a tap on the handle: no second click from the browser
+                    if (e.type === 'touchend' && e.cancelable) e.preventDefault();
                 }
                 self._uninstall_drag_and_drop_handler(e);
             }
@@ -507,12 +509,23 @@ function show_context_menu(x, y, entries, options = {}) {
                 // deeper level sticking out of it – the third level never showed.
                 // It opens to the right, or to the left without room there, and
                 // stays inside the window (near the bottom it opens upwards).
-                item.on('mouseenter', () => {
+                const place = () => {
                     const at = item[0].getBoundingClientRect();
                     const box = sub[0].getBoundingClientRect();
                     const left = at.right + box.width <= window.innerWidth - 4 ? at.right : Math.max(4, at.left - box.width);
                     const top = Math.max(4, Math.min(at.top - 5, window.innerHeight - 4 - box.height));
                     sub.css({ position: 'fixed', left: `${left}px`, top: `${top}px`, right: 'auto' });
+                };
+                item.on('mouseenter', place);
+                // a tap (no hover on a tablet) opens it, and closes the others of this level
+                item.on('click', (e) => {
+                    // only a tap on the entry itself, not one inside its submenu
+                    if ($(e.target).closest('.context-menu-item')[0] !== item[0]) return;
+                    e.stopPropagation();
+                    const open = !item.hasClass('open');
+                    item.siblings('.has-children').removeClass('open');
+                    item.toggleClass('open', open);
+                    if (open) { sub.css('display', 'block'); place(); sub.css('display', ''); }
                 });
                 continue;
             }
@@ -558,6 +571,53 @@ function show_context_menu(x, y, entries, options = {}) {
 }
 
 let context_menu_outside_press = null;
+
+// Touch: a finger held still for LONG_PRESS_MS is a right-click – a
+// contextmenu event on what is under it, so every right-click menu (lists,
+// palettes, the drawing area) opens on a tablet, too. The level view has its
+// own (LevelEditor.handle_down: it also stops what the finger began). The
+// browser's own long-press menu (Android) is swallowed, so there is one menu,
+// and no click follows the long press.
+const LONG_PRESS_MS = 550;
+(function install_long_press() {
+    if (typeof document === 'undefined') return;
+    let press = null, fired = false, touching = false;
+    const cancel = () => { if (press) { clearTimeout(press.timer); press = null; } };
+    document.addEventListener('touchstart', (e) => {
+        touching = true;
+        cancel();
+        if (e.touches.length !== 1) return;
+        const target = e.target;
+        if (target.closest?.('input, textarea, select, [contenteditable], #level, .context-menu, .modal-dialogs')) return;
+        const t = e.touches[0];
+        press = { x: t.clientX, y: t.clientY, timer: setTimeout(() => {
+            press = null;
+            fired = true;
+            target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: t.clientX, clientY: t.clientY, button: 2 }));
+        }, LONG_PRESS_MS) };
+    }, { capture: true, passive: true });
+    document.addEventListener('touchmove', (e) => {
+        const t = e.touches[0];
+        if (press && t && Math.hypot(t.clientX - press.x, t.clientY - press.y) > 10) cancel();
+    }, { capture: true, passive: true });
+    const end = (e) => {
+        cancel();
+        if (!e.touches?.length) touching = false;
+        // the menu stays open: no click (and no mouse events) after the long press
+        if (fired && !e.touches?.length) {
+            fired = false;
+            if (e.cancelable) e.preventDefault();
+        }
+    };
+    document.addEventListener('touchend', end, { capture: true, passive: false });
+    document.addEventListener('touchcancel', end, { capture: true, passive: false });
+    document.addEventListener('contextmenu', (e) => {
+        if (e.isTrusted && (touching || e.pointerType === 'touch' || e.sourceCapabilities?.firesTouchEvents)) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+        }
+    }, true);
+})();
 
 function close_context_menu() {
     if (context_menu_outside_press) {

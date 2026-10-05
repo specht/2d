@@ -59,10 +59,14 @@ test('warnings: no exit, a lonely side level, a lost target, a broken layer, now
 
 test('exits: placed settings and "geschafft bei Signal"', () => {
     const lv = level('a', [exit(undefined, { delta: 2 }), ['ground', 0, 0]], { signal_level_complete: 4, signal_level_complete_target: '@end' });
-    assert.deepEqual(level_map_exits(lv, traits_of), [
+    const exits = level_map_exits(lv, traits_of);
+    assert.deepEqual(exits.map(({ gate, ...rest }) => rest), [
         { layer: 0, index: 0, target: null, delta: 2, action_key: false, working: true },
         { signal: true, target: '@end', delta: 1, action_key: false, working: true },
     ]);
+    assert.equal(exits[0].gate, null);
+    assert.equal(exits[1].gate.code, 4);
+    assert.equal(exits[1].gate.closed, true);
     const map = level_map([lv, level('b', [exit()]), level('c', [exit()])], traits_of);
     assert.deepEqual(map.edges.map(e => [e.from, e.to, e.kind]), [[0, 2, 'next'], [0, 'end', 'end'], [1, 2, 'next'], [2, 'end', 'end']]);
     assert.match(map.nodes[1].warnings[0], /nie in dieses Level/);
@@ -80,4 +84,42 @@ test('a new game is a connected row: levels without an exit show where it will l
     assert.deepEqual(map.edges.map(e => [e.from, e.to, e.kind]), [[0, 2, 'order'], [2, 3, 'next'], [3, 'end', 'order']]);
     assert.equal(map.end_reachable, true);
     assert.deepEqual(map.nodes[1].hints.length, 1);       // the Nebenlevel: a hint, no arrow
+});
+
+// ------------------------------------------------ what opens an exit
+test('an exit on a layer that appears at a Signal waits for it, and says who sends it', () => {
+    const signals = require('../src/static/signals.js');
+    Object.assign(globalThis, signals);
+    const all_traits = { ...traits, schalter: { switch: {} } };
+    const t = ref => all_traits[ref] ?? null;
+    const exit_layer = { type: 'sprites', properties: { collision_detection: true, parallax: 0, name: 'Tor', signal_code: 4, signal_reaction: 'appear' },
+        sprites: [['exit', 0, 0]] };
+    const world = layer([['schalter', 0, 0, { switch: { signal_code: 4 } }]]);
+    const lvl = { id: 'a', properties: { use_level: true, name: '', signal_names: { 4: 'Tor' } }, layers: [world, exit_layer] };
+    const [e] = level_map_exits(lvl, t);
+    assert.equal(e.gate.code, 4);
+    assert.equal(e.gate.closed, true);
+    assert.deepEqual(e.gate.senders, ['1 Schalter']);
+    assert.match(e.gate.text, /erscheint erst bei »Tor« \(Code 4\).*sendet: 1 Schalter/);
+    assert.equal(level_map([lvl], t).nodes[0].warnings.length, 0);
+    // nobody sends 4: the exit never opens
+    world.sprites = [];
+    const map = level_map([lvl], t);
+    assert.match(map.nodes[0].warnings[0], /wartet auf »Tor« \(Code 4\), aber nichts/);
+    // a layer that disappears at the Signal is there from the start: no warning
+    exit_layer.properties.signal_reaction = 'disappear';
+    assert.equal(level_map([lvl], t).nodes[0].warnings.length, 0);
+    assert.match(level_map_exits(lvl, t)[0].gate.text, /verschwindet bei/);
+    // a layer that does not react: no gate
+    exit_layer.properties.signal_reaction = 'none';
+    assert.equal(level_map_exits(lvl, t)[0].gate, null);
+});
+
+test('„geschafft bei Signal“ names its Code and its senders', () => {
+    Object.assign(globalThis, require('../src/static/signals.js'));
+    const lvl = { id: 'a', properties: { use_level: true, name: '', signal_level_complete: 2, signal_all_defeated: 2 }, layers: [layer([])] };
+    const exits = level_map_exits(lvl, traits_of);
+    assert.equal(exits.length, 1);
+    assert.deepEqual(exits[0].gate.senders, ['alle Gegner besiegt']);
+    assert.match(exits[0].gate.text, /^„geschafft bei Signal“ wartet auf Code 2 – sendet: alle Gegner besiegt$/);
 });

@@ -775,6 +775,7 @@ class Game {
             }
         }
         this.drop_sprite_picker?.refresh();
+        if (typeof refresh_who_shows_what_pictures === 'function') refresh_who_shows_what_pictures();
         this.attack_sprite_picker?.refresh();
         this.hit_sprite_picker?.refresh();
         this.ranged_projectile_picker?.refresh();
@@ -1724,6 +1725,8 @@ class Game {
         let self = this;
         let si = canvas.sprite_index;
         let sti = canvas.state_index;
+        // who_shows_what.js: the overview follows roles, states and the sprite
+        if (typeof refresh_who_shows_what === 'function') refresh_who_shows_what();
         $('#menu_state_properties_fixed').empty();
         new LineEditWidget({
             container: $('#menu_state_properties_fixed'),

@@ -44,23 +44,37 @@ function bytes_to_str(i) {
 // Eigenschaften.
 const SPRITE_LEFT_COLUMN = 240;
 
+// The sprite list shows whole tiles (68 px each, plus its padding and room
+// for a scrollbar); what is left over goes to the sprite and state columns.
+const SPRITE_TILE_STEP = 68;
+const SPRITE_LIBRARY_PADDING = 24;
+
 function sprite_pane_layout(width, height) {
     const wide = width >= 1600;
     const gap = wide ? 20 : 14;
     const left_w = SPRITE_LEFT_COLUMN;
     const column_w = wide ? 250 : 236;
-    const library_min = wide ? 236 : 220;
+    // at least three tiles of the sprite list; on a tablet two (the drawing area needs the room)
+    const library_min = SPRITE_LIBRARY_PADDING + (width < 1400 ? 2 : 3) * SPRITE_TILE_STEP;
     const x_canvas = gap + left_w + gap;
     const fit = (columns) => Math.max(100, Math.min(height - 218,
         width - x_canvas - (columns * (gap + column_w) + gap + library_min + gap)));
     const states_column = fit(2) >= fit(1) * 0.93;
     const size = states_column ? fit(2) : fit(1);
+    const columns = states_column ? 2 : 1;
+    // the room right of the drawing area: the columns, then whole tiles of the list
+    const room = width - (x_canvas + size + gap) - columns * (column_w + gap) - gap;
+    const tiles = Math.max(2, Math.floor((Math.max(room, library_min) - SPRITE_LIBRARY_PADDING) / SPRITE_TILE_STEP));
+    const library_w = SPRITE_LIBRARY_PADDING + tiles * SPRITE_TILE_STEP;
+    const spare = Math.max(0, room - library_w);
+    const sprite_w = column_w + Math.floor(spare / columns);
+    const states_w = states_column ? column_w + Math.floor(spare / columns) : column_w;
     const x_sprite = x_canvas + size + gap;
-    const x_states = x_sprite + column_w + gap;
-    const x_library = (states_column ? x_states : x_sprite) + column_w + gap;
+    const x_states = x_sprite + sprite_w + gap;
+    const x_library = (states_column ? x_states + states_w : x_sprite + sprite_w) + gap;
     return {
-        gap, left_w, sprite_w: column_w, states_w: column_w, states_column, size,
-        x_canvas, x_sprite, x_states, x_library, library_w: Math.max(library_min, width - x_library - gap),
+        gap, left_w, sprite_w, states_w, states_column, size,
+        x_canvas, x_sprite, x_states, x_library, library_w: Math.max(library_w, width - x_library - gap),
     };
 }
 
@@ -148,7 +162,9 @@ function handleResize() {
     $('#canvas').css('left', `${layout.x_canvas}px`);
     $('#undo_stack').css({ left: `${layout.x_canvas}px`, width: `${size}px` });
     $('#menu_frames').css({ left: `${layout.x_canvas}px`, top: `${size + 120}px`, width: `${size}px` });
-    $('#main_div_sprites > .menu_container').first().css({ left: `${layout.gap}px`, width: `${layout.left_w}px` });
+    // the boxes are left_w wide; the column is a little wider, for its scrollbar (styles.css)
+    $('#main_div_sprites > .menu_container').first().css({ left: `${layout.gap}px`, width: `${layout.left_w + 12}px`,
+        '--sprite-left-column': `${layout.left_w}px` });
     $('#main_div_sprites .right_menu_container').css({ left: `${layout.x_sprite}px`, width: `${layout.sprite_w}px` });
     // the Zustände: their own column, or below the Eigenschaften
     const states_home = layout.states_column ? $('#main_div_sprites .states_menu_container') : $('#main_div_sprites .right_menu_container');
