@@ -1,9 +1,10 @@
 // "Wer zeigt was?" in the sprite editor: for a figure (Spielfigur, Gegner,
 // Begleiter), which state the game shows for Stehen, Laufen, Springen … to
-// the left, to the right and from the front – drawn for it, the other side
-// mirrored, another role's picture, or nothing (then the first state). For
-// other sprites (Tür, Schalter, Zähler …): which state shows each of their
-// states, or that it is missing.
+// the left, to the right and from the front – its own picture, the other side
+// mirrored, the picture of another role, or the first state (the Grundbild).
+// All of these are fine – a figure with one picture for everything works – the
+// overview shows what there is and where an own picture could go. For other
+// sprites (Tür, Schalter, Zähler …): which state shows each of their states.
 //
 // figure_state_table rebuilds exactly the table the game builds in the
 // Character constructor (app.js, sti_for_state), without the game: the test
@@ -97,8 +98,8 @@ function wsw_tag_text(tag) {
 // The rows of the overview for a figure:
 //   [{ kind, label, cells: [{ dir, sti, flipped, how, text }] }]
 //   how: 'drawn' (its own picture), 'mirrored' (the other side, mirrored),
-//        'other' (another role's or direction's picture), 'missing' (the first
-//        state, because nothing fits)
+//        'other' (another role's or direction's picture), 'base' (the first
+//        state, the Grundbild, because no state has this role)
 // Stehen, Laufen, Springen, Fallen always; Klettern and Tot for Spielfigur
 // and Gegner; the other poses only once one of their states exists (without
 // them the game simply shows the movement picture).
@@ -117,7 +118,7 @@ function who_shows_what(sprite) {
         if (cell.confidence >= 100) return { ...out, how: 'drawn', text: `${label}: »${name_of(cell.sti)}«` };
         if (cell.confidence === 10) {
             const shown = tags(cell.sti).find(t => WSW_MOVEMENT.some(k => t === (k === 'stand' ? d : `${k}_${d}`)));
-            return { ...out, how: 'other', text: `${label} fehlt – zeigt ${wsw_tag_text(shown ?? d)} (»${name_of(cell.sti)}«)` };
+            return { ...out, how: 'other', text: `${label}: zeigt das Bild von ${wsw_tag_text(shown ?? d)} (»${name_of(cell.sti)}«)` };
         }
         if (cell.confidence === 1) {
             const other = d === 'left' ? 'right' : 'left';
@@ -125,9 +126,9 @@ function who_shows_what(sprite) {
             if (source.confidence >= 100)
                 return { ...out, how: 'mirrored', text: `${label}: ${WSW_KIND_LABELS[kind]} ${WSW_DIRECTION_LABELS[other]}, gespiegelt` };
             if (source.confidence === 10 || (source.confidence === 1 && source.sti !== 0))
-                return { ...out, how: 'other', text: `${label} fehlt – zeigt »${name_of(cell.sti)}«, gespiegelt` };
+                return { ...out, how: 'other', text: `${label}: zeigt »${name_of(cell.sti)}«, gespiegelt` };
         }
-        return { ...out, how: 'missing', text: `${label} fehlt – zeigt den ersten Zustand »${name_of(cell.sti)}«${cell.flipped ? ', gespiegelt' : ''}` };
+        return { ...out, how: 'base', text: `${label}: zeigt das Grundbild »${name_of(cell.sti)}«${cell.flipped ? ', gespiegelt' : ''}` };
     };
     for (const kind of WSW_MOVEMENT)
         rows.push({ kind, label: WSW_KIND_LABELS[kind], cells: ['left', 'right', 'front'].map(d => movement_cell(kind, d)) });
@@ -136,13 +137,13 @@ function who_shows_what(sprite) {
             const climb = table.climb?.back;
             rows.push({ kind: 'climb', label: 'Klettern', cells: [climb ?
                 { dir: 'all', sti: climb.sti, flipped: false, how: 'drawn', text: `Klettern: »${name_of(climb.sti)}«` } :
-                { ...movement_cell('stand', 'back'), dir: 'all', how: table.stand.back.confidence >= 100 ? 'other' : 'missing',
-                    text: `Klettern fehlt – zeigt ${table.stand.back.confidence >= 100 ? `Stehen hinten (»${name_of(table.stand.back.sti)}«)` : `den ersten Zustand »${name_of(table.stand.back.sti)}«`}` }] });
+                { ...movement_cell('stand', 'back'), dir: 'all', how: table.stand.back.confidence >= 100 ? 'other' : 'base',
+                    text: `Klettern: zeigt ${table.stand.back.confidence >= 100 ? `das Bild von Stehen hinten (»${name_of(table.stand.back.sti)}«)` : `das Grundbild »${name_of(table.stand.back.sti)}«`}` }] });
         }
         const dead = table.dead.left;
         rows.push({ kind: 'dead', label: 'Tot', cells: [dead.confidence >= 200 ?
             { dir: 'all', sti: dead.sti, flipped: false, how: 'drawn', text: `Tot: »${name_of(dead.sti)}«` } :
-            { dir: 'all', sti: 0, flipped: false, how: 'missing', text: `Tot fehlt – zeigt den ersten Zustand »${name_of(0)}«` }] });
+            { dir: 'all', sti: 0, flipped: false, how: 'base', text: `Tot: zeigt das Grundbild »${name_of(0)}«` }] });
     }
     for (const kind of WSW_POSES) {
         const poses = table[kind];
@@ -154,7 +155,7 @@ function who_shows_what(sprite) {
             const how = own ? 'drawn' : p.flipped && d !== 'front' ? 'mirrored' : 'other';
             return { dir: d, sti: p.sti, flipped: p.flipped, how,
                 text: how === 'drawn' ? `${label}: »${name_of(p.sti)}«` :
-                    `${label} fehlt – zeigt »${name_of(p.sti)}«${p.flipped ? ', gespiegelt' : ''}` };
+                    `${label}: zeigt »${name_of(p.sti)}«${p.flipped ? ', gespiegelt' : ''}` };
         }) });
     }
     return { trait, rows };
@@ -196,7 +197,7 @@ function object_state_roles(sprite) {
 // left it. A click on a picture chooses that state. The pictures follow the
 // drawing (refresh_who_shows_what_pictures from Game.refresh_frames_on_screen).
 const WSW_HOW = {
-    drawn: 'eigenes Bild', mirrored: 'die andere Seite, gespiegelt', other: 'ein anderes Bild', missing: 'fehlt',
+    drawn: 'eigenes Bild', mirrored: 'gespiegelt', other: 'Bild einer anderen Rolle', base: 'Grundbild (der erste Zustand)',
 };
 
 function wsw_picture(sprite, sti) {
@@ -222,14 +223,14 @@ function refresh_who_shows_what() {
     const cell_for = (cell, wide) => {
         const div = $('<div class="wsw-cell">').addClass(`wsw-${cell.how}`).toggleClass('wsw-wide', wide)
             .toggleClass('current', cell.sti === canvas.state_index)
-            .attr('title', `${cell.text} – ${WSW_HOW[cell.how]}. Klicken: diesen Zustand zeigen.`)
+            .attr('title', `${cell.text}. Klicken: diesen Zustand zeigen.`)
             .on('click', () => canvas.states_widget?.select_index?.(cell.sti));
         $('<img>').attr('src', wsw_picture(sprite, cell.sti)).attr('data-sti', cell.sti).toggleClass('flipped', !!cell.flipped).appendTo(div);
         if (cell.how === 'mirrored') $('<span class="wsw-mark">').text('⇄').appendTo(div);
-        if (cell.how === 'missing') $('<span class="wsw-mark">').text('?').appendTo(div);
         return div;
     };
-    let missing = 0;
+    // where an own picture could go (vorn is only seen at the very start: not counted)
+    let room = 0;
     if (figure) {
         const head = $('<div class="wsw-row wsw-head">').appendTo(table);
         for (const text of ['', 'links', 'rechts', 'vorn']) $('<span>').text(text).appendTo(head);
@@ -239,26 +240,28 @@ function refresh_who_shows_what() {
             $('<span class="wsw-label">').text(row.label).appendTo(line);
             for (const cell of row.cells) {
                 line.append(cell_for(cell, row.cells.length === 1));
-                // vorn is only seen at the very start, before the figure moves: not counted
-                if (cell.how === 'missing' && cell.dir !== 'front') missing++;
+                if (cell.how !== 'drawn' && cell.how !== 'mirrored' && cell.dir !== 'front') room++;
             }
         }
     } else {
         for (const role of objects) {
             const line = $('<div class="wsw-row">').appendTo(table);
             $('<span class="wsw-label wsw-label-wide">').text(role.label).appendTo(line);
-            const cell = role.sti === null ? { sti: 0, flipped: false, how: 'missing',
-                text: `${role.label} fehlt – das Sprite bleibt bei dem Bild, das es gerade zeigt` } :
+            const cell = role.sti === null ? { sti: 0, flipped: false, how: 'base',
+                text: `${role.label}: noch ohne eigenen Zustand – das Sprite zeigt einfach weiter sein Bild` } :
                 { sti: role.sti, flipped: false, how: 'drawn', text: `${role.label}: »${state_label_for(sprite.states[role.sti], role.sti)}«` };
-            if (cell.how === 'missing') missing++;
+            if (cell.how === 'base') room++;
             line.append(cell_for(cell, false));
         }
     }
-    if (missing) $('<span class="wsw-count">').text(missing === 1 ? '1 fehlt' : `${missing} fehlen`).appendTo(summary);
+    if (room) $('<span class="wsw-count">').text(room === 1 ? 'Platz für 1 Bild' : `Platz für ${room} Bilder`)
+        .attr('title', 'So viele Bewegungen zeigen ein Bild, das schon da ist – hier könnten eigene Bilder hin.').appendTo(summary);
     const legend = $('<div class="wsw-legend">').appendTo(details);
-    for (const how of ['drawn', 'mirrored', 'other', 'missing'])
+    for (const how of ['drawn', 'mirrored', 'other', 'base'])
         $('<span>').append($('<i>').addClass(`wsw-${how}`)).append(document.createTextNode(WSW_HOW[how])).appendTo(legend);
-    if (missing) $('<div class="wsw-hint">').text('Was fehlt, zeigt ein anderes Bild. Leg einen Zustand an und gib ihm unten bei „Rolle zuweisen“ die Rolle, die fehlt.').appendTo(details);
+    if (room) $('<div class="wsw-hint">').text(figure ?
+        'Das Spiel läuft auch so: wo es kein eigenes Bild gibt, zeigt die Figur eins, das schon da ist. Wenn du magst, mal eins dazu – leg einen Zustand an und gib ihm unten bei „Rolle zuweisen“ die Rolle.' :
+        'Das Sprite zeigt einfach weiter sein Bild. Wenn du magst, leg einen Zustand dafür an und gib ihm unten bei „Rolle zuweisen“ die Rolle.').appendTo(details);
 }
 
 function refresh_who_shows_what_pictures() {

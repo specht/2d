@@ -51,7 +51,7 @@ test('the overview builds the same table as the game, for many sprites', () => {
     }
 });
 
-test('drawn, mirrored, another picture, missing', () => {
+test('own picture, mirrored, the picture of another role, the Grundbild', () => {
     // 0: stehen rechts, 1: laufen rechts
     const sprite = sprite_with('actor', [['right'], ['walk_right']]);
     const { rows } = who_shows_what(sprite);
@@ -63,10 +63,10 @@ test('drawn, mirrored, another picture, missing', () => {
     assert.equal(cell('walk', 'right').how, 'drawn');
     assert.equal(cell('walk', 'left').how, 'mirrored');
     assert.equal(cell('jump', 'right').how, 'other');           // stehen rechts
-    assert.match(cell('jump', 'right').text, /zeigt Stehen rechts/);
-    assert.equal(cell('stand', 'front').how, 'missing');       // the first state
-    assert.equal(row('climb').cells[0].how, 'missing');
-    assert.equal(row('dead').cells[0].how, 'missing');
+    assert.match(cell('jump', 'right').text, /zeigt das Bild von Stehen rechts/);
+    assert.equal(cell('stand', 'front').how, 'base');       // the first state
+    assert.equal(row('climb').cells[0].how, 'base');
+    assert.equal(row('dead').cells[0].how, 'base');
     assert.ok(!row('attack'));                                  // a pose only once it exists
     assert.equal(figure_trait({ traits: { baddie: {}, companion: {} } }), 'baddie');
     assert.equal(who_shows_what({ traits: { door: {} }, states: [] }), null);
