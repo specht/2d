@@ -2,7 +2,7 @@
 titel: Plattformen zum Durchspringen
 kategorie: Welt bauen
 stufe: 1
-skala: 2
+skala: 4
 kurz: Von unten springt Pip einfach durch – oben kann er stehen.
 szene:
   ebenen:
