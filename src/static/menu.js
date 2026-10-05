@@ -246,7 +246,7 @@ class Menu {
                 animate_level: 'Sprites und Effekte bewegen sich schon hier im Editor, so wie im Spiel.',
                 show_level_map: 'Zeigt alle Level deines Spiels und wohin ihre Ausgänge führen.',
                 show_regions: 'Zeigt die Rechtecke aller Hintergründe, Signalbereiche und Bewegungsbereiche als dünne Linien.',
-                dim_other_layers: 'Die anderen Ebenen werden dunkler, die Ebene, an der du arbeitest, steht ganz vorn.',
+                dim_other_layers: 'Was hinter der Ebene liegt, an der du arbeitest, wird dunkler, was davor liegt, durchsichtig.',
             };
             for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['S', 'show_signal_overview', 'Signale'], ['M', 'show_minimap', 'Karte'], ['L', 'show_level_map', 'Levelübersicht'], ['B', 'show_regions', 'Bereiche'], ['D', 'dim_other_layers', 'Hervorheben'], ['A', 'animate_level', 'Level animieren']]) {
                 hints.push({ key, type: 'toggle', label, title: titles[option],

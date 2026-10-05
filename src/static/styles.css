@@ -1750,6 +1750,12 @@ table tr.clickable_row:hover {
     position: relative;
 }
 
+/* room for the arrow: a long label ("Rolle zuweisen – wofür ist dieser
+   Zustand?") wraps before it instead of running under it */
+.dropdown_menu div.item.has_submenu {
+    padding-right: 22px;
+}
+
 .dropdown_menu div.item.has_submenu::after {
     font: normal normal normal 14px/1 ForkAwesome;
     content: "\f105";

@@ -283,7 +283,7 @@ class LevelEditor {
         // Bereiche (B): thin outlines of every Hintergrund, Signalbereich and
         // Bewegungsbereich, also when another layer is the current one
         try { this.show_regions = localStorage.getItem('level_regions') !== '0'; } catch { this.show_regions = true; }
-        // Hervorheben (D): the other layers dimmed, the current one in front of all
+        // Hervorheben (D): behind the current layer darker, in front of it faint
         try { this.dim_other_layers = localStorage.getItem('level_dim') === '1'; } catch { this.dim_other_layers = false; }
         this.signal_focus_code = null;
 
@@ -310,7 +310,7 @@ class LevelEditor {
         view_toggle('show_minimap', 'Karte', 'M', 'Zeigt unten links das ganze Level klein, mit einem Rahmen um das, was du gerade siehst. Klick oder zieh auf der Karte, um dorthin zu springen.');
         view_toggle('show_level_map', 'Levelübersicht', 'L', 'Zeigt alle Level deines Spiels und wohin ihre Ausgänge führen. Ein Klick auf ein Level öffnet es, ein Klick auf einen Pfeil zeigt den Ausgang. Warnungen sagen dir, wenn man ein Level nie erreicht oder nicht mehr herauskommt.');
         view_toggle('show_regions', 'Bereiche', 'B', 'Zeigt die Rechtecke aller Hintergründe, Signalbereiche (gelb) und Bewegungsbereiche (grün) als dünne Linien – auch wenn gerade eine andere Ebene dran ist. Rechtsklick (oder Finger halten) auf einen Bereich: ihn bearbeiten.');
-        view_toggle('dim_other_layers', 'Hervorheben', 'D', 'Die anderen Ebenen werden dunkler, und die Ebene, an der du arbeitest, steht ganz vorn – so siehst du, was zu ihr gehört.');
+        view_toggle('dim_other_layers', 'Hervorheben', 'D', 'Die Ebene, an der du arbeitest, ist deutlich zu sehen: was dahinter liegt, wird dunkler, was davor liegt, durchsichtig – so siehst du, was zu ihr gehört.');
         view_toggle('animate_level', 'Animieren', 'A', 'Sprites zeigen ihre Animation, und Schnee, Regen, Schwebestaub und die anderen Effekte bewegen sich – schon hier im Level-Editor, so wie später im Spiel. Gezeigt wird bei jedem Sprite sein erster Zustand.');
         // Gittergröße and Gitteroffset change the grid for this session only
         // (the game's Raster is in Einstellungen → Spiel): folded away
@@ -3458,8 +3458,46 @@ class LevelEditor {
         this.render();
     }
 
-    // Hervorheben (D): a dark veil over everything drawn so far (all layers
-    // but the current one), as big as the view.
+    // Hervorheben (D): the meshes of a layer in front of the current one get
+    // faint copies of their materials (LayerFade, as the game fades a layer),
+    // and get their own back otherwise. The copies are kept per material.
+    dim_layer_group(group, faint) {
+        // weak: backdrop materials are made anew on every refresh
+        this.dim_copies ??= new WeakMap();
+        this.dim_copy_set ??= new WeakSet();
+        const visit = (node) => {
+            if (node.material && !Array.isArray(node.material)) {
+                const is_copy = this.dim_copy_set.has(node.material);
+                if (faint && !is_copy) {
+                    let entry = this.dim_copies.get(node.material);
+                    if (entry === undefined) {
+                        entry = typeof LayerFade !== 'undefined' ? LayerFade.copy(node.material, 'layerOpacity') : null;
+                        if (entry) {
+                            if (entry.shader) entry.material.uniforms.layerOpacity.value = 0.28;
+                            else entry.material.opacity = (entry.opacity ?? 1) * 0.28;
+                            this.dim_copy_set.add(entry.material);
+                        }
+                        this.dim_copies.set(node.material, entry);
+                    }
+                    if (entry) {
+                        // the sprite's picture as it is now (repainted in the sprite editor)
+                        if (entry.material.uniforms?.texture1 && node.material.uniforms?.texture1)
+                            entry.material.uniforms.texture1.value = node.material.uniforms.texture1.value;
+                        node.userData.undimmed_material = node.material;
+                        node.material = entry.material;
+                    }
+                } else if (!faint && is_copy && node.userData.undimmed_material) {
+                    node.material = node.userData.undimmed_material;
+                    delete node.userData.undimmed_material;
+                }
+            }
+            for (const child of node.children ?? []) visit(child);
+        };
+        visit(group);
+    }
+
+    // Hervorheben (D): a dark veil over everything behind the current layer,
+    // as big as the view.
     dim_veil() {
         if (!this.dim_veil_mesh) {
             this.dim_veil_mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
@@ -4585,10 +4623,18 @@ class LevelEditor {
             this.sheets.push(sheet);
         }
 
-        // Hervorheben (D): every other layer first, then a dark veil, then the
-        // current layer on top of everything
+        // Hervorheben (D): the layers keep their order. A dark veil lies over
+        // everything behind the current layer; the layers in front of it are
+        // drawn faint (dim_layer_group), so the current one shows through.
         const dim = this.dim_other_layers && this.game.data.levels[this.level_index].layers.length > 1;
         const add_layer = (li) => {
+            const before = this.scene.children.length;
+            add_layer_now(li);
+            const faint = dim && li < this.layer_index;
+            for (const group of this.scene.children.slice(before))
+                if (group !== this.cursor_group) this.dim_layer_group(group, faint);
+        };
+        const add_layer_now = (li) => {
             if (li < this.layer_structs.length) {
                 if (!this.game.data.levels[this.level_index].layers[li].properties.visible)
                     return;
@@ -4630,11 +4676,9 @@ class LevelEditor {
                 }
             }
         };
-        for (let li = this.game.data.levels[this.level_index].layers.length - 1; li >= 0; li--)
-            if (!dim || li !== this.layer_index) add_layer(li);
-        if (dim) {
-            this.scene.add(this.dim_veil());
-            add_layer(this.layer_index);
+        for (let li = this.game.data.levels[this.level_index].layers.length - 1; li >= 0; li--) {
+            if (dim && li === this.layer_index) this.scene.add(this.dim_veil());
+            add_layer(li);
         }
         if (this.show_grid)
             this.scene.add(this.grid_group);
