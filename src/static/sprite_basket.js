@@ -76,6 +76,17 @@ function copy_sprites_for(target, sprites, { drop_other_references = false } = {
     return copies;
 }
 
+// What the basket brings: the pictures only – every state with its frames,
+// Titel and Framerate, but no Eigenschaften and no roles (what a sprite does
+// in the game is the child's own decision, made under Eigenschaften). Nothing
+// refers to other sprites any more, so nothing has to come along.
+function sprite_pictures_only(sprite) {
+    const copy = basket_clone(sprite);
+    copy.traits = {};
+    for (const state of copy.states ?? []) state.traits = {};
+    return copy;
+}
+
 // A game from elsewhere as the studio would see it (IDs, references by ID).
 function normalized_source_game(data) {
     const holder = { data: basket_clone(data) };
@@ -191,7 +202,7 @@ class SpriteBasket {
             $('#basket_search').trigger('focus');
         } else {
             if (this.source) this.source_info(this.source);
-            else this.info('Öffne ein anderes Spiel mit seinem Code – zum Beispiel eins, das dir gut gefällt. Dann klickst du die Sprites an, die du haben willst.');
+            else this.info('Öffne ein anderes Spiel mit seinem Code – zum Beispiel eins, das dir gut gefällt. Dann klickst du die Sprites an, die du haben willst. Du bekommst ihre Bilder – was sie im Spiel tun, stellst du selbst ein.');
             $('#basket_code').trigger('focus');
         }
         this.render_grid();
@@ -209,7 +220,7 @@ class SpriteBasket {
     // The Sprite-Katalog (katalog.json, written by the recipe build), once.
     load_catalogue() {
         if (this.catalogue) {
-            this.info('Alle Sprites aus den Rezepten und noch ein paar mehr. Klicke an, was du in deinem Spiel haben möchtest.');
+            this.info('Alle Sprites aus den Rezepten und noch ein paar mehr. Klicke an, was du in deinem Spiel haben möchtest. Du bekommst die Bilder – was ein Sprite im Spiel tut, stellst du danach selbst bei „Eigenschaften“ ein.');
             return;
         }
         if (this.catalogue_loading) return;
@@ -275,7 +286,7 @@ class SpriteBasket {
         const source = this.sources.get(source_key);
         if (!source) return [];
         const chosen = this.items.filter(i => i.source_key === source_key).map(i => i.sprite_id);
-        return sprites_with_dependencies(source.data, chosen).needed;
+        return sprites_with_dependencies({ sprites: source.data.sprites.map(sprite_pictures_only) }, chosen).needed;
     }
 
     toggle(source, sprite) {
@@ -407,8 +418,9 @@ class SpriteBasket {
         const copies = [];
         for (const [key, source] of this.sources) {
             const chosen = this.items.filter(i => i.source_key === key).map(i => i.sprite_id);
-            const { ids } = sprites_with_dependencies(source.data, chosen);
-            const sprites = ids.map(id => source.data.sprites.find(s => s.id === id));
+            const pictures = { sprites: source.data.sprites.map(sprite_pictures_only) };
+            const { ids } = sprites_with_dependencies(pictures, chosen);
+            const sprites = ids.map(id => pictures.sprites.find(s => s.id === id));
             copies.push(...copy_sprites_for({ sprites: [...game.data.sprites, ...copies] }, sprites, { drop_other_references: true }));
         }
         game.add_sprites(copies);
@@ -444,4 +456,4 @@ function show_sprite_basket() {
     window.sprite_basket.modal.show();
 }
 
-if (typeof module !== 'undefined') module.exports = { sprite_reference_ids, sprites_with_dependencies, copy_sprites_for, catalogue_groups };
+if (typeof module !== 'undefined') module.exports = { sprite_reference_ids, sprites_with_dependencies, copy_sprites_for, catalogue_groups, sprite_pictures_only };

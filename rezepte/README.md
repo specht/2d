@@ -653,13 +653,18 @@ that changed (32 px tiles, merged), packed into a few lossless WebP sheets,
 plus `film.json` (frames with their patches, duration, timeline). That is
 lossless and smaller than the animated WebP was. `anleitung_film.js` draws
 the patches on a canvas: it starts shortly after the film is in view (not
-with *weniger Bewegung*: then ▶ waits), stops when it leaves, a tap pauses and
-plays on (Leertaste too), the progress line is always there and becomes a bar
+with *weniger Bewegung*: then ▶ waits), stops when it leaves, and plays one
+step at a time: at the start of the next step it stops and shows *Nochmal*
+and *Weiter mit Schritt n* over the film (a tap or the Leertaste is *Weiter*;
+a line above the steps says so), so a child can do each step alongside – a
+tap while it plays pauses it, the progress line is always there and becomes a bar
 to wind the film under the mouse or a finger (with the time and a mark per
 step), the steps beside it light up as it plays and a click on one jumps
 there, only one film plays at a time, and the film is never taller than the
 screen (below 900 px the steps go under it). The studio is recorded at a
-1600 × 900 viewport.
+1600 × 900 viewport. While recording, every frame is kept deflated
+(`packed_frame` in `anleitung.mjs`; a frame that did not change is the same
+object again), so a guide with several long films fits in memory.
 
 The studio runs without a server: `/api/save_game_temp` (Level testen)
 answers like the server and the game frame gets its sprite sheet laid out
@@ -676,6 +681,7 @@ titel: "Signale: Schalter und Tor verbinden"
 kurz: Ein Schalter sendet ein Signal, ein Tor reagiert darauf.
 start:                          # optional: the game the guide starts with
   eine_ebene: true              # every sprite on one layer "Ebene 1", no level name
+  himmel: true                  # keep the scene's sky (else: black, like a new level in the studio)
   szene: { … }                  # a scene exactly like a recipe's (katalog.yaml sprites)
 aufnahmen:
   - name: verbinden             # referenced in the text as ![Bildunterschrift](aufnahme:verbinden)
@@ -725,6 +731,10 @@ and other guides (checked by the build). The Hilfe tab shows the guides first,
 as *Erste Schritte* (numbered #01, #02 … like the recipes, which count on their own), separated from the recipes by a line.
 The `hinweis` captions of a film become its list of steps beside it: keep
 them short (they stand in a narrow column) and put what else a child needs to
-know into `mehr`. The text below a film does not repeat the steps – it adds
+know into `mehr`. The film stops after each step, so every step should change
+something a child can see and do too – no step that only points at a field.
+The guides start like a child's own game: a black level without the recipes'
+sky (`himmel: true` keeps it), and the sprites a child would draw itself are
+drawn in the films, not fetched from the Sprite-Katalog. The text below a film does not repeat the steps – it adds
 what is not a step (a list of choices, a tip, what to do when it fails). Say
 what to click with *anklicken*, *auswählen* or *wählen*.

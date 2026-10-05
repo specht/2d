@@ -46,8 +46,8 @@ aufnahmen:
       - { hinweis: Spielen – alles von vorn, nr: 4, mehr: "Dein Spiel vom ersten Level an, so wie andere es spielen." }
       - klick: '#mi_play'
       - warten: 2
-      - { hinweis: Zurück zum Level, nr: 5 }
-      - klick: '#mi_level'
+      - { hinweis: Alt + 2 – zurück zum Level, nr: 5, mehr: "Ohne Maus: Alt + 1 bis Alt + 5 sind die fünf Reiter, der Reihe nach." }
+      - taste: Alt+Digit2
       - pause: 0.8
       - pruefen: "current_pane === 'level'"
         meldung: Das Level ist nicht zu sehen
@@ -78,7 +78,7 @@ aufnahmen:
 
 1. Oben stehen fünf Reiter: **Sprites**, **Level**, **Einstellungen**, **Spielen** und **Hilfe**.
 2. Unten in der **Statusleiste** steht links, was das Werkzeug gerade kann, und rechts, was immer gebraucht wird: Rückgängig, Speichern …
-3. Halt <kbd>H</kbd> gedrückt: Jeder Knopf zeigt seine Taste.
+3. Halt <kbd>H</kbd> gedrückt: Jeder Knopf zeigt seine Taste. Die Tasten liegen so wie die Knöpfe – oben links steht <kbd>Q</kbd>, wie auf der Tastatur.
 
 ## So sieht das Studio aus
 
@@ -95,6 +95,15 @@ aufnahmen:
 ## Ein Rundgang
 
 ![Sprites, Level, Einstellungen, Spielen](aufnahme:rundgang)
+
+## Tasten wie auf der Tastatur
+
+Die Knöpfe stehen so da wie ihre Tasten auf der Tastatur – so findest du eine Taste, ohne zu suchen:
+
+- **Reiter:** <kbd>Alt</kbd> + <kbd>1</kbd> bis <kbd>Alt</kbd> + <kbd>5</kbd> – Sprites, Level, Einstellungen, Spielen, Hilfe, von links nach rechts.
+- **Werkzeuge im Level:** <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd> – Verschieben, Zeichnen, Auswählen, Verbinden, Testen, genau in der Reihe, in der sie stehen.
+- **Werkzeuge beim Zeichnen:** drei Reihen wie auf der Tastatur – oben <kbd>Q</kbd> bis <kbd>Y</kbd>, darunter <kbd>A</kbd> bis <kbd>G</kbd>, ganz unten <kbd>Z</kbd> bis <kbd>B</kbd>.
+- **Stiftdicke:** die Zahlentasten <kbd>1</kbd> bis <kbd>6</kbd>, von dünn nach dick.
 
 ## Welche Taste macht was?
 

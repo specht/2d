@@ -91,9 +91,12 @@ Mehr mit einer Auswahl:
 
 ## Tasten, die Zeit sparen
 
+Die Werkzeuge stehen so nebeneinander wie ihre Tasten auf der Tastatur: Der linke Knopf ist <kbd>Q</kbd>, der rechts daneben <kbd>W</kbd> und so weiter. Mit der linken Hand auf der Tastatur und der rechten an der Maus wechselst du blitzschnell.
+
 | Taste | Im Level |
 | --- | --- |
-| <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd> | Verschieben, Zeichnen, Auswählen, Verbinden, Testen |
+| <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd> | Verschieben, Zeichnen, Auswählen, Verbinden, Testen – in der Reihe der Knöpfe |
+| <kbd>Alt</kbd> + <kbd>1</kbd> … <kbd>5</kbd> | die Reiter: Sprites, Level, Einstellungen, Spielen, Hilfe |
 | <kbd>X</kbd> | Zeichnen wird zum Radiergummi – und zurück |
 | <kbd>G</kbd> <kbd>S</kbd> <kbd>M</kbd> <kbd>L</kbd> | Gitter, Signale, Karte, Levelübersicht |
 | <kbd>Strg</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> | Rückgängig / Wiederholen |

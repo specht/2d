@@ -736,6 +736,25 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         try { iframe?.contentWindow?.focus(); } catch { }
     }
     window.focus_play_frame = focus_play_frame;
+    // The other way round: while the game frame has the focus, the studio's
+    // shortcuts with Alt or Strg (Alt+1 … 5 for the panes, Strg+S, Strg+O …)
+    // would end in the game. They are handed to the studio's window, where
+    // its menus look for them; the game keeps every key without Alt and Strg.
+    function forward_studio_shortcuts() {
+        let frame = null;
+        try { frame = $('#play_iframe')[0]?.contentWindow; } catch { return; }
+        if (!frame || frame.__studio_shortcuts) return;
+        frame.__studio_shortcuts = true;
+        frame.addEventListener('keydown', (e) => {
+            if (!(e.altKey || e.ctrlKey || e.metaKey) || !/^(Digit\d|Key[A-Z])$/.test(e.code)) return;
+            e.preventDefault();
+            e.stopPropagation();
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: e.code, altKey: e.altKey,
+                ctrlKey: e.ctrlKey, metaKey: e.metaKey, shiftKey: e.shiftKey, bubbles: true, cancelable: true }));
+        }, true);
+    }
+    $('#play_iframe').on('load', forward_studio_shortcuts);
+    forward_studio_shortcuts();
     for (const type of ['keydown', 'keyup']) {
         window.addEventListener(type, (e) => {
             if (current_pane !== 'play' || $(e.target).is('input, textarea, select, [contenteditable]')) return;

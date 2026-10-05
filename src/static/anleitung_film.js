@@ -55,6 +55,8 @@
             this.playing = false;
             this.user_paused = false;
             this.visible = false;
+            this.stop_at = null;       // where the step that plays ends
+            this.waiting_at = null;    // stopped there: waits for "Weiter
             this.build_ui();
             this.observer = new IntersectionObserver((entries) => this.seen(entries), { threshold: [0, 0.25, VISIBLE_SHARE, 1] });
             this.observer.observe(this.stage);
@@ -78,14 +80,35 @@
             this.fill = el('div', 'film-fortschritt', this.track);
             this.knob = el('div', 'film-knopf', this.track);
             this.clock = el('div', 'film-zeit', this.bar);
-            // a tap on the film: pause / play on (not on the bar)
+            // Step by step: a film stops after every step, so a child can do it
+            // too; "Weiter" (or the Leertaste) plays the next one, "Nochmal" this one again.
+            this.next = el('div', 'film-weiter', this.stage);
+            this.again_button = el('button', 'film-nochmal', this.next);
+            this.again_button.type = 'button';
+            this.again_button.innerHTML = '<i class="fa fa-undo"></i> Nochmal';
+            this.next_button = el('button', 'film-weiter-knopf', this.next);
+            this.next_button.type = 'button';
+            this.again_button.addEventListener('click', (e) => { e.stopPropagation(); this.again(); });
+            this.next_button.addEventListener('click', (e) => { e.stopPropagation(); this.advance(); });
+            const list = this.figure.querySelector('.film-schritte');
+            if (list && this.steps.length > 1) {
+                const hint = document.createElement('li');
+                hint.className = 'film-hinweis';
+                hint.innerHTML = 'Das Video hält nach jedem Schritt an. Mach ihn nach – dann klick auf <b>Weiter</b> (oder drück die <kbd>Leertaste</kbd>).';
+                list.prepend(hint);
+            }
+            // a tap on the film: pause / play on (not on the bar); waiting after a step: the next one
             this.stage.addEventListener('click', (e) => {
                 if (this.bar.contains(e.target) || !this.film) return;
-                this.toggle();
+                if (this.waiting_at !== null) this.advance();
+                else this.toggle();
             });
             this.stage.addEventListener('keydown', (e) => {
                 if (!this.film) return;
-                if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); this.toggle(); }
+                if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    if (this.waiting_at !== null) this.advance(); else this.toggle();
+                }
                 if (e.key === 'ArrowRight') { e.preventDefault(); this.seek(this.time + 2000); }
                 if (e.key === 'ArrowLeft') { e.preventDefault(); this.seek(this.time - 2000); }
             });
@@ -116,6 +139,7 @@
             this.steps.forEach((li) => li.addEventListener('click', () => {
                 if (!this.film) return;
                 this.user_paused = false;
+                this.waiting_at = null;
                 this.seek(Number(li.dataset.t) || 0);
                 this.play();
             }));
@@ -217,13 +241,24 @@
         }
 
         render_state() {
+            const waiting = !!this.film && !this.playing && this.waiting_at !== null;
             this.stage.classList.toggle('spielt', this.playing);
-            this.stage.classList.toggle('pausiert', !!this.film && !this.playing);
+            this.stage.classList.toggle('pausiert', !!this.film && !this.playing && !waiting);
+            this.stage.classList.toggle('wartet', waiting);
+            if (!waiting) return;
+            const at_end = this.waiting_at >= this.film.dauer - 1;
+            // the step that comes next: its number on the button, and marked in the list
+            const next = this.steps.findIndex(li => (Number(li.dataset.t) || 0) >= this.waiting_at - 1);
+            this.next_button.innerHTML = at_end ? '<i class="fa fa-repeat"></i> Von vorn'
+                : `Weiter mit Schritt ${this.steps[next]?.querySelector('.film-nr')?.textContent ?? next + 1} <i class="fa fa-chevron-right"></i>`;
+            this.steps.forEach((li, i) => li.classList.toggle('als-naechstes', !at_end && i === next));
         }
 
         seek(time) {
             if (!this.film) return;
+            this.waiting_at = null;
             this.show(time);
+            this.render_state();
         }
 
         seek_to_pointer(e) {
@@ -232,25 +267,66 @@
             this.show(share * this.film.dauer);
         }
 
+        // where the steps begin (after the first: the film stops there) and the end
+        boundaries() {
+            const starts = this.steps.map(li => Number(li.dataset.t) || 0).slice(1);
+            return [...starts.filter(t => t > 0 && t < this.film.dauer), this.film.dauer];
+        }
+
+        // the first boundary after `time` (a moment after one counts as past it)
+        boundary_after(time) {
+            return this.boundaries().find(b => b > time + 20) ?? this.film.dauer;
+        }
+
         play() {
             if (!this.film || this.playing) return;
             // one film at a time
             for (const other of players) if (other !== this) other.pause();
-            if (this.time >= this.film.dauer) this.show(0);
+            if (this.time >= this.film.dauer - 1) this.show(0);
+            this.waiting_at = null;
+            this.stop_at = this.boundary_after(this.time);
             this.playing = true;
             this.last = performance.now();
             const tick = (now) => {
                 if (!this.playing) return;
                 const dt = Math.min(250, now - this.last);
                 this.last = now;
-                let t = this.time + dt;
-                // from the start again at the end (the film already holds its last picture)
-                if (t >= this.film.dauer) t = 0;
+                const t = this.time + dt;
+                // the end of the step: the last picture of it stays, the film waits
+                if (t >= this.stop_at) {
+                    this.show(this.stop_at - 1);
+                    this.waiting_at = this.stop_at;
+                    this.stop_loop();
+                    return;
+                }
                 this.show(t);
                 this.raf = requestAnimationFrame(tick);
             };
             this.raf = requestAnimationFrame(tick);
             this.render_state();
+        }
+
+        // "Weiter": the next step (after the last: from the start)
+        advance() {
+            if (!this.film) return;
+            const at = this.waiting_at ?? this.time;
+            this.waiting_at = null;
+            this.user_paused = false;
+            this.show(at >= this.film.dauer - 1 ? 0 : at);
+            this.play();
+            this.stage.focus({ preventScroll: true });
+        }
+
+        // "Nochmal": the step that just played, from its beginning
+        again() {
+            if (!this.film) return;
+            const end = this.waiting_at ?? this.time;
+            const starts = [0, ...this.steps.map(li => Number(li.dataset.t) || 0)].filter(t => t < end - 20);
+            this.waiting_at = null;
+            this.user_paused = false;
+            this.show(starts.length > 1 ? starts.at(-1) : 0);
+            this.play();
+            this.stage.focus({ preventScroll: true });
         }
 
         stop_loop() {
@@ -265,8 +341,13 @@
         }
 
         toggle() {
-            if (this.playing) { this.user_paused = true; this.pause(); }
-            else { this.user_paused = false; this.play(); }
+            if (this.playing) {
+                // paused in the middle of a step: play on to its end
+                const stop = this.stop_at;
+                this.user_paused = true;
+                this.pause();
+                this.stop_at = stop;
+            } else { this.user_paused = false; this.play(); }
             this.stage.focus({ preventScroll: true });
         }
 

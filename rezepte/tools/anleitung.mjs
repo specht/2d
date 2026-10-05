@@ -6,6 +6,7 @@
 // keeps working when the layout changes, and a button that is gone fails
 // the build instead of producing a wrong picture.
 import sharp from 'sharp';
+import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
 import { STEP_MS } from './record.mjs';
 
@@ -96,6 +97,26 @@ export function key_caps(combo) {
 }
 
 const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+// A recorded frame keeps its pixels deflated: a guide with several long films
+// would otherwise hold gigabytes of raw screenshots until it is encoded.
+// `data` inflates them when they are needed (the last two are kept, since the
+// film encoder compares neighbours and copies a frame row by row).
+const inflated = [];
+function packed_frame(w, h, raw) {
+    const f = { w, h, z: zlib.deflateSync(raw, { level: 1 }) };
+    Object.defineProperty(f, 'data', {
+        get() {
+            const hit = inflated.find(e => e.frame === f);
+            if (hit) return hit.raw;
+            const raw = zlib.inflateSync(f.z);
+            inflated.unshift({ frame: f, raw });
+            inflated.length = Math.min(inflated.length, 2);
+            return raw;
+        },
+    });
+    return f;
+}
 
 export class GuidePlayer {
     constructor(page, id) {
@@ -217,7 +238,11 @@ export class GuidePlayer {
         const png = Buffer.from(shot.data, 'base64');
         tm.push(Date.now() - t0);
         const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-        const f = { w: info.width, h: info.height, data };
+        // the same picture as before (nothing moved): the same frame again
+        const last = this.recording.frames.at(-1);
+        const f = last && this.last_raw && last.w === info.width && last.h === info.height && this.last_raw.equals(data)
+            ? last : packed_frame(info.width, info.height, data);
+        this.last_raw = data;
         this.note_band();
         tm.push(Date.now() - t0);
         if (process.env.ANLEITUNG_DEBUG && tm[tm.length - 1] > 400) console.log('   slow frame', tm.join(' '));
@@ -249,6 +274,7 @@ export class GuidePlayer {
 
     async start_video(clip) {
         this.recording = { clip, frames: [], timeline: [], last_band: null };
+        this.last_raw = null;
         await this.page.evaluate(([x, y]) => window.__guide.move(x, y, false), [this.x, this.y]);
     }
 
@@ -402,6 +428,10 @@ export class GuidePlayer {
             entry = this.page.locator(`[data-guide-entry="${i}"]`);
             const b = await entry.boundingBox();
             const p = { x: b.x + Math.min(b.width / 2, 60), y: b.y + b.height / 2 };
+            // into a submenu sideways first: it spans its entry's height, so the
+            // pointer crosses no other entry of the menu before (recording is
+            // slower than real time – resting on a neighbour would open its submenu)
+            if (i > 0 && Math.abs(p.y - this.y) > 4) await this.move_to({ x: p.x, y: this.y });
             if (i < labels.length - 1) {
                 await this.move_to(p);
                 // a submenu opens at once – or, when another one of that menu is

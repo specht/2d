@@ -109,3 +109,17 @@ test('Sprite-Katalog: every catalogue sprite is in one group, and everything in 
         }
     }
 });
+
+test('the basket brings pictures only: states and frames, no Eigenschaften or roles', () => {
+    const pictures_only = vm.runInContext('sprite_pictures_only', sandbox());
+    const sprite = { id: 's1', properties: { name: 'Pip' }, traits: { actor: { vjump: 7 } },
+        states: [{ properties: { name: 'stehen', fps: 3 }, traits: { actor: { right: {} } }, frames: [{ src: 'a' }, { src: 'b' }] }] };
+    const copy = JSON.parse(JSON.stringify(pictures_only(sprite)));   // out of the sandbox's realm
+    assert.deepEqual(copy.traits, {});
+    assert.deepEqual(copy.states[0].traits, {});
+    assert.deepEqual(copy.states[0].frames, [{ src: 'a' }, { src: 'b' }]);
+    assert.equal(copy.states[0].properties.fps, 3);
+    assert.equal(copy.properties.name, 'Pip');
+    // the original is untouched
+    assert.deepEqual(sprite.traits, { actor: { vjump: 7 } });
+});

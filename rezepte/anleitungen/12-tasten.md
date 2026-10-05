@@ -60,15 +60,12 @@ aufnahmen:
       - { hinweis: "Bei Springen: das + anklicken", nr: 8, mehr: "Dort steht dann „Taste drücken …“." }
       - klick: '.controls-row:has-text("Springen") .controls-key.empty'
       - pause: 0.6
-      - { hinweis: Die neue Taste drücken – ↑, nr: 9, mehr: "Esc bricht ab, Entf entfernt eine Taste." }
+      - { hinweis: Die neue Taste drücken – ↑, nr: 9, mehr: "Esc bricht ab, Entf entfernt eine Taste. Der Hinweis darunter sagt: ↑ ist auch für „Hoch (Leiter)“ belegt – die Taste tut dann beides. Willst du das nicht, wähl eine andere Taste." }
       - taste: ArrowUp
-      - pause: 0.8
-      - { hinweis: Der Hinweis – doppelt belegt, nr: 10, mehr: "↑ ist auch für „Hoch (Leiter)“ belegt – die Taste tut dann beides. Willst du das nicht, wähl eine andere Taste." }
-      - bewegen: { ziel: '.controls-warning', x: 0.4, y: 0.5 }
-      - pause: 2
+      - pause: 1.6
       - pruefen: "game.data.properties.controls?.jump?.includes('ArrowUp')"
         meldung: Springen sollte jetzt auch ↑ haben
-      - { hinweis: Testen – ↑ springt, nr: 11 }
+      - { hinweis: Testen – ↑ springt, nr: 10 }
       - klick: '#mi_level'
       - bewegen: { feld: [1, 1] }
       - taste: KeyT

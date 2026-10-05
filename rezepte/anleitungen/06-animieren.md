@@ -56,7 +56,7 @@ aufnahmen:
         zeigen: false
       - tippen: laufen
       - taste: Enter
-      - { hinweis: "Rolle: Spielfigur → Laufen → rechts", nr: 8, mehr: "So weiß das Spiel, wann es diese Bilder zeigt. Nach links spiegelt es sie von selbst." }
+      - { hinweis: "Rolle: Spielfigur → Laufen → rechts", nr: 8, mehr: "So weiß das Spiel, wann es diese Bilder zeigt. Nach links spiegelt es sie von selbst. Unten bei „Wer zeigt was?“ steht er jetzt bei Laufen." }
       - klick: '#menu_state_properties .item'
       - menue: [Spielfigur, Laufen, rechts]
       - { hinweis: "Framerate 10 – beim Laufen flott", nr: 9 }
@@ -65,12 +65,10 @@ aufnahmen:
         zeigen: false
       - tippen: "10"
       - taste: Enter
-      - { hinweis: Wer zeigt was? zeigt es auch, nr: 10, mehr: "Bei „Laufen“ steht jetzt dein neuer Zustand." }
-      - bewegen: { ziel: '#who_shows_what', x: 0.4, y: 0.3 }
-      - pause: 1.4
+      - pause: 0.8
       - pruefen: "game.data.sprites[0].states.length === 2 && 'walk_right' in (game.data.sprites[0].states[1].traits.actor ?? {})"
         meldung: Der zweite Zustand sollte die Rolle „Laufen rechts“ haben
-      - { hinweis: Im Level mit T testen, nr: 11, mehr: "Steht Pip, zeigt er den ersten Zustand. Läuft er, hüpft er schnell." }
+      - { hinweis: Im Level mit T testen, nr: 10, mehr: "Steht Pip, zeigt er den ersten Zustand. Läuft er, hüpft er schnell." }
       - klick: '#mi_level'
       - ansicht: [-1, -2, 14, 5]
       - bewegen: { feld: [1, 1] }

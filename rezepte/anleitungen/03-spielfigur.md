@@ -2,12 +2,14 @@
 titel: Deine Spielfigur
 kurz: Aus einem Bild wird eine Figur, die läuft und springt – und aus einem anderen ein Boden, auf dem sie steht.
 start:
+  eine_ebene: true
   szene:
     legende:
       P: { sprite: pip_einfach }
     karte: |
-      P..
-      ###
+      ............
+      .P..........
+      ############
 aufnahmen:
   - name: spielfigur
     art: video
@@ -26,36 +28,65 @@ aufnahmen:
       - klick: '#menu_sprite_traits_add .item'
       - { hinweis: Spielfigur → Spielfigur, nr: 3 }
       - menue: [Spielfigur, Spielfigur]
-      - { hinweis: Geschwindigkeit und Sprungkraft, nr: 4, mehr: "Größere Zahlen machen die Figur schneller oder lassen sie höher springen." }
-      - bewegen: { ziel: '#menu_sprite_properties_variable_part_following', x: 0.5, y: 0.25 }
-      - pause: 0.8
-      - { hinweis: „Wer zeigt was?“ – was du noch zeichnen kannst, nr: 5, mehr: "Unter den Zuständen – mehr dazu weiter unten." }
-      - bewegen: { ziel: '#who_shows_what', x: 0.4, y: 0.15 }
-      - pause: 1.2
+      - { hinweis: "Sprungkraft: 10 und Enter", nr: 4, mehr: "Größere Zahlen lassen die Figur höher springen, eine größere Geschwindigkeit macht sie schneller. Gleich probierst du es aus." }
+      - klick: { ziel: '#main_div_sprites .item:has-text("Sprungkraft") input' }
+      - taste: Control+KeyA
+        zeigen: false
+      - tippen: "10"
+      - taste: Enter
+      - pause: 0.6
+      - pruefen: "Number(game.data.sprites[0].traits.actor?.vjump) === 10"
+        meldung: Die Sprungkraft sollte 10 sein
 
   - name: boden
     art: video
     titel: Ein Boden
     ausschnitt: [0, 44, 1600, 818]
     schritte:
-      - { hinweis: Den Boden anklicken, nr: 6 }
+      - { hinweis: Den Boden anklicken, nr: 5 }
       - klick: '#menu_sprites ._dnd_item:nth-child(2)'
-      - { hinweis: Blöcke → nicht von oben reinfallen, nr: 7, mehr: "Die Figur steht darauf." }
+      - { hinweis: Blöcke → nicht von oben reinfallen, nr: 6, mehr: "Die Figur steht darauf." }
       - klick: '#menu_sprite_traits_add .item'
       - menue: [Blöcke, man kann nicht von oben reinfallen]
-      - { hinweis: … nicht von den Seiten reinlaufen, nr: 8, mehr: "Sie läuft nicht hinein." }
+      - { hinweis: … nicht von den Seiten reinlaufen, nr: 7, mehr: "Sie läuft nicht hinein." }
       - klick: '#menu_sprite_traits_add .item'
       - menue: [Blöcke, man kann nicht von den Seiten reinlaufen]
-      - { hinweis: … nicht von unten reinspringen, nr: 9, mehr: "Sie stößt sich den Kopf." }
+      - { hinweis: … nicht von unten reinspringen, nr: 8, mehr: "Sie stößt sich den Kopf." }
       - klick: '#menu_sprite_traits_add .item'
       - menue: [Blöcke, man kann nicht von unten reinspringen]
       - pause: 1
       - pruefen: "!!game.data.sprites[0].traits.actor && ['block_above', 'block_sides', 'block_below'].every(t => game.data.sprites[1].traits[t])"
         meldung: Pip ist keine Spielfigur oder der Boden kein ganzer Block
 
+  - name: testen
+    art: video
+    titel: Ausprobieren
+    ausschnitt: [0, 0, 1600, 862]
+    schritte:
+      - { hinweis: Oben auf „Level“ klicken, nr: 9, mehr: "Pip steht schon auf dem Boden." }
+      - klick: '#mi_level'
+      - ansicht: [-1, -2, 12, 6]
+      - { hinweis: Die Maus auf Pip – T, nr: 10, mehr: "T testet das Level. Der Test fängt dort an, wo die Maus ist." }
+      - bewegen: { feld: [1, 1] }
+      - taste: KeyT
+      - warten: 1
+      - { hinweis: Leertaste – so hoch springt Pip jetzt, nr: 11, mehr: "Mit den Pfeiltasten läuft er. Zu hoch, zu niedrig? Ändere die Sprungkraft und teste noch einmal." }
+      - taste: Space
+      - warten: 1
+      - taste: ArrowRight
+        halten: 0.6
+      - taste: Space
+      - taste: ArrowRight
+        halten: 0.6
+      - warten: 0.8
+      - { hinweis: Esc – zurück, nr: 12 }
+      - taste: Escape
+      - warten: 0.6
+
   - name: wer-zeigt-was
     art: bild
     vorher:
+      - klick: '#mi_sprites'
       - klick: '#menu_sprites ._dnd_item:nth-child(1)'
     ausschnitt: ['.menu:has(#menu_states)']
     rand: 6
@@ -65,10 +96,11 @@ aufnahmen:
 1. Ein Sprite ist zuerst nur ein Bild. Was es im Spiel **ist**, sagst du bei **Eigenschaften**.
 2. Deine Figur bekommt **Eigenschaft hinzufügen → Spielfigur → Spielfigur**.
 3. Der Boden bekommt drei **Blöcke**-Eigenschaften, damit niemand hindurchfällt.
+4. **Sprungkraft** und **Geschwindigkeit** stellst du bei der Spielfigur ein – und probierst sie mit <kbd>T</kbd> gleich aus.
 
 ## Das brauchst du
 
-Zwei Sprites: deine Figur und einen Boden-Block. Wie man zeichnet, zeigt [Ein Sprite zeichnen](rezept:sprite-zeichnen). Hier sind sie schon fertig – Pip und ein Stück Wiese.
+Zwei Sprites, die du selbst gezeichnet hast: deine Figur und einen Boden-Block. Wie man zeichnet, zeigt [Ein Sprite zeichnen](rezept:sprite-zeichnen). Im Video sind es Pip und ein Stück Wiese – bei dir sind es deine eigenen.
 
 > **Tipp:** Zeichne deine Figur so, dass sie nach **rechts** schaut, und lass unten keinen leeren Rand. Nach links spiegelt das Spiel sie von selbst.
 
@@ -81,6 +113,12 @@ Zwei Sprites: deine Figur und einen Boden-Block. Wie man zeichnet, zeigt [Ein Sp
 ![Drei Blöcke-Eigenschaften für den Boden](aufnahme:boden)
 
 Nur *von oben* ergibt eine Plattform, durch die man von unten hindurchspringen kann.
+
+## Ausprobieren
+
+![Im Level mit T testen und springen](aufnahme:testen)
+
+> **Tipp:** Probier verschiedene Zahlen aus: Sprungkraft, Geschwindigkeit und die Gravitation (unter *Einstellungen → Physik*). Ein Spiel fühlt sich ganz anders an, wenn die Figur flink oder schwerfällig ist.
 
 ## Wer zeigt was?
 
@@ -95,4 +133,4 @@ Hier siehst du, welches Bild deine Figur gerade zeigt, wenn sie steht, läuft, s
 
 ## Mach mehr draus
 
-Jetzt geht's ins Level: [Das erste Level](rezept:erstes-level) zeigt, wie du Boden und Figur hineinsetzt und spielst.
+Jetzt baust du dein eigenes Level: [Das erste Level](rezept:erstes-level) zeigt, wie du Boden und Figur hineinsetzt und spielst.

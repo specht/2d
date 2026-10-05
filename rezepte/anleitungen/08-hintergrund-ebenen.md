@@ -34,16 +34,22 @@ aufnahmen:
       - klick: '#menu_layers ._dnd_item.add'
       - klick: '.add_choice:has-text("Hintergrund")'
       - pause: 0.8
-      - { hinweis: Farbe 1 oben – Farbe 2 unten, nr: 2, mehr: "Ein Klick auf eine Farbe öffnet die Palette. Bei „Farben“ gehen auch drei oder mehr." }
-      - bewegen: { ziel: '#menu_layer_properties .item:has-text("Farbe 1")', x: 0.6, y: 0.5 }
+      - { hinweis: "Farbe 1 (oben): ein Lila", nr: 2, mehr: "Ein Klick auf die Farbe öffnet die Palette, ein Klick daneben schließt sie wieder." }
+      - klick: '#menu_layer_properties .item:has-text("Farbe 1") input'
+      - pause: 0.6
+      - klick: '#clr-swatches button:nth-child(16)'
+      - pause: 0.4
+      - klick: { punkt: [160, 780] }
+      - { hinweis: "Farbe 2 (unten): ein Orange – Abendrot", nr: 3, mehr: "Dazwischen läuft der Verlauf von selbst. Bei „Farben“ gehen auch drei oder mehr." }
+      - klick: '#menu_layer_properties .item:has-text("Farbe 2") input'
+      - pause: 0.6
+      - klick: '#clr-swatches button:nth-child(5)'
+      - pause: 0.4
+      - klick: { punkt: [160, 780] }
+      - bewegen: { ziel: '#level', x: 0.5, y: 0.3 }
       - pause: 1
-      - bewegen: { ziel: '#menu_layer_properties .item:has-text("Farbe 2")', x: 0.6, y: 0.5 }
-      - pause: 1
-      - { hinweis: Die Griffe – so groß wie dein Level, nr: 3, mehr: "Der Hintergrund ist ein Rechteck. An den kleinen Quadraten ziehst du es größer oder kleiner." }
-      - bewegen: { ziel: '#level', x: 0.95, y: 0.5 }
-      - pause: 1.2
-      - pruefen: "game.data.levels[0].layers.at(-1).type === 'backdrop'"
-        meldung: Der Hintergrund sollte ganz hinten liegen
+      - pruefen: "game.data.levels[0].layers.at(-1).type === 'backdrop' && game.data.levels[0].layers.at(-1).colors.map(c => c[0].slice(0, 7)).join() === '#5f3577,#f1753f'"
+        meldung: Der Hintergrund sollte ganz hinten liegen und von Lila nach Orange gehen
 
   - name: berge
     art: video

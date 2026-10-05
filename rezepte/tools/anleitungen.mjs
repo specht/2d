@@ -100,13 +100,25 @@ export function one_layer(data) {
     return data;
 }
 
+// The background of a new level in the studio (game.js fix_game_data: black),
+// instead of the recipes' sky backdrop.
+export function studio_background(data) {
+    for (const level of data.levels) {
+        level.layers = level.layers.filter(l => !(l.type === 'backdrop' && l.properties?.name === 'Himmel'));
+        level.properties.background_color = '#000000';
+    }
+    return data;
+}
+
 async function start_game(guide, catalog) {
     const start = guide.start ?? {};
     if (start.szene) {
         const data = studio_game(await build_game(catalog, { id: guide.id, titel: guide.titel, szene: start.szene }, repo));
-        // a child's own game: no title, no author yet
+        // a child's own game: no title, no author yet, and a level like a new
+        // one in the studio – black, without the recipes' sky (`himmel: true` keeps it)
         data.properties.title = '';
         data.properties.author = '';
+        if (!start.himmel) studio_background(data);
         return start.eine_ebene ? one_layer(data) : data;
     }
     if (start.rezept) {

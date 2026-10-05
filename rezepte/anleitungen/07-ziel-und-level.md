@@ -26,7 +26,7 @@ aufnahmen:
     ausschnitt: [0, 0, 1600, 862]
     standbild: 12
     schritte:
-      - { hinweis: Das Ziel anklicken, nr: 1, mehr: "Links bei „Sprites“: die Fahne mit dem Karomuster." }
+      - { hinweis: Dein Ziel anklicken, nr: 1, mehr: "Links bei „Sprites“. Hier ist es eine Fahne mit Karomuster – zeichne dein eigenes: ein Tor, eine Höhle, eine Rakete …" }
       - klick: '#menu_sprites ._dnd_item:nth-child(3)'
       - { hinweis: "Eigenschaft: Level → Levelwechsel", nr: 2, mehr: "Wer das Ziel berührt, hat das Level geschafft." }
       - klick: '#menu_sprite_traits_add .item'
@@ -40,9 +40,6 @@ aufnahmen:
       - { hinweis: S – die Karte „Level geschafft“, nr: 4, mehr: "Ganz oben in der Signale-Übersicht: Wenn die Spielfigur das Ziel erreicht, dann ist das Level geschafft." }
       - taste: KeyS
       - bewegen: { ziel: '.signal-rule-complete', x: 0.5, y: 0.45 }
-      - pause: 1.8
-      - { hinweis: "→ weiter: wohin es dann geht", nr: 5, mehr: "„zum nächsten Level“ heißt: das nächste in der Liste rechts. Du kannst auch ein bestimmtes Level wählen – oder das Spielende." }
-      - bewegen: { ziel: '.signal-rule-complete .dropdown-button', x: 0.5, y: 0.5 }
       - pause: 1.8
       - pruefen: |
           (() => {
@@ -59,11 +56,22 @@ aufnahmen:
     titel: Ein zweites Level
     ausschnitt: [0, 0, 1600, 862]
     schritte:
-      - { hinweis: Rechtsklick auf das Level – Duplizieren, nr: 6, mehr: "Rechts unter „Level“. Die Kopie hat schon Boden, Figur und Ziel – du baust sie nur noch um." }
+      - { hinweis: Rechtsklick auf das Level – Duplizieren, nr: 5, mehr: "Rechts unter „Level“. Die Kopie hat schon Boden, Figur und Ziel – du baust sie nur noch um." }
       - rechtsklick: '#menu_levels ._dnd_item:nth-child(1)'
       - menue: Duplizieren
       - pause: 0.8
-      - { hinweis: L – die Levelübersicht, nr: 7, mehr: "Jedes Level ist ein Kästchen. Der Pfeil zeigt, wohin sein Ziel führt." }
+      - { hinweis: "Im zweiten Level: S und „→ weiter: zum Spielende“", nr: 6, mehr: "Nach dem zweiten Level soll das Spiel zu Ende sein. Ohne diese Wahl ginge es zum nächsten Level – das gibt es nicht, also käme auch das Ende." }
+      - klick: '#menu_levels ._dnd_item:nth-child(2)'
+      - taste: KeyS
+      - pause: 0.6
+      - klick: '.signal-rule-complete .dropdown-button'
+      - menue: zum Spielende (THE END)
+      - pause: 1
+      - taste: KeyS
+      - pruefen: |
+          game.data.levels[1].layers.some(l => (l.sprites ?? []).some(p => p[3]?.level_complete?.target === '@end'))
+        meldung: Das Ziel im zweiten Level sollte zum Spielende führen
+      - { hinweis: L – die Levelübersicht, nr: 7, mehr: "Jedes Level ist ein Kästchen. Der graue Pfeil führt vom ersten ins zweite Level, der grüne vom zweiten zum Ende." }
       - taste: KeyL
       - pause: 2.4
       - taste: KeyL
@@ -91,7 +99,7 @@ aufnahmen:
 ## Kurz gesagt
 
 1. Ein Sprite mit der Eigenschaft **Level → Levelwechsel** ist ein **Ziel** (oder eine Tür, ein Ausgang …): Wer es berührt, hat das Level geschafft.
-2. In der Signale-Übersicht (<kbd>S</kbd>) steht ganz oben die Karte **Level geschafft**. Bei **→ weiter:** stellst du ein, wohin es danach geht.
+2. In der Signale-Übersicht (<kbd>S</kbd>) steht ganz oben die Karte **Level geschafft**. Bei **→ weiter:** stellst du ein, wohin es danach geht – zum nächsten Level, zu einem bestimmten oder zum Spielende.
 3. Rechtsklick auf ein Level → **Duplizieren** macht ein zweites. <kbd>L</kbd> zeigt alle Level und wie sie zusammenhängen.
 
 ## Ein Ziel

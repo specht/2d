@@ -84,7 +84,7 @@ Hast du ein Spiel öfter gespeichert, steht bei **Versionen** ein Knopf. Dort ka
 
 Wer den Link öffnet, **spielt** dein Spiel – ändern kann er es nicht. Speicherst du später neu, bekommt das Spiel einen neuen Code und einen neuen Link.
 
-Möchte jemand mit deinen Sprites weiterbauen, gibst du ihm den **Code**: Unter **Sprites** → Rechtsklick → **Sprites holen** → **Aus einem anderen Spiel** holt er sich die Sprites, die er braucht, in sein eigenes Spiel.
+Möchte jemand deine Bilder für sein eigenes Spiel, gibst du ihm den **Code**: Unter **Sprites** → Rechtsklick → **Sprites holen** → **Aus einem anderen Spiel** holt er sich die Bilder, die ihm gefallen. Was sie im Spiel tun, stellt er selbst ein.
 
 ## Alles auch in der Statusleiste
 

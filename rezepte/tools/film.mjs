@@ -24,7 +24,7 @@ function distinct_frames(frames) {
     const out = [];
     frames.forEach((f, i) => {
         const last = out.at(-1);
-        if (last && last.frame.data.equals(f.data)) last.steps++;
+        if (last && (last.frame === f || last.frame.data.equals(f.data))) last.steps++;
         else out.push({ frame: f, start: i, steps: 1 });
     });
     return out;
