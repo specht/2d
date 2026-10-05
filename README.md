@@ -603,11 +603,13 @@ To see what went wrong:
 ./config.rb exec ruby ruby errors.rb list 7           # the last seven days (list all: everything)
 ./config.rb exec ruby ruby errors.rb show 3f2a1c      # one group: stack, the clicks before, the games
 ./config.rb exec ruby ruby errors.rb watch            # new reports as they come in, during a lesson
+./config.rb exec ruby ruby errors.rb game 3f2a1c > spiel.json   # the group's game as a file (--ohne-bilder: much smaller)
 ./config.rb exec ruby ruby errors.rb resolve 3f2a1c   # fixed: hidden until it happens again
 ./config.rb exec ruby ruby errors.rb prune 30         # delete days older than 30 days
+./config.rb exec ruby ruby errors.rb clear            # delete every report (asks first; --ja does not)
 ```
 
-Each group has a short code. `show` gives the message, where it happened, what the child did just before, and `/?<code>` to open the child's game as it was at that moment – reproduce the bug there, fix it and add a regression test, then `resolve` it.
+Each group has a short code and is one bug: the same message reached the same way (the first two frames of the studio's own code in the stack), whatever the line numbers of the version and whether it arrived as an error or a rejected promise. Groups that happened on the same page at the same moment are listed "zusammen mit" each other – often one cause that threw twice. `show` gives the message, where it happened, what the child did just before, and `/?<code>` to open the child's game as it was at that moment – reproduce the bug there, fix it and add a regression test, then `resolve` it. `game` writes that game as one JSON file with its pictures (the reports themselves carry only the code: copies share their pictures on the server). Codes from before October 2026 (by file and line) still work for `show` and `resolve`; `clear` keeps what was resolved, so a fixed bug that comes back is still marked.
 
 When the Ruby container is recreated rather than restarted, nginx may keep the old address and answer 502 until it is restarted as well (`./config.rb restart nginx`).
 

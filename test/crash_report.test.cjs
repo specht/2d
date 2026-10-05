@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { crash_should_report, crash_describe_element, crash_report_payload, CRASH_BREADCRUMBS } = require('../src/static/crash_report.js');
+const { crash_should_report, crash_describe_element, crash_report_payload, crash_wants_game_copy, CRASH_BREADCRUMBS } = require('../src/static/crash_report.js');
 
 test('errors nobody in the studio can fix are not reported', () => {
     assert.equal(crash_should_report('Script error.', ''), false);
@@ -41,4 +41,11 @@ test('the report carries what helps to reproduce, cut to size', () => {
     assert.equal(payload.breadcrumbs.at(-1), '49s level click x');
     assert.deepEqual(payload.context, { pane: 'level' });
     assert.equal(payload.studio_version, 'v1');
+});
+
+test('crashes and rejected promises come with a copy of the game, reported problems not', () => {
+    // 30fc82 (October 2026): the 'drop' bug as a rejected promise had no game
+    assert.equal(crash_wants_game_copy({ kind: 'promise', message: 'x' }, false), true);
+    assert.equal(crash_wants_game_copy({ message: 'x' }, true), true);
+    assert.equal(crash_wants_game_copy({ kind: 'save_failed', message: 'save_failed' }, false), false);
 });

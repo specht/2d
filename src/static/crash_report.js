@@ -8,9 +8,13 @@
 //      /raw/client-errors, see client_errors.rb and errors.rb):
 //      the message and stack, the studio version, which pane and tool were in
 //      use, the last clicks and keys (never what was typed into a field) and,
-//      for the first error of a page, the code of a temporary copy of the game
-//      (saved like "Level testen" does, listed nowhere), so the bug can be
-//      reproduced with /?<code> and turned into a regression test;
+//      for the first error or rejected promise of a page, the code of a
+//      temporary copy of the game (saved like "Level testen" does, listed
+//      nowhere), so the bug can be reproduced with /?<code> and turned into a
+//      regression test – a code, never the game itself: copies share their
+//      pictures on the server, a report stays small; and an id of the page,
+//      so errors that one mistake caused one after the other are seen
+//      together (errors.rb);
 //   3. the robot says that the work is safe and offers "Neu laden" (the work
 //      comes back by itself) or "Weiterarbeiten".
 // Errors the child cannot do anything about (from browser extensions, the
@@ -48,6 +52,12 @@ function crash_describe_element(el) {
     return text;
 }
 
+// Errors and rejected promises are bugs worth a copy of the game; a problem
+// reported on purpose (a failed save …) is not, and the server may be away.
+function crash_wants_game_copy(error, show_robot) {
+    return show_robot || error?.kind === 'promise';
+}
+
 // The report as it is sent; the server cuts it once more (client_errors.rb).
 function crash_report_payload(error, breadcrumbs, context, version) {
     const cut = (v, n) => (v === undefined || v === null) ? undefined : String(v).slice(0, n);
@@ -75,6 +85,8 @@ class CrashReporter {
         // errors the child chose to work on after: no robot for them again
         this.dismissed = new Set();
         this.game_tag = null;
+        // which reports came from this page (errors.rb links them)
+        this.page_id = Math.random().toString(36).slice(2, 10);
         document.addEventListener('click', (e) => this.crumb('click', crash_describe_element(e.target)), true);
         document.addEventListener('keydown', (e) => {
             // keys in text fields are what the child writes: not recorded
@@ -120,6 +132,7 @@ class CrashReporter {
             c.parent = game?.data?.parent ?? null;
             c.from_recipe = game?.from_recipe?.id ?? null;
         } catch (e) { }
+        c.page = this.page_id;
         return c;
     }
 
@@ -141,7 +154,8 @@ class CrashReporter {
         this.reports += 1;
         const payload = crash_report_payload(error, this.breadcrumbs, this.context(), window.CACHE_BUSTER);
         // the first crash of a page: a copy of the game to reproduce it with
-        if (show_robot && !this.game_tag) this.game_tag = await this.temp_save();
+        // (a rejected promise is a bug too; a report_problem is not)
+        if (crash_wants_game_copy(error, show_robot) && !this.game_tag) this.game_tag = await this.temp_save();
         if (this.game_tag) payload.game_tag = this.game_tag;
         try {
             await fetch('/api/report_error', {
@@ -198,5 +212,5 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { crash_should_report, crash_describe_element, crash_report_payload, CRASH_BREADCRUMBS };
+    module.exports = { crash_should_report, crash_describe_element, crash_report_payload, crash_wants_game_copy, CRASH_BREADCRUMBS };
 }
