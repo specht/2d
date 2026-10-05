@@ -154,10 +154,16 @@ class Character {
 			}
 		}
 
-		// try to assign flipped states
+		// try to assign flipped states: a side without its own picture shows
+		// the other side mirrored. With neither side drawn (a figure without
+		// roles), the first state faces right as drawn and is mirrored for left
+		// – before, both sides showed it mirrored, so a figure drawn facing right
+		// always looked left (who_shows_what.js mirrors this rule)
 		for (let state of ['stand', 'walk', 'jump', 'fall']) {
+			const left_had = this.sti_for_state[state].left.confidence;
 			this.assign_sti(state, 'left', this.sti_for_state[state].right.sti, 1, true);
-			this.assign_sti(state, 'right', this.sti_for_state[state].left.sti, 1, true);
+			if (left_had > 0)
+				this.assign_sti(state, 'right', this.sti_for_state[state].left.sti, 1, true);
 		}
 
 		for (let sti = 0; sti < this.sprite.states.length; sti++) {

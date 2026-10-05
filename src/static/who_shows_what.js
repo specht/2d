@@ -51,9 +51,11 @@ function figure_state_table(sprite, trait = figure_trait(sprite)) {
     });
     for (const kind of [...WSW_MOVEMENT, 'dead'])
         for (const d of WSW_DIRECTIONS) assign(kind, d, 0, 0, false);
+    // neither side drawn: the first state faces right as drawn (as in app.js)
     for (const kind of WSW_MOVEMENT) {
+        const left_had = table[kind].left.confidence;
         assign(kind, 'left', table[kind].right.sti, 1, true);
-        assign(kind, 'right', table[kind].left.sti, 1, true);
+        if (left_had > 0) assign(kind, 'right', table[kind].left.sti, 1, true);
     }
     for (let sti = 0; sti < states.length; sti++)
         if ('dead' in tags_of(sti)) for (const d of WSW_DIRECTIONS) assign('dead', d, sti, 200, false);

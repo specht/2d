@@ -83,3 +83,22 @@ test('objects: which state shows what', () => {
     const sprite = { traits: { door: {} }, states: [{ traits: { door: { closed: {} } } }, { traits: { door: { open: {} } } }] };
     assert.deepEqual(object_state_roles(sprite).map(r => [r.role, r.sti]), [['closed', 0], ['open', 1], ['transition', null]]);
 });
+
+test('a figure without roles faces right as drawn, and mirrored to the left', () => {
+    for (const trait of ['actor', 'baddie', 'companion']) {
+        const sprite = sprite_with(trait, [[], []]);
+        const table = game_table(sprite);
+        for (const kind of ['stand', 'walk', 'jump', 'fall']) {
+            assert.deepEqual(table[kind].right, { sti: 0, confidence: 0, flipped: false }, `${trait} ${kind} right`);
+            assert.deepEqual(table[kind].left, { sti: 0, confidence: 1, flipped: true }, `${trait} ${kind} left`);
+        }
+    }
+    // only "vorn" drawn: the same – right as drawn, left mirrored
+    const front = game_table(sprite_with('actor', [['front']]));
+    assert.equal(front.stand.right.flipped, false);
+    assert.equal(front.stand.left.flipped, true);
+    // a figure drawn facing left (only "links") is mirrored for right, as before
+    const left = game_table(sprite_with('actor', [['left']]));
+    assert.deepEqual(left.stand.right, { sti: 0, confidence: 1, flipped: true });
+    assert.deepEqual(left.stand.left, { sti: 0, confidence: 100, flipped: false });
+});
