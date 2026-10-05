@@ -689,8 +689,9 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             // deleting a sprite elsewhere tidies the levels: not an edit to undo here
             game.level_editor.history_rebase?.();
         }
-        // the Signale beside a test run belong to that run only
-        game.level_editor?.stop_signal_watch?.();
+        // the Signale beside a test run belong to that run only (a start at
+        // #hilfe shows the pane before the game exists)
+        game?.level_editor?.stop_signal_watch?.();
         if (current_pane === 'play') {
             // "Level testen" (level editor): straight into that level
             const playtest = window.studio_pending_playtest ?? null;
