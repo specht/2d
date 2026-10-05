@@ -651,6 +651,8 @@ body {
 }
 
 #status-bar {
+    /* a row: Zusammenarbeiten at the right end (margin-left: auto) */
+    display: flex;
     position: absolute;
     bottom: 0;
     left: 0;
@@ -5963,4 +5965,34 @@ body {
 #main_div_settings .controls-key:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* The status bar (menu.js refresh_status_bar): the tool's hints take the
+   room on the left and scroll by themselves when there are too many; on the
+   right what is always there (Rückgängig … Hilfe), then Zusammenarbeiten.
+   During a session collaboration.js puts its control first instead. */
+#status-bar {
+    overflow: hidden;
+}
+#status-bar > .status-bar-tools {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+#status-bar > .status-bar-tools::-webkit-scrollbar {
+    display: none;
+}
+#status-bar > .status-bar-general {
+    display: flex;
+    flex: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+#status-bar .status-bar-item, #status-bar > #collaboration-control {
+    flex: none;
+}
+#status-bar .status-bar-icon {
+    margin-right: 0.45em;
+    opacity: 0.8;
 }

@@ -450,12 +450,13 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     tool_menu_items.sprites = [
         { group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'Q', label: 'Zeichnen', hints: [
                 // the button at X under Werkzeuge has the key; the right button opens the menu (canvas.js canvas_menu)
-                { key_label: 'X', type: 'toggle', label: 'Durchsichtig (radieren)',
+                // visible: false – the X button under Werkzeuge and the line under the palette show it
+                { key_label: 'X', type: 'toggle', label: 'Durchsichtig (radieren)', visible: false,
                     title: 'Wechselt zwischen deiner Farbe und durchsichtig – mit durchsichtig radiert der Stift.',
                     get: () => color_is_transparent(canvas.current_color), callback: () => toggle_transparent_color() },
                 'Rechtsklick: Menü',
                 'Mausrad: zoomen',
-                `<span class='key longkey'>Leer</span>&nbsp;+ ziehen: Ausschnitt verschieben`,
+                `<span class='key longkey'>Leer</span>&nbsp;+ ziehen: verschieben`,
             ] },
         { group: 'tool', command: 'line', image: 'draw-line-44', shortcut: 'W', label: 'Linie zeichnen' },
         {
@@ -481,8 +482,6 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 'Rechtsklick: Menü',
                 { key: 'Control+A', label: 'Alles', callback: function () { canvas.select_all_pixels(); } },
                 // canvas.js handle_selection_key: Strg+C / X / V, Entf, Esc, Pfeiltasten
-                { key_label: 'Control+C', label: 'Kopieren', callback: function () { canvas.copy_selection_pixels(); } },
-                { key_label: 'Control+V', label: 'Einfügen', callback: function () { canvas.paste_selection_pixels(); } },
                 { key: 'Control', label: 'Auswahl erweitern', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
                 { key: 'Alt', label: 'Auswahl verkleinern', type: 'checkbox', callback: function (x) { canvas.setModifierAlt(x); } },
                 { key: 'Shift', label: 'Klonen', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
@@ -497,7 +496,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         },
         {
             group: 'tool', command: 'gradient', image: 'color-gradient', shortcut: 'S', label: 'Farbverlauf', hints: [
-                { key: 'Control', label: 'Helligkeit variiieren', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
+                { key: 'Control', label: 'Helligkeit variieren', type: 'checkbox', callback: function (x) { canvas.setModifierCtrl(x); } },
                 { key: 'Alt', label: 'kreisförmig', type: 'checkbox', callback: function (x) { canvas.setModifierAlt(x); } },
                 { key: 'Shift', label: 'auch auf anderen Farben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
             ]
@@ -580,33 +579,32 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         { group: 'tool', command: 'pan', image: 'move-hand-44', shortcut: 'Q', label: 'Verschieben', hints: [
                 'Mausrad: zoomen',
                 'Rechtsklick: Menü',
-                // level_editor.js handle_down: grab_panning, set_space_pan
-                `Mit jedem Werkzeug: mittlere Maustaste oder <span class='key longkey'>Leer</span>&nbsp;+ ziehen`,
+                // level_editor.js handle_down: grab_panning, set_space_pan (with every tool, also the middle button)
+                `<span class='key longkey'>Leer</span>&nbsp;+ ziehen: verschieben`,
             ]
         },
         {
             group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'W', label: 'Zeichnen', hints: [
                 { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
                 // level_editor.js set_pen_erasing (the key itself is handled there)
-                { key_label: 'X', type: 'toggle', label: 'Radieren', title: 'Der Stift löscht, statt zu setzen – noch einmal X oder ein Klick auf ein Sprite: wieder setzen.',
+                // visible: false – the Radieren switch above the sprite palette shows it
+                { key_label: 'X', type: 'toggle', label: 'Radieren', visible: false, title: 'Der Stift löscht, statt zu setzen – noch einmal X oder ein Klick auf ein Sprite: wieder setzen.',
                     get: () => !!game.level_editor?.pen_erasing, callback: (value) => game.level_editor?.set_pen_erasing(value) },
                 'Rechtsklick: Menü',
                 // level_editor.js shape_for_event: Shift and Alt can change while dragging
-                `<span class='key longkey'>Strg</span>&nbsp;+ ziehen: Rechteck füllen, mit <span class='key longkey'>Shift</span> nur den Rand, mit <span class='key longkey'>Alt</span> eine Linie`,
+                `<span class='key longkey'>Strg</span>&nbsp;+ ziehen: Rechteck (Shift: Rand, Alt: Linie)`,
             ]
         },
         {
             group: 'tool', command: 'select', image: 'select-rect-44', shortcut: 'E', label: 'Auswählen', hints: [
                 'Rechtsklick: Menü',
-                { key: 'Control+A', label: 'Alles auswählen', callback: function (x) { game.level_editor.select_all(); } },
-                { key: 'Delete', label: 'Auswahl löschen', callback: function (x) { game.level_editor.delete_selection(); } },
-                // handled by the printed letter in level_editor.js (key_label: shown only)
-                { key_label: 'Control+C', label: 'Kopieren', callback: function () { game.level_editor.copy_selection(); } },
-                { key_label: 'Control+V', label: 'Einfügen', callback: function () { game.level_editor.paste_clipboard(); } },
-                { key_label: 'Control+D', label: 'Duplizieren', callback: function () { game.level_editor.duplicate_selection(); } },
+                { key: 'Control+A', label: 'Alles', callback: function (x) { game.level_editor.select_all(); } },
+                { key: 'Delete', label: 'Löschen', callback: function (x) { game.level_editor.delete_selection(); } },
+                // Strg+C / V / D (level_editor.js, by the printed letter) are in the
+                // right-click menu with their keys; the selection's panel has buttons
                 // level_editor.js handle_double_click: picks from any layer, again: the one behind
-                'Doppelklick: in jeder Ebene auswählen',
-                'Ziehen oder Pfeiltasten verschieben die Auswahl, mit <span class=\'key longkey\'>Shift</span> pixelgenau',
+                'Doppelklick: in jeder Ebene',
+                'Pfeiltasten: verschieben (Shift: pixelgenau)',
             ]
         },
         // the buttons stand in the order of their keys on the keyboard: Q W E R T

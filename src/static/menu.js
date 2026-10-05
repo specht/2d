@@ -226,16 +226,30 @@ class Menu {
             if (entry.type === 'checkbox' && entry.value) { entry.value = false; entry.callback(false); }
         this.status_buttons = {};
         this.status_shortcuts = {};
-        let statusBar = $('#status-bar');
-        statusBar.empty();
+        // two parts: the tool's own hints on the left (they scroll when there
+        // are too many), and on the right what is always there – Rückgängig,
+        // Wiederholen, Spiel laden, Spiel speichern, Hilfe (general: true) and
+        // Zusammenarbeiten at the very end (collaboration.js appends it)
+        let bar = $('#status-bar');
+        bar.empty();
+        const statusBar = $('<div class="status-bar-tools">').appendTo(bar);
+        const generalBar = $('<div class="status-bar-general">').appendTo(bar);
+        const place = (hint) => hint?.general ? generalBar : statusBar;
+        // the mouse wheel scrolls the tool's hints sideways, when there are more than fit
+        statusBar.on('wheel', (e) => {
+            const el = statusBar[0];
+            if (el.scrollWidth <= el.clientWidth) return;
+            el.scrollLeft += e.originalEvent.deltaY || e.originalEvent.deltaX;
+            e.preventDefault();
+        });
         let hints = (active_command.hints || []).slice(0);
         if (active_command.label) hints.unshift(`<b>${active_command.label}</b>`);
         // Level editor (level_editor.js): right after the tool, before the general keys
         if (this.pane === 'level') {
-            hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'level-history-undo',
+            hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'level-history-undo', general: true, icon: 'fa-undo',
                 title: 'Macht die letzte Änderung an diesem Level rückgängig – Sprites, Ebenen, Einstellungen.',
                 callback: () => game.level_editor?.undo() });
-            hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'level-history-redo',
+            hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'level-history-redo', general: true, icon: 'fa-repeat',
                 title: 'Holt zurück, was du gerade rückgängig gemacht hast.',
                 callback: () => game.level_editor?.redo() });
             // the view settings of the level editor (also under Werkzeuge)
@@ -249,7 +263,8 @@ class Menu {
                 dim_other_layers: 'Was hinter der Ebene liegt, an der du arbeitest, wird dunkler, was davor liegt, durchsichtig.',
             };
             for (const [key, option, label] of [['G', 'show_grid', 'Gitter'], ['S', 'show_signal_overview', 'Signale'], ['M', 'show_minimap', 'Karte'], ['L', 'show_level_map', 'Levelübersicht'], ['B', 'show_regions', 'Bereiche'], ['D', 'dim_other_layers', 'Hervorheben'], ['A', 'animate_level', 'Level animieren']]) {
-                hints.push({ key, type: 'toggle', label, title: titles[option],
+                // visible: false – the key works, the switch is a button under Werkzeuge
+                hints.push({ key, type: 'toggle', label, title: titles[option], visible: false,
                     get: () => !!game.level_editor?.[option],
                     callback: (value) => game.level_editor?.set_view_option?.(option, value) });
             }
@@ -257,15 +272,15 @@ class Menu {
         // Sprite editor: undo/redo (sprite_history.js, matched by the printed
         // letter there), Onion Skinning (canvas.js), Vorschau (sprite_preview.js)
         if (this.pane === 'sprites') {
-            hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'sprite-history-undo',
+            hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'sprite-history-undo', general: true, icon: 'fa-undo',
                 title: 'Macht die letzte Änderung rückgängig – an diesem Sprite (Pixel, Frames, Zustände, Framerate, Eigenschaften) oder in der Sprite-Liste (ein neues, dupliziertes oder geholtes Sprite, ein verschobenes Sprite).',
                 callback: () => window.sprite_history?.undo() });
-            hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'sprite-history-redo',
+            hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'sprite-history-redo', general: true, icon: 'fa-repeat',
                 title: 'Holt zurück, was du gerade rückgängig gemacht hast.',
                 callback: () => window.sprite_history?.redo() });
             // Onion Skinning, Spiegelnd zeichnen, Vorschau (also under Werkzeuge: studio.js SPRITE_VIEW_TOGGLES)
             for (const toggle of SPRITE_VIEW_TOGGLES)
-                hints.push({ key: toggle.key, type: 'toggle', label: toggle.label, title: toggle.title,
+                hints.push({ key: toggle.key, type: 'toggle', label: toggle.label, title: toggle.title, visible: false,
                     get: toggle.get, callback: toggle.set });
         }
         // hints.unshift({
@@ -274,7 +289,20 @@ class Menu {
         //     }
         // });
 
-        hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe',
+        // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
+        hints.push({
+            key: 'Control+O', label: 'Laden', title: 'Ein Spiel laden', general: true, icon: 'fa-folder-open-o', callback: function () {
+                window.loadGameModal.show();
+            }
+            // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+        });
+        hints.push({
+            key: 'Control+S', label: 'Speichern', title: 'Das Spiel speichern', general: true, icon: 'fa-floppy-o', callback: function () {
+                game.save();
+            }
+            // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+        });
+        hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', general: true, icon: 'fa-question-circle-o',
             title: 'Gedrückt halten: jeder Knopf zeigt seine Taste, und bei vielen Einstellungen erklärt ein ? (anklicken), was sie tut.',
             callback: function (flag) {
             if (flag) {
@@ -288,21 +316,11 @@ class Menu {
                 $('.tooltip').hide();
             }
         } });
-        // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
+        // the rest works by key, without an entry: F11, the panes (Alt+1 … 5,
+        // their tabs are at the top), switching sprites, states and frames
+        // (the lists are on the screen), Debug
         hints.push({
-            key: 'Control+O', label: 'Spiel laden', callback: function () {
-                window.loadGameModal.show();
-            }
-            // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
-        });
-        hints.push({
-            key: 'Control+S', label: 'Spiel speichern', callback: function () {
-                game.save();
-            }
-            // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
-        });
-        hints.push({
-            key: 'F11', label: 'Vollbild', callback: function () {
+            key: 'F11', label: 'Vollbild', visible: false, callback: function () {
                 if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen();
             }
         });
@@ -319,7 +337,7 @@ class Menu {
         if (this.pane === 'sprites') {
             hints.push(
                 {
-                    type: 'group', keys: [`Bild <i class='fa fa-arrow-up'></i>`, `Bild <i class='fa fa-arrow-down'></i>`], label: 'Sprite wechseln', shortcuts: [
+                    type: 'group', keys: [`Bild <i class='fa fa-arrow-up'></i>`, `Bild <i class='fa fa-arrow-down'></i>`], label: 'Sprite wechseln', visible: false, shortcuts: [
                         { key: 'PageUp', label: 'Zurück', callback: () => canvas.switchToSpriteDelta(-1) },
                         { key: 'PageDown', label: 'Vor', callback: () => canvas.switchToSpriteDelta(+1) },
                     ]
@@ -327,7 +345,7 @@ class Menu {
             );
             hints.push(
                 {
-                    type: 'group', keys: [`<i style='font-size: 90%;' class='fa fa-chevron-up'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-down'></i>`], label: 'Zustand wechseln', shortcuts: [
+                    type: 'group', keys: [`<i style='font-size: 90%;' class='fa fa-chevron-up'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-down'></i>`], label: 'Zustand wechseln', visible: false, shortcuts: [
                         { key: 'ArrowUp', label: 'Hoch', callback: () => canvas.switchToStateDelta(-1) },
                         { key: 'ArrowDown', label: 'Runter', callback: () => canvas.switchToStateDelta(+1) },
                     ]
@@ -335,7 +353,7 @@ class Menu {
             );
             hints.push(
                 {
-                    type: 'group', keys: [`<i style='font-size: 90%;' class='fa fa-chevron-left'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-right'></i>`], label: 'Frame wechseln', shortcuts: [
+                    type: 'group', keys: [`<i style='font-size: 90%;' class='fa fa-chevron-left'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-right'></i>`], label: 'Frame wechseln', visible: false, shortcuts: [
                         { key: 'ArrowLeft', label: 'Links', callback: () => canvas.switchToFrameDelta(-1) },
                         { key: 'ArrowRight', label: 'Rechts', callback: () => canvas.switchToFrameDelta(+1) },
                         { key: 'Home', label: 'Pos1', callback: () => canvas.switchToFirstFrame() },
@@ -345,32 +363,32 @@ class Menu {
             );
         }
         hints.push({
-            key: 'Alt+1', visible: true, global: true, label: 'Sprites', callback: function () {
+            key: 'Alt+1', visible: false, global: true, label: 'Sprites', callback: function () {
                 $('#mi_sprites').click();
             }
         });
         hints.push({
-            key: 'Alt+2', visible: true, global: true, label: 'Level', callback: function () {
+            key: 'Alt+2', visible: false, global: true, label: 'Level', callback: function () {
                 $('#mi_level').click();
             }
         });
         hints.push({
-            key: 'Alt+3', visible: true, global: true, label: 'Einstellungen', callback: function () {
+            key: 'Alt+3', visible: false, global: true, label: 'Einstellungen', callback: function () {
                 $('#mi_settings').click();
             }
         });
         hints.push({
-            key: 'Alt+4', visible: true, global: true, label: 'Spielen', callback: function () {
+            key: 'Alt+4', visible: false, global: true, label: 'Spielen', callback: function () {
                 $('#mi_play').click();
             }
         });
         hints.push({
-            key: 'Alt+5', visible: true, global: true, label: 'Hilfe', callback: function () {
+            key: 'Alt+5', visible: false, global: true, label: 'Hilfe', callback: function () {
                 $('#mi_help').click();
             }
         });
         hints.push({
-            key: 'Shift+D', label: 'Debug', callback: function () {
+            key: 'Shift+D', label: 'Debug', visible: false, callback: function () {
                 console.log('debug!');
                 window.debugModal.show();
             }
@@ -400,7 +418,7 @@ class Menu {
                         i += 1;
                     }
                     if (hint.visible !== false)
-                        statusBar.append(button);
+                        place(hint).append(button);
                 } else {
                     let button = $('<div>').addClass('status-bar-item status-bar-button').data('is', is);
                     if (hint.class) button.addClass(hint.class);
@@ -409,7 +427,13 @@ class Menu {
                     // key_label: shown like a key, but handled elsewhere (e.g. by the
                     // printed letter instead of the key's position, see level_editor.js)
                     const shown_key = hint.key ?? hint.key_label;
-                    if (shown_key) {
+                    // the always-there entries on the right: an icon and a word, the key on hover
+                    if (hint.icon) {
+                        const keys = shown_key ? shown_key.split('+').map(part => KEY_TR[part] || (hint.key ? printed_key(part) : part)).join('+') : '';
+                        button.attr('title', [`${hint.label}${keys ? ` (${keys})` : ''}`, hint.title].filter(Boolean).join(' – '));
+                        button.append($('<i>').addClass(`fa ${hint.icon} status-bar-icon`));
+                    }
+                    if (shown_key && !hint.icon) {
                         let key_parts = shown_key.split('+');
                         for (let i = 0; i < key_parts.length; i++) {
                             // hint.key goes by position: show what is printed there
@@ -427,7 +451,7 @@ class Menu {
                     if (hint.key)
                         this.status_shortcuts[hint.key] = is;
                     if (hint.visible !== false)
-                        statusBar.append(button);
+                        place(hint).append(button);
 
                     button.mousedown(function () { self.handle_status_button_down(is, false); });
                     button.mouseup(function () { self.handle_status_button_up(is, false); });
@@ -436,7 +460,7 @@ class Menu {
                 }
             }
         }
-        window.collaboration?.append_status_control?.(statusBar);
+        window.collaboration?.append_status_control?.(bar);
         if (this.pane === 'level') game?.level_editor?.update_history_buttons?.();
         if (this.pane === 'sprites') window.sprite_history?.update_buttons?.();
     }
