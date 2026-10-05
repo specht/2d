@@ -156,31 +156,14 @@ Any new attack family must work for player characters and enemies through the sa
 
 ---
 
-# Erste Schritte: guides for newcomers (next up)
+# Erste Schritte: more guides
 
-The recipes in the Hilfe tab explain mechanics with animations recorded from the game; nothing shows *where to click in the studio*. A handful of short guides with screenshots of the studio itself should get a newcomer from an empty studio to a playable two-level game. Agreed with the teacher (October 2026); nothing of it exists yet.
+The guides exist (see README, *Erste Schritte*; `rezepte/README.md` for writing them): Ein Sprite zeichnen, Deine Spielfigur, Das erste Level, Speichern und Laden, Signale: Schalter und Tor verbinden, Signale: mehr Tore, Verzögerung, aufräumen. Still missing from the agreed list:
 
-**Content** (German, the recipes' voice and sections: Kurz gesagt, Schritt für Schritt, Wenn's nicht klappt, Mach mehr draus; short sentences, no jargon):
-
-1. **Ein Sprite zeichnen** – tools, palette and its variations, X (durchsichtig), Rückgängig, frames and the Verlauf, Vorschau (P).
-2. **Deine Spielfigur** – Eigenschaft hinzufügen → Spielfigur, draw it facing right (one picture is enough: it is mirrored for left), a ground block (Blöcke), *Wer zeigt was?* as the place that shows what could still be drawn.
-3. **Das erste Level** – the sprite palette, pen (tap / drag, Strg + ziehen), Auswählen and the right-click menu, Radieren (X), Level testen (T).
-4. **Hintergrund und Ebenen** – a Hintergrund layer behind the sprites, moving its rectangle, Bereiche (B), Hervorheben (D), Parallaxe in one sentence.
-5. **Ein zweites Level und das Ende** – + in the level list, a Levelwechsel sprite as exit, *führt zu*, the Levelübersicht (L).
-6. **Speichern und teilen** – Speichern, the game code and link, Laden, Neues Spiel; Zusammenarbeiten in one sentence.
-
-Each guide links to the matching recipes (e.g. guide 2 → *Deine erste Spielfigur*, *Laufen, Springen und Fallen animieren*).
-
-**Screenshots are generated, never hand-made** – the studio's layout changed four times in one day, hand-made pictures would be outdated at once. Plan:
-
-- A new kind of entry in `rezepte/texte/` (e.g. `typ: anleitung`, or a separate `rezepte/anleitungen/` folder – decide when starting), with a list of studio steps in its YAML head instead of a game scene: which pane, which clicks / keys (by selector or by tool key), what to capture (a panel selector or a rectangle) and numbered markers (selector + number, drawn as circles over the screenshot).
-- `rezepte/tools` drives the real `studio.html` in headless Chromium (Playwright, like `record.mjs` drives `standalone.html`): stub `/api/*` like the scratch harness did (route `studio.local`, `#{…}` placeholders removed from the HTML), start from `fresh_game_data()` or from a recipe's `spiele/<id>.json`, run the steps, write PNG/WebP screenshots to `src/static/rezepte/` and their entries to `rezepte.json`.
-- A fingerprint like the recipes' (`quelle`): the guide's head plus the studio's files (studio.html, styles.css and the studio scripts), so a layout change re-renders exactly the guides; `npm run build` handles both.
-- `rezepte.js` shows the guides as their own category *Erste Schritte* first in the Hilfe gallery, before *Loslegen*.
-- Fixed viewport (1600 × 900 or 1920 × 1080) and German keyboard labels (`printed_key` falls back to the key position – Z/Y: check what the screenshots show).
-- `build.mjs --check` for guides: every step's selector exists and is visible, so a renamed button fails the build instead of producing a wrong picture.
-
-Not a guided tour inside the studio: tours break whenever a panel moves, and children click them away.
+- **Hintergrund und Ebenen** – a Hintergrund layer behind the sprites, moving its rectangle, Bereiche (B), Hervorheben (D), Parallaxe in one sentence.
+- **Ein zweites Level und das Ende** – + in the level list, a Levelwechsel sprite as exit, *führt zu*, the Levelübersicht (L).
+- Signale beyond Schalter and Tor (Signalbereich, Druckplatte, a layer that appears) could get a third guide; the recipes in *Signale* cover them as finished scenes.
+- The sprite pictures in the drawing guide are drawn by the steps themselves; a guide that needs a real figure starts from a `szene`. If a guide should show drawing a whole figure, keep it short – every frame is a screenshot.
 
 **Also for newcomers, smaller:** fold the rarely needed fields of a trait (Spielfigur: Kollisionsbox, Kraft in X-Richtung, Trefferreaktion …) under "Mehr Einstellungen …", so a new trait first shows the two or three that matter (Geschwindigkeit, Sprungkraft). Decide per trait which fields are shown; the data does not change.
 

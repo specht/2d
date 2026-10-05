@@ -1,0 +1,508 @@
+// Plays the steps of an Erste-Schritte guide in the real studio (studio.mjs)
+// and records them: videos (animated WebP) with a visible mouse pointer,
+// clicks, the keys pressed and short captions, and pictures with numbered
+// marks. The steps say what a child would do – click this button, paint
+// these pixels, press T – never how the studio does it inside, so a guide
+// keeps working when the layout changes, and a button that is gone fails
+// the build instead of producing a wrong picture.
+import sharp from 'sharp';
+import { createRequire } from 'node:module';
+import { STEP_MS } from './record.mjs';
+
+const controls = createRequire(import.meta.url)('../../src/static/controls.js');
+
+// One frame of a video lasts this many 60 Hz steps (4: 15 frames per second).
+const FRAME_STEPS = 4;
+const SELECTOR_TIMEOUT = 6000;
+
+export class StepError extends Error { }
+
+// Pointer, click ripple and marks are drawn into the page itself
+// (pointer-events: none), so they are in every screenshot but never get in
+// the studio's way. The caption of the step and the keys pressed are shown
+// in a band above the video (band_page), so they never hide a part of the studio.
+const OVERLAY = () => {
+    if (window.__guide) return;
+    const style = document.createElement('style');
+    style.textContent = `
+        .guide-layer { position: fixed; inset: 0; pointer-events: none; z-index: 2147483646; }
+        .guide-pointer { position: fixed; left: 0; top: 0; width: 26px; height: 30px; pointer-events: none;
+            z-index: 2147483647; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); display: none; }
+        .guide-ripple { position: fixed; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+            border: 3px solid #ffcd75; box-sizing: border-box; pointer-events: none; z-index: 2147483646; }
+        .guide-ripple.right { border-color: #73eff7; }
+        .guide-held { position: fixed; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%;
+            background: rgba(255, 205, 117, 0.45); pointer-events: none; z-index: 2147483646; display: none; }
+        .guide-mark { position: fixed; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%;
+            background: #ffcd75; color: #1a1c2c; font: bold 17px/30px 'IBM Plex Sans', sans-serif; text-align: center;
+            box-shadow: 0 0 0 3px #1a1c2c, 0 2px 8px rgba(0,0,0,0.6); pointer-events: none; z-index: 2147483646; }
+        .guide-frame { position: fixed; border: 3px solid #ffcd75; border-radius: 8px; pointer-events: none;
+            box-shadow: 0 0 0 2px rgba(26,28,44,0.8); z-index: 2147483645; }`;
+    document.head.appendChild(style);
+    const pointer = document.createElement('div');
+    pointer.className = 'guide-pointer';
+    // the usual arrow, white with a dark edge, tip at (2, 2)
+    pointer.innerHTML = '<svg width="26" height="30" viewBox="0 0 26 30"><path d="M2 2 L2 24 L8 18.5 L12.2 27.5 L16 25.8 L11.8 17 L19.5 17 Z" fill="#fff" stroke="#111" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+    const held = document.createElement('div'); held.className = 'guide-held';
+    const layer = document.createElement('div'); layer.className = 'guide-layer';
+    for (const el of [layer, held, pointer]) document.documentElement.appendChild(el);
+    window.__guide = {
+        move(x, y, down) {
+            pointer.style.display = 'block';
+            pointer.style.transform = `translate(${x - 2}px, ${y - 2}px)`;
+            held.style.display = down ? 'block' : 'none';
+            held.style.left = `${x}px`; held.style.top = `${y}px`;
+        },
+        hide_pointer() { pointer.style.display = 'none'; held.style.display = 'none'; },
+        ripple(x, y, t, right) {
+            // t: 0 … 1 of the ripple, drawn by the recorder frame by frame
+            let r = document.querySelector('.guide-ripple');
+            if (t >= 1) { r?.remove(); return; }
+            if (!r) { r = document.createElement('div'); r.className = 'guide-ripple'; document.documentElement.appendChild(r); }
+            r.classList.toggle('right', !!right);
+            const s = 1 + t * 2.6;
+            r.style.left = `${x}px`; r.style.top = `${y}px`;
+            r.style.transform = `scale(${s})`; r.style.opacity = String(1 - t * 0.85);
+        },
+        marks(list) {
+            layer.innerHTML = '';
+            for (const m of list ?? []) {
+                if (m.frame) {
+                    const f = document.createElement('div'); f.className = 'guide-frame';
+                    Object.assign(f.style, { left: `${m.frame.x - 4}px`, top: `${m.frame.y - 4}px`, width: `${m.frame.w + 2}px`, height: `${m.frame.h + 2}px` });
+                    layer.appendChild(f);
+                }
+                const d = document.createElement('div'); d.className = 'guide-mark';
+                d.textContent = m.nr; d.style.left = `${m.x}px`; d.style.top = `${m.y}px`;
+                layer.appendChild(d);
+            }
+        },
+    };
+};
+
+// German key caps: Control+KeyZ → Strg + Z (controls.js, as the studio shows them)
+export function key_caps(combo) {
+    return String(combo).split('+').map(part => {
+        if (part === 'Control') return 'Strg';
+        if (part === 'Shift') return 'Shift';
+        if (part === 'Alt') return 'Alt';
+        if (part === 'Escape') return 'Esc';
+        if (part === 'Enter') return 'Enter';
+        if (/^Key[A-Z]$/.test(part)) return part.slice(3);
+        if (/^[A-Za-z]$/.test(part)) return part.toUpperCase();
+        return controls.key_label(part) || part;
+    });
+}
+
+const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+export class GuidePlayer {
+    constructor(page, id) {
+        this.page = page;
+        this.id = id;
+        this.x = 1450; this.y = 600;     // the pointer starts beside the middle
+        this.down = false;
+        this.recording = null;     // { clip, frames } while a video is recorded
+        this.step_no = 0;
+        // the band above a video: the step's number and caption, the keys held
+        // or pressed and what the mouse does (Rechtsklick, ziehen)
+        this.band = { nr: null, text: '', keys: [], maus: '' };
+        this.bands = new Map();
+    }
+
+    async init() {
+        await this.page.evaluate(OVERLAY);
+        await this.page.evaluate(([x, y]) => window.__guide.move(x, y, false), [this.x, this.y]);
+        // screenshots through the DevTools protocol: PNG made for speed, still lossless
+        this.cdp = await this.page.context().newCDPSession(this.page);
+        this.band_page = await this.page.context().newPage();
+        await this.band_page.goto(`http://${new URL(this.page.url()).host}/__anleitung_band.html`);
+        await this.band_page.evaluate(() => document.fonts.ready);
+    }
+
+    // The band as raw pixels, as wide as the video (cached: it rarely changes).
+    async band_pixels(width) {
+        const b = this.band;
+        const key = JSON.stringify([width, b]);
+        if (this.bands.has(key)) return this.bands.get(key);
+        await this.band_page.setViewportSize({ width, height: 60 });
+        await this.band_page.evaluate((b) => {
+            const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+            const keys = b.keys.length ? `<span class="keys">${b.keys.map(k => `<span class="cap">${esc(k)}</span>`).join('<span>+</span>')}` +
+                (b.maus ? `<span>+</span><span class="maus">${esc(b.maus)}</span>` : '') + '</span>' :
+                (b.maus ? `<span class="keys"><span class="maus">${esc(b.maus)}</span></span>` : '');
+            document.getElementById('band').innerHTML = (b.nr ? `<span class="nr">${esc(b.nr)}</span>` : '') +
+                `<span class="text">${esc(b.text ?? '')}</span>` + keys;
+        }, b);
+        const png = await this.band_page.locator('#band').screenshot();
+        const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        const pixels = { w: info.width, h: info.height, data };
+        this.bands.set(key, pixels);
+        return pixels;
+    }
+
+    async set_band(change) {
+        Object.assign(this.band, change);
+    }
+
+    fail(message) {
+        throw new StepError(`${this.id}, Schritt ${this.step_no}: ${message}`);
+    }
+
+    // ── where things are ────────────────────────────────────────────────
+    async box(selector, which = 'first') {
+        const locator = this.page.locator(selector)[which]();
+        try {
+            await locator.waitFor({ state: 'visible', timeout: SELECTOR_TIMEOUT });
+        } catch {
+            this.fail(`„${selector}“ ist nicht zu sehen (umbenannt oder verschoben?)`);
+        }
+        await locator.scrollIntoViewIfNeeded().catch(() => { });
+        const b = await locator.boundingBox();
+        if (!b) this.fail(`„${selector}“ hat keine Größe`);
+        return b;
+    }
+
+    // A target: a selector, { ziel, x, y } (share of its box), { pixel: [x, y] }
+    // on the sprite canvas, { feld: [spalte, zeile] } in the level (zeile 0 =
+    // the lowest row; cells of 24 × 24 as in the recipes' maps) or { punkt: [x, y] }.
+    async point(target) {
+        if (typeof target === 'string') {
+            const b = await this.box(target);
+            return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+        }
+        if (target?.ziel) {
+            const b = await this.box(target.ziel);
+            return { x: b.x + b.width * (target.x ?? 0.5), y: b.y + b.height * (target.y ?? 0.5) };
+        }
+        if (target?.pixel) {
+            const p = await this.page.evaluate(([px, py]) => {
+                const c = window.canvas;
+                if (!c?.element) return null;
+                const r = $(c.element)[0].getBoundingClientRect();
+                const half = ((c.pen_width + 1) % 2) * 0.5;
+                return { x: r.left + c.offset_x + (px + 0.5 + half) * c.scale, y: r.top + c.offset_y + (py + 0.5 + half) * c.scale };
+            }, target.pixel);
+            if (!p) this.fail('Die Zeichenfläche ist nicht da');
+            return p;
+        }
+        if (target?.feld) {
+            const p = await this.page.evaluate(([c, r]) => {
+                const le = window.game?.level_editor;
+                if (!le?.element) return null;
+                const rect = $(le.element)[0].getBoundingClientRect();
+                const [x, y] = le.world_to_ui([c * 24, r * 24 + 12]);
+                return { x: rect.left + x, y: rect.top + y };
+            }, target.feld);
+            if (!p) this.fail('Der Level-Editor ist nicht da');
+            return p;
+        }
+        if (target?.punkt) return { x: target.punkt[0], y: target.punkt[1] };
+        this.fail(`unbekanntes Ziel ${JSON.stringify(target)}`);
+    }
+
+    // ── recording ───────────────────────────────────────────────────────
+    async frame(steps = FRAME_STEPS) {
+        if (!this.recording) return;
+        const t0 = Date.now(), tm = [];
+        const { clip } = this.recording;
+        // Headless Chromium (software WebGL) may show the level view empty
+        // after it was hidden while the Spielen pane was recorded: the level
+        // editor draws only on changes. Drawing the same picture once more
+        // makes the screenshot show what a screen shows.
+        // (only for a few frames after the level pane came back: drawing it
+        // for every frame would make every screenshot slow)
+        const pane = await this.page.evaluate(() => window.current_pane);
+        if (pane === 'level' && this.last_pane !== 'level') this.redraw_frames = 8;
+        this.last_pane = pane;
+        if (this.redraw_frames > 0) {
+            this.redraw_frames--;
+            await this.page.evaluate(() => window.game?.level_editor?.render?.());
+        }
+        tm.push(Date.now() - t0);
+        const shot = await this.cdp.send('Page.captureScreenshot', {
+            format: 'png', optimizeForSpeed: true, clip: { x: clip.x, y: clip.y, width: clip.width, height: clip.height, scale: 1 },
+        });
+        const png = Buffer.from(shot.data, 'base64');
+        tm.push(Date.now() - t0);
+        const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        // the band on top, then the studio
+        const band = await this.band_pixels(info.width);
+        const out = Buffer.alloc((band.h + info.height) * info.width * 4);
+        band.data.copy(out, 0);
+        data.copy(out, band.data.length);
+        const f = { w: info.width, h: band.h + info.height, data: out };
+        tm.push(Date.now() - t0);
+        if (process.env.ANLEITUNG_DEBUG && tm[tm.length - 1] > 400) console.log('   slow frame', tm.join(' '));
+        for (let i = 0; i < steps; i++) this.recording.frames.push(f);
+    }
+
+    // Time passes as it does in the studio: frames as fast as they come, each
+    // as long as it really took (a test run in the Spielen pane plays at its speed).
+    async live(seconds) {
+        if (!this.recording) { await this.page.waitForTimeout(seconds * 1000); return; }
+        const until = Date.now() + seconds * 1000;
+        let last = Date.now();
+        while (Date.now() < until) {
+            const before = this.recording.frames.length;
+            await this.frame(1);
+            const now = Date.now();
+            const steps = Math.max(1, Math.round((now - last) / STEP_MS));
+            const f = this.recording.frames[before];
+            for (let i = 1; i < steps; i++) this.recording.frames.push(f);
+            last = now;
+        }
+    }
+
+    // A still moment (nothing moves): one frame, held.
+    async hold(seconds) {
+        if (!this.recording) return;
+        await this.frame(Math.max(1, Math.round(seconds * 1000 / STEP_MS)));
+    }
+
+    async start_video(clip) {
+        this.recording = { clip, frames: [] };
+        await this.page.evaluate(([x, y]) => window.__guide.move(x, y, false), [this.x, this.y]);
+    }
+
+    stop_video() {
+        const r = this.recording;
+        this.recording = null;
+        return r.frames;
+    }
+
+    // ── what a child does ───────────────────────────────────────────────
+    async move_to(p, ms) {
+        const page = this.page;
+        const dist = Math.hypot(p.x - this.x, p.y - this.y);
+        if (dist < 0.5) { await page.mouse.move(p.x, p.y); return; }
+        const duration = ms ?? Math.min(1100, 260 + dist * 0.75);
+        const n = this.recording ? Math.max(2, Math.round(duration / (FRAME_STEPS * STEP_MS))) : Math.max(2, Math.round(dist / 40));
+        const x0 = this.x, y0 = this.y;
+        for (let i = 1; i <= n; i++) {
+            // while a button is held (painting), the way is even and the mouse
+            // passes every few pixels – the pen must not skip a cell
+            const t = this.down ? i / n : ease(i / n);
+            const px = this.x, py = this.y;
+            this.x = x0 + (p.x - x0) * t; this.y = y0 + (p.y - y0) * t;
+            await page.mouse.move(this.x, this.y, { steps: this.down ? Math.max(1, Math.ceil(Math.hypot(this.x - px, this.y - py) / 6)) : 1 });
+            await page.evaluate(([x, y, d]) => window.__guide.move(x, y, d), [this.x, this.y, this.down]);
+            await this.frame();
+        }
+    }
+
+    async ripple(right = false) {
+        const n = this.recording ? 5 : 0;
+        for (let i = 0; i <= n; i++) {
+            await this.page.evaluate(([x, y, t, r]) => window.__guide.ripple(x, y, t, r), [this.x, this.y, n ? i / n : 1, right]);
+            if (i < n) await this.frame(2);
+        }
+    }
+
+    // mit: keys held during a click or a drag (Strg + ziehen, Shift + Klick)
+    async modifiers(mit, down) {
+        const keys = [].concat(mit ?? []);
+        for (const k of down ? keys : [...keys].reverse()) await (down ? this.page.keyboard.down(k) : this.page.keyboard.up(k));
+        await this.set_band({ keys: down ? keys.flatMap(k => key_caps(k)) : [] });
+    }
+
+    async click(target, { button = 'left', count = 1, mit } = {}) {
+        await this.move_to(await this.point(target));
+        if (mit) await this.modifiers(mit, true);
+        if (button === 'right') await this.set_band({ maus: 'Rechtsklick' });
+        else if (mit) await this.set_band({ maus: 'Klick' });
+        await this.frame(4);
+        for (let i = 0; i < count; i++) {
+            await this.page.mouse.down({ button, clickCount: i + 1 });
+            await this.page.mouse.up({ button, clickCount: i + 1 });
+        }
+        await this.ripple(button === 'right');
+        await this.page.waitForTimeout(150);
+        await this.frame(6);
+        if (mit) await this.modifiers(mit, false);
+        await this.set_band({ maus: '' });
+    }
+
+    async drag(points, ms, mit) {
+        const ps = [];
+        for (const t of points) ps.push(await this.point(t));
+        await this.move_to(ps[0]);
+        if (mit) { await this.modifiers(mit, true); await this.set_band({ maus: 'ziehen' }); }
+        await this.frame(3);
+        this.down = true;
+        await this.page.mouse.down();
+        await this.page.evaluate(([x, y]) => window.__guide.move(x, y, true), [this.x, this.y]);
+        await this.frame(3);
+        for (const p of ps.slice(1)) {
+            const dist = Math.hypot(p.x - this.x, p.y - this.y);
+            await this.move_to(p, ms ?? Math.min(1400, 200 + dist * 2.2));
+        }
+        await this.frame(3);
+        await this.page.mouse.up();
+        this.down = false;
+        await this.page.evaluate(([x, y]) => window.__guide.move(x, y, false), [this.x, this.y]);
+        if (mit) { await this.modifiers(mit, false); await this.set_band({ maus: '' }); }
+        await this.page.waitForTimeout(120);
+        await this.frame(6);
+    }
+
+    async key(combo, hold_seconds, show = true) {
+        const caps = key_caps(combo);
+        if (show) await this.set_band({ keys: caps });
+        if (hold_seconds) {
+            // held for exactly this long: the key goes up on a timer of its
+            // own, not after a screenshot that may still be on its way (the
+            // figure would walk too far)
+            const parts = String(combo).split('+');
+            for (const p of parts) await this.page.keyboard.down(p);
+            const released = new Promise(resolve => setTimeout(async () => {
+                for (const p of [...parts].reverse()) await this.page.keyboard.up(p);
+                resolve();
+            }, hold_seconds * 1000));
+            await this.live(hold_seconds);
+            await released;
+        } else {
+            await this.frame(6);
+            await this.page.keyboard.press(combo);
+            await this.page.waitForTimeout(200);
+            await this.frame(14);
+        }
+        if (show) await this.set_band({ keys: [] });
+        await this.frame(2);
+    }
+
+    // A path through a menu (right-click menus, Eigenschaft hinzufügen,
+    // Funktionen, dropdowns): the entries by their label, the last is clicked.
+    async menu(labels) {
+        labels = [].concat(labels);
+        for (let i = 0; i < labels.length; i++) {
+            const label = String(labels[i]).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            // the deepest open menu that has it (a submenu lies after its parent)
+            const sel = `.context-menu-item:visible:has(> .context-menu-label:text-is("${label}"))`;
+            const b = await this.box(sel, 'last');
+            const p = { x: b.x + Math.min(b.width / 2, 60), y: b.y + b.height / 2 };
+            if (i < labels.length - 1) {
+                await this.move_to(p);
+                await this.page.waitForTimeout(150);
+                await this.frame(5);
+            } else await this.click({ punkt: [p.x, p.y] });
+        }
+    }
+
+    // The level editor shows these cells, [spalte0, zeile0, spalte1, zeile1]
+    // (zeile 0 = the lowest row), as big as they fit – like the view jumps to
+    // a Code in the Signale-Übersicht (view_signal_rects).
+    async view(cells) {
+        const ok = await this.page.evaluate(([c0, r0, c1, r1]) => {
+            const le = window.game?.level_editor;
+            if (!le?.element) return false;
+            const x0 = Math.min(c0, c1) * 24 - 12, x1 = Math.max(c0, c1) * 24 + 12;
+            const y0 = Math.min(r0, r1) * 24, y1 = Math.max(r0, r1) * 24 + 24;
+            const need = Math.min(le.height / (y1 - y0), le.width / (x1 - x0));
+            le.visible_pixels = le.height / need;
+            le.fix_scale();
+            le.camera_x = (x0 + x1) / 2;
+            le.camera_y = (y0 + y1) / 2;
+            le.auto_adjust_camera = false;
+            le.handleResize();
+            le.refresh();
+            le.render();
+            return true;
+        }, cells);
+        if (!ok) this.fail('ansicht: Der Level-Editor ist nicht da');
+        await this.frame(2);
+    }
+
+    async type(text) {
+        for (const ch of String(text)) {
+            await this.page.keyboard.type(ch);
+            await this.frame(2);
+        }
+        await this.frame(6);
+    }
+
+    // One step of the guide's YAML: { klick: … }, { malen: […] }, { taste: … } …
+    async step(s) {
+        this.step_no++;
+        if (process.env.ANLEITUNG_DEBUG) {
+            const t0 = Date.now();
+            try { return await this.step_inner(s); } finally { console.log(`  ${this.step_no} ${Date.now() - t0} ms ${JSON.stringify(s).slice(0, 90)}`); }
+        }
+        return this.step_inner(s);
+    }
+
+    async step_inner(s) {
+        // every key must mean something: a YAML slip (a comma in a caption
+        // without quotes) would otherwise pass silently
+        const actions = ['bewegen', 'klick', 'doppelklick', 'rechtsklick', 'ziehen', 'malen', 'taste', 'tippen', 'warten', 'pause', 'js', 'pruefen', 'menue', 'ansicht'];
+        const extras = ['hinweis', 'nr', 'mit', 'dauer', 'halten', 'zeigen', 'meldung'];
+        const unknown = Object.keys(s ?? {}).filter(k => !actions.includes(k) && !extras.includes(k));
+        if (unknown.length) this.fail(`unbekannt: ${unknown.join(', ')} (Komma in einem Text ohne Anführungszeichen?)`);
+        if (Object.keys(s).filter(k => actions.includes(k)).length > 1) this.fail(`mehrere Aktionen in einem Schritt: ${JSON.stringify(s)}`);
+        const page = this.page;
+        if (s.hinweis !== undefined) {
+            await this.set_band({ text: s.hinweis || '', nr: s.nr ?? null });
+            if (Object.keys(s).every(k => k === 'hinweis' || k === 'nr')) { await this.frame(10); return; }
+        }
+        if (s.bewegen !== undefined) await this.move_to(await this.point(s.bewegen), s.dauer ? s.dauer * 1000 : undefined);
+        else if (s.klick !== undefined) await this.click(s.klick, { mit: s.mit });
+        else if (s.doppelklick !== undefined) await this.click(s.doppelklick, { count: 2 });
+        else if (s.rechtsklick !== undefined) await this.click(s.rechtsklick, { button: 'right' });
+        else if (s.ziehen !== undefined) await this.drag([s.ziehen.von, s.ziehen.nach], s.dauer ? s.dauer * 1000 : undefined, s.mit);
+        else if (s.malen !== undefined) await this.drag(s.malen, s.dauer ? s.dauer * 1000 : undefined, s.mit);
+        else if (s.taste !== undefined) await this.key(s.taste, s.halten, s.zeigen !== false);
+        else if (s.tippen !== undefined) await this.type(s.tippen);
+        else if (s.menue !== undefined) await this.menu(s.menue);
+        else if (s.ansicht !== undefined) await this.view(s.ansicht);
+        else if (s.warten !== undefined) await this.live(Number(s.warten));
+        else if (s.pause !== undefined) await this.hold(Number(s.pause));
+        else if (s.js !== undefined) {
+            try { await page.evaluate(s.js); } catch (e) { this.fail(`js: ${e.message}`); }
+            await page.waitForTimeout(200);
+        } else if (s.pruefen !== undefined) {
+            const ok = await page.evaluate(s.pruefen).catch(e => `Fehler: ${e.message}`);
+            if (ok !== true) this.fail(`${s.meldung ?? 'Prüfung fehlgeschlagen'} (${s.pruefen} → ${JSON.stringify(ok)})`);
+        } else if (s.hinweis === undefined) this.fail(`unbekannter Schritt ${JSON.stringify(s)}`);
+    }
+
+    async steps(list) {
+        for (const s of list ?? []) await this.step(s);
+    }
+
+    // The part of the screen a video or picture shows: a selector, several
+    // (their common box), [x, y, w, h], or 'ganz'; `rand` pixels around it.
+    async clip(spec, rand = 12) {
+        const vw = 1600, vh = 900;
+        let b;
+        if (!spec || spec === 'ganz') b = { x: 0, y: 0, width: vw, height: vh };
+        else if (Array.isArray(spec) && typeof spec[0] === 'number') b = { x: spec[0], y: spec[1], width: spec[2], height: spec[3] };
+        else {
+            const boxes = [];
+            for (const sel of [].concat(spec)) boxes.push(await this.box(sel));
+            const x0 = Math.min(...boxes.map(q => q.x)), y0 = Math.min(...boxes.map(q => q.y));
+            const x1 = Math.max(...boxes.map(q => q.x + q.width)), y1 = Math.max(...boxes.map(q => q.y + q.height));
+            b = { x: x0 - rand, y: y0 - rand, width: x1 - x0 + 2 * rand, height: y1 - y0 + 2 * rand };
+        }
+        const x = Math.max(0, Math.floor(b.x)), y = Math.max(0, Math.floor(b.y));
+        // even sizes: friendlier to every encoder
+        const w = Math.min(vw - x, Math.ceil(b.width)) & ~1, h = Math.min(vh - y, Math.ceil(b.height)) & ~1;
+        return { x, y, width: w, height: h, w, h };
+    }
+
+    // Numbered marks for a picture: [{ ziel, nr, rahmen: true }]
+    async place_marks(marks) {
+        const list = [];
+        for (const m of marks ?? []) {
+            const b = m.ziel ? await this.box(m.ziel) : null;
+            const p = m.ziel ? { x: b.x + b.width * (m.x ?? 0), y: b.y + b.height * (m.y ?? 0) } : await this.point(m);
+            list.push({ nr: m.nr, x: p.x, y: p.y, frame: m.rahmen && b ? { x: b.x, y: b.y, w: b.width, h: b.height } : null });
+        }
+        await this.page.evaluate(l => window.__guide.marks(l), list);
+    }
+
+    async picture(clip) {
+        const png = await this.page.screenshot({ clip, animations: 'allow' });
+        const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        return { w: info.width, h: info.height, data };
+    }
+}

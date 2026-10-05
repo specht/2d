@@ -40,6 +40,8 @@ The Studio lets you:
 
 The built-in **Rezepte** provide small German-language examples showing how individual mechanics can be assembled into games. Every recipe's scene can be opened in the Studio and saved as an own game.
 
+Before the recipes, the Hilfe tab shows the **Erste Schritte** guides (*Teil 1 … 6*: Ein Sprite zeichnen, Deine Spielfigur, Das erste Level, Speichern und Laden, and two on Signale). They show where to click in the studio: videos with a visible mouse pointer, the keys pressed and a numbered caption for every step, matching the numbered steps in the text, plus pictures with numbered marks. They are recorded automatically from the real studio (`rezepte/anleitungen/`, `rezepte/tools/anleitungen.mjs`), so they always show the current user interface, and every guide checks that its steps still work (a button that is gone fails the build). A click on a video starts it again; links lead to the matching recipes.
+
 The project deliberately keeps the authoring environment visual and approachable. New mechanics should preferably be composed from reusable traits rather than requiring special-purpose character classes or scripting.
 
 ## How a game is structured

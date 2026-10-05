@@ -2750,6 +2750,76 @@ a, a:visited {
     color: #94b0c2;
 }
 
+/* Erste Schritte (rezepte.js, rezepte/tools/anleitungen.mjs): the guides show
+   the studio itself, so their popup is wider and their videos and pictures are
+   shown at their real size where they fit (never stretched: the text in them
+   stays sharp). Long lines of text are hard to read: the text keeps its width. */
+/* a card of a guide shows the studio, not pixel art: smooth when scaled */
+.rezept-karte.anleitung .rezept-bild img {
+    image-rendering: auto;
+    object-position: center top;
+}
+.rezept-dialog.anleitung {
+    max-width: min(1520px, 100%);
+}
+.rezept-dialog.anleitung .rezept-inhalt > :not(figure),
+.rezept-dialog.anleitung .rezept-lead {
+    max-width: 860px;
+}
+.anleitung-medium {
+    margin: 0.8em 0 1.4em 0;
+}
+.anleitung-medium img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.5);
+}
+.anleitung-medium figcaption {
+    margin-top: 0.4em;
+    font-size: 90%;
+    color: #94b0c2;
+}
+/* a video starts again with a click */
+.anleitung-video {
+    position: relative;
+    width: fit-content;
+    max-width: 100%;
+    cursor: pointer;
+}
+.anleitung-video::after {
+    content: '\f01e  Nochmal';
+    font-family: ForkAwesome, 'IBM Plex Sans', sans-serif;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: rgba(26, 28, 44, 0.85);
+    color: #ffcd75;
+    font-size: 80%;
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none;
+}
+.anleitung-video:hover::after {
+    opacity: 1;
+}
+.rezept-inhalt kbd {
+    display: inline-block;
+    min-width: 1.1em;
+    padding: 0 0.4em;
+    font: bold 85% 'IBM Plex Mono', 'Roboto Mono', monospace;
+    text-align: center;
+    color: #fff;
+    background: #222;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-bottom-width: 3px;
+    border-radius: 5px;
+    line-height: 1.5;
+}
+
 .rezept-katalog {
     display: inline-flex;
     flex-direction: column;

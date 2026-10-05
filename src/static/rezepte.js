@@ -7,6 +7,11 @@
 //
 // Cards show a still frame and play their recording only while they are on
 // screen: forty animations at once would keep the browser busy for nothing.
+//
+// The Erste-Schritte guides (rezepte/tools/anleitungen.mjs, /anleitungen/
+// anleitungen.json) come first, in their own category: recorded in the real
+// studio, with videos of every step. They have their own numbers (Teil 1, 2 …),
+// so the recipes keep theirs.
 class RecipeGallery {
     constructor(container) {
         this.container = $(container);
@@ -27,8 +32,16 @@ class RecipeGallery {
             const response = await fetch(`/rezepte/rezepte.json?${window.CACHE_BUSTER || Date.now()}`);
             if (!response.ok) throw new Error(response.statusText);
             const data = await response.json();
-            this.recipes = data.rezepte ?? [];
-            this.categories = (data.kategorien ?? []).filter(c => this.recipes.some(r => r.kategorie === c));
+            // the guides are optional: without them the recipes are shown as before
+            let guides = { anleitungen: [] };
+            try {
+                const g = await fetch(`/anleitungen/anleitungen.json?${window.CACHE_BUSTER || Date.now()}`);
+                if (g.ok) guides = await g.json();
+            } catch { }
+            const guide_list = (guides.anleitungen ?? []).map(r => ({ ...r, anleitung: true }));
+            this.recipes = [...guide_list, ...(data.rezepte ?? [])];
+            const kategorien = [...(guide_list.length ? [guides.kategorie ?? guide_list[0].kategorie] : []), ...(data.kategorien ?? [])];
+            this.categories = kategorien.filter(c => this.recipes.some(r => r.kategorie === c));
         } catch (e) {
             this.container.empty().append($('<p>').addClass('rezepte-hinweis')
                 .text('Die Rezepte konnten nicht geladen werden.'));
@@ -54,27 +67,35 @@ class RecipeGallery {
         if (typeof studio_history_push === 'function') studio_history_push({ pane: 'help', ...state });
     }
 
-    // #01, #02, … in gallery order – for orientation ("mach mit Rezept #12 weiter")
+    // #01, #02, … in gallery order – for orientation ("mach mit Rezept #12 weiter");
+    // the guides count on their own (Teil 1, Teil 2 …)
     number(recipe) {
-        return '#' + String(this.recipes.indexOf(recipe) + 1).padStart(2, '0');
+        const same = this.recipes.filter(r => !!r.anleitung === !!recipe.anleitung);
+        const n = same.indexOf(recipe) + 1;
+        return recipe.anleitung ? `Teil ${n}` : '#' + String(n).padStart(2, '0');
+    }
+
+    folder(recipe) {
+        return recipe.anleitung ? '/anleitungen/' : '/rezepte/';
     }
 
     // The recording (animated WebP; older builds: GIF) with its content hash.
     media_url(recipe) {
         const file = recipe.bild ?? recipe.gif;
-        return `/rezepte/${file}${recipe.version ? '?' + recipe.version : ''}`;
+        return `${this.folder(recipe)}${file}${recipe.version ? '?' + recipe.version : ''}`;
     }
 
     // A single frame of the recording (older builds have none: then the recording).
     still_url(recipe) {
         if (!recipe.standbild) return this.media_url(recipe);
-        return `/rezepte/${recipe.standbild}${recipe.standbild_version ? '?' + recipe.standbild_version : ''}`;
+        return `${this.folder(recipe)}${recipe.standbild}${recipe.standbild_version ? '?' + recipe.standbild_version : ''}`;
     }
 
     // The recipe's scene as a game (rezepte/tools: spiele/<id>.json, written by
     // every build). Older builds have no `spiel` entry; in DEVELOPMENT the file
     // may still be there from `npm run studio`.
     scene_url(recipe) {
+        if (recipe.anleitung) return null;
         if (recipe.spiel) return `/rezepte/${recipe.spiel}${recipe.spiel_version ? '?' + recipe.spiel_version : ''}`;
         return window.DEVELOPMENT ? `/rezepte/spiele/${encodeURIComponent(recipe.id)}.json?${Date.now()}` : null;
     }
@@ -155,7 +176,7 @@ class RecipeGallery {
     }
 
     card(recipe, extra_class = '', label = null) {
-        const card = $('<button>').addClass('rezept-karte').addClass(extra_class)
+        const card = $('<button>').addClass('rezept-karte').addClass(extra_class).toggleClass('anleitung', !!recipe.anleitung)
             .on('click', () => this.show_recipe(recipe.id));
         // The recording fills the card, anchored at the bottom (see styles.css).
         const img = $('<img>').attr({ src: this.still_url(recipe), alt: recipe.titel, loading: 'lazy', decoding: 'async' })
@@ -229,10 +250,35 @@ class RecipeGallery {
         $(document).on('keydown', (e) => {
             if (e.key === 'Escape' && this.open_id && overlay.is(':visible')) { e.preventDefault(); this.close_popup(); }
         });
+        // a link to another recipe or guide in the text (anleitungen.mjs: rezept:<id>)
+        this.popup_body.on('click', 'a[data-rezept]', (e) => {
+            e.preventDefault();
+            this.show_recipe(e.currentTarget.dataset.rezept);
+        });
+        // a guide's video starts again with a click (anleitung-video)
+        this.popup_body.on('click', '.anleitung-video', (e) => this.restart_video($(e.currentTarget)));
         // inside the Hilfe pane: switching to another tab hides it together with the pane
         overlay.appendTo(document.getElementById('main_div_help') ?? document.body);
         this.popup_el = overlay;
         return overlay;
+    }
+
+    // An animated picture plays on from where it is when its src is set again;
+    // a new object URL of the same file starts it from its first frame.
+    async restart_video(figure) {
+        const img = figure.find('img')[0];
+        if (!img) return;
+        const url = img.dataset.src ?? img.getAttribute('src');
+        img.dataset.src = url;
+        try {
+            this.video_blobs ??= new Map();
+            if (!this.video_blobs.has(url)) this.video_blobs.set(url, await (await fetch(url)).blob());
+            const old = img.getAttribute('src');
+            img.setAttribute('src', URL.createObjectURL(this.video_blobs.get(url)));
+            if (old?.startsWith('blob:')) URL.revokeObjectURL(old);
+        } catch {
+            img.setAttribute('src', url);
+        }
     }
 
     close_popup(user = true) {
@@ -246,6 +292,7 @@ class RecipeGallery {
         for (const img of this.popup_body?.find('.rezept-bild img') ?? []) this.observer?.unobserve(img);
         this.popup_body?.empty();
         this.popup_el?.hide();
+        this.popup_el?.find('.rezept-dialog').removeClass('anleitung');
         $('#main_div_help').removeClass('rezept-offen');
     }
 
@@ -271,6 +318,8 @@ class RecipeGallery {
             .appendTo(article);
         $('<h2>').text(recipe.titel).appendTo(article);
         $('<p>').addClass('rezept-lead').text(recipe.kurz).appendTo(article);
+        // a guide is wider (its videos show the studio) and has its pictures in the text
+        overlay.find('.rezept-dialog').toggleClass('anleitung', !!recipe.anleitung);
         const stage = $('<figure>').addClass('rezept-buehne').appendTo(article);
         // Right above the recording (big recordings fill the screen): open
         // exactly this scene in the studio.
@@ -285,15 +334,16 @@ class RecipeGallery {
                 .on('click', (e) => this.open_scene(recipe, $(e.currentTarget)))
                 .appendTo(bar);
         }
-        $('<img>').addClass('rezept-hauptbild').attr({ src: this.media_url(recipe), alt: recipe.titel,
+        if (recipe.anleitung) stage.remove();
+        else $('<img>').addClass('rezept-hauptbild').attr({ src: this.media_url(recipe), alt: recipe.titel,
             width: recipe.breite, height: recipe.hoehe }).appendTo(stage);
         // Generated at build time from the Markdown sources in rezepte/texte.
         $('<div>').addClass('rezept-inhalt').html(recipe.html).appendTo(article);
         const more = $('<div>').addClass('rezept-weiter').appendTo(this.popup_body);
-        for (const [delta, label] of [[-1, 'Vorheriges Rezept'], [1, 'Nächstes Rezept']]) {
+        for (const [delta, label, guide_label] of [[-1, 'Vorheriges Rezept', 'Vorherige Anleitung'], [1, 'Nächstes Rezept', 'Nächste Anleitung']]) {
             const other = this.recipes[index + delta];
             if (!other) { $('<span>').appendTo(more); continue; }
-            this.card(other, 'klein', label).appendTo(more);
+            this.card(other, 'klein', other.anleitung ? guide_label : label).appendTo(more);
         }
         $('#main_div_help').addClass('rezept-offen');
         overlay.show();

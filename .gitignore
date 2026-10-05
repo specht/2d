@@ -6,5 +6,6 @@ docker/nginx/default.conf
 docker/ruby/Gemfile
 rezepte/tools/node_modules/
 rezepte/tools/fehler-*.gif
+rezepte/tools/fehler-*.webp
 src/ruby/credentials.rb
 src/ruby/hidden-root-tags.txt

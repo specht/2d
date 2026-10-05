@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node build.mjs",
     "studio": "node export-studio-games.mjs",
-    "check": "node build.mjs --check"
+    "check": "node build.mjs --check",
+    "anleitungen": "node anleitungen.mjs"
   },
   "dependencies": {
     "marked": "^18.0.0",

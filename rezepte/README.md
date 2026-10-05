@@ -593,3 +593,116 @@ For example swimming, gliding or a future `climb` state:
    it and falls back as usual.
 3. Add any new tiles to `katalog.yaml` and a character to `legende`.
 4. Write `texte/NN-schwimmen.md` with a scene, an input script and a check.
+
+## Erste Schritte: guides recorded in the studio
+
+The recipes show a mechanic from the game; the **Erste-Schritte guides**
+(*Anleitungen*) show *where to click in the studio*. They are recorded from
+the real studio (`src/static/studio.html`, unmodified) in headless Chromium,
+so they always show the current user interface: when a button moves or gets
+another name, the guide is recorded again – or fails, instead of showing
+something that is no longer there.
+
+```
+rezepte/
+  anleitungen/NN-id.md     one guide per file: YAML head (start, recordings) + German Markdown
+  tools/anleitungen.mjs    build: records changed guides, writes src/static/anleitungen/
+  tools/anleitung.mjs      plays the steps (pointer, clicks, keys, captions, marks)
+  tools/studio.mjs         serves the studio and stubs the server's API
+src/static/anleitungen/    generated: <id>-<name>.webp, standbild/<id>.webp, anleitungen.json (commit these)
+```
+
+```bash
+cd rezepte/tools
+npm run anleitungen                 # every guide that changed
+node anleitungen.mjs signale        # always these
+node anleitungen.mjs --force        # everything
+npm run anleitungen -- --check      # record and check, write nothing
+ANLEITUNG_DEBUG=1 node anleitungen.mjs signale   # time of every step
+```
+
+**Only what changed:** a guide's fingerprint (`quelle`) covers its YAML head,
+its starting game and *every* file below `src/static` except the generated
+`rezepte/` and `anleitungen/` (and the tools). Any change to the studio
+records all guides again (about two minutes each); changing a guide's text
+only does not. It is kept apart from `build.mjs` on purpose: the tools
+`build.mjs` uses belong to the recipes' fingerprint, and a guide must not
+re-record the recipes.
+
+**Every guide checks itself.** A step whose selector is not visible within a
+few seconds, a `pruefen` that is not `true`, a JavaScript error in the page or
+a step the player does not know fails the guide; the build exits with status
+1 and writes what was recorded up to the failure to
+`tools/fehler-<id>.webp`.
+
+**What the recordings show:** a mouse pointer (drawn into the page, so it is
+in every frame), a ring at every click (cyan for a right click), a filled dot
+while a button is held, and a band above every video with the step's number
+and caption, the keys pressed (German key caps, `Strg` + `Z`) and what the
+mouse does (*Rechtsklick*, *ziehen*). The band lies outside the studio's
+picture, so it never hides a button. Videos are lossless animated WebP at the
+real size of the studio (1600 × 900 viewport) with the real durations; a
+test run in the Spielen pane plays at its own speed. Pictures (`art: bild`)
+carry numbered marks that the text refers to.
+
+The studio runs without a server: `/api/save_game_temp` (Level testen)
+answers like the server and the game frame gets its sprite sheet laid out
+like `Main.render_spritesheet_for_tag`; `/api/save_game`, `/api/get_games`
+and `/api/load_game` remember what the guide saved in this run, so *Laden*
+lists exactly that (with a fixed date and icon); everything else answers
+`{}`. `Math.random` is seeded.
+
+### Writing a guide
+
+```yaml
+---
+titel: "Signale: Schalter und Tor verbinden"
+kurz: Ein Schalter sendet ein Signal, ein Tor reagiert darauf.
+start:                          # optional: the game the guide starts with
+  eine_ebene: true              # every sprite on one layer "Ebene 1", no level name
+  szene: { … }                  # a scene exactly like a recipe's (katalog.yaml sprites)
+aufnahmen:
+  - name: verbinden             # referenced in the text as ![Bildunterschrift](aufnahme:verbinden)
+    art: video                  # video | bild
+    titel: Verbinden            # the band's text before the first hinweis
+    ausschnitt: [0, 44, 1600, 818]   # [x, y, w, h], 'ganz', or selectors (their common box)
+    rand: 12                    # pixels around selectors
+    vorher: [ … ]               # steps before the recording starts (not shown)
+    schritte: [ … ]             # the recorded steps
+    nachher: [ … ]              # steps after it (not shown)
+    ende: 1.6                   # seconds the last picture stays
+    standbild: 9                # the moment (s) of the gallery card (first video only)
+    marken:                     # bild only: numbered circles, optionally framing the target
+      - { ziel: '#canvas', nr: 4, x: 0.04, y: 0.04, rahmen: true }
+---
+```
+
+Steps (one action per step; captions and modifiers may go with it):
+
+| Step | Does |
+| --- | --- |
+| `{ hinweis: Text, nr: 3 }` | the band shows ③ Text (alone: also a short pause) |
+| `klick: <ziel>` · `doppelklick` · `rechtsklick` | moves the pointer there and clicks; `mit: Control` holds keys |
+| `malen: [<ziel>, <ziel>, …]` | drags through the points with the button held (`mit:` as above) |
+| `ziehen: { von, nach }` | drags from one point to another |
+| `bewegen: <ziel>` | only moves the pointer (`dauer` in s) |
+| `menue: [Blöcke, man kann …]` | walks a right-click menu, dropdown or submenu by its labels |
+| `taste: Control+KeyZ` | presses a key (`halten: 1.2` holds it that long, `zeigen: false` hides the caps) |
+| `tippen: Tor auf` | types text |
+| `warten: 1` | lets time pass (frames as they come: test runs) |
+| `pause: 1` | holds the current picture |
+| `ansicht: [c0, r0, c1, r1]` | the level view shows these cells (row 0 = the lowest) |
+| `js: …` · `pruefen: …` (`meldung:`) | runs JavaScript; a `pruefen` must return `true` |
+
+A *ziel* is a selector (`'#tool_menu_level .button[title^="Verbinden"]'` –
+prefer titles and labels the children see over positions), `{ ziel, x, y }`
+(a share of its box), `{ pixel: [x, y] }` on the drawing area, `{ feld:
+[spalte, zeile] }` in the level (cells of 24, as in the recipes' maps, row 0
+at the bottom) or `{ punkt: [x, y] }`. Captions with a comma or colon need
+quotes – the player refuses unknown keys, so a slip fails the build.
+
+Text: like the recipes (German, "du", Kurz gesagt → numbered steps that
+match the numbers in the videos → Wenn's nicht klappt → Mach mehr draus),
+with `<kbd>Strg</kbd>` for keys and `[Text](rezept:id)` for links to recipes
+and other guides (checked by the build). The Hilfe tab shows the guides first,
+as *Erste Schritte* (*Teil 1, 2 …*); a click on a video starts it again.
