@@ -3,7 +3,7 @@ titel: So wird ein Level geschafft
 kategorie: Signale
 stufe: 2
 skala: 4
-kurz: Ein Level ist geschafft, wenn die Spielfigur das Ziel erreicht – oder wenn ein Signal es sagt, zum Beispiel ein eingesammelter Edelstein.
+kurz: Ein Level ist geschafft, wenn die Spielfigur das Ziel erreicht – oder wenn ein Signal es sagt. Und ein Ziel kann zu sein, bis ein Schalter es öffnet.
 szene:
   karte: |
     ..........
@@ -37,12 +37,37 @@ varianten:
       signale: ['7 an']
       geschafft: true
       lebt: true
+  # 3. an exit that opens only on a Signal: closed at first (the figure walks
+  # over it), the switch opens it; it sends "Am Ziel" while the figure stands at it
+  - szene:
+      signale: { 3: Ziel offen, 8: Am Ziel }
+      legende:
+        S: { sprite: schalter, platziert: { switch: { signal_code: 3 } } }
+        '!': { sprite: ziel, platziert: { level_complete: { opens_on_signal: true, signal_code: 3, signal_on_reach: true, send_code: 8 } } }
+      karte: |
+        ..........
+        ..........
+        ..........
+        .P..!..S..
+        ##########
+    ablauf:
+      - { t: 0.3, halten: rechts, dauer: 0.75 }
+      - { t: 1.3, drücken: aktion }
+      - { t: 1.8, halten: links, dauer: 0.4 }
+    dauer: 3.6
+    beschriftung:
+      - { text: 3. erst nach dem Schalter, spalte: 4, zeile: 1 }
+    erwartet:
+      signale: ['8 an', '8 aus', '3 an', '8 an']
+      geschafft: true
+      lebt: true
 ---
 ## Kurz gesagt
 
 1. **Das Ziel:** Ein Sprite mit der Eigenschaft **Levelwechsel** beendet das Level, sobald die Spielfigur es berührt.
 2. **Ein Signal:** Mit **geschafft bei Signal** ist das Level geschafft, sobald ein Signal ankommt – von einem Edelstein, einem Schalter, einem besiegten Gegner, wenn **alle Gegner besiegt** sind oder wenn die Zeit um ist.
-3. Danach geht es mit dem **nächsten Level** weiter. Nach dem letzten Level steht **Ende** da – und dass man dein Spiel geschafft hat.
+3. **Ein Ziel, das erst aufgeht:** Verbinde einen Schalter mit dem Ziel – dann ist es zu, bis der Schalter umgelegt ist.
+4. Danach geht es mit dem **nächsten Level** weiter. Nach dem letzten Level steht **Ende** da – und dass man dein Spiel geschafft hat.
 
 ## Das brauchst du
 
@@ -67,6 +92,17 @@ varianten:
 
 In der **Signale-Übersicht (Taste S)** steht die Regel als Satz: *Wenn »Edelstein« eingesammelt wird, dann ist das Level geschafft*.
 
+**Ein Ziel, das erst aufgeht:**
+
+1. Wähle das Werkzeug **Verbinden** (Taste R), klick erst auf den Schalter, dann auf das Ziel. Das Ziel bekommt **öffnet erst bei Signal**.
+2. Im Spiel läuft die Figur jetzt über das Ziel hinweg, bis der Schalter umgelegt ist. Danach bleibt es offen.
+3. Zeichne dem Ziel zwei Zustände: **Ausgang zu** und **Ausgang offen** – dann sieht man, ob es schon offen ist.
+4. Mit **sendet, wenn die Figur davorsteht** kann das Ziel selbst ein Signal senden – zum Beispiel lässt es ein Schild sagen: „Leg erst den Hebel um!“
+
+## In der Signale-Übersicht
+
+Ganz oben in der **Signale-Übersicht (Taste S)** steht immer die Karte **Level geschafft**: alles, was dieses Level beendet – jedes Ziel und **geschafft bei Signal**, mit **→ weiter:** daneben. Dort stellst du auch gleich ein, wohin es weitergeht und ob man dafür **F** drücken muss. Ein Ziel, das erst aufgeht, steht dort mit einem Schloss: *zu, bis »Ziel offen« kommt*.
+
 ## Welcher Weg passt?
 
 - **Ein Ziel** passt, wenn man irgendwo **hinkommen** muss: zum Ausgang, zur Fahne, zur Rakete.
@@ -86,7 +122,7 @@ Beide Wege gehen auch zusammen: Das Ziel funktioniert weiter, auch wenn das Leve
 
 ## Wenn's nicht klappt
 
-- **Die Figur läuft durch das Ziel hindurch:** Es liegt in einer Ebene ohne **Kollisionen erkennen**, oder ihm fehlt **Levelwechsel**.
+- **Die Figur läuft durch das Ziel hindurch:** Es liegt in einer Ebene ohne **Kollisionen erkennen**, oder ihm fehlt **Levelwechsel** – oder es **öffnet erst bei Signal** und das Signal ist noch nicht gekommen (schau auf die Karte *Level geschafft*).
 - **Das Signal kommt an, aber das Level geht weiter:** Bei den Level-Eigenschaften ist **geschafft bei Signal** aus, oder es hat ein anderes Signal als der Sender (schau in die Signale-Übersicht).
 - **Nach dem Ziel kommt sofort das Ende:** Es gibt kein weiteres Level mit **Level verwenden**.
 

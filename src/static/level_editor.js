@@ -618,8 +618,14 @@ class LevelEditor {
                         self.history_rebase();
                     },
                     gen_new_item: (type) => {
+                        // a new Sprites or Hintergrund layer goes in front of the
+                        // Hintergründe at the back (the sky): behind them nobody would see it
+                        const level_layers = self.game.data.levels[self.level_index].layers;
+                        let at = level_layers.length;
+                        if (type === 'sprites' || type === 'backdrop')
+                            while (at > 0 && level_layers[at - 1].type === 'backdrop') at--;
                         let layer_struct = new LayerStruct(self);
-                        self.layer_structs.push(layer_struct);
+                        self.layer_structs.splice(at, 0, layer_struct);
                         let layer = { type: type };
                         if (type === 'signal_area') {
                             const level = self.game.data.levels[self.level_index];
@@ -650,11 +656,11 @@ class LevelEditor {
                             let rect = { left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 };
                             layer.rects = [rect];
                         }
-                        self.game.data.levels[self.level_index].layers.push(layer);
+                        self.game.data.levels[self.level_index].layers.splice(at, 0, layer);
                         self.game.fix_game_data();
                         self.refresh();
                         self.render();
-                        return self.game.data.levels[self.level_index].layers[self.game.data.levels[self.level_index].layers.length - 1];
+                        return self.game.data.levels[self.level_index].layers[at];
                     },
                     delete_item: (index) => {
                         self.game.data.levels[self.level_index].layers.splice(index, 1);
@@ -1692,7 +1698,7 @@ class LevelEditor {
             return true;
         }
         const placed = layer.sprites?.[object.placed_index];
-        const trait = { loot: null, baddie: 'baddie', text: 'text', counter_out: 'counter' }[object.role] ?? object.role;
+        const trait = { loot: null, baddie: 'baddie', text: 'text', counter_out: 'counter', exit_out: 'level_complete' }[object.role] ?? object.role;
         if (!placed || !trait) return false;
         if (!placed[3] || typeof placed[3] !== 'object') placed[3] = {};
         const props = placed[3][trait] ??= {};
@@ -1701,7 +1707,14 @@ class LevelEditor {
             props.send_code = null;
             return true;
         }
-        const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal', pickup: 'signal_on_collect', companion: 'waits_for_signal' }[trait];
+        // what an exit sends while the figure stands at it
+        if (object.role === 'exit_out') {
+            props.signal_on_reach = false;
+            delete props.send_code;
+            return true;
+        }
+        const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal', pickup: 'signal_on_collect', companion: 'waits_for_signal',
+            level_complete: 'opens_on_signal' }[trait];
         if (flag) {
             props[flag] = false;
             delete props.signal_code;
@@ -1752,7 +1765,7 @@ class LevelEditor {
     start_new_signal_rule() {
         if (menus.level.active_key !== 'tool/connect') menus.level.handle_click('tool/connect');
         this.cancel_connect();
-        this.show_level_notice('Verbinden: Klicke zuerst auf das, was senden soll (Schalter, Schlüssel, Druckplatte, Gegner, Signalbereich) – dann auf das, was reagieren soll (Tür, Ebene). Esc bricht ab.', 7000);
+        this.show_level_notice('Verbinden: Klicke zuerst auf das, was senden soll (Schalter, Schlüssel, Druckplatte, Gegner, Signalbereich) – dann auf das, was reagieren soll (Tür, Ausgang, Ebene). Esc bricht ab.', 7000);
     }
 
     // The Verzögerung of a sender in seconds (0: at once), as stored: the
@@ -2023,7 +2036,8 @@ class LevelEditor {
     // connected. One line under each Code field (an enemy can have two: what it
     // sends when defeated, and the key it leaves behind).
     add_signal_link_line(container, trait, key, entry_index) {
-        const role = key === 'drop_code' ? SIGNAL_LOOT_ROLE : key === 'send_code' ? SIGNAL_COUNTER_OUT_ROLE :
+        const role = key === 'drop_code' ? SIGNAL_LOOT_ROLE :
+            key === 'send_code' ? (trait === 'level_complete' ? SIGNAL_EXIT_OUT_ROLE : SIGNAL_COUNTER_OUT_ROLE) :
             SIGNAL_SPRITE_ROLES.find(role => role.trait === trait);
         if (!role) return;
         this.signal_link_lines ??= [];
@@ -3125,7 +3139,8 @@ class LevelEditor {
             return;
         }
         const cards = this.signal_cards(level);
-        const key = JSON.stringify([this.level_index, cards]);
+        const complete = this.complete_rule(level);
+        const key = JSON.stringify([this.level_index, cards, complete, this.level_target_choices(null)]);
         if (panel.length && key === this.signal_overview_key) return;
         this.signal_overview_key = key;
         const scroll = panel.find('.signal-overview-body').scrollTop() ?? 0;
@@ -3140,8 +3155,10 @@ class LevelEditor {
         $('<button class="signal-overview-close" title="Schließen (S)">').append($('<i class="fa fa-times">'))
             .on('click', () => this.set_view_option('show_signal_overview', false)).appendTo(head);
         const body = $('<div class="signal-overview-body">').appendTo(panel);
+        // first: what ends this level (every exit, "geschafft bei Signal")
+        this.build_complete_card(body, complete, true);
         if (!cards.length) {
-            $('<p class="signal-overview-empty">').text('Noch nichts in diesem Level sendet oder reagiert auf ein Signal. Setz zum Beispiel einen Schalter und ein Tor ins Level und verbinde sie mit dem Werkzeug Verbinden (R).').appendTo(body);
+            $('<p class="signal-overview-empty">').text('Sonst sendet oder reagiert noch nichts in diesem Level. Setz zum Beispiel einen Schalter und ein Tor ins Level und verbinde sie mit dem Werkzeug Verbinden (R).').appendTo(body);
         }
         for (const card of cards) this.build_signal_card(body, card, true);
         $('<button class="signal-overview-new">').append($('<i class="fa fa-plus">'), $('<span>').text(' Neue Regel'))
@@ -3158,6 +3175,127 @@ class LevelEditor {
             return Number.isInteger(index) && this.game.data.sprites[index] ? sprite_label(this.game.data.sprites[index], index) : '';
         };
         return signal_rules(level, traits_of, name_of);
+    }
+
+    // What ends a level, as one rule (level_map.js level_complete_rule), with
+    // sprite labels.
+    complete_rule(level) {
+        const { traits_of } = this.signal_context();
+        const name_of = (ref) => {
+            const index = this.game.sprite_index_for_ref(ref);
+            return Number.isInteger(index) && this.game.data.sprites[index] ? sprite_label(this.game.data.sprites[index], index) : '';
+        };
+        return level_complete_rule(level, traits_of, name_of);
+    }
+
+    // The card "Level geschafft", always first in the Signale-Übersicht: every
+    // exit and "geschafft bei Signal" is a line "Wenn …", and each says where
+    // it leads. interactive: where it leads and (an exit) "nur mit F" are
+    // changed right here – the same settings as the placed exit's; a click on
+    // the text selects the exit; × takes "geschafft bei Signal" away. An exit
+    // that opens only on a Signal says so (and is a receiver on that Code's card).
+    build_complete_card(body, rule, interactive) {
+        const level = this.game.data.levels[this.level_index];
+        const box = $('<div class="signal-rule signal-rule-complete">').toggleClass('signal-rule-problem', !!rule.problem).appendTo(body);
+        $('<div class="signal-rule-name signal-rule-name-text">').text('Level geschafft').appendTo(box);
+        const row = $('<div class="signal-rule-row">').appendTo(box);
+        $('<span class="signal-rule-word">').text('Wenn').appendTo(row);
+        const list = $('<div class="signal-rule-lines">').appendTo(row);
+        if (!rule.lines.length) $('<div class="signal-rule-missing">').text('nichts beendet dieses Level').appendTo(list);
+        rule.lines.forEach((line, i) => {
+            const entry = $('<div class="signal-rule-line signal-complete-line">').appendTo(list);
+            const head = $('<div>').appendTo(entry);
+            if (i > 0) $('<span class="signal-rule-or">').text('oder ').appendTo(head);
+            const text = $('<span>').text(line.text + (line.count > 1 ? ` (${line.count}×)` : '')).appendTo(head);
+            const pickable = line.objects.filter(o => o.kind !== 'level');
+            if (interactive && pickable.length) {
+                text.addClass('signal-rule-pick').attr('title', 'Auswählen');
+                let next = 0;
+                text.on('click', () => { this.pick_signal_overview_object(pickable[next % pickable.length]); next++; });
+            }
+            if (line.gate) $('<div class="signal-complete-gate">').append($('<i class="fa fa-lock">'))
+                .append(document.createTextNode(` zu, bis ${signal_code_text(line.gate.code, line.gate.name)} kommt`)).appendTo(entry);
+            if (!line.working) $('<div class="signal-rule-warning">').append($('<i class="fa fa-exclamation-triangle">'))
+                .append($('<span>').text(' Liegt in einer Ebene ohne Kollisionen (oder mit Parallaxe) – so funktioniert er nicht.')).appendTo(entry);
+            // where it leads
+            const old_delta = line.kind === 'exit' && !clean_level_target(line.target) && Math.round(line.delta) !== 1 ? Math.round(line.delta) : null;
+            const choices = this.level_target_choices(line.target, old_delta);
+            const current = clean_level_target(line.target) ?? (old_delta !== null ? LEVEL_TARGET_DELTA : '');
+            const where = $('<div class="signal-complete-where">').appendTo(entry);
+            $('<span class="signal-complete-arrow">').text('→ weiter:').appendTo(where);
+            if (interactive) {
+                const select = $('<select class="signal-complete-target">').attr('title', 'Wohin es danach weitergeht').appendTo(where);
+                for (const [value, label] of choices) $('<option>').val(value).text(label).appendTo(select);
+                select.val(current);
+                select.on('change', () => this.set_complete_line(line, { target: select.val() }));
+                if (line.kind === 'exit')
+                    $('<button type="button" class="signal-complete-key">').text('nur mit F').toggleClass('active', line.action_key)
+                        .attr('title', 'An: Die Spielfigur geht erst durch diesen Ausgang, wenn man davor die Aktionstaste (F) drückt.')
+                        .on('click', () => this.set_complete_line(line, { action_key: !line.action_key })).appendTo(where);
+            } else {
+                $('<span>').text(choices.find(([value]) => value === current)?.[1] ?? 'zum nächsten Level').appendTo(where);
+            }
+            if (interactive && line.kind === 'signal') {
+                entry.addClass('signal-rule-removable');
+                $('<button class="signal-rule-remove">').append($('<i class="fa fa-times">'))
+                    .attr('title', '„geschafft bei Signal“ ausschalten')
+                    .on('click', (e) => {
+                        e.stopPropagation();
+                        if (this.clear_signal_object(level, line.objects[0]))
+                            this.signal_objects_cleared('Das Signal beendet das Level nicht mehr – Strg+Z macht es rückgängig.');
+                    }).appendTo(entry);
+            }
+        });
+        const then_row = $('<div class="signal-rule-row">').appendTo(box);
+        $('<span class="signal-rule-word">').text('dann').appendTo(then_row);
+        $('<div class="signal-rule-lines">').append($('<div class="signal-rule-line">').text('ist das Level geschafft')).appendTo(then_row);
+        if (rule.problem === 'no_exit')
+            $('<div class="signal-rule-warning">').append($('<i class="fa fa-exclamation-triangle">'))
+                .append($('<span>').text(' Setz ein Sprite mit der Eigenschaft „Levelwechsel“ ins Level – zum Beispiel eine Fahne. Ohne eigenes Ziel führt es zum nächsten Level.')).appendTo(box);
+        return box;
+    }
+
+    // A line of "Level geschafft" changed: change: { target } ('' = the next
+    // level, as always) or { action_key }. For every exit on the line (as its
+    // placed settings) or "geschafft bei Signal" (the level's setting).
+    set_complete_line(line, change) {
+        if (window.collaboration?.can_edit_current?.() === false) {
+            this.show_level_notice('Gerade bearbeitet jemand anderes dieses Level.');
+            return;
+        }
+        const level = this.game.data.levels[this.level_index];
+        if ('target' in change && change.target === LEVEL_TARGET_DELTA) return;
+        for (const object of line.objects) {
+            if (object.kind === 'level') {
+                if (!('target' in change)) continue;
+                if (change.target) level.properties.signal_level_complete_target = change.target;
+                else delete level.properties.signal_level_complete_target;
+                continue;
+            }
+            if (this.refuse_locked_layer(object.layer_index)) return;
+            const placed = level.layers[object.layer_index]?.sprites?.[object.placed_index];
+            if (!placed) continue;
+            if (!placed[3] || typeof placed[3] !== 'object') placed[3] = {};
+            const props = placed[3].level_complete ??= {};
+            if ('target' in change) {
+                // a new choice replaces an older game's Delta for good
+                delete props.delta;
+                if (change.target) props.target = change.target;
+                else delete props.target;
+            }
+            if ('action_key' in change) {
+                if (change.action_key) props.action_key = true;
+                else delete props.action_key;
+            }
+            if (!Object.keys(props).length) delete placed[3].level_complete;
+        }
+        this.history_observe();
+        this.placed_properties_for = null;
+        $('.level-signal-controls').each((_, box) => $(box).data('refresh')?.());
+        this.refresh();
+        this.build_signal_links();
+        this.refresh_level_map?.();
+        this.render();
     }
 
     // One "Wenn … dann …" card. interactive: in the level editor (hover shows
@@ -3230,7 +3368,6 @@ class LevelEditor {
         const level = this.game.data.levels[level_index];
         if (!this.show_signal_overview || !level) return;
         const cards = this.signal_cards(level);
-        if (!cards.length) return;
         const panel = $('<div class="signal-overview signal-watch">').appendTo('#main_div_play');
         const head = $('<div class="signal-overview-head">').appendTo(panel);
         $('<span>').text('Signale in diesem Level').appendTo(head);
@@ -3243,6 +3380,7 @@ class LevelEditor {
         const body = $('<div class="signal-overview-body">').appendTo(panel);
         $('<p class="signal-watch-hint">').text('Spiel los: Eine Regel leuchtet auf, sobald ihr Signal ankommt.').appendTo(body);
         const boxes = new Map();
+        this.build_complete_card(body, this.complete_rule(level), false);
         for (const card of cards) boxes.set(card.code, this.build_signal_card(body, card, false));
         // the game must keep the keys: clicks on the panel give them back
         panel.on('mouseup', () => window.focus_play_frame?.());
@@ -4851,10 +4989,15 @@ class LevelEditor {
                             // not start with the keys and doors on 0
                             // a platform "bei Signal" (platforms.js) as well
                             if (((trait === 'text' && key === 'speaks_on_signal') || (trait === 'pickup' && key === 'signal_on_collect') ||
-                                (trait === 'companion' && key === 'waits_for_signal') ||
+                                (trait === 'companion' && key === 'waits_for_signal') || (trait === 'level_complete' && key === 'opens_on_signal') ||
                                 (trait === 'moving' && key === 'start' && value === 'signal')) &&
                                 (value === true || value === 'signal') && !('signal_code' in props))
                                 props.signal_code = free_signal_code(level);
+                            // an exit that sends while the figure stands at it: a free Code, too
+                            if (trait === 'level_complete' && key === 'signal_on_reach' && value === true && !('send_code' in props))
+                                props.send_code = free_signal_code(level);
+                            // the exit's line in the Signale-Übersicht changes with its settings
+                            if (trait === 'level_complete') this.refresh_signal_overview?.();
                             // a setting that shows or hides others ("Wer spricht" → Textfarbe)
                             if (property.rebuilds_panel) {
                                 this.placed_properties_for = null;
@@ -4873,6 +5016,15 @@ class LevelEditor {
                             // Code is "kein Signal" (not for the Beute: absent there means the drawing's Code)
                             const clear = key === 'drop_code' ? null : () => {
                                 const props = writable_props_of(trait);
+                                // what an exit sends: it stops sending
+                                if (key === 'send_code' && trait === 'level_complete') {
+                                    props.signal_on_reach = false;
+                                    delete props.send_code;
+                                    this.placed_properties_for = null;
+                                    setTimeout(() => this.refresh(), 0);
+                                    this.update_signal_links?.();
+                                    return;
+                                }
                                 // what a Zähler sends: "kein Signal"
                                 if (key === 'send_code') {
                                     props.send_code = null;
@@ -4881,7 +5033,8 @@ class LevelEditor {
                                 }
                                 // an enemy or a sign: its signal switches off; a key, door,
                                 // Schalter or Druckplatte: null, it neither sends nor reacts
-                                const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal', pickup: 'signal_on_collect', companion: 'waits_for_signal' }[trait];
+                                const flag = { baddie: 'signal_on_defeat', text: 'speaks_on_signal', pickup: 'signal_on_collect', companion: 'waits_for_signal',
+                                    level_complete: 'opens_on_signal' }[trait];
                                 if (flag) {
                                     props[flag] = false;
                                     delete props.signal_code;
@@ -4975,6 +5128,7 @@ class LevelEditor {
                                     if (value) return set(value);
                                     delete props[key];
                                     this.update_signal_links?.();
+                                    this.refresh_signal_overview?.();
                                 },
                             });
                         } else if (property.type === 'string') {

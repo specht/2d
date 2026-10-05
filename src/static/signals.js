@@ -356,6 +356,10 @@ const SIGNAL_SPRITE_ROLES = [
     // a moving platform that waits for a signal (placed moving.start, platforms.js)
     { trait: 'moving', sends: false, one: 'Plattform', many: 'Plattformen',
         active: (props) => props?.start === 'signal' },
+    // an exit (Levelwechsel) that opens only once its signal comes (placed
+    // level_complete.opens_on_signal; absent = open from the start, as always)
+    { trait: 'level_complete', sends: false, one: 'Ausgang', many: 'Ausgänge',
+        active: (props) => props?.opens_on_signal === true },
     // anything collected (placed pickup.signal_on_collect; absent = sends nothing, as always).
     // Last: a key that is also a pickup is a key here.
     { trait: 'pickup', sends: true, one: 'Sammelobjekt', many: 'Sammelobjekte',
@@ -403,6 +407,12 @@ function effective_loot_code(placed_props, drop) {
 // (absent = 0, null = "kein Signal", like every Code).
 const SIGNAL_COUNTER_OUT_ROLE = { trait: 'counter', id: 'counter_out', sends: true, one: 'Zähler', many: 'Zähler' };
 
+// An exit may also send while the figure stands at it (placed
+// level_complete.signal_on_reach with its send_code: "an" when the figure gets
+// there, "aus" when it leaves) – also an exit that is still closed, so a sign
+// can say what is missing. Absent = sends nothing, as always.
+const SIGNAL_EXIT_OUT_ROLE = { trait: 'level_complete', id: 'exit_out', sends: true, one: 'Ausgang', many: 'Ausgänge' };
+
 // Anzahl of a placed Zähler: a whole number from 1 on (absent: COUNTER_DEFAULT_COUNT).
 const COUNTER_DEFAULT_COUNT = 3;
 function counter_count(props) {
@@ -425,6 +435,10 @@ function placed_signal_roles(placed, traits, traits_of = null) {
     if (traits && 'counter' in traits) {
         const code = stored_signal_code(placed?.[3]?.counter?.send_code);
         if (code !== null) roles.push({ role: SIGNAL_COUNTER_OUT_ROLE, code });
+    }
+    if (traits && 'level_complete' in traits && placed?.[3]?.level_complete?.signal_on_reach === true) {
+        const code = stored_signal_code(placed[3].level_complete.send_code);
+        if (code !== null) roles.push({ role: SIGNAL_EXIT_OUT_ROLE, code });
     }
     if (traits && 'baddie' in traits) {
         const code = loot_key_code(placed?.[3]?.baddie, traits.baddie, traits_of);
@@ -658,6 +672,12 @@ function pick_signal_object(level, x, y, traits_of, size_of, current_layer = nul
             if (role.trait === 'counter')
                 sprites.push({ kind: 'sprite', layer_index: li, placed_index: pi, trait: 'counter', role: 'counter_out',
                     code: stored_signal_code(placed?.[3]?.counter?.send_code), sends: true, rect, anchor: signal_rect_centre(rect) });
+            // an exit can send while the figure stands at it
+            if (role.trait === 'level_complete') {
+                const exit = placed?.[3]?.level_complete;
+                sprites.push({ kind: 'sprite', layer_index: li, placed_index: pi, trait: 'level_complete', role: 'exit_out',
+                    code: exit?.signal_on_reach === true ? stored_signal_code(exit.send_code) : null, sends: true, rect, anchor: signal_rect_centre(rect) });
+            }
         }
         if (plain_hit === Infinity || (layer.sprites ?? []).some(placed => 'actor' in (traits_of(placed[0]) ?? {}))) continue;
         const box = layer_signal_box(layer, size_of);
@@ -701,12 +721,15 @@ function set_signal_object_code(level, object, code, sender) {
         const props = placed[3][object.trait] ??= {};
         // what a Zähler sends is its send_code
         if (object.role === 'counter_out') { props.send_code = code; return; }
+        // what an exit sends while the figure stands at it
+        if (object.role === 'exit_out') { props.send_code = code; props.signal_on_reach = true; return; }
         props.signal_code = code;
         if (object.trait === 'baddie') props.signal_on_defeat = true;
         if (object.trait === 'text') props.speaks_on_signal = true;
         if (object.trait === 'pickup') props.signal_on_collect = true;
         if (object.trait === 'companion') props.waits_for_signal = true;
         if (object.trait === 'moving') props.start = 'signal';
+        if (object.trait === 'level_complete') props.opens_on_signal = true;
         if (object.trait === 'door' && sender && (props.door_reaction ?? 'unlock') === 'unlock') {
             const reaction = sender.kind === 'area' || ['switch', 'pressure_plate'].includes(sender.trait) ? 'follow' :
                 sender.trait === 'baddie' ? 'open' : null;
@@ -741,6 +764,7 @@ const SIGNAL_SENDER_TEXT = {
     loot: (n) => `der Schlüssel von »${n}« eingesammelt wird`,
     pickup: (n) => `»${n}« eingesammelt wird`,
     counter_out: (n, props) => `»${n}« bis ${counter_count(props)} gezählt hat`,
+    exit_out: (n) => `die Spielfigur am Ausgang »${n}« steht`,
 };
 // what "aus" means for a sender that also sends it
 const SIGNAL_SENDER_OFF_TEXT = {
@@ -748,6 +772,7 @@ const SIGNAL_SENDER_OFF_TEXT = {
     pressure_plate: 'Heruntergehen schickt „aus“',
     area: 'Hinausgehen schickt „aus“',
     counter_out: 'Fällt der Zähler darunter, schickt er „aus“',
+    exit_out: 'Weggehen schickt „aus“',
 };
 const SIGNAL_DOOR_TEXT = {
     unlock: (n) => `ist »${n}« aufgeschlossen`,
@@ -810,6 +835,10 @@ function signal_rules(level, traits_of, name_of) {
                         const target = card(found.code);
                         add(target.receivers, `zählt »${name}« mit (bis ${counter_count(props)}; „aus“ zählt zurück)`, object);
                         target.reacts_to_off = true;
+                        continue;
+                    }
+                    if (found.role.trait === 'level_complete') {
+                        add(card(found.code).receivers, `öffnet sich der Ausgang »${name}«`, object);
                         continue;
                     }
                     if (found.role.trait === 'moving') {
@@ -1041,7 +1070,7 @@ if (typeof module !== 'undefined' && module.exports) {
         door_signal_action, layer_reacts_to_signals, layer_visible_at_start, layer_visible_after,
         switch_flipped, SIGNAL_SPRITE_ROLES, placed_signal_role, valid_signal_rect, point_in_signal_rects,
         SIGNAL_LOOT_ROLE, loot_key_code, effective_loot_code, placed_signal_roles, NEW_SENDER_TRAITS,
-        SIGNAL_COUNTER_OUT_ROLE, COUNTER_DEFAULT_COUNT, counter_count, counter_step, set_signal_object_code,
+        SIGNAL_COUNTER_OUT_ROLE, SIGNAL_EXIT_OUT_ROLE, COUNTER_DEFAULT_COUNT, counter_count, counter_step, set_signal_object_code,
         give_new_senders_codes, give_defeat_sender_code, door_setting,
         signal_partners, describe_signal_partners, signal_codes_in_level, free_signal_code,
         signal_objects, signal_links, same_signal_object, pick_signal_object, connect_signal_objects, stored_signal_code,

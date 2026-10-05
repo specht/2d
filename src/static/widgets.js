@@ -69,8 +69,15 @@ class DragAndDropWidget {
                 button.click(function(e) {
                     console.log(`adding ${type}!`);
                     self.gen_new_item_options_div.hide();
-                    let index = self.options.items.length;
-                    let item = self.options.gen_item(self.options.gen_new_item(type), index);
+                    const added = self.options.gen_new_item(type);
+                    // put in the middle of the list (a layer in front of the sky): the whole list again
+                    const at = self.options.items.indexOf(added);
+                    if (at >= 0 && at < self.options.items.length - 1) {
+                        self.rebuild();
+                        self.select_index(at);
+                        return;
+                    }
+                    let item = self.options.gen_item(added, at >= 0 ? at : self.options.items.length - 1);
                     self._append_item(item);
                     self._move_add_div_to_end();
                     self.options.onclick(item, $(item).parent().parent().index());

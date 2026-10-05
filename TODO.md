@@ -14,7 +14,7 @@ Prefer the former.
 
 # Current Priorities
 
-Next up: the **Erste Schritte** guides (see below). The next phase concentrates on **authoring rather than engine breadth**:
+The **Erste Schritte** guides are there (see below). The next phase concentrates on **authoring rather than engine breadth**:
 
 1. Turn the level editor into a comfortable scene editor.
 2. Make editing existing level content as easy as placing new content.
@@ -158,11 +158,10 @@ Any new attack family must work for player characters and enemies through the sa
 
 # Erste Schritte: more guides
 
-The guides exist (see README, *Erste Schritte*; `rezepte/README.md` for writing them): Ein Sprite zeichnen, Deine Spielfigur, Das erste Level, Speichern und Laden, Signale: Schalter und Tor verbinden, Signale: mehr Tore, Verzögerung, aufräumen. Still missing from the agreed list:
+The twelve guides exist (see README, *Erste Schritte*; `rezepte/README.md` for writing them). Open:
 
-- **Hintergrund und Ebenen** – a Hintergrund layer behind the sprites, moving its rectangle, Bereiche (B), Hervorheben (D), Parallaxe in one sentence.
-- **Ein zweites Level und das Ende** – + in the level list, a Levelwechsel sprite as exit, *führt zu*, the Levelübersicht (L).
-- Signale beyond Schalter and Tor (Signalbereich, Druckplatte, a layer that appears) could get a third guide; the recipes in *Signale* cover them as finished scenes.
+- Signale beyond Schalter and Tor (Signalbereich, Druckplatte, a layer that appears) could get a guide of its own; the recipes in *Signale* cover them as finished scenes.
+- Zusammenarbeiten cannot be recorded with one browser yet (it needs a second studio and the server); a guide would need a second page in the recorder.
 - The sprite pictures in the drawing guide are drawn by the steps themselves; a guide that needs a real figure starts from a `szene`. If a guide should show drawing a whole figure, keep it short – every frame is a screenshot.
 
 **Also for newcomers, smaller:** fold the rarely needed fields of a trait (Spielfigur: Kollisionsbox, Kraft in X-Richtung, Trefferreaktion …) under "Mehr Einstellungen …", so a new trait first shows the two or three that matter (Geschwindigkeit, Sprungkraft). Decide per trait which fields are shown; the data does not change.

@@ -1694,6 +1694,11 @@ void main() {
 			if (!this.game.reached_flag) {
 				entry = this.has_trait_at(['level_complete'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 					this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
+				// "sendet, wenn die Figur davorsteht": "an" when the figure gets to
+				// an exit, "aus" when it leaves – open or still closed
+				this.game.exit_reached?.(entry, t);
+				// "öffnet erst bei Signal": a closed exit is no exit yet
+				if (entry && entry.exit_open === false) entry = null;
 				// An exit does nothing until the figure has once stood beside every
 				// exit: it may start or arrive (level_flow.js) on one.
 				if (!entry) this.game.exit_armed = true;
@@ -2866,7 +2871,22 @@ class Game {
 			// a platform "bei Signal": "an" to the end of its Weg, "aus" back (platforms.js)
 			if (entry.platform?.settings.start === 'signal')
 				this.signals.connect(stored_signal_code(entry.platform_code), (value) => MovingPlatforms.signal(entry.platform, value));
+			// an exit "öffnet erst bei Signal": closed until its Code comes "an", then
+			// open for good (absent = open from the start, as always). It shows
+			// "Ausgang zu" / "Ausgang offen" if drawn.
+			if ('level_complete' in traits) {
+				entry.exit_open = entry.exit_gate_on !== true;
+				this.show_trait_state(entry, 'level_complete', entry.exit_open ? 'open' : 'closed');
+				if (!entry.exit_open)
+					this.signals.connect(stored_signal_code(entry.exit_gate_code), (value) => {
+						if (!value || entry.exit_open) return;
+						entry.exit_open = true;
+						this.show_trait_state(entry, 'level_complete', 'open');
+					});
+			}
 		});
+		// the exit the figure stands at, for "sendet, wenn die Figur davorsteht"
+		this.exit_touching = null;
 		// "geschafft bei Signal" (level setting; absent = only the exit completes the level)
 		const complete = level.properties?.signal_level_complete;
 		if (Number.isInteger(complete))
@@ -3238,6 +3258,22 @@ class Game {
 		this.show_counter_state(entry);
 		if (!changed) return;
 		this.signals?.send(stored_signal_code(entry.counter_out), step.full, t, { delay: entry.counter_delay, from: entry });
+	}
+
+	// The exit the figure stands at changed (entry or null): an exit with
+	// "sendet, wenn die Figur davorsteht" sends "an" when the figure gets there
+	// and "aus" when it leaves (placed exit_send_on / exit_send_code).
+	// (has_trait_at returns a copy of the entry: compared by its index)
+	exit_reached(entry, t) {
+		const previous = this.exit_touching;
+		const now = entry ? entry.entry_index : null;
+		if (previous === now) return;
+		this.exit_touching = now;
+		for (const [index, value] of [[previous, false], [now, true]]) {
+			const exit = index === null ? null : this.active_level_sprites[index];
+			if (!exit || exit.exit_send_on !== true) continue;
+			this.signals?.send(stored_signal_code(exit.exit_send_code), value, t, { from: exit });
+		}
 	}
 
 	// "Zähler erreicht" when full, else "Zähler zeigt n" if that is drawn, else "Zähler wartet".

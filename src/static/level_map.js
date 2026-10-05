@@ -18,7 +18,8 @@ function level_map_senders(level, code, traits_of) {
     const partners = signal_partners(level, code, traits_of);
     const roles = [...(typeof SIGNAL_SPRITE_ROLES !== 'undefined' ? SIGNAL_SPRITE_ROLES : []),
         ...(typeof SIGNAL_LOOT_ROLE !== 'undefined' ? [SIGNAL_LOOT_ROLE] : []),
-        ...(typeof SIGNAL_COUNTER_OUT_ROLE !== 'undefined' ? [SIGNAL_COUNTER_OUT_ROLE] : [])];
+        ...(typeof SIGNAL_COUNTER_OUT_ROLE !== 'undefined' ? [SIGNAL_COUNTER_OUT_ROLE] : []),
+        ...(typeof SIGNAL_EXIT_OUT_ROLE !== 'undefined' ? [SIGNAL_EXIT_OUT_ROLE] : [])];
     return [
         ...roles.filter(role => role.sends && partners.counts[role.id ?? role.trait]).map(role => {
             const n = partners.counts[role.id ?? role.trait];
@@ -37,9 +38,15 @@ const LEVEL_MAP_GATE_WORDS = {
 
 // What an exit waits for: { code, name, text, senders, closed } or null.
 //   closed: the exit is not there (or the level not geschafft) until the Code comes
-function level_map_gate(level, layer, signal_exit, traits_of) {
-    let code = null, text = null, closed = false;
-    if (signal_exit) {
+// props: the placed exit's settings – "öffnet erst bei Signal" comes first.
+function level_map_gate(level, layer, signal_exit, traits_of, props = null) {
+    let code = null, text = null, closed = false, own = false;
+    if (!signal_exit && props?.opens_on_signal === true) {
+        code = typeof stored_signal_code === 'function' ? stored_signal_code(props.signal_code) : (props.signal_code ?? 0);
+        if (code === null) return null;
+        closed = true;
+        own = true;
+    } else if (signal_exit) {
         code = level.properties.signal_level_complete;
         closed = true;
     } else if (typeof layer_reacts_to_signals === 'function' && layer_reacts_to_signals(layer?.properties)) {
@@ -51,6 +58,7 @@ function level_map_gate(level, layer, signal_exit, traits_of) {
     const code_text = typeof signal_code_text === 'function' ? signal_code_text(code, name) : `Code ${code}`;
     const senders = level_map_senders(level, code, traits_of);
     if (signal_exit) text = `„geschafft bei Signal“ wartet auf ${code_text}`;
+    else if (own) text = `Der Ausgang öffnet erst bei ${code_text}`;
     else text = `Der Ausgang in der Ebene »${layer.properties?.name || 'ohne Namen'}« ${(LEVEL_MAP_GATE_WORDS[layer.properties.signal_reaction] ?? 'reagiert auf {c}').replace('{c}', code_text)}`;
     if (senders) text += senders.length ? ` – sendet: ${senders.join(', ')}` : ' – aber nichts sendet diesen Code';
     return { code, name, text, senders, closed };
@@ -68,13 +76,49 @@ function level_map_exits(level, traits_of) {
             if (!Array.isArray(placed) || !traits_of(placed[0])?.level_complete) return;
             const props = placed[3]?.level_complete ?? {};
             exits.push({ layer: li, index: si, target: props.target ?? null, delta: Number.isFinite(props.delta) ? props.delta : 1,
-                action_key: props.action_key === true, working, gate: level_map_gate(level, layer, false, traits_of) });
+                action_key: props.action_key === true, working, gate: level_map_gate(level, layer, false, traits_of, props) });
         });
     });
     if (Number.isInteger(level?.properties?.signal_level_complete))
         exits.push({ signal: true, target: level.properties.signal_level_complete_target ?? null, delta: 1, action_key: false, working: true,
             gate: level_map_gate(level, null, true, traits_of) });
     return exits;
+}
+
+// The card "Level geschafft" of the Signale-Übersicht: everything that ends
+// this level, as lines of one rule – every exit ("die Spielfigur »Fahne«
+// erreicht") and "geschafft bei Signal" ("das Signal … ankommt"). Every line
+// says where it leads (target, delta as stored) and how (action_key: only
+// with F; gate: closed until a Code comes; working: false for an exit the game
+// never sees). Equal exits share a line (count). name_of(sprite ref) gives a
+// sprite's label. Returns { lines, problem } – problem 'no_exit' when nothing
+// ends the level.
+//   line: { kind: 'exit' | 'signal', text, count, objects, target, delta, action_key, gate, working }
+//   objects: { kind: 'sprite', layer_index, placed_index, role: 'level_complete' } | { kind: 'level', setting }
+function level_complete_rule(level, traits_of, name_of) {
+    const lines = [];
+    for (const exit of level_map_exits(level, traits_of)) {
+        if (exit.signal) {
+            const code = level.properties.signal_level_complete;
+            const name = typeof signal_name === 'function' ? signal_name(level, code) : '';
+            const code_text = typeof signal_code_text === 'function' ? signal_code_text(code, name) : `Code ${code}`;
+            lines.push({ kind: 'signal', text: `das Signal ${code_text} ankommt`, count: 1,
+                objects: [{ kind: 'level', setting: 'signal_level_complete' }],
+                target: exit.target, delta: 1, action_key: false, gate: null, working: true });
+            continue;
+        }
+        const ref = level.layers[exit.layer]?.sprites?.[exit.index]?.[0];
+        const text = `die Spielfigur »${name_of(ref) || 'Ausgang'}« erreicht` + (exit.action_key ? ' und F drückt' : '');
+        const gate = exit.gate && exit.gate.closed ? { code: exit.gate.code, name: exit.gate.name, text: exit.gate.text } : null;
+        const key = JSON.stringify([text, exit.target, exit.delta, gate?.code ?? null, exit.working]);
+        const object = { kind: 'sprite', layer_index: exit.layer, placed_index: exit.index, role: 'level_complete' };
+        const same = lines.find(line => line.key === key);
+        if (same) { same.count++; same.objects.push(object); continue; }
+        lines.push({ kind: 'exit', key, text, count: 1, objects: [object], target: exit.target, delta: exit.delta,
+            action_key: exit.action_key, gate, working: exit.working });
+    }
+    for (const line of lines) delete line.key;
+    return { lines, problem: lines.length ? null : 'no_exit' };
 }
 
 // Nodes (one per level, plus the end), edges and warnings.
@@ -187,5 +231,5 @@ function level_map(levels, traits_of) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { level_map_exits, level_map, level_map_gate, level_map_senders };
+    module.exports = { level_map_exits, level_map, level_map_gate, level_map_senders, level_complete_rule };
 }

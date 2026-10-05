@@ -124,12 +124,20 @@ Jedes Signal hat eine Nummer, den **Code**. Was denselben Code hat, gehört zusa
 
 > **Tipp:** Leuchtet im Test keine Karte auf, kommt das Signal gar nicht an – dann liegt es am Sender. Leuchtet sie, aber nichts passiert, schau beim Empfänger unter **Bei Signal**.
 
+## Mehr mit Signalen
+
+- **Ein Signal, viele Empfänger:** Wähl beim zweiten Tor neben **Code** dasselbe Signal aus der Liste – oder verbinde mit **Verbinden** den Schalter noch einmal mit ihm. Die Karte zählt mit: *öffnet sich »Gittertor« (2×)*.
+- **Später ankommen:** Eine **Verzögerung** beim Sender (dem Schalter) lässt das Signal erst ein paar Sekunden später ankommen.
+- **Auch das Ziel hört zu:** Verbinde den Schalter mit dem Ziel – dann **öffnet es erst bei Signal**. Vorher kommt die Figur nicht hindurch. In der Karte **Level geschafft** steht dann 🔒 dabei.
+- **Wieder lösen:** **Kein Signal** in der Liste neben **Code** löst eine Verbindung. In der Übersicht hat jede Zeile beim Darüberfahren ein **×**. <kbd>Strg</kbd> + <kbd>Z</kbd> holt sie zurück.
+
 ## Wenn's nicht klappt
 
 - **Beim Klicken mit Verbinden passiert nichts:** Der Schalter liegt vielleicht in einer anderen Ebene. Verbinden findet ihn trotzdem – aber nur, wenn die Ebene sichtbar ist (das Auge bei *Ebenen*).
 - **Über dem Schalter erscheint im Spiel kein F:** Dem Sprite fehlt die Eigenschaft **Schalter → ist ein Schalter**.
 - **Die Karte sagt „noch nichts reagiert darauf“:** Der Empfänger hat ein anderes Signal. Verbinde die beiden noch einmal.
+- **„Tor auf“ steht im anderen Level nicht in der Liste:** Signale gelten nur in *ihrem* Level.
 
 ## Mach mehr draus
 
-Weiter geht's mit [Signale: mehr Tore, Verzögerung, aufräumen](rezept:signale-mehr). Fertige Beispiele zum Öffnen findest du in den Rezepten unter **Signale**, zum Beispiel [Ein Schalter öffnet das Tor](rezept:schalter).
+Signale können noch viel mehr: Ebenen erscheinen lassen, Schilder sprechen lassen, Schalter zählen. Schau in die Rezepte unter **Signale**, zum Beispiel [Ein Schalter öffnet das Tor](rezept:schalter), [Ein Tor, das nur kurz offen bleibt](rezept:tor-mit-zeit) oder [So wird ein Level geschafft](rezept:level-geschafft).

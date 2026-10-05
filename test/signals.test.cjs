@@ -1289,3 +1289,42 @@ test('Zähler in the editor: a new one gets two free Codes; Verbinden finds what
     // its Codes travel with names and count as taken
     assert.ok(signals.signal_codes_in_level(level).has(9));
 });
+
+// ------------------------------------------------- the exit (Levelwechsel)
+test('an exit takes part only when asked: "öffnet erst bei Signal", "sendet, wenn die Figur davorsteht"', () => {
+    const { placed_signal_roles, SIGNAL_EXIT_OUT_ROLE } = signals;
+    const traits = { level_complete: {} };
+    // a plain exit (as in every older game): no role, no Code
+    assert.deepEqual(placed_signal_roles(['e', 0, 0], traits), []);
+    assert.deepEqual(placed_signal_roles(['e', 0, 0, { level_complete: { target: 'x', action_key: true } }], traits), []);
+    const gated = placed_signal_roles(['e', 0, 0, { level_complete: { opens_on_signal: true, signal_code: 4 } }], traits);
+    assert.deepEqual(gated.map(f => [f.role.trait, f.role.sends, f.code]), [['level_complete', false, 4]]);
+    const sending = placed_signal_roles(['e', 0, 0, { level_complete: { signal_on_reach: true, send_code: 6 } }], traits);
+    assert.deepEqual(sending.map(f => [f.role, f.code]), [[SIGNAL_EXIT_OUT_ROLE, 6]]);
+});
+
+test('Verbinden: a switch and an exit – the exit opens on the switch; an exit can also be the sender', () => {
+    const { pick_signal_object, connect_signal_objects, signal_rules } = signals;
+    const traits = { ...editor_traits, e: { level_complete: {} }, t: { text: {} } };
+    const t = r => traits[r];
+    const size = (ref) => (ref in traits ? { width: 24, height: 24 } : null);
+    const level = { properties: {}, layers: [{ type: 'sprites', properties: {}, sprites: [['s', 60, 0], ['e', 200, 0], ['t', 300, 0]] }] };
+    const switch_ = pick_signal_object(level, 60, 10, t, size, 0, 'sender');
+    const exit_in = pick_signal_object(level, 200, 10, t, size, 0, 'receiver');
+    assert.deepEqual([exit_in.trait, exit_in.sends, exit_in.code], ['level_complete', false, null]);
+    const code = connect_signal_objects(level, switch_, exit_in, t, size);
+    assert.deepEqual(level.layers[0].sprites[1][3].level_complete, { signal_code: code, opens_on_signal: true });
+    // the exit as a sender (while the figure stands at it) to a sign
+    const exit_out = pick_signal_object(level, 200, 10, t, size, 0, 'sender');
+    assert.deepEqual([exit_out.role, exit_out.sends], ['exit_out', true]);
+    const sign = pick_signal_object(level, 300, 10, t, size, 0, 'receiver');
+    const code2 = connect_signal_objects(level, exit_out, sign, t, size);
+    assert.notEqual(code2, code);
+    assert.equal(level.layers[0].sprites[1][3].level_complete.send_code, code2);
+    assert.equal(level.layers[0].sprites[1][3].level_complete.signal_on_reach, true);
+    const cards = signal_rules(level, t, r => ({ s: 'Hebel', e: 'Fahne', t: 'Schild' })[r]);
+    assert.deepEqual(cards.map(c => [c.code, c.senders.map(l => l.text), c.receivers.map(l => l.text)]), [
+        [code, ['»Hebel« umgelegt wird'], ['öffnet sich der Ausgang »Fahne«']],
+        [code2, ['die Spielfigur am Ausgang »Fahne« steht'], ['liest die Spielfigur »Schild« vor']],
+    ]);
+});

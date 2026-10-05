@@ -295,8 +295,9 @@ export class GuidePlayer {
     }
 
     async click(target, { button = 'left', count = 1, mit } = {}) {
-        await this.move_to(await this.point(target));
+        // the keys first: some targets only appear while a key is held (H: the ?)
         if (mit) await this.modifiers(mit, true);
+        await this.move_to(await this.point(target));
         if (button === 'right') await this.set_band({ maus: 'Rechtsklick' });
         else if (mit) await this.set_band({ maus: 'Klick' });
         await this.frame(4);
@@ -334,6 +335,22 @@ export class GuidePlayer {
         await this.frame(6);
     }
 
+    // The mouse wheel over a target: `um` notches, negative = towards you
+    // (in the level: zoom in), one notch every few frames
+    async wheel(target, notches) {
+        await this.move_to(await this.point(target));
+        await this.set_band({ maus: 'Mausrad' });
+        await this.frame(3);
+        const n = Math.round(Number(notches) || 0);
+        for (let i = 0; i < Math.abs(n); i++) {
+            await this.page.mouse.wheel(0, Math.sign(n) * 100);
+            await this.page.waitForTimeout(60);
+            await this.frame(4);
+        }
+        await this.frame(4);
+        await this.set_band({ maus: '' });
+    }
+
     async key(combo, hold_seconds, show = true) {
         const caps = key_caps(combo);
         if (show) await this.set_band({ keys: caps });
@@ -369,6 +386,9 @@ export class GuidePlayer {
             const sel = `.context-menu-item:visible:has(> .context-menu-label:text-is("${label}"))`;
             const b = await this.box(sel, 'last');
             const p = { x: b.x + Math.min(b.width / 2, 60), y: b.y + b.height / 2 };
+            // into a submenu sideways first: it spans its entry's height, so the
+            // pointer never leaves the menus (a slant could, and they would close)
+            if (i > 0 && Math.abs(p.y - this.y) > 4) await this.move_to({ x: p.x, y: this.y });
             if (i < labels.length - 1) {
                 await this.move_to(p);
                 await this.page.waitForTimeout(150);
@@ -422,8 +442,8 @@ export class GuidePlayer {
     async step_inner(s) {
         // every key must mean something: a YAML slip (a comma in a caption
         // without quotes) would otherwise pass silently
-        const actions = ['bewegen', 'klick', 'doppelklick', 'rechtsklick', 'ziehen', 'malen', 'taste', 'tippen', 'warten', 'pause', 'js', 'pruefen', 'menue', 'ansicht'];
-        const extras = ['hinweis', 'nr', 'mehr', 'mit', 'dauer', 'halten', 'zeigen', 'meldung'];
+        const actions = ['bewegen', 'klick', 'doppelklick', 'rechtsklick', 'ziehen', 'malen', 'taste', 'tippen', 'warten', 'pause', 'js', 'pruefen', 'menue', 'ansicht', 'rad'];
+        const extras = ['hinweis', 'nr', 'mehr', 'mit', 'dauer', 'halten', 'zeigen', 'meldung', 'um'];
         const unknown = Object.keys(s ?? {}).filter(k => !actions.includes(k) && !extras.includes(k));
         if (unknown.length) this.fail(`unbekannt: ${unknown.join(', ')} (Komma in einem Text ohne Anführungszeichen?)`);
         if (Object.keys(s).filter(k => actions.includes(k)).length > 1) this.fail(`mehrere Aktionen in einem Schritt: ${JSON.stringify(s)}`);
@@ -438,6 +458,7 @@ export class GuidePlayer {
         else if (s.rechtsklick !== undefined) await this.click(s.rechtsklick, { button: 'right' });
         else if (s.ziehen !== undefined) await this.drag([s.ziehen.von, s.ziehen.nach], s.dauer ? s.dauer * 1000 : undefined, s.mit);
         else if (s.malen !== undefined) await this.drag(s.malen, s.dauer ? s.dauer * 1000 : undefined, s.mit);
+        else if (s.rad !== undefined) await this.wheel(s.rad, s.um ?? -3);
         else if (s.taste !== undefined) await this.key(s.taste, s.halten, s.zeigen !== false);
         else if (s.tippen !== undefined) await this.type(s.tippen);
         else if (s.menue !== undefined) await this.menu(s.menue);

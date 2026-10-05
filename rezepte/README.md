@@ -622,6 +622,7 @@ node anleitungen.mjs signale        # always these
 node anleitungen.mjs --force        # everything
 npm run anleitungen -- --check      # record and check, write nothing
 ANLEITUNG_DEBUG=1 node anleitungen.mjs signale   # time of every step
+ANLEITUNG_SICHTEN=1 node anleitungen.mjs --check signale   # also tools/sichten-<id>-<name>.webp per film, to look at
 ```
 
 **Only what changed:** a guide's fingerprint (`quelle`) covers its YAML head,
@@ -697,10 +698,11 @@ Steps (one action per step; captions and modifiers may go with it):
 | Step | Does |
 | --- | --- |
 | `{ hinweis: Text, nr: 3, mehr: "…" }` | from here on step ③ *Text* is the current one beside the film (alone: also a short pause); `mehr` is a sentence or two shown under the current step |
-| `klick: <ziel>` · `doppelklick` · `rechtsklick` | moves the pointer there and clicks; `mit: Control` holds keys |
+| `klick: <ziel>` · `doppelklick` · `rechtsklick` | moves the pointer there and clicks; `mit: Control` holds keys (pressed before the pointer looks for its target, so `mit: KeyH` reaches the ? that only H shows) |
 | `malen: [<ziel>, <ziel>, …]` | drags through the points with the button held (`mit:` as above) |
 | `ziehen: { von, nach }` | drags from one point to another |
 | `bewegen: <ziel>` | only moves the pointer (`dauer` in s) |
+| `rad: <ziel>` (`um: -4`) | turns the mouse wheel over it, `um` notches (negative = towards you: in the level, zoom in; default −3) |
 | `menue: [Blöcke, man kann …]` | walks a right-click menu, dropdown or submenu by its labels |
 | `taste: Control+KeyZ` | presses a key (`halten: 1.2` holds it that long, `zeigen: false` hides the caps) |
 | `tippen: Tor auf` | types text |
@@ -711,7 +713,7 @@ Steps (one action per step; captions and modifiers may go with it):
 
 A *ziel* is a selector (`'#tool_menu_level .button[title^="Verbinden"]'` –
 prefer titles and labels the children see over positions), `{ ziel, x, y }`
-(a share of its box), `{ pixel: [x, y] }` on the drawing area, `{ feld:
+(a share of its box; add `:visible` when hidden copies of it exist, e.g. the buttons of closed dialogs), `{ pixel: [x, y] }` on the drawing area, `{ feld:
 [spalte, zeile] }` in the level (cells of 24, as in the recipes' maps, row 0
 at the bottom) or `{ punkt: [x, y] }`. Captions with a comma or colon need
 quotes – the player refuses unknown keys, so a slip fails the build.

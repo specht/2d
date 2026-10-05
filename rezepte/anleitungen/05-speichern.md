@@ -1,6 +1,6 @@
 ---
-titel: Speichern und Laden
-kurz: Mit Strg + S bekommt dein Spiel einen Code – mit Strg + O holst du es wieder.
+titel: Speichern, laden, teilen
+kurz: Mit Strg + S bekommt dein Spiel einen Code, mit Strg + O holst du es wieder – und mit einem Link spielen es andere.
 start:
   eine_ebene: true
   szene:
@@ -46,6 +46,14 @@ aufnahmen:
       - pruefen: "game.data.properties.title === 'Pips Abenteuer'"
         meldung: Das gespeicherte Spiel wurde nicht geladen
 
+  - name: teilen
+    art: bild
+    vorher:
+      - klick: '#mi_settings'
+      - pause: 0.3
+    ausschnitt: ['.settings-karte:has(#game_code)']
+    rand: 6
+
   - name: statusleiste
     art: bild
     ausschnitt: ['#status-bar .status-bar-general']
@@ -56,6 +64,7 @@ aufnahmen:
 1. <kbd>Strg</kbd> + <kbd>S</kbd> speichert dein Spiel. Es bekommt einen **Code** aus sieben Zeichen.
 2. <kbd>Strg</kbd> + <kbd>O</kbd> öffnet die Liste deiner Spiele. Ein Klick lädt eins.
 3. Speichere oft! Jedes Speichern ist eine neue **Version** – ältere gehen nicht verloren.
+4. Unter **Einstellungen → Link zum Spiel** steht der Link, mit dem andere dein Spiel spielen.
 
 ## Speichern
 
@@ -68,6 +77,14 @@ aufnahmen:
 ![Strg + O und ein Klick](aufnahme:laden)
 
 Hast du ein Spiel öfter gespeichert, steht bei **Versionen** ein Knopf. Dort kannst du auch einen älteren Stand laden.
+
+## Teilen
+
+![Code und Link zum Spiel](aufnahme:teilen)
+
+Wer den Link öffnet, **spielt** dein Spiel – ändern kann er es nicht. Speicherst du später neu, bekommt das Spiel einen neuen Code und einen neuen Link.
+
+Möchte jemand mit deinen Sprites weiterbauen, gibst du ihm den **Code**: Unter **Sprites** → Rechtsklick → **Sprites holen** → **Aus einem anderen Spiel** holt er sich die Sprites, die er braucht, in sein eigenes Spiel.
 
 ## Alles auch in der Statusleiste
 
@@ -87,4 +104,4 @@ Unten rechts im Studio stehen die wichtigsten Knöpfe immer bereit – mit ihren
 
 ## Mach mehr draus
 
-Willst du von vorn anfangen? **Neues Spiel …** steht unter *Einstellungen → Spiel* und unten in *Spiel laden*. Weiter geht's mit [Signale: Schalter und Tor verbinden](rezept:signale).
+Willst du von vorn anfangen? **Neues Spiel …** steht unter *Einstellungen → Spiel* und unten in *Spiel laden*. Weiter geht's mit [Animieren](rezept:animieren).

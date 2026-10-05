@@ -1,6 +1,6 @@
 ---
 titel: Ein Sprite zeichnen
-kurz: Farbe wählen, malen, füllen, verbessern – und dein Bild zum Funkeln bringen.
+kurz: Farbe wählen, malen, füllen, schattieren und verbessern.
 aufnahmen:
   - name: ueberblick
     art: bild
@@ -17,7 +17,7 @@ aufnahmen:
   - name: malen
     art: video
     titel: Malen
-    ausschnitt: ['.menu:has(#tool_menu)', '.menu:has(#color_menu)', '#canvas']
+    ausschnitt: ['.menu:has(#tool_menu)', '.menu:has(#color_menu)', '.menu:has(#color_variations_menu)', '#canvas']
     schritte:
       - { hinweis: Eine Farbe anklicken, nr: 1, mehr: "Oben die Palette, darunter Abwandlungen der gewählten Farbe." }
       - klick: '#color_menu .button:nth-child(28)'
@@ -30,8 +30,8 @@ aufnahmen:
 
   - name: fuellen
     art: video
-    titel: Füllen
-    ausschnitt: ['.menu:has(#tool_menu)', '.menu:has(#color_menu)', '#canvas']
+    titel: Füllen und schattieren
+    ausschnitt: ['.menu:has(#tool_menu)', '.menu:has(#color_menu)', '.menu:has(#color_variations_menu)', '#canvas']
     schritte:
       - { hinweis: Eine helle Farbe, nr: 4 }
       - klick: '#color_menu .button:nth-child(24)'
@@ -39,9 +39,12 @@ aufnahmen:
       - klick: '#tool_menu .button[title^="Fläche füllen"]'
       - { hinweis: In die Fläche klicken, nr: 6, mehr: "Sie wird bis zum Rand gefüllt. Der Rand muss geschlossen sein – sonst läuft die Farbe hinaus." }
       - klick: { pixel: [12, 7] }
-      - klick: '#color_menu .button:nth-child(26)'
+      - { hinweis: Ein Schatten aus den Abwandlungen, nr: 7, mehr: "Unter der Palette steht die gewählte Farbe mit einem Punkt. Zwei Kästchen weiter links in „Licht und Schatten“ ist sie dunkler – und ein bisschen bläulicher, wie echte Schatten." }
+      - bewegen: { ziel: '#color_variations_menu', x: 0.5, y: 0.2 }
+      - pause: 0.8
+      - klick: '#color_variations_menu .button:nth-child(n+12):nth-child(-n+22):has(+ .button + .button.basis)'
       - klick: { pixel: [12, 14] }
-      - { hinweis: Ein Glanzpunkt mit dem Stift, nr: 7, mehr: "Ein paar weiße Pixel lassen den Stein glänzen." }
+      - { hinweis: Ein Glanzpunkt mit dem Stift, nr: 8, mehr: "Ein paar weiße Pixel lassen den Stein glänzen." }
       - klick: '#color_menu .button:nth-child(44)'
       - klick: '#tool_menu .button[title^="Zeichnen"]'
       - klick: { pixel: [10, 6] }
@@ -51,50 +54,29 @@ aufnahmen:
   - name: verbessern
     art: video
     titel: Verbessern
-    ausschnitt: ['.menu:has(#tool_menu)', '.menu:has(#color_menu)', '#canvas']
+    ausschnitt: ['.menu:has(#tool_menu)', '.menu:has(#color_menu)', '.menu:has(#color_variations_menu)', '#canvas']
     schritte:
-      - { hinweis: Ups – ein Strich zu viel, nr: 8, mehr: "Daneben gemalt? Kein Problem." }
+      - { hinweis: Ups – ein Strich zu viel, nr: 9, mehr: "Daneben gemalt? Kein Problem." }
       - klick: '#color_menu .button:nth-child(8)'
       - malen: [{ pixel: [3, 17] }, { pixel: [8, 21] }, { pixel: [15, 18] }, { pixel: [21, 22] }]
       - pause: 0.4
-      - { hinweis: Strg + Z macht ihn rückgängig, nr: 9, mehr: "Mehrmals drücken geht weiter zurück. Strg + Y holt es wieder." }
+      - { hinweis: Strg + Z macht ihn rückgängig, nr: 10, mehr: "Mehrmals drücken geht weiter zurück. Strg + Y holt es wieder." }
       - taste: Control+KeyZ
-      - { hinweis: X macht den Stift zum Radiergummi, nr: 10, mehr: "X wechselt zu „durchsichtig“: Stift, Formen und Farbeimer radieren dann." }
+      - { hinweis: X macht den Stift zum Radiergummi, nr: 11, mehr: "X wechselt zu „durchsichtig“: Stift, Formen und Farbeimer radieren dann." }
       - taste: KeyX
       - klick: { pixel: [9, 7] }
-      - { hinweis: Noch einmal X – wieder malen, nr: 11, mehr: "Du malst wieder mit deiner Farbe." }
+      - { hinweis: Noch einmal X – wieder malen, nr: 12, mehr: "Du malst wieder mit deiner Farbe." }
       - taste: KeyX
       - bewegen: { ziel: '#canvas', x: 0.9, y: 0.92 }
       - pause: 0.6
 
-  - name: animieren
-    art: video
-    titel: Animieren
-    ausschnitt: ['.menu:has(#tool_menu)', '#canvas', '#menu_frames']
-    standbild: 9
-    schritte:
-      - { hinweis: Rechtsklick auf das Bild unten, nr: 12, mehr: "„Duplizieren“ macht ein zweites, gleiches Bild – du malst darin weiter." }
-      - rechtsklick: '#menu_frames ._dnd_item:nth-child(1)'
-      - menue: Duplizieren
-      - { hinweis: Im zweiten Bild funkelt es, nr: 13, mehr: "Ändere nur ein bisschen." }
-      - klick: '#color_menu .button:nth-child(44)'
-      - klick: { pixel: [17, 4] }
-      - klick: { pixel: [16, 5] }
-      - klick: { pixel: [18, 5] }
-      - klick: { pixel: [17, 6] }
-      - klick: { pixel: [17, 5] }
-      - { hinweis: P zeigt die Vorschau, nr: 14, mehr: "Oben rechts läuft deine Animation. Wie schnell, stellst du bei „Framerate“ unter Zustände ein." }
-      - taste: KeyP
-      - warten: 3
-    nachher:
-      - taste: KeyP
 ---
 ## Kurz gesagt
 
 1. Klick eine **Farbe** an, wähle den **Stift** und male mit gedrückter Maustaste.
 2. Mit dem **Farbeimer** füllst du eine ganze Fläche auf einmal.
 3. Ein Fehler? **Strg + Z** macht ihn rückgängig. Mit **X** radierst du.
-4. Mehrere **Frames** hintereinander werden zu einer Animation.
+4. Unter der Palette stehen **Abwandlungen** deiner Farbe: heller, dunkler, kräftiger, blasser.
 
 ## So sieht der Sprite-Editor aus
 
@@ -114,21 +96,24 @@ Klick oben auf **Sprites**. Hier zeichnest du alles, was in deinem Spiel vorkomm
 
 ![Farbe wählen, Stift auswählen, malen](aufnahme:malen)
 
-## Füllen
+## Füllen und schattieren
 
-![Mit dem Farbeimer füllen](aufnahme:fuellen)
+![Mit dem Farbeimer füllen, mit einer Abwandlung schattieren](aufnahme:fuellen)
+
+Die Abwandlungen unter der Palette, Reihe für Reihe:
+
+- **Ähnliche Farbtöne** – genauso hell und kräftig, nur ein anderer Ton,
+- **Licht und Schatten** – nach links dunkler und kühler, nach rechts heller und wärmer,
+- **Dunkler und heller** – in drei Reihen: kräftig, mittel und blass,
+- **Durchsichtiger** – ganz links fast unsichtbar.
+
+Der Punkt zeigt, wo deine Farbe selbst steht. Fährst du mit der Maus über ein Kästchen, steht da, wofür die Reihe gut ist.
 
 ## Verbessern: Rückgängig und Radieren
 
 ![Strg + Z und X](aufnahme:verbessern)
 
 > **Tipp:** Rückgängig und Wiederholen stehen auch unten rechts in der Statusleiste, mit ihren Tasten. Daneben findest du **Speichern** (<kbd>Strg</kbd> + <kbd>S</kbd>).
-
-## Animieren
-
-![Ein zweiter Frame und die Vorschau](aufnahme:animieren)
-
-> **Tipp:** Kleine Änderungen von Bild zu Bild sehen am besten aus. Mit <kbd>O</kbd> (*Onion Skinning*) scheint das Bild davor rötlich durch – so siehst du, was sich bewegt.
 
 ## Wenn's nicht klappt
 
@@ -138,4 +123,4 @@ Klick oben auf **Sprites**. Hier zeichnest du alles, was in deinem Spiel vorkomm
 
 ## Mach mehr draus
 
-Zeichne einen Boden-Block mit Gras oben und Erde unten – den brauchst du für dein erstes Level. Wie Figuren laufen und springen, zeigt das Rezept [Laufen, Springen und Fallen animieren](rezept:laufen-animieren).
+Zeichne einen Boden-Block mit Gras oben und Erde unten – den brauchst du für dein erstes Level. Wie aus einem Bild eine Figur wird, zeigt [Deine Spielfigur](rezept:spielfigur); wie es sich bewegt, [Animieren](rezept:animieren).

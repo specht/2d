@@ -203,6 +203,9 @@ async function record_guide(browser, guide, start) {
                 await player.set_band({ nr: null, text: '', mehr: '', keys: [], maus: '' });
                 const { frames, timeline } = player.stop_video();
                 media[a.name] = { art: 'video', frames, timeline, standbild: a.standbild };
+                // ANLEITUNG_SICHTEN=1: every film also as an animated WebP, to look at
+                if (process.env.ANLEITUNG_SICHTEN)
+                    await write_webp(frames, path.join(here, `sichten-${guide.id}-${a.name}.webp`), 1);
             }
             await player.steps(a.nachher);
         }

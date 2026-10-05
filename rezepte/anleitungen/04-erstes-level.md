@@ -114,4 +114,4 @@ aufnahmen:
 
 ## Mach mehr draus
 
-Bau eine Lücke, über die man springen muss, und ein paar Stufen nach oben. Das Rezept [Deine erste Spielfigur](rezept:erste-spielfigur) zeigt, wie du Geschwindigkeit und Sprungkraft einstellst.
+Bau eine Lücke, über die man springen muss, und ein paar Stufen nach oben. Das Rezept [Deine erste Spielfigur](rezept:erste-spielfigur) zeigt, wie du Geschwindigkeit und Sprungkraft einstellst. Und damit nichts verloren geht: [Speichern, laden, teilen](rezept:speichern).

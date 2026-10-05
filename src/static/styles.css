@@ -3601,6 +3601,55 @@ details.trait-advanced[open] > summary {
     font-size: 12px;
     color: #ef7d57;
 }
+/* "Level geschafft" (level_editor.js build_complete_card): always the first
+   card – every exit is a line, with where it leads and "nur mit F" */
+.signal-rule-complete {
+    --signal-color: #a7f070;
+}
+.signal-rule-complete > .signal-rule-name {
+    font-weight: bold;
+    color: #a7f070;
+}
+.signal-complete-line + .signal-complete-line {
+    margin-top: 6px;
+}
+.signal-complete-where {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.75);
+}
+.signal-complete-arrow {
+    opacity: 0.8;
+}
+.signal-complete-where .dropdown-button, .signal-complete-where select {
+    max-width: 150px;
+    font-size: 12px;
+}
+.signal-complete-key {
+    padding: 1px 8px;
+    border: none;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 11px;
+    cursor: pointer;
+}
+.signal-complete-key.active {
+    background: #ffcd75;
+    color: #1a1c2c;
+}
+.signal-overview .signal-complete-key:hover {
+    outline: 1px solid rgba(255, 255, 255, 0.45);
+}
+.signal-complete-gate {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #73eff7;
+}
 
 /* The studio's button:hover adds a 1px border. The Signale panels' small
    buttons have none, so that border would push their row aside on every

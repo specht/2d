@@ -123,3 +123,32 @@ test('„geschafft bei Signal“ names its Code and its senders', () => {
     assert.deepEqual(exits[0].gate.senders, ['alle Gegner besiegt']);
     assert.match(exits[0].gate.text, /^„geschafft bei Signal“ wartet auf Code 2 – sendet: alle Gegner besiegt$/);
 });
+
+test('"Level geschafft": every exit and "geschafft bei Signal" is a line, with where it leads', () => {
+    Object.assign(globalThis, require('../src/static/signals.js'));
+    const { level_complete_rule } = require('../src/static/level_map.js');
+    const names = { exit: 'Fahne' };
+    const plain = level('a', [exit(), exit(), exit('b', { action_key: true })]);
+    const rule = level_complete_rule(plain, traits_of, r => names[r]);
+    assert.equal(rule.problem, null);
+    assert.deepEqual(rule.lines.map(l => [l.kind, l.text, l.count, l.target, l.action_key, l.gate]), [
+        ['exit', 'die Spielfigur »Fahne« erreicht', 2, null, false, null],
+        ['exit', 'die Spielfigur »Fahne« erreicht und F drückt', 1, 'b', true, null],
+    ]);
+    assert.deepEqual(rule.lines[0].objects, [
+        { kind: 'sprite', layer_index: 0, placed_index: 0, role: 'level_complete' },
+        { kind: 'sprite', layer_index: 0, placed_index: 1, role: 'level_complete' }]);
+    // a locked exit and "geschafft bei Signal"
+    const more = level('a', [exit(undefined, { opens_on_signal: true, signal_code: 3 })],
+        { signal_level_complete: 7, signal_level_complete_target: '@end', signal_names: { 3: 'Tor auf' } });
+    const lines = level_complete_rule(more, traits_of, r => names[r]).lines;
+    assert.deepEqual(lines.map(l => [l.kind, l.text, l.target, l.gate?.code ?? null]), [
+        ['exit', 'die Spielfigur »Fahne« erreicht', null, 3],
+        ['signal', 'das Signal Code 7 ankommt', '@end', null],
+    ]);
+    // nothing ends the level
+    assert.equal(level_complete_rule(level('a', []), traits_of, r => names[r]).problem, 'no_exit');
+    // a locked exit nothing opens is a warning in the Levelübersicht
+    const map = level_map([level('a', [exit(undefined, { opens_on_signal: true, signal_code: 3 })])], traits_of);
+    assert.ok(map.nodes[0].warnings.some(w => w.includes('Tor auf') || w.includes('Code 3')));
+});

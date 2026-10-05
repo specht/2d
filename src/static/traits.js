@@ -175,6 +175,7 @@ var STATE_TRAITS_ORDER = {
         'transition',
     ],
     switch: ['off', 'on'],
+    level_complete: ['closed', 'open'],
     pressure_plate: ['up', 'down'],
     // a Zähler: "zeigt 1" … "zeigt 9" while it counts (only the ones drawn), "erreicht" when full
     counter: ['waiting', ['Zählt', ['count_1', 'count_2', 'count_3', 'count_4', 'count_5', 'count_6', 'count_7', 'count_8', 'count_9']], 'done'],
@@ -1305,6 +1306,46 @@ var SPRITE_TRAITS = {
                 default: false,
                 entry_key: 'exit_action_key',
             },
+            // Signale (signals.js): the exit as a receiver – closed until its
+            // Code comes "an", then open for good. Absent = open from the start.
+            opens_on_signal: {
+                label: 'öffnet erst bei Signal',
+                hint: 'Ist das an, ist dieser Ausgang zu, bis sein Signal kommt – zum Beispiel von einem Schalter, einem Edelstein oder wenn alle Gegner besiegt sind. Danach bleibt er offen. Schneller geht es mit dem Werkzeug Verbinden (R): erst den Schalter anklicken, dann den Ausgang. Zeichne dem Ausgang Zustände „Ausgang zu“ und „Ausgang offen“, dann sieht man, ob er schon offen ist.',
+                type: 'bool',
+                default: false,
+                entry_key: 'exit_gate_on',
+                rebuilds_panel: true,
+            },
+            signal_code: {
+                label: 'Code',
+                hint: 'Kommt dieser Code „an“, öffnet sich der Ausgang.',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 1000,
+                entry_key: 'exit_gate_code',
+                visible: (traits, traits_of, props) => props?.opens_on_signal === true,
+            },
+            // the exit as a sender: "an" while the figure stands at it (also when
+            // it is still closed – a sign can say what is missing)
+            signal_on_reach: {
+                label: 'sendet, wenn die Figur davorsteht',
+                hint: 'Ist das an, sendet der Ausgang seinen Code „an“, sobald die Spielfigur ihn berührt, und „aus“, wenn sie weggeht – auch wenn er noch zu ist. So kann ein Schild sagen, was noch fehlt.',
+                type: 'bool',
+                default: false,
+                entry_key: 'exit_send_on',
+                rebuilds_panel: true,
+            },
+            send_code: {
+                label: 'sendet Code',
+                hint: 'Diesen Code sendet der Ausgang, solange die Spielfigur davorsteht.',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 1000,
+                entry_key: 'exit_send_code',
+                visible: (traits, traits_of, props) => props?.signal_on_reach === true,
+            },
         },
     },
     checkpoint: {
@@ -1494,6 +1535,11 @@ var STATE_TRAITS = {
         closed: { label: 'geschlossen' },
         open: { label: 'geöffnet' },
         transition: { label: 'Übergang' },
+    },
+    // an exit that opens only on a Signal ("öffnet erst bei Signal"): what it shows
+    level_complete: {
+        closed: { label: 'Ausgang zu' },
+        open: { label: 'Ausgang offen' },
     },
     switch: {
         off: { label: 'Schalter ist aus' },
