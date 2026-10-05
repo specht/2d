@@ -76,6 +76,7 @@
     <script defer src="studio.js?#{@@cache_buster}"></script>
     <script defer src="collaboration.js?#{@@cache_buster}"></script>
     <script defer src="rezepte.js?#{@@cache_buster}"></script>
+    <script defer src="anleitung_film.js?#{@@cache_buster}"></script>
     <script defer src="three.min.js?#{@@cache_buster}"></script>
     <script defer src="masonry.pkgd.min.js?#{@@cache_buster}"></script>
     <script defer src="ditherjs.dist.js?#{@@cache_buster}"></script>
@@ -270,10 +271,7 @@
     <!-- hidden from the start (not only once studio.js has run): its many pictures
          load lazily, i.e. only when the Hilfe tab is opened -->
     <div id='main_div_help' class="main_div scroll_helper scroll_helper_vertical" style="display: none;">
-        <h2 class='rezepte-ueberschrift'>Rezepte</h2>
-        <p>
-            Kleine Anleitungen zum Nachbauen. Jede Animation wurde mit dem echten Spiel aufgenommen – so sieht es auch bei dir aus.
-        </p>
+        <!-- Erste Schritte and Rezepte, each with its heading (rezepte.js) -->
         <div id='rezepte'></div>
         <!-- below the recipes: where to learn more (pictures load only when they scroll into view) -->
         <h2 class='rezepte-ueberschrift'>Mehr lernen</h2>

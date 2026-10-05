@@ -223,11 +223,25 @@ class RecipeGallery {
                 })
                 .appendTo(chips);
         }
-        const grid = $('<div>').addClass('rezept-galerie').appendTo(this.container);
-        for (const recipe of this.recipes) {
-            if (this.filter && recipe.kategorie !== this.filter) continue;
-            this.card(recipe).appendTo(grid);
-        }
+        // Two parts, clearly apart: the guides (how the studio works) and the
+        // recipes (ideas to build). A category shows only its own part.
+        const guides = this.recipes.filter(r => r.anleitung && (!this.filter || r.kategorie === this.filter));
+        const recipes = this.recipes.filter(r => !r.anleitung && (!this.filter || r.kategorie === this.filter));
+        const section = (cls, title, lead, list) => {
+            const part = $('<section>').addClass(`rezept-teil ${cls}`).appendTo(this.container);
+            $('<h2>').addClass('rezepte-ueberschrift').text(title).appendTo(part);
+            $('<p>').addClass('rezept-teil-lead').text(lead).appendTo(part);
+            const grid = $('<div>').addClass('rezept-galerie').appendTo(part);
+            for (const recipe of list) this.card(recipe).appendTo(grid);
+        };
+        if (guides.length)
+            section('rezept-teil-anleitungen', 'Erste Schritte',
+                'So funktioniert das Studio – Schritt für Schritt, mit Videos aus dem Studio. Fang am besten mit Teil 1 an.', guides);
+        if (guides.length && recipes.length)
+            $('<div>').addClass('rezept-trenner').attr('role', 'separator').appendTo(this.container);
+        if (recipes.length)
+            section('rezept-teil-rezepte', 'Rezepte',
+                'Kleine Anleitungen zum Nachbauen. Jede Animation wurde mit dem echten Spiel aufgenommen – so sieht es auch bei dir aus.', recipes);
     }
 
     show_gallery(push = true) {
@@ -255,30 +269,10 @@ class RecipeGallery {
             e.preventDefault();
             this.show_recipe(e.currentTarget.dataset.rezept);
         });
-        // a guide's video starts again with a click (anleitung-video)
-        this.popup_body.on('click', '.anleitung-video', (e) => this.restart_video($(e.currentTarget)));
         // inside the Hilfe pane: switching to another tab hides it together with the pane
         overlay.appendTo(document.getElementById('main_div_help') ?? document.body);
         this.popup_el = overlay;
         return overlay;
-    }
-
-    // An animated picture plays on from where it is when its src is set again;
-    // a new object URL of the same file starts it from its first frame.
-    async restart_video(figure) {
-        const img = figure.find('img')[0];
-        if (!img) return;
-        const url = img.dataset.src ?? img.getAttribute('src');
-        img.dataset.src = url;
-        try {
-            this.video_blobs ??= new Map();
-            if (!this.video_blobs.has(url)) this.video_blobs.set(url, await (await fetch(url)).blob());
-            const old = img.getAttribute('src');
-            img.setAttribute('src', URL.createObjectURL(this.video_blobs.get(url)));
-            if (old?.startsWith('blob:')) URL.revokeObjectURL(old);
-        } catch {
-            img.setAttribute('src', url);
-        }
     }
 
     close_popup(user = true) {
@@ -289,6 +283,7 @@ class RecipeGallery {
         if (user && depth > 0) { history.go(-depth); return; }
         if (user) this.push({ filter: this.filter });
         this.open_id = null;
+        window.anleitung_films?.unmount_all();
         for (const img of this.popup_body?.find('.rezept-bild img') ?? []) this.observer?.unobserve(img);
         this.popup_body?.empty();
         this.popup_el?.hide();
@@ -309,6 +304,7 @@ class RecipeGallery {
         this.open_id = id;
         const overlay = this.popup();
         for (const img of this.popup_body.find('.rezept-bild img')) this.observer?.unobserve(img);
+        window.anleitung_films?.unmount_all();
         this.popup_body.empty();
         const article = $('<article>').addClass('rezept').appendTo(this.popup_body);
         $('<div>').addClass('rezept-kopf')
@@ -348,6 +344,8 @@ class RecipeGallery {
         $('#main_div_help').addClass('rezept-offen');
         overlay.show();
         this.popup_body.scrollTop(0);
+        // a guide's films (anleitung_film.js): they start once they are in view
+        window.anleitung_films?.mount(article[0]);
     }
 }
 

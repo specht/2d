@@ -607,9 +607,12 @@ something that is no longer there.
 rezepte/
   anleitungen/NN-id.md     one guide per file: YAML head (start, recordings) + German Markdown
   tools/anleitungen.mjs    build: records changed guides, writes src/static/anleitungen/
-  tools/anleitung.mjs      plays the steps (pointer, clicks, keys, captions, marks)
+  tools/anleitung.mjs      plays the steps (pointer, clicks, marks) and notes captions and keys
+  tools/film.mjs           turns a recording into a film (frame differences on WebP sheets)
   tools/studio.mjs         serves the studio and stubs the server's API
-src/static/anleitungen/    generated: <id>-<name>.webp, standbild/<id>.webp, anleitungen.json (commit these)
+src/static/anleitungen/    generated (commit these): <id>-<name>.json + <id>-<name>-<n>.webp (films),
+                           <id>-<name>.webp (pictures), standbild/<id>.webp (cards), anleitungen.json
+src/static/anleitung_film.js  plays the films in the Hilfe tab
 ```
 
 ```bash
@@ -633,17 +636,29 @@ re-record the recipes.
 few seconds, a `pruefen` that is not `true`, a JavaScript error in the page or
 a step the player does not know fails the guide; the build exits with status
 1 and writes what was recorded up to the failure to
-`tools/fehler-<id>.webp`.
+`tools/fehler-<id>.webp` (an ordinary animated WebP, to look at).
 
 **What the recordings show:** a mouse pointer (drawn into the page, so it is
-in every frame), a ring at every click (cyan for a right click), a filled dot
-while a button is held, and a band above every video with the step's number
-and caption, the keys pressed (German key caps, `Strg` + `Z`) and what the
-mouse does (*Rechtsklick*, *ziehen*). The band lies outside the studio's
-picture, so it never hides a button. Videos are lossless animated WebP at the
-real size of the studio (1600 × 900 viewport) with the real durations; a
-test run in the Spielen pane plays at its own speed. Pictures (`art: bild`)
-carry numbered marks that the text refers to.
+in every frame), a ring at every click (cyan for a right click) and a filled
+dot while a button is held. The step's number and caption, the keys pressed
+(`Strg` + `Z`) and what the mouse does (*Rechtsklick*, *ziehen*) are not drawn
+into the picture: the recorder notes them as a timeline, and the Hilfe tab
+shows the steps beside the film and the keys over it – crisp at every size.
+
+**Films, not animated pictures:** an animated WebP can be neither paused nor
+wound. `film.mjs` keeps every distinct frame with its real duration (60 Hz
+steps), stores frame 0 whole and every later frame only as the rectangles
+that changed (32 px tiles, merged), packed into a few lossless WebP sheets,
+plus `film.json` (frames with their patches, duration, timeline). That is
+lossless and smaller than the animated WebP was. `anleitung_film.js` draws
+the patches on a canvas: it starts shortly after the film is in view (not
+with *weniger Bewegung*: then ▶ waits), stops when it leaves, a tap pauses and
+plays on (Leertaste too), the progress line is always there and becomes a bar
+to wind the film under the mouse or a finger (with the time and a mark per
+step), the steps beside it light up as it plays and a click on one jumps
+there, only one film plays at a time, and the film is never taller than the
+screen (below 900 px the steps go under it). The studio is recorded at a
+1600 × 900 viewport.
 
 The studio runs without a server: `/api/save_game_temp` (Level testen)
 answers like the server and the game frame gets its sprite sheet laid out
@@ -664,7 +679,7 @@ start:                          # optional: the game the guide starts with
 aufnahmen:
   - name: verbinden             # referenced in the text as ![Bildunterschrift](aufnahme:verbinden)
     art: video                  # video | bild
-    titel: Verbinden            # the band's text before the first hinweis
+    titel: Verbinden            # (kept for the author; not shown)
     ausschnitt: [0, 44, 1600, 818]   # [x, y, w, h], 'ganz', or selectors (their common box)
     rand: 12                    # pixels around selectors
     vorher: [ … ]               # steps before the recording starts (not shown)
@@ -681,7 +696,7 @@ Steps (one action per step; captions and modifiers may go with it):
 
 | Step | Does |
 | --- | --- |
-| `{ hinweis: Text, nr: 3 }` | the band shows ③ Text (alone: also a short pause) |
+| `{ hinweis: Text, nr: 3 }` | from here on step ③ *Text* is the current one beside the film (alone: also a short pause) |
 | `klick: <ziel>` · `doppelklick` · `rechtsklick` | moves the pointer there and clicks; `mit: Control` holds keys |
 | `malen: [<ziel>, <ziel>, …]` | drags through the points with the button held (`mit:` as above) |
 | `ziehen: { von, nach }` | drags from one point to another |
@@ -705,4 +720,6 @@ Text: like the recipes (German, "du", Kurz gesagt → numbered steps that
 match the numbers in the videos → Wenn's nicht klappt → Mach mehr draus),
 with `<kbd>Strg</kbd>` for keys and `[Text](rezept:id)` for links to recipes
 and other guides (checked by the build). The Hilfe tab shows the guides first,
-as *Erste Schritte* (*Teil 1, 2 …*); a click on a video starts it again.
+as *Erste Schritte* (*Teil 1, 2 …*), separated from the recipes by a line.
+The `hinweis` captions of a film become its list of steps: keep them short
+(they stand in a narrow column) and number them like the text.

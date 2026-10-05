@@ -58,7 +58,6 @@ aufnahmen:
         zeigen: false
       - tippen: "1.5"
       - taste: Enter
-      - klick: '#placed_properties_title'
       - bewegen: { feld: [5, 3] }
       - pause: 1.5
       - { hinweis: "Testen: Maus auf den Schalter, T, dann F", nr: 7 }
@@ -124,7 +123,7 @@ Einen Schalter, der schon ein Tor öffnet – so wie am Ende von [Signale: Schal
 ![Das Signal kommt 1,5 Sekunden später an](aufnahme:verzoegerung)
 
 5. Klick auf den Schalter.
-6. Tipp bei **Verzögerung** eine Zahl ein, zum Beispiel **1.5**, drück <kbd>Enter</kbd> und klick einmal neben das Feld. Auf der Linie steht jetzt **⏱ 1,5 s**, und die Übersicht sagt *kommt nach 1,5 s an*.
+6. Tipp bei **Verzögerung** eine Zahl ein, zum Beispiel **1.5**, und drück <kbd>Enter</kbd>. Auf der Linie steht jetzt **⏱ 1,5 s**, und die Übersicht sagt *kommt nach 1,5 s an*.
 7. Teste es: Maus auf den Schalter, <kbd>T</kbd>, dann <kbd>F</kbd>. Der Schalter springt sofort um, die Tore gehen aber erst nach 1,5 Sekunden auf.
 8. <kbd>Esc</kbd> bringt dich zurück zum Level.
 
@@ -145,7 +144,6 @@ Damit baust du Fallen, die kurz nach dem Betreten zuschnappen, oder ein Tor, zu 
 - **„Tor auf“ steht nicht in der Liste:** Die Liste zeigt nur Signale aus *diesem* Level. Signale gehen nicht von einem Level ins andere.
 - **Das zweite Tor geht im Spiel nicht auf:** Schau bei **Bei Signal**. Steht dort **aufschließen**, wartet das Tor, bis die Figur davorsteht.
 - **Die Verzögerung wirkt nicht:** Sie gehört zum **Sender** (dem Schalter), nicht zum Tor.
-- **T startet keinen Test, und im Feld steht plötzlich ein Buchstabe:** Das Feld hatte noch den Cursor – deine Tasten landen dann im Feld. Klick einmal daneben, dann geht es.
 
 ## Mach mehr draus
 

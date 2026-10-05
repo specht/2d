@@ -22,18 +22,6 @@ export const HOST = 'studio.local';
 const SAVE_ICON = '114g99w';
 const SAVE_TIME = Date.UTC(2026, 9, 5, 8, 0, 0);
 
-const BAND_HTML = `<!doctype html><html><head><meta charset="utf-8"><link href="/fonts.css" rel="stylesheet">
-<style>
-html, body { margin: 0; background: transparent; }
-#band { box-sizing: border-box; height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px;
-    background: #1a1c2c; border-bottom: 2px solid #3b5dc9; color: #f4f4f4; font: 600 19px 'IBM Plex Sans', sans-serif; white-space: nowrap; overflow: hidden; }
-#band .nr { flex: none; min-width: 28px; height: 28px; line-height: 28px; border-radius: 14px; background: #ffcd75; color: #1a1c2c; text-align: center; font-weight: 700; }
-#band .text { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
-#band .keys { flex: none; display: flex; align-items: center; gap: 6px; color: #ffcd75; font-size: 17px; }
-#band .cap { min-width: 18px; padding: 2px 9px; text-align: center; border-radius: 6px; background: #222; color: #fff;
-    font: 700 16px 'IBM Plex Mono', monospace; border: 1px solid rgba(255,255,255,0.25); border-bottom-width: 3px; }
-#band .maus { font-weight: 600; color: #73eff7; }
-</style></head><body><div id="band"></div></body></html>`;
 
 // Packs frames like the server (Main.render_spritesheet_for_tag): a replicated
 // 1 px border around every frame, rows of the tallest frames first, then 4×.
@@ -159,8 +147,6 @@ export async function open_studio(browser, repo, { width = 1600, height = 900 } 
             // nothing else is needed for the guides: no saved games, no server
             return reply('{}');
         }
-        // the caption band above a guide's videos (anleitung.mjs), in the studio's fonts
-        if (p === '/__anleitung_band.html') return reply(BAND_HTML, MIME['.html']);
         let m;
         if ((m = p.match(/^\/gen\/games\/(\w+)\.json$/)) && temp.has(m[1])) return reply(JSON.stringify(temp.get(m[1]).game));
         if ((m = p.match(/^\/gen\/spritesheets\/(\w+)\.json$/)) && temp.has(m[1])) return reply(JSON.stringify(temp.get(m[1]).sheet.info));

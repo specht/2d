@@ -844,6 +844,19 @@ class ColorWidget {
     }
 }
 
+// A single-line field is done with Enter: it lets go of the keyboard (its
+// blur/change handlers apply the value as with a click elsewhere), so the
+// next key – T for Level testen, F in a test run, Strg+Z – reaches the studio
+// instead of being typed into the field. The SignalCodeWidget does the same.
+function leave_field_on_enter(input) {
+    $(input).on('keydown', (e) => {
+        if (e.key !== 'Enter' || e.isComposing) return;
+        e.preventDefault();
+        $(input).trigger('change');
+        input[0]?.blur?.();
+    });
+}
+
 class LineEditWidget {
     constructor(data) {
         this.data = data;
@@ -872,6 +885,9 @@ class LineEditWidget {
         this.input.keydown(function(e) { self.update(); });
         this.input.keyup(function(e) { self.update(); });
         this.input.change(function(e) { self.update(); });
+        // Enter is done: the field lets go, so the studio's keys work at once
+        // (otherwise a T for "Level testen" lands in the field)
+        if (!(data.options || {}).multiline) leave_field_on_enter(this.input);
     }
 
     update() {
@@ -945,6 +961,8 @@ class NumberWidget {
                 self.blur(i);
                 if (self.data.onblur) self.data.onblur();
             });
+            // Enter applies the number and leaves the field (leave_field_on_enter)
+            leave_field_on_enter(this.input[i]);
         }
         if (this.data.suffix !== null)
             subdiv.append($(`<span style='margin-left: 0.25em;'>`).text(this.data.suffix));

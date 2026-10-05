@@ -27,6 +27,7 @@ import { write_webp } from './record.mjs';
 import { load_catalog, build_game, studio_game } from './game.mjs';
 import { open_studio } from './studio.mjs';
 import { GuidePlayer, StepError } from './anleitung.mjs';
+import { encode_film, film_steps } from './film.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');            // rezepte/
@@ -134,7 +135,8 @@ function write_output(rel, buffer) {
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
 // ![Was man sieht](aufnahme:name) → the video or picture, with its caption.
-// Videos start again with a click (kids want to see a step twice).
+// A video is a film (film.mjs) on a canvas that anleitung_film.js plays, with
+// its steps listed beside it (they light up while it plays; a click jumps there).
 // [Text](rezept:leiter) – a link to a recipe or another guide (rezepte.js opens it).
 let known_ids = new Set();
 function render_body(md, media, id = '') {
@@ -145,8 +147,15 @@ function render_body(md, media, id = '') {
     md = md.replace(/!\[([^\]]*)\]\(aufnahme:([\w-]+)\)/g, (_, label, name) => {
         const m = media[name];
         if (!m) return '';      // not recorded (the guide failed before it)
-        const kind = m.art === 'video' ? 'anleitung-video' : 'anleitung-bild';
-        return `<figure class="anleitung-medium ${kind}"><img src="/anleitungen/${m.bild}?${m.version}" width="${m.breite}" height="${m.hoehe}" ` +
+        if (m.art === 'video') {
+            const steps = (m.schritte ?? []).map(st =>
+                `<li data-t="${st.t}"><span class="film-nr">${esc(st.nr)}</span><span class="film-text">${esc(st.text)}</span></li>`).join('');
+            return `<figure class="anleitung-film" data-film="/anleitungen/${m.film}?${m.version}" style="--film-w: ${m.breite}; --film-h: ${m.hoehe}">` +
+                `<div class="film-reihe"><div class="film-buehne"><canvas width="${m.breite}" height="${m.hoehe}" role="img" aria-label="${esc(label)}"></canvas></div>` +
+                (steps ? `<ol class="film-schritte">${steps}</ol>` : '') + `</div>` +
+                (label ? `<figcaption>${label}</figcaption>` : '') + `</figure>`;
+        }
+        return `<figure class="anleitung-medium anleitung-bild"><img src="/anleitungen/${m.bild}?${m.version}" width="${m.breite}" height="${m.hoehe}" ` +
             `loading="lazy" decoding="async" alt="${esc(label)}">` +
             (label ? `<figcaption>${label}</figcaption>` : '') + `</figure>`;
     });
@@ -191,7 +200,8 @@ async function record_guide(browser, guide, start) {
                 await player.steps(a.schritte);
                 await player.hold(a.ende ?? 1.6);
                 await player.set_band({ nr: null, text: '', keys: [], maus: '' });
-                media[a.name] = { art: 'video', frames: player.stop_video(), standbild: a.standbild };
+                const { frames, timeline } = player.stop_video();
+                media[a.name] = { art: 'video', frames, timeline, standbild: a.standbild };
             }
             await player.steps(a.nachher);
         }
@@ -199,7 +209,7 @@ async function record_guide(browser, guide, start) {
         if (e instanceof StepError) problems.push(e.message);
         else throw e;
         // what was recorded up to the failing step, to look at
-        const partial = player.recording ? player.stop_video() : null;
+        const partial = player.recording ? player.stop_video().frames : null;
         if (partial?.length) {
             await write_webp(partial, path.join(here, `fehler-${guide.id}.webp`), 1);
             problems.push(`Aufnahme bis zum Fehler: rezepte/tools/fehler-${guide.id}.webp`);
@@ -232,18 +242,17 @@ async function main() {
     try {
         for (const g of guides) {
             const old = previous.anleitungen.find(e => e.id === g.id);
-            const keep_files = (e) => {
-                for (const m of (e.html ?? '').matchAll(/\/anleitungen\/([^"?]+)\?/g)) written.add(m[1]);
-                if (e.bild) written.add(e.bild);
-                if (e.standbild) written.add(e.standbild);
-            };
-            if (only.length && !only.includes(g.id) && old) { entries.push(old); keep_files(old); continue; }
+            // every file of an entry: pictures, films and their sheets, the card
+            const files_of = (e) => [e.bild, e.standbild,
+                ...(e.medien ?? []).flatMap(m => [m.bild, m.film, ...(m.dateien ?? [])])].filter(Boolean);
+            const keep_files = (e) => { for (const f of files_of(e)) written.add(f); };
+            // named guides only: the others stay as they are (or stay missing)
+            if (only.length && !only.includes(g.id)) { if (old) { entries.push(old); keep_files(old); } continue; }
             const start = await start_game(g, catalog);
             const { body, ...meta } = g;
             const quelle = crypto.createHash('sha1').update(studio_hash()).update(JSON.stringify(meta))
                 .update(JSON.stringify(start ?? null)).digest('hex').slice(0, 16);
-            const files_ok = e => [e.bild, e.standbild, ...[...(e.html ?? '').matchAll(/\/anleitungen\/([^"?]+)\?/g)].map(m => m[1])]
-                .every(f => !f || fs.existsSync(path.join(out_dir, f)));
+            const files_ok = e => files_of(e).every(f => fs.existsSync(path.join(out_dir, f)));
             if (!force && !check_only && !only.includes(g.id) && old?.quelle === quelle && files_ok(old)) {
                 keep_files(old);
                 const media = {};
@@ -262,19 +271,21 @@ async function main() {
                 const m = media[a.name];
                 if (!m) continue;
                 const { w, h } = m.frames[0];
-                let rel, version;
+                let entry;
                 if (m.art === 'video') {
-                    const tmp = path.join(here, `.${g.id}-${a.name}.webp`);
-                    await write_webp(m.frames, tmp, 1);
-                    rel = `${g.id}-${a.name}.webp`;
-                    version = write_output(rel, fs.readFileSync(tmp));
-                    fs.rmSync(tmp, { force: true });
+                    // a film: its sheets, then the film itself (it names the sheets with their versions)
+                    const { film, images } = await encode_film(m.frames, m.timeline);
+                    const dateien = images.map((_, i) => `${g.id}-${a.name}-${i}.webp`);
+                    film.bilder = dateien.map((f, i) => `/anleitungen/${f}?${write_output(f, images[i])}`);
+                    const rel = `${g.id}-${a.name}.json`;
+                    const version = write_output(rel, Buffer.from(JSON.stringify(film)));
+                    entry = { name: a.name, art: 'video', film: rel, version, dateien, breite: w, hoehe: h, dauer: film.dauer, schritte: film_steps(m.timeline) };
                 } else {
                     const f = m.frames[0];
-                    rel = `${g.id}-${a.name}.webp`;
-                    version = write_output(rel, await sharp(f.data, { raw: { width: w, height: h, channels: 4 } }).webp({ lossless: true, effort: 6 }).toBuffer());
+                    const rel = `${g.id}-${a.name}.webp`;
+                    const version = write_output(rel, await sharp(f.data, { raw: { width: w, height: h, channels: 4 } }).webp({ lossless: true, effort: 6 }).toBuffer());
+                    entry = { name: a.name, art: m.art, bild: rel, version, breite: w, hoehe: h };
                 }
-                const entry = { name: a.name, art: m.art, bild: rel, version, breite: w, hoehe: h };
                 medien.push(entry);
                 by_name[a.name] = entry;
                 m.entry = entry;
@@ -288,9 +299,11 @@ async function main() {
                 const i = first.standbild !== undefined ? Math.round(first.standbild * 60) : Math.floor(n * 0.6);
                 const f = first.frames[Math.max(0, Math.min(n - 1, i))];
                 const standbild = `standbild/${g.id}.webp`;
+                const standbild_version = write_output(standbild, await sharp(f.data, { raw: { width: f.w, height: f.h, channels: 4 } }).webp({ lossless: true, effort: 6 }).toBuffer());
+                // the card shows this one picture (a film plays only in the guide)
                 card = {
-                    bild: first.entry.bild, version: first.entry.version, breite: first.entry.breite, hoehe: first.entry.hoehe,
-                    standbild, standbild_version: write_output(standbild, await sharp(f.data, { raw: { width: f.w, height: f.h, channels: 4 } }).webp({ lossless: true, effort: 6 }).toBuffer()),
+                    bild: standbild, version: standbild_version, breite: f.w, hoehe: f.h,
+                    standbild, standbild_version,
                     himmel: '#' + [f.data[0], f.data[1], f.data[2]].map(v => v.toString(16).padStart(2, '0')).join(''),
                 };
             }
@@ -299,7 +312,8 @@ async function main() {
                 failed++;
                 console.log(`✗ ${g.id} (${ms} ms)\n  ${problems.join('\n  ')}`);
             } else {
-                const sizes = medien.map(m => `${m.name} ${Math.round(fs.existsSync(path.join(out_dir, m.bild)) ? fs.statSync(path.join(out_dir, m.bild)).size / 1024 : 0)} kB`);
+                const size = f => fs.existsSync(path.join(out_dir, f)) ? fs.statSync(path.join(out_dir, f)).size : 0;
+                const sizes = medien.map(m => `${m.name} ${Math.round([m.bild, m.film, ...(m.dateien ?? [])].filter(Boolean).reduce((n, f) => n + size(f), 0) / 1024)} kB`);
                 console.log(`✓ ${g.id} (${medien.length} Aufnahmen, ${ms} ms${check_only ? '' : ': ' + sizes.join(', ')})`);
             }
             entries.push({

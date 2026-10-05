@@ -19,8 +19,9 @@ export class StepError extends Error { }
 
 // Pointer, click ripple and marks are drawn into the page itself
 // (pointer-events: none), so they are in every screenshot but never get in
-// the studio's way. The caption of the step and the keys pressed are shown
-// in a band above the video (band_page), so they never hide a part of the studio.
+// the studio's way. The caption of the step and the keys pressed are not part
+// of the picture: they are a timeline (note_band) that the Hilfe tab shows
+// beside the video and over it, crisp at every size.
 const OVERLAY = () => {
     if (window.__guide) return;
     const style = document.createElement('style');
@@ -104,10 +105,12 @@ export class GuidePlayer {
         this.down = false;
         this.recording = null;     // { clip, frames } while a video is recorded
         this.step_no = 0;
-        // the band above a video: the step's number and caption, the keys held
-        // or pressed and what the mouse does (Rechtsklick, ziehen)
+        // What goes with the picture, as a timeline beside it (anleitungen.mjs
+        // writes it to the film, the Hilfe tab shows it): the step's number and
+        // caption, the keys held or pressed and what the mouse does
+        // (Rechtsklick, ziehen). Never drawn into the picture: the player lists
+        // the steps beside the video and shows the keys over it.
         this.band = { nr: null, text: '', keys: [], maus: '' };
-        this.bands = new Map();
     }
 
     async init() {
@@ -115,34 +118,22 @@ export class GuidePlayer {
         await this.page.evaluate(([x, y]) => window.__guide.move(x, y, false), [this.x, this.y]);
         // screenshots through the DevTools protocol: PNG made for speed, still lossless
         this.cdp = await this.page.context().newCDPSession(this.page);
-        this.band_page = await this.page.context().newPage();
-        await this.band_page.goto(`http://${new URL(this.page.url()).host}/__anleitung_band.html`);
-        await this.band_page.evaluate(() => document.fonts.ready);
-    }
-
-    // The band as raw pixels, as wide as the video (cached: it rarely changes).
-    async band_pixels(width) {
-        const b = this.band;
-        const key = JSON.stringify([width, b]);
-        if (this.bands.has(key)) return this.bands.get(key);
-        await this.band_page.setViewportSize({ width, height: 60 });
-        await this.band_page.evaluate((b) => {
-            const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-            const keys = b.keys.length ? `<span class="keys">${b.keys.map(k => `<span class="cap">${esc(k)}</span>`).join('<span>+</span>')}` +
-                (b.maus ? `<span>+</span><span class="maus">${esc(b.maus)}</span>` : '') + '</span>' :
-                (b.maus ? `<span class="keys"><span class="maus">${esc(b.maus)}</span></span>` : '');
-            document.getElementById('band').innerHTML = (b.nr ? `<span class="nr">${esc(b.nr)}</span>` : '') +
-                `<span class="text">${esc(b.text ?? '')}</span>` + keys;
-        }, b);
-        const png = await this.band_page.locator('#band').screenshot();
-        const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-        const pixels = { w: info.width, h: info.height, data };
-        this.bands.set(key, pixels);
-        return pixels;
     }
 
     async set_band(change) {
         Object.assign(this.band, change);
+    }
+
+    // the band at this moment of the video, once per change
+    note_band() {
+        const r = this.recording;
+        const state = JSON.stringify(this.band);
+        if (r.last_band === state) return;
+        r.last_band = state;
+        const t = Math.round(r.frames.length * STEP_MS);
+        // two changes at the same moment: the later one counts
+        if (r.timeline.at(-1)?.t === t) r.timeline.pop();
+        r.timeline.push({ t, ...JSON.parse(state) });
     }
 
     fail(message) {
@@ -226,12 +217,8 @@ export class GuidePlayer {
         const png = Buffer.from(shot.data, 'base64');
         tm.push(Date.now() - t0);
         const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-        // the band on top, then the studio
-        const band = await this.band_pixels(info.width);
-        const out = Buffer.alloc((band.h + info.height) * info.width * 4);
-        band.data.copy(out, 0);
-        data.copy(out, band.data.length);
-        const f = { w: info.width, h: band.h + info.height, data: out };
+        const f = { w: info.width, h: info.height, data };
+        this.note_band();
         tm.push(Date.now() - t0);
         if (process.env.ANLEITUNG_DEBUG && tm[tm.length - 1] > 400) console.log('   slow frame', tm.join(' '));
         for (let i = 0; i < steps; i++) this.recording.frames.push(f);
@@ -261,14 +248,15 @@ export class GuidePlayer {
     }
 
     async start_video(clip) {
-        this.recording = { clip, frames: [] };
+        this.recording = { clip, frames: [], timeline: [], last_band: null };
         await this.page.evaluate(([x, y]) => window.__guide.move(x, y, false), [this.x, this.y]);
     }
 
+    // { frames (one per 60 Hz step), timeline: [{ t (ms), nr, text, keys, maus }] }
     stop_video() {
         const r = this.recording;
         this.recording = null;
-        return r.frames;
+        return { frames: r.frames, timeline: r.timeline };
     }
 
     // ── what a child does ───────────────────────────────────────────────

@@ -2474,6 +2474,37 @@ a, a:visited {
     color: #1a1c2c !important;
 }
 
+/* Erste Schritte and Rezepte (rezepte.js render_gallery): two parts with a
+   clear line between them */
+.rezept-trenner {
+    position: relative;
+    height: 0;
+    margin: 56px 0 44px 0;
+    border-top: 2px solid rgba(255, 255, 255, 0.18);
+}
+.rezept-trenner::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -7px;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    transform: rotate(45deg);
+    background: #ffcd75;
+}
+.rezept-teil > .rezepte-ueberschrift {
+    margin-top: 0.6em;
+}
+.rezept-teil-lead {
+    margin: 0 0 18px 0;
+    color: #cfd6e4;
+}
+/* the guides' cards stand out a little: they are where to begin */
+.rezept-teil-anleitungen .rezept-karte {
+    border-color: rgba(255, 205, 117, 0.35);
+}
+
 .rezept-galerie {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
@@ -2762,6 +2793,16 @@ a, a:visited {
 .rezept-dialog.anleitung {
     max-width: min(1520px, 100%);
 }
+/* a guide's films reach the right edge: the close button stays clear of them */
+.rezept-dialog.anleitung .rezept-dialog-inhalt {
+    padding-right: 80px;
+}
+@media (max-width: 900px) {
+    .rezept-dialog.anleitung .rezept-dialog-inhalt {
+        padding-right: 10px;
+        padding-top: 60px;
+    }
+}
 .rezept-dialog.anleitung .rezept-inhalt > :not(figure),
 .rezept-dialog.anleitung .rezept-lead {
     max-width: 860px;
@@ -2781,30 +2822,253 @@ a, a:visited {
     font-size: 90%;
     color: #94b0c2;
 }
-/* a video starts again with a click */
-.anleitung-video {
-    position: relative;
-    width: fit-content;
-    max-width: 100%;
-    cursor: pointer;
+/* A guide's film (anleitung_film.js) with its steps beside it. The film is
+   never taller than the screen leaves room for (tabs, the popup's margins):
+   its width follows from that height, and it shrinks further on narrow
+   screens. The steps keep their column; below 900 px they go under the film. */
+.anleitung-film {
+    margin: 0.8em 0 1.6em 0;
+    max-width: none !important;
 }
-.anleitung-video::after {
-    content: '\f01e  Nochmal';
-    font-family: ForkAwesome, 'IBM Plex Sans', sans-serif;
+.film-reihe {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+}
+.film-buehne {
+    position: relative;
+    flex: 0 1 auto;
+    min-width: 0;
+    width: calc((100dvh - 150px) * var(--film-w) / var(--film-h));
+    max-width: 100%;
+    aspect-ratio: var(--film-w) / var(--film-h);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #11141c;
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    outline: none;
+    touch-action: manipulation;
+}
+.film-buehne:focus-visible {
+    box-shadow: 0 0 0 3px #ffcd75, 0 0 18px rgba(0, 0, 0, 0.5);
+}
+.film-buehne canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.film-laedt {
     position: absolute;
-    right: 10px;
-    top: 10px;
-    padding: 3px 10px;
-    border-radius: 12px;
-    background: rgba(26, 28, 44, 0.85);
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94b0c2;
+    font-size: 150%;
+}
+/* paused: a big ▶ in the middle */
+.film-gross {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 84px;
+    height: 84px;
+    margin: -42px 0 0 -42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 6px;
+    box-sizing: border-box;
+    background: rgba(26, 28, 44, 0.78);
     color: #ffcd75;
-    font-size: 80%;
+    font-size: 36px;
     opacity: 0;
-    transition: opacity 0.15s;
+    transform: scale(0.85);
+    transition: opacity 0.15s, transform 0.15s;
     pointer-events: none;
 }
-.anleitung-video:hover::after {
+.film-buehne.pausiert .film-gross {
     opacity: 1;
+    transform: scale(1);
+}
+/* the keys pressed at this moment, over the film (bottom left) */
+.film-tasten {
+    position: absolute;
+    left: 14px;
+    bottom: 22px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: rgba(26, 28, 44, 0.88);
+    border: 2px solid #ffcd75;
+    color: #ffcd75;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.12s;
+    pointer-events: none;
+}
+.film-tasten.zeigt {
+    opacity: 1;
+}
+.film-tasten kbd {
+    min-width: 1.2em;
+    padding: 1px 9px;
+    font: bold 95% 'IBM Plex Mono', 'Roboto Mono', monospace;
+    text-align: center;
+    color: #fff;
+    background: #222;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-bottom-width: 3px;
+    border-radius: 6px;
+}
+.film-tasten .film-maus {
+    color: #73eff7;
+}
+/* the progress: always a thin line at the bottom; under the mouse or a finger
+   a bar to wind the film (with the time and marks for the steps) */
+.film-leiste {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 22px;           /* the part that reacts – the line itself is thin */
+    display: flex;
+    align-items: flex-end;
+    cursor: pointer;
+    touch-action: none;
+}
+.film-spur {
+    position: relative;
+    flex: 1;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.22);
+    transition: height 0.12s, margin 0.12s, border-radius 0.12s;
+}
+.film-fortschritt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    background: #ffcd75;
+}
+.film-knopf {
+    position: absolute;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border-radius: 50%;
+    background: #ffcd75;
+    box-shadow: 0 0 0 3px rgba(26, 28, 44, 0.7);
+    opacity: 0;
+    transform: scale(0.4);
+    transition: opacity 0.12s, transform 0.12s;
+}
+.film-marke {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: rgba(26, 28, 44, 0.85);
+    opacity: 0;
+    transition: opacity 0.12s;
+}
+.film-zeit {
+    position: absolute;
+    right: 12px;
+    bottom: 18px;
+    padding: 1px 8px;
+    border-radius: 8px;
+    background: rgba(26, 28, 44, 0.85);
+    color: #ddd;
+    font: 600 80% 'IBM Plex Mono', 'Roboto Mono', monospace;
+    opacity: 0;
+    transition: opacity 0.12s;
+    pointer-events: none;
+}
+.film-leiste:hover .film-spur, .film-leiste.aktiv .film-spur {
+    height: 10px;
+    margin: 0 10px 6px 10px;
+    border-radius: 5px;
+}
+.film-leiste:hover .film-fortschritt, .film-leiste.aktiv .film-fortschritt {
+    border-radius: 5px;
+}
+.film-leiste:hover .film-knopf, .film-leiste.aktiv .film-knopf,
+.film-leiste:hover .film-marke, .film-leiste.aktiv .film-marke,
+.film-leiste:hover .film-zeit, .film-leiste.aktiv .film-zeit {
+    opacity: 1;
+    transform: none;
+}
+/* the steps beside the film: the current one lit, the ones before done */
+.film-schritte {
+    flex: 0 0 250px;
+    list-style: none;
+    margin: 0;
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.film-schritte li {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 0 !important;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    color: #cfd6e4;
+    line-height: 1.35;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.film-schritte li:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+.film-schritte .film-nr {
+    flex: none;
+    min-width: 24px;
+    height: 24px;
+    line-height: 24px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 90%;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+.film-schritte li.fertig {
+    color: #8b95a7;
+}
+.film-schritte li.aktiv {
+    background: rgba(255, 205, 117, 0.12);
+    border-color: rgba(255, 205, 117, 0.6);
+    color: #fff;
+}
+.film-schritte li.aktiv .film-nr {
+    background: #ffcd75;
+    color: #1a1c2c;
+}
+.anleitung-film figcaption {
+    margin-top: 0.5em;
+    font-size: 90%;
+    color: #94b0c2;
+}
+@media (max-width: 900px) {
+    .film-reihe {
+        flex-direction: column;
+    }
+    .film-schritte {
+        flex-basis: auto;
+        width: 100%;
+    }
 }
 .rezept-inhalt kbd {
     display: inline-block;
