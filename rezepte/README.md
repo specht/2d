@@ -722,7 +722,7 @@ Text: like the recipes (German, "du", Kurz gesagt → numbered steps that
 match the numbers in the videos → Wenn's nicht klappt → Mach mehr draus),
 with `<kbd>Strg</kbd>` for keys and `[Text](rezept:id)` for links to recipes
 and other guides (checked by the build). The Hilfe tab shows the guides first,
-as *Erste Schritte* (*Teil 1, 2 …*), separated from the recipes by a line.
+as *Erste Schritte* (numbered #01, #02 … like the recipes, which count on their own), separated from the recipes by a line.
 The `hinweis` captions of a film become its list of steps beside it: keep
 them short (they stand in a narrow column) and put what else a child needs to
 know into `mehr`. The text below a film does not repeat the steps – it adds

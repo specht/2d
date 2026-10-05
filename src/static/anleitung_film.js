@@ -37,6 +37,16 @@
             this.stage = figure.querySelector('.film-buehne');
             this.canvas = this.stage.querySelector('canvas');
             this.ctx = this.canvas.getContext('2d');
+            // The film is put together at its real size on a canvas of its own;
+            // the visible canvas gets it at the size it is shown, scaled down
+            // smoothly (a 1600 px picture shrunk by the browser would flicker in
+            // thin lines and small text). At its real size or larger: 1:1.
+            this.full = document.createElement('canvas');
+            this.full.width = this.canvas.width;
+            this.full.height = this.canvas.height;
+            this.full_ctx = this.full.getContext('2d');
+            this.resized = new ResizeObserver(() => this.present());
+            this.resized.observe(this.stage);
             this.steps = [...figure.querySelectorAll('.film-schritte li')];
             this.film = null;
             this.sheets = [];
@@ -160,10 +170,27 @@
             if (target < this.drawn) this.drawn = -1;
             for (let i = this.drawn + 1; i <= target; i++) {
                 for (const [s, sx, sy, w, h, dx, dy] of this.film.frames[i].p)
-                    this.ctx.drawImage(this.sheets[s], sx, sy, w, h, dx, dy, w, h);
+                    this.full_ctx.drawImage(this.sheets[s], sx, sy, w, h, dx, dy, w, h);
             }
+            const changed = this.drawn !== target;
             this.drawn = target;
+            if (changed) this.present();
             this.render_progress();
+        }
+
+        // the picture put together so far onto the visible canvas, at the size it is shown
+        present() {
+            if (this.drawn < 0) return;
+            const shown = this.canvas.getBoundingClientRect().width * (window.devicePixelRatio || 1);
+            const w = shown > 0 ? Math.min(this.full.width, Math.round(shown)) : this.full.width;
+            const h = Math.max(1, Math.round(w * this.full.height / this.full.width));
+            if (this.canvas.width !== w || this.canvas.height !== h) {
+                this.canvas.width = w;
+                this.canvas.height = h;
+            }
+            this.ctx.imageSmoothingEnabled = true;
+            this.ctx.imageSmoothingQuality = 'high';
+            this.ctx.drawImage(this.full, 0, 0, w, h);
         }
 
         // what goes with this moment: the bar, the step beside, the keys
@@ -263,6 +290,7 @@
             this.pause();
             this.observer.disconnect();
             this.near.disconnect();
+            this.resized.disconnect();
             players.delete(this);
         }
     }

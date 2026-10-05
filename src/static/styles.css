@@ -2785,6 +2785,11 @@ a, a:visited {
    the studio itself, so their popup is wider and their videos and pictures are
    shown at their real size where they fit (never stretched: the text in them
    stays sharp). Long lines of text are hard to read: the text keeps its width. */
+/* pixel art shown smaller than it is (rezepte.js pixel_fit): smooth, since
+   hard pixels would drop rows and columns unevenly */
+img.verkleinert {
+    image-rendering: auto !important;
+}
 /* a card of a guide shows the studio, not pixel art: smooth when scaled */
 .rezept-karte.anleitung .rezept-bild img {
     image-rendering: auto;
@@ -4126,11 +4131,35 @@ details.trait-advanced[open] > summary {
     color: #ddd;
 }
 
+/* left: search and the groups (or a game's code), right: the sprites */
+.basket-main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    gap: 18px;
+}
+
+.basket-side {
+    flex: 0 0 230px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
 .basket-source {
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 10px 14px;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+}
+
+.basket-source[data-view="katalog"] {
+    flex: 1;
+}
+
+.basket-source[data-view="code"] {
+    align-items: flex-start;
 }
 
 .basket-field > span {
@@ -4194,34 +4223,55 @@ button.basket-tab.active, button.basket-tab.active:hover {
 }
 
 .basket-search-field input {
-    width: 16em;
+    width: 100%;
     font-family: inherit;
     letter-spacing: 0;
 }
 
+/* the groups as a list; the one in view is marked (mark_group_in_view) */
 .basket-group-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
     flex: 1;
-    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0 -4px;
+    padding: 0 4px;
 }
 
 button.basket-group-link {
-    padding: 2px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 10px;
     border: none;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #ddd;
+    border-left: 3px solid transparent;
+    border-radius: 0 6px 6px 0;
+    background: transparent;
+    color: #ccd;
     font: inherit;
-    font-size: 12px;
+    font-size: 14px;
+    text-align: left;
 }
 
 button.basket-group-link:hover {
     border: none;
-    background: rgba(167, 240, 112, 0.25);
-    outline: 1px solid rgba(167, 240, 112, 0.6);
+    border-left: 3px solid transparent;
+    background: rgba(255, 255, 255, 0.07);
     color: #fff;
+}
+
+button.basket-group-link.active, button.basket-group-link.active:hover {
+    border-left-color: #a7f070;
+    background: rgba(167, 240, 112, 0.12);
+    color: #fff;
+}
+
+button.basket-group-link .basket-group-count {
+    margin-left: 0;
 }
 
 h3.basket-group {
@@ -4268,6 +4318,7 @@ h3.basket-group:first-child {
 .basket-grid {
     position: relative;
     flex: 1;
+    min-width: 0;
     min-height: 0;
     overflow-y: auto;
     display: grid;
@@ -4275,6 +4326,16 @@ h3.basket-group:first-child {
     grid-auto-rows: min-content;
     gap: 10px;
     padding: 2px;
+}
+
+@media (max-width: 760px) {
+    .basket-main {
+        flex-direction: column;
+    }
+    .basket-side {
+        flex: 0 0 auto;
+        max-height: 34%;
+    }
 }
 
 button.basket-card {

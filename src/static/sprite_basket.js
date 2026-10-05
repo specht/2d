@@ -120,31 +120,37 @@ class SpriteBasket {
         const self = this;
         this.modal = new ModalDialog({
             title: 'Sprites holen',
-            width: '980px',
-            max_width: '94vw',
-            height: '88vh',
+            width: '1440px',
+            max_width: '96vw',
+            height: '90vh',
+            // left: where the sprites come from (search and groups, or a game's
+            // code) – right: the sprites, with all the room that is left
             body: `
                 <div class="basket">
                     <div class="basket-tabs">
                         <button type="button" class="basket-tab" data-view="katalog"><i class="fa fa-th-large"></i> Sprite-Katalog</button>
                         <button type="button" class="basket-tab" data-view="code"><i class="fa fa-gamepad"></i> Aus einem anderen Spiel</button>
                     </div>
-                    <div class="basket-source basket-view" data-view="katalog">
-                        <label class="basket-field basket-search-field">
-                            <span>Suchen</span>
-                            <input id="basket_search" type="search" autocomplete="off" spellcheck="false" placeholder="z. B. Baum, Münze, Hund">
-                        </label>
-                        <div class="basket-group-links" id="basket_group_links"></div>
+                    <div class="basket-main">
+                        <div class="basket-side">
+                            <div class="basket-source basket-view" data-view="katalog">
+                                <label class="basket-field basket-search-field">
+                                    <span>Suchen</span>
+                                    <input id="basket_search" type="search" autocomplete="off" spellcheck="false" placeholder="z. B. Baum, Münze, Hund">
+                                </label>
+                                <div class="basket-group-links" id="basket_group_links"></div>
+                            </div>
+                            <div class="basket-source basket-view" data-view="code">
+                                <label class="basket-field">
+                                    <span>Code des Spiels</span>
+                                    <input id="basket_code" maxlength="7" autocomplete="off" spellcheck="false" placeholder="4n2zuhp">
+                                </label>
+                                <button type="button" id="basket_open" class="basket-open">Öffnen</button>
+                            </div>
+                            <div class="basket-info" id="basket_info"></div>
+                        </div>
+                        <div class="basket-grid" id="basket_grid"></div>
                     </div>
-                    <div class="basket-source basket-view" data-view="code">
-                        <label class="basket-field">
-                            <span>Code des Spiels</span>
-                            <input id="basket_code" maxlength="7" autocomplete="off" spellcheck="false" placeholder="4n2zuhp">
-                        </label>
-                        <button type="button" id="basket_open" class="basket-open">Öffnen</button>
-                    </div>
-                    <div class="basket-info" id="basket_info"></div>
-                    <div class="basket-grid" id="basket_grid"></div>
                 </div>
             `,
             onshow: () => self.shown(),
@@ -163,6 +169,8 @@ class SpriteBasket {
             this.search = e.target.value;
             this.render_grid();
         });
+        // the group in view is marked in the list on the left
+        $('#basket_grid').on('scroll', () => this.mark_group_in_view());
         // stop animating while the dialog is closed
         const hide = this.modal.hide.bind(this.modal);
         this.modal.hide = () => { this.stop_animation(); hide(); };
@@ -335,7 +343,10 @@ class SpriteBasket {
             const heading = $('<h3>').addClass('basket-group').text(group.name).appendTo(grid);
             $('<span>').addClass('basket-group-count').text(group.sprites.length).appendTo(heading);
             // jump to a group
-            $('<button>').attr('type', 'button').addClass('basket-group-link').text(group.name)
+            $('<button>').attr('type', 'button').addClass('basket-group-link')
+                .append($('<span>').text(group.name))
+                .append($('<span>').addClass('basket-group-count').text(group.sprites.length))
+                .data('heading', heading[0])
                 .on('click', () => {
                     // the grid is the headings' offsetParent (position: relative)
                     grid[0].scrollTo({ top: heading[0].offsetTop - 4, behavior: 'smooth' });
@@ -343,6 +354,22 @@ class SpriteBasket {
                 .appendTo(links);
             for (const sprite of group.sprites) grid.append(this.card(catalogue, sprite, needed));
         }
+        this.mark_group_in_view();
+    }
+
+    // the last group whose heading has reached the top of the grid (or the
+    // last one of all, once the grid is scrolled to its end)
+    mark_group_in_view() {
+        const grid = $('#basket_grid')[0];
+        const links = $('#basket_group_links .basket-group-link');
+        if (!grid || !links.length) return;
+        const at_end = grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 2;
+        let current = links[0];
+        for (const link of links) if ($(link).data('heading').offsetTop - 12 <= grid.scrollTop) current = link;
+        if (at_end && grid.scrollTop > 0) current = links[links.length - 1];
+        links.removeClass('active');
+        $(current).addClass('active');
+        current.scrollIntoView?.({ block: 'nearest' });
     }
 
     render_tray() {

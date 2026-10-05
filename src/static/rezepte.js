@@ -10,8 +10,35 @@
 //
 // The Erste-Schritte guides (rezepte/tools/anleitungen.mjs, /anleitungen/
 // anleitungen.json) come first, in their own category: recorded in the real
-// studio, with videos of every step. They have their own numbers (Teil 1, 2 …),
+// studio, with videos of every step. They have their own numbers (#01, #02 …),
 // so the recipes keep theirs.
+
+// Pixel art is drawn with hard pixels (image-rendering: pixelated) where it is
+// shown at its size or bigger. Shrunk – a wide recording in a card, a big one
+// on a small screen – hard pixels would drop rows and columns unevenly and look
+// ragged: there it gets the class `verkleinert` and is drawn smoothly.
+const pixel_fit = (() => {
+    if (typeof ResizeObserver !== 'function') return { watch() { }, forget() { } };
+    const check = (img) => {
+        if (!img.naturalWidth || !img.clientWidth) return;
+        const fit = getComputedStyle(img).objectFit;
+        const sx = img.clientWidth / img.naturalWidth, sy = img.clientHeight / img.naturalHeight;
+        const scale = fit === 'cover' ? Math.max(sx, sy) : fit === 'contain' ? Math.min(sx, sy) : sx;
+        img.classList.toggle('verkleinert', scale * (window.devicePixelRatio || 1) < 0.999);
+    };
+    const observer = new ResizeObserver(entries => entries.forEach(e => check(e.target)));
+    return {
+        watch(img) {
+            img.addEventListener('load', () => check(img));
+            observer.observe(img);
+            check(img);
+        },
+        forget(root) {
+            for (const img of $(root).find('img')) observer.unobserve(img);
+        },
+    };
+})();
+
 class RecipeGallery {
     constructor(container) {
         this.container = $(container);
@@ -68,11 +95,11 @@ class RecipeGallery {
     }
 
     // #01, #02, … in gallery order – for orientation ("mach mit Rezept #12 weiter");
-    // the guides count on their own (Teil 1, Teil 2 …)
+    // the guides count on their own, the same way (the label beside says which)
     number(recipe) {
         const same = this.recipes.filter(r => !!r.anleitung === !!recipe.anleitung);
         const n = same.indexOf(recipe) + 1;
-        return recipe.anleitung ? `Teil ${n}` : '#' + String(n).padStart(2, '0');
+        return '#' + String(n).padStart(2, '0');
     }
 
     folder(recipe) {
@@ -193,6 +220,7 @@ class RecipeGallery {
             }
         }
         if (this.observer) this.observer.observe(img[0]);
+        pixel_fit.watch(img[0]);
         const text = $('<div>').addClass('rezept-text').appendTo(card);
         $('<div>').addClass('rezept-kopf')
             .append($('<span>').addClass('rezept-kategorie')
@@ -210,6 +238,7 @@ class RecipeGallery {
         this.rendered_filter = this.filter;
         const self = this;
         for (const img of this.container.find('.rezept-bild img')) this.observer?.unobserve(img);
+        pixel_fit.forget(this.container);
         this.container.empty();
         const chips = $('<div>').addClass('rezept-filter').appendTo(this.container);
         for (const category of [null, ...this.categories]) {
@@ -236,7 +265,7 @@ class RecipeGallery {
         };
         if (guides.length)
             section('rezept-teil-anleitungen', 'Erste Schritte',
-                'So funktioniert das Studio – Schritt für Schritt, mit Videos aus dem Studio. Fang am besten mit Teil 1 an.', guides);
+                'So funktioniert das Studio – Schritt für Schritt, mit Videos aus dem Studio. Fang am besten mit #01 an.', guides);
         if (guides.length && recipes.length)
             $('<div>').addClass('rezept-trenner').attr('role', 'separator').appendTo(this.container);
         if (recipes.length)
@@ -285,6 +314,7 @@ class RecipeGallery {
         this.open_id = null;
         window.anleitung_films?.unmount_all();
         for (const img of this.popup_body?.find('.rezept-bild img') ?? []) this.observer?.unobserve(img);
+        if (this.popup_body) pixel_fit.forget(this.popup_body);
         this.popup_body?.empty();
         this.popup_el?.hide();
         this.popup_el?.find('.rezept-dialog').removeClass('anleitung');
@@ -305,6 +335,7 @@ class RecipeGallery {
         const overlay = this.popup();
         for (const img of this.popup_body.find('.rezept-bild img')) this.observer?.unobserve(img);
         window.anleitung_films?.unmount_all();
+        pixel_fit.forget(this.popup_body);
         this.popup_body.empty();
         const article = $('<article>').addClass('rezept').appendTo(this.popup_body);
         $('<div>').addClass('rezept-kopf')
@@ -344,6 +375,8 @@ class RecipeGallery {
         $('#main_div_help').addClass('rezept-offen');
         overlay.show();
         this.popup_body.scrollTop(0);
+        // shrunk pictures smooth, the others with hard pixels (the cards below watch their own)
+        for (const img of article.find('img')) pixel_fit.watch(img);
         // a guide's films (anleitung_film.js): they start once they are in view
         window.anleitung_films?.mount(article[0]);
     }

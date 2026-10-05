@@ -36,6 +36,8 @@ const static_dir = path.join(repo, 'src/static');
 const out_dir = path.join(static_dir, 'anleitungen');
 const args = process.argv.slice(2);
 const check_only = args.includes('--check');
+// the gallery card's still: twice the width a card is shown at (sharp screens)
+const STANDBILD_BREITE = 960;
 const force = args.includes('--force');
 const only = args.filter(a => !a.startsWith('--'));
 export const KATEGORIE = 'Erste Schritte';
@@ -303,7 +305,11 @@ async function main() {
                 const i = first.standbild !== undefined ? Math.round(first.standbild * 60) : Math.floor(n * 0.6);
                 const f = first.frames[Math.max(0, Math.min(n - 1, i))];
                 const standbild = `standbild/${g.id}.webp`;
-                const standbild_version = write_output(standbild, await sharp(f.data, { raw: { width: f.w, height: f.h, channels: 4 } }).webp({ lossless: true, effort: 6 }).toBuffer());
+                // made smaller here, with a good filter: a card shows it about 400 px
+                // wide, and the browser shrinking 1600 px would make thin lines ragged
+                const standbild_version = write_output(standbild, await sharp(f.data, { raw: { width: f.w, height: f.h, channels: 4 } })
+                    .resize({ width: Math.min(f.w, STANDBILD_BREITE), kernel: 'lanczos3' })
+                    .webp({ lossless: true, effort: 6 }).toBuffer());
                 // the card shows this one picture (a film plays only in the guide)
                 card = {
                     bild: standbild, version: standbild_version, breite: f.w, hoehe: f.h,
