@@ -102,13 +102,15 @@
             <div class='menu'>
                 <h3>Werkzeuge</h3>
                 <div id='tool_menu' class="menu-body"></div>
+                <!-- Onion Skinning, Vorschau, Spiegelnd zeichnen (studio.js SPRITE_VIEW_TOGGLES) -->
+                <div id='sprite_view_toggles' class="menu-body"></div>
             </div>
             <div class='menu-group'>
                 <div class='menu'>
                     <h3>Palette</h3>
                     <div id='color_menu' class="menu-body"></div>
-                    <!-- what the right mouse button does; turns yellow while the colour is transparent (studio.js) -->
-                    <div class="palette-erase-hint" id="palette_erase_hint">Rechtsklick malt durchsichtig</div>
+                    <!-- X: Farbe ↔ durchsichtig; turns yellow while the colour is transparent (studio.js refresh_current_color_chip) -->
+                    <div class="palette-erase-hint" id="palette_erase_hint"></div>
                 </div>
                 <div class='menu'>
                     <!-- <h3>Farbvariationen</h3> -->
@@ -135,8 +137,9 @@
         <div id='canvas'></div>
         <div id='menu_frames' class="scroll_helper
                 scroll_helper_horizontal"></div>
-        <!-- the sprite being drawn: its Titel, its states, its Eigenschaften
-             (studio.js handleResize places the columns) -->
+        <!-- the sprite being drawn: its Titel and its Eigenschaften, then its
+             Zustände – in a column of their own when there is room, else below
+             (studio.js handleResize places the columns and moves #states_container) -->
         <div class='menu_container right_menu_container side-column'>
             <div class="menu-group">
                 <div id='menu_sprite_properties_head' class="menu">
@@ -144,6 +147,14 @@
                     <div id="menu_sprite_properties" class="menu-body"></div>
                 </div>
             </div>
+            <div class="menu-group" id="sprite_traits_group">
+                <div id='menu_sprite_properties_variable_part_following' class="menu">
+                    <h3>Eigenschaften</h3>
+                    <div id="menu_sprite_traits_add" class="menu-body"></div>
+                </div>
+            </div>
+        </div>
+        <div class='menu_container states_menu_container side-column'>
             <div class="menu-group" id="states_container">
                 <div class="menu">
                     <h3>Zustände</h3>
@@ -156,12 +167,6 @@
                 <div id='menu_state_properties_variable_part_following' class="menu">
                     <div id="menu_state_properties" class="menu-body
                             scroll_helper scroll_helper_vertical"></div>
-                </div>
-            </div>
-            <div class="menu-group" id="sprite_traits_group">
-                <div id='menu_sprite_properties_variable_part_following' class="menu">
-                    <h3>Eigenschaften</h3>
-                    <div id="menu_sprite_traits_add" class="menu-body"></div>
                 </div>
             </div>
         </div>

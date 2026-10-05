@@ -403,6 +403,7 @@ class LevelEditor {
                 self.clear_selection();
                 self.level_index = index;
                 self.layer_index = 0;
+                self.update_level_settings_head();
                 self.condition_index = 0;
                 self.rect_index = 0;
                 self.auto_adjust_camera = true;
@@ -582,7 +583,8 @@ class LevelEditor {
                         } else if (type === 'text') {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Text · '));
                         }
-                        layer_div.append($('<span class="layer-name">').text(layer.properties.name || `Ebene ${index + 1}`));
+                        layer_div.append($('<span class="layer-name">').text(layer.properties.name || `Ebene ${index + 1}`)
+                            .toggleClass('unnamed', !String(layer.properties.name ?? '').trim()));
                         return layer_div;
                     },
                     onclick: (e, index) => {
@@ -918,7 +920,8 @@ class LevelEditor {
     handle_context_menu(e) {
         if (current_pane !== 'level') return;
         const tool = menus.level.active_key;
-        if (tool === 'tool/pen' || tool === 'tool/connect') return;
+        // Verbinden: the right button stops connecting; every other tool: the menu
+        if (tool === 'tool/connect') return;
         const touch = this.get_touch_point(e);
         const [wx, wy] = this.ui_to_world(touch, false);
         const layer = this.current_sprite_layer();
@@ -1907,7 +1910,7 @@ class LevelEditor {
         const layer = this.game.data.levels[this.level_index].layers[index];
         if (!layer || this.read_only_level()) return;
         layer.properties.name = name;
-        $('#menu_layers').children('._dnd_item').eq(index).find('.layer-name').text(name || `Ebene ${index + 1}`);
+        $('#menu_layers').children('._dnd_item').eq(index).find('.layer-name').text(name || `Ebene ${index + 1}`).toggleClass('unnamed', !String(name ?? '').trim());
         if (index === this.layer_index) { this.setup_layer_properties(); this.update_layer_label(); }
         this.history_observe();
     }
@@ -2408,13 +2411,15 @@ class LevelEditor {
 
         new LineEditWidget({
             container: $('#menu_layer_properties'),
-            label: 'Name',
+            label: 'Titel',
             hint: 'Gib jeder Ebene einen erkennbaren Namen, zum Beispiel »Haus 1 – Fassade«.',
+            placeholder: () => `Ebene ${self.layer_index + 1}`,
+            select_default: (value) => typeof is_default_name === 'function' && is_default_name(value, 'Ebene'),
             get: () => layer.properties.name,
             set: (name) => {
                 layer.properties.name = name;
                 $('#menu_layers').children('._dnd_item').eq(self.layer_index)
-                    .find('.layer-name').text(name || `Ebene ${self.layer_index + 1}`);
+                    .find('.layer-name').text(name || `Ebene ${self.layer_index + 1}`).toggleClass('unnamed', !String(name ?? '').trim());
                 self.update_layer_label();
                 self.update_layer_settings_head();
             },
@@ -3482,12 +3487,49 @@ class LevelEditor {
         }
     }
 
+    // What the pen shows under the mouse: the chosen sprite – or, while it
+    // erases (X), a red frame with a cross of that size.
+    rebuild_pen_cursor() {
+        this.cursor_group_inner.remove.apply(this.cursor_group_inner, this.cursor_group_inner.children);
+        if (menus.level.active_key !== 'tool/pen') return;
+        if (!this.pen_erasing) {
+            this.sheets[this.sprite_index]?.add_sprite_to_group(this.cursor_group_inner, 'sprite', 0, 0);
+            return;
+        }
+        const sprite = this.game.data.sprites[this.sprite_index];
+        const w = sprite?.width ?? this.grid_width, h = sprite?.height ?? this.grid_height;
+        const material = new THREE.LineBasicMaterial({ color: 0xef7d57, transparent: true });
+        const line = (points, loop) => {
+            const geometry = new THREE.BufferGeometry().setFromPoints(points.map(([x, y]) => new THREE.Vector3(x, y, 0)));
+            this.cursor_group_inner.add(loop ? new THREE.LineLoop(geometry, material) : new THREE.LineSegments(geometry, material));
+        };
+        line([[-w / 2, 0], [-w / 2, h], [w / 2, h], [w / 2, 0]], true);
+        line([[-w / 2, 0], [w / 2, h], [-w / 2, h], [w / 2, 0]], false);
+    }
+
+    // X: the pen erases instead of placing (and X again: it places again) –
+    // like "durchsichtig" in the sprite editor. Choosing a sprite or another
+    // tool ends it.
+    set_pen_erasing(flag) {
+        flag = !!flag;
+        if (flag && menus.level.active_key !== 'tool/pen') menus.level.handle_click('tool/pen');
+        if (this.pen_erasing === flag) return;
+        this.pen_erasing = flag;
+        $('#menu_level_sprites > .button').removeClass('active');
+        if (!flag && menus.level.active_key === 'tool/pen')
+            $('#menu_level_sprites > .button').filter((_, b) => $(b).data('sprite_index') === this.sprite_index).addClass('active');
+        this.eraser_toggle?.toggleClass('active', flag);
+        $(this.element).toggleClass('pen-erasing', flag);
+        this.rebuild_pen_cursor();
+        menus.level.refresh_toggles?.();
+        this.render();
+    }
+
     handle_enter(e) {
         this.pointer_inside = true;
         let p = this.pen_point(this.get_touch_point(e));
-        this.cursor_group_inner.remove.apply(this.cursor_group_inner, this.cursor_group_inner.children);
+        this.rebuild_pen_cursor();
         if (menus.level.active_key === 'tool/pen') {
-            this.sheets[this.sprite_index].add_sprite_to_group(this.cursor_group_inner, 'sprite', 0, 0);
             this.cursor_group_inner.position.x = p[0];
             this.cursor_group_inner.position.y = p[1];
             this.cursor_group.visible = true;
@@ -3560,6 +3602,10 @@ class LevelEditor {
         } else if (menus.level.active_key === 'tool/pen' && this.game.data.levels[this.level_index].layers[this.layer_index].type === 'sprites') {
             if (this.refuse_locked_layer()) {
                 // locked: neither paint, erase nor fill (the notice says why)
+            } else if (e.button === 0 && this.pen_erasing) {
+                // X: the pen erases
+                if (this.modifier_shift) this.remove_sprite_from_level(this.mouse_down_position_no_snap, this.mouse_down_position_no_snap);
+                else this.remove_sprite_from_level(this.mouse_down_position, this.mouse_down_position_no_snap);
             } else if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
                 // Strg + ziehen: fill a rectangle with the chosen sprite (+ Shift: its edge, + Alt: a line)
                 this.drawing_shape = LevelEditor.shape_for_event(e);
@@ -3571,13 +3617,8 @@ class LevelEditor {
                 } else {
                     this.add_sprite_to_level(this.mouse_down_position);
                 }
-            } else if (e.button === 2) {
-                if (this.modifier_shift) {
-                    this.remove_sprite_from_level(this.mouse_down_position_no_snap, this.mouse_down_position_no_snap);
-                } else {
-                    this.remove_sprite_from_level(this.mouse_down_position, this.mouse_down_position_no_snap);
-                }
             }
+            // the right button opens the menu (handle_context_menu)
         } else if (menus.level.active_key === 'tool/pan') {
             this.old_camera_position = [this.camera_x, this.camera_y];
         } else if (menus.level.active_key === 'tool/select' && e.button === 2) {
@@ -3736,19 +3777,14 @@ class LevelEditor {
                 this.cursor_group_inner.position.x = p[0];
                 this.cursor_group_inner.position.y = p[1];
             }
-            if (this.mouse_down) {
-                if (this.mouse_down_button === 0) {
-                    if (this.modifier_shift) {
-                        this.add_sprite_to_level(p_no_snap);
-                    } else {
-                        this.add_sprite_to_level(p);
-                    }
-                } else if (this.mouse_down_button === 2) {
-                    if (this.modifier_shift) {
-                        this.remove_sprite_from_level(p_no_snap, p_no_snap);
-                    } else {
-                        this.remove_sprite_from_level(p, p_no_snap);
-                    }
+            if (this.mouse_down && this.mouse_down_button === 0) {
+                if (this.pen_erasing) {
+                    if (this.modifier_shift) this.remove_sprite_from_level(p_no_snap, p_no_snap);
+                    else this.remove_sprite_from_level(p, p_no_snap);
+                } else if (this.modifier_shift) {
+                    this.add_sprite_to_level(p_no_snap);
+                } else {
+                    this.add_sprite_to_level(p);
                 }
             }
         } else {
@@ -3848,7 +3884,7 @@ class LevelEditor {
         this.rect_group.add(new THREE.LineLoop(geometry, material));
     }
 
-    // Right-click with the pen: the sprite on exactly this spot, else the
+    // The pen while it erases (X): the sprite on exactly this spot, else the
     // topmost one under the mouse (raw: the point in the world) – a wide
     // sprite sits elsewhere than the spot the chosen sprite would take.
     remove_sprite_from_level(p, raw = null) {
@@ -4375,7 +4411,12 @@ class LevelEditor {
 
     refresh() {
         let self = this;
+        // every label that names the level, the layer or the selection
+        // follows what is shown now (after switching, renaming, undo …)
         this.update_layer_label();
+        this.update_level_settings_head();
+        this.update_layer_settings_head();
+        this.update_placed_title();
         this.scene.remove.apply(this.scene, this.scene.children);
         this.scene.background = new THREE.Color(parse_html_color(this.game.data.levels[this.level_index].properties.background_color));
 
@@ -5014,6 +5055,8 @@ class LevelEditor {
                 let button = $(e.target.closest('.button'));
                 button.addClass('active');
                 self.sprite_index = button.data('sprite_index');
+                // a sprite chosen: the pen places it again (not X: erasing)
+                self.set_pen_erasing(false);
                 // the grid stays the game's Rastergröße (sprite_grid_point puts
                 // bigger sprites on whole cells), it does not follow the sprite
                 self.refresh();
@@ -5021,6 +5064,17 @@ class LevelEditor {
                 menus.level.handle_click('tool/pen');
             });
         }
+        // X: the pen erases – a switch above the sprites, like "durchsichtig"
+        // among the colours of the sprite editor
+        if (!this.eraser_toggle) {
+            this.eraser_toggle = $('<button type="button" class="view-toggle eraser-toggle">')
+                .attr('title', 'Radieren (X) – der Stift löscht, statt zu setzen. Ein Klick auf ein Sprite oder noch einmal X: wieder setzen.')
+                .append($('<span class="view-toggle-dot">')).append($('<span>').text('Radieren'))
+                .append($('<span class="key widget-key">').text(printed_key('X')))
+                .on('click', () => this.set_pen_erasing(!this.pen_erasing))
+                .insertBefore($('#level_sprite_filter'));
+        }
+        this.eraser_toggle.toggleClass('active', !!this.pen_erasing);
         // a game with only a few sprites: where more come from
         if (this.game.data.sprites.length < 4) {
             const hint = $('<div class="palette-hint">').appendTo($('#menu_level_sprites'));
@@ -5092,6 +5146,8 @@ class LevelEditor {
         else if (ctrl && key === 'x') level_editor.cut_selection();
         else if (ctrl && key === 'v') level_editor.paste_clipboard();
         else if (ctrl && key === 'd') level_editor.duplicate_selection();
+        // X (by its place on the keyboard, like the tools): the pen erases / places
+        else if (!ctrl && !e.shiftKey && e.code === 'KeyX' && !e.repeat) level_editor.set_pen_erasing(!(level_editor.pen_erasing && menus.level.active_key === 'tool/pen'));
         else if (!ctrl && selecting && e.key.startsWith('Arrow')) {
             const [ax, ay] = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key] ?? [0, 0];
             // with Shift one pixel; else to the next grid position (a whole

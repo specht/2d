@@ -36,21 +36,32 @@ function bytes_to_str(i) {
 }
 
 // The sprite pane's columns (pure): tools and colours | drawing area |
-// "this sprite" (Titel, Zustände, Eigenschaften) | every sprite of the game.
-// The drawing area stays square and as big as the height allows, unless the
-// columns beside it would get too narrow.
+// "this sprite" (Titel, Eigenschaften) | its Zustände | every sprite of the
+// game. The tools column has one width everywhere: six tools, eight colours
+// and eleven variations in a row, edge to edge. The drawing area stays square
+// and as big as the height allows; the Zustände get a column of their own when
+// that costs it little (1920 × 1080), otherwise they come below the
+// Eigenschaften.
+const SPRITE_LEFT_COLUMN = 240;
+
 function sprite_pane_layout(width, height) {
     const wide = width >= 1600;
     const gap = wide ? 20 : 14;
-    const left_w = wide ? 260 : 232;
-    const sprite_w = wide ? 270 : 236;
-    const library_min = wide ? 300 : 220;
+    const left_w = SPRITE_LEFT_COLUMN;
+    const column_w = wide ? 250 : 236;
+    const library_min = wide ? 236 : 220;
     const x_canvas = gap + left_w + gap;
-    const room = width - x_canvas - (gap + sprite_w + gap + library_min + gap);
-    const size = Math.max(100, Math.min(height - 218, room));
+    const fit = (columns) => Math.max(100, Math.min(height - 218,
+        width - x_canvas - (columns * (gap + column_w) + gap + library_min + gap)));
+    const states_column = fit(2) >= fit(1) * 0.93;
+    const size = states_column ? fit(2) : fit(1);
     const x_sprite = x_canvas + size + gap;
-    const x_library = x_sprite + sprite_w + gap;
-    return { gap, left_w, sprite_w, size, x_canvas, x_sprite, x_library, library_w: Math.max(library_min, width - x_library - gap) };
+    const x_states = x_sprite + column_w + gap;
+    const x_library = (states_column ? x_states : x_sprite) + column_w + gap;
+    return {
+        gap, left_w, sprite_w: column_w, states_w: column_w, states_column, size,
+        x_canvas, x_sprite, x_states, x_library, library_w: Math.max(library_min, width - x_library - gap),
+    };
 }
 
 // Folding panels (the settings of the level and of the layer in the level
@@ -98,6 +109,37 @@ function setup_folding_panels() {
     $('.folding-panel').each((_, panel) => refresh_folding_panel($(panel).data('panel')));
 }
 
+// The view settings of the sprite editor: switches under Werkzeuge and in
+// the status bar (menu.js), with their keys. M stands next to B and N
+// (spiegeln) in the keyboard row of the tool buttons.
+const SPRITE_VIEW_TOGGLES = [
+    { key: 'O', label: 'Onion Skinning',
+        title: 'Der Frame davor (rötlich) und danach (bläulich) scheinen durch – so zeichnest du eine Bewegung Schritt für Schritt.',
+        get: () => !!canvas?.onion_skin, set: (value) => canvas?.set_onion_skin?.(value) },
+    { key: 'P', label: 'Vorschau',
+        title: 'Spielt die Animation des Zustands oben rechts ab – mit Framerate (− / +) und gespiegelter Ansicht.',
+        get: () => !!window.sprite_preview?.shown, set: (value) => window.sprite_preview?.set_shown?.(value) },
+    { key: 'M', label: 'Spiegelnd zeichnen',
+        title: 'Was du mit Stift, Formen oder Füllen zeichnest, erscheint auch gespiegelt auf der anderen Seite. Die gestrichelte Linie ist der Spiegel.',
+        get: () => !!canvas?.symmetric, set: (value) => canvas?.set_symmetric?.(value) },
+];
+
+function setup_sprite_view_toggles() {
+    const row = $('#sprite_view_toggles').empty().addClass('view-toggles');
+    for (const toggle of SPRITE_VIEW_TOGGLES) {
+        toggle.button = $('<button type="button" class="view-toggle">').attr('title', `${toggle.label} (${toggle.key}) – ${toggle.title}`)
+            .append($('<span class="view-toggle-dot">')).append($('<span>').text(toggle.label))
+            .append($('<span class="key widget-key">').text(printed_key(toggle.key)))
+            .appendTo(row)
+            .on('click', () => { toggle.set(!toggle.get()); menus.sprites?.refresh_toggles(); });
+    }
+    refresh_sprite_view_toggles();
+}
+
+function refresh_sprite_view_toggles() {
+    for (const toggle of SPRITE_VIEW_TOGGLES) toggle.button?.toggleClass('active', !!toggle.get());
+}
+
 function handleResize() {
     const layout = sprite_pane_layout(window.innerWidth, window.innerHeight);
     canvas.max_size = layout.size;
@@ -108,6 +150,11 @@ function handleResize() {
     $('#menu_frames').css({ left: `${layout.x_canvas}px`, top: `${size + 120}px`, width: `${size}px` });
     $('#main_div_sprites > .menu_container').first().css({ left: `${layout.gap}px`, width: `${layout.left_w}px` });
     $('#main_div_sprites .right_menu_container').css({ left: `${layout.x_sprite}px`, width: `${layout.sprite_w}px` });
+    // the Zustände: their own column, or below the Eigenschaften
+    const states_home = layout.states_column ? $('#main_div_sprites .states_menu_container') : $('#main_div_sprites .right_menu_container');
+    if (!$('#states_container').parent().is(states_home)) $('#states_container').appendTo(states_home);
+    $('#main_div_sprites .states_menu_container').toggle(layout.states_column)
+        .css({ left: `${layout.x_states}px`, width: `${layout.states_w}px` });
     $('#main_div_sprites .far_right_menu_container').css({ left: `${layout.x_library}px`, width: `${layout.library_w}px` });
     // the list moves its items aside while one is dragged: as many per row as fit
     const per_row = Math.max(1, Math.floor(($('#menu_sprites').innerWidth() || layout.library_w - 16) / 68));
@@ -141,8 +188,14 @@ function setPenWidth(menu_item) {
 function setCurrentColor(color) {
     if (color.length === 7)
         color += 'ff';
+    remember_color_before_transparent();
     canvas.current_color = parseInt(color.replace('#', ''), 16);
     refresh_current_color_chip();
+    // durchsichtig: the variations of the colour before stay (X goes back to it)
+    if (((canvas.current_color >>> 0) & 0xff) === 0) {
+        $('#color_variations_menu .button').removeClass('active');
+        return;
+    }
     $('#color_variations_menu').empty();
     // rows of variations of the colour, each with what it is for (hover)
     const add_row = (colors, title) => {
@@ -154,7 +207,6 @@ function setCurrentColor(color) {
             swatch.data('list_color', [rgb.r, rgb.g, rgb.b, Math.floor(rgb.a * 255)]);
             $('#color_variations_menu').append(swatch);
         }
-        $('#color_variations_menu').append('<br />');
     };
     const base = tinycolor(color);
     const alpha = base.getAlpha();
@@ -173,6 +225,7 @@ function setCurrentColor(color) {
     add_row([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(h => tinycolor(color).setAlpha(h / 11)),
         'Durchsichtiger – ganz links fast unsichtbar');
     $('#color_variations_menu .button').click(function (e) {
+        remember_color_before_transparent();
         let list_color = $(e.target).data('list_color');
         canvas.current_color = (((((list_color[0] * 256) + list_color[1]) * 256) + list_color[2]) * 256) + list_color[3];
         color_menu.element.find('.button').removeClass('active');
@@ -205,15 +258,63 @@ function activateTool(item) {
     }
 }
 
+// Farbe ↔ durchsichtig (X, and the button at X under Werkzeuge): the second
+// colour is always "durchsichtig", like the two colours in Photoshop. The
+// right mouse button does not paint – it opens the menu (canvas.js canvas_menu).
+window.color_before_transparent = null;
+
+function color_is_transparent(c) {
+    return ((c >>> 0) & 0xff) === 0;
+}
+
+function remember_color_before_transparent() {
+    if (typeof canvas !== 'undefined' && canvas && !color_is_transparent(canvas.current_color))
+        window.color_before_transparent = canvas.current_color >>> 0;
+}
+
+function toggle_transparent_color() {
+    if (!color_is_transparent(canvas.current_color)) {
+        remember_color_before_transparent();
+        canvas.current_color = 0;
+        $('#color_variations_menu .button').removeClass('active');
+    } else if (window.color_before_transparent !== null) {
+        canvas.current_color = window.color_before_transparent;
+        // a colour of the variations: it is marked there again
+        const back = window.color_before_transparent;
+        $('#color_variations_menu .button').each((_, el) => {
+            const c = $(el).data('list_color');
+            if (c && ((((c[0] * 256 + c[1]) * 256 + c[2]) * 256 + c[3]) >>> 0) === back) $(el).addClass('active');
+        });
+    } else {
+        const first = color_menu_items?.find(item => item.data !== '#00000000');
+        if (first) setCurrentColor(first.data);
+    }
+    refresh_current_color_chip();
+    canvas.update_overlay_brush?.();
+}
+
 // The swatch of the palette that is the colour the pen draws with (also after
-// the pipette picked one), and a word when that colour is transparent.
+// the pipette picked one), the X button, and a word when that colour is transparent.
 function refresh_current_color_chip() {
+    if (typeof menus !== 'undefined') menus.sprites?.refresh_toggles?.();
     const c = canvas.current_color >>> 0;
     const rgba = [(c >>> 24) & 0xff, (c >>> 16) & 0xff, (c >>> 8) & 0xff, c & 0xff];
     const t = tinycolor({ r: rgba[0], g: rgba[1], b: rgba[2], a: rgba[3] / 255 });
     const transparent = rgba[3] === 0;
     $('#palette_erase_hint').toggleClass('transparent', transparent)
-        .text(transparent ? 'Durchsichtig gewählt – der Stift radiert' : 'Rechtsklick malt durchsichtig');
+        .html(transparent ? 'Durchsichtig – der Stift radiert. <span class="key">X</span> holt deine Farbe zurück.' :
+            '<span class="key">X</span> wechselt zu durchsichtig (radieren) und zurück');
+    // the X button: what the pen paints with in front (your colour or durchsichtig), the other one behind
+    const swap = $('.swap-transparent-button');
+    if (swap.length) {
+        if (!swap.children('.swap-chip').length)
+            swap.prepend('<span class="swap-chip swap-colour"></span><span class="swap-chip swap-clear"></span>');
+        const other = window.color_before_transparent;
+        const colour = !transparent ? t : other === null ? null :
+            tinycolor({ r: other >>> 24, g: (other >>> 16) & 0xff, b: (other >>> 8) & 0xff, a: (other & 0xff) / 255 });
+        swap.toggleClass('transparent', transparent);
+        swap.children('.swap-colour').css('background', colour ? `linear-gradient(${colour.toRgbString()},${colour.toRgbString()}), url(transparent.png), #777` : '');
+    }
     if (typeof color_menu !== 'undefined' && color_menu?.commands) {
         const hex = t.toHexString().toLowerCase();
         let found = false;
@@ -331,7 +432,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     moment.locale('de');
     tool_menu_items.sprites = [
         { group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'Q', label: 'Zeichnen', hints: [
-                'Rechtsklick: durchsichtig malen',
+                // the button at X under Werkzeuge has the key; the right button opens the menu (canvas.js canvas_menu)
+                { key_label: 'X', type: 'toggle', label: 'Durchsichtig (radieren)',
+                    title: 'Wechselt zwischen deiner Farbe und durchsichtig – mit durchsichtig radiert der Stift.',
+                    get: () => color_is_transparent(canvas.current_color), callback: () => toggle_transparent_color() },
+                'Rechtsklick: Menü',
                 'Mausrad: zoomen',
                 `<span class='key longkey'>Leer</span>&nbsp;+ ziehen: Ausschnitt verschieben`,
             ] },
@@ -410,10 +515,10 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 { key: 'Space', label: 'Automatisch anpassen', callback: () => canvas.autoFit() },
                 `Zoome mit dem Mausrad und klicke, um den sichtbaren Ausschnitt zu verschieben`]
         },
-        { command: 'clear', image: 'document-new', callback: () => canvas.clearFrame(), label: 'Frame leeren', title: 'Macht den Frame leer. Den Frame selbst löschst du mit Rechtsklick auf ihn unten in der Frame-Liste.' },
-        { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Z', label: 'Farbe auswählen' },
+        // the buttons stand like the keys on the keyboard: Q … Y, A … G, Z … N
         {
-            group: 'tool', command: 'move', image: 'transform-move', shortcut: 'X', label: 'Sprite verschieben', hints: [
+            group: 'tool', command: 'move', image: 'transform-move', label: 'Sprite verschieben',
+            title: 'Verschiebt das Bild in allen Frames (mit Shift nur in diesem). Mit Strg und den Pfeiltasten geht es pixelweise.', hints: [
                 { key: 'Shift', label: 'nur diesen Frame verschieben', type: 'checkbox', callback: function (x) { canvas.setModifierShift(x); } },
                 {
                     type: 'group', keys: ['Control', `<i style='font-size: 90%;' class='fa fa-chevron-left'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-right'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-up'></i>`, `<i style='font-size: 90%;' class='fa fa-chevron-down'></i>`], label: 'Verschieben', shortcuts: [
@@ -431,6 +536,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 
             ]
         },
+        { group: 'tool', command: 'picker', image: 'color-picker', shortcut: 'Z', label: 'Farbe auswählen' },
+        // X: the second colour is always "durchsichtig" (like the two colours in Photoshop)
+        { command: 'swap-transparent', shortcut: 'X', label: 'Farbe ↔ durchsichtig', css_class: 'swap-transparent-button',
+            title: 'Wechselt zwischen deiner Farbe und durchsichtig. Mit durchsichtig radieren Stift, Formen und Füllen.',
+            callback: () => toggle_transparent_color() },
         { command: 'rotate-left', image: 'transform-rotate-left', shortcut: 'C', callback: () => canvas.rotateLeft() },
         { command: 'rotate-right', image: 'transform-rotate-right', shortcut: 'V', callback: () => canvas.rotateRight() },
         { command: 'flip-h', image: 'transform-flip-h', shortcut: 'B', callback: () => canvas.flipHorizontal() },
@@ -460,7 +570,10 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         {
             group: 'tool', command: 'pen', image: 'draw-freehand-44', shortcut: 'W', label: 'Zeichnen', hints: [
                 { key: 'Shift', label: 'Gitter ignorieren', type: 'checkbox', callback: function (x) { game.level_editor.setModifierShift(x); } },
-                'Rechtsklick: löschen',
+                // level_editor.js set_pen_erasing (the key itself is handled there)
+                { key_label: 'X', type: 'toggle', label: 'Radieren', title: 'Der Stift löscht, statt zu setzen – noch einmal X oder ein Klick auf ein Sprite: wieder setzen.',
+                    get: () => !!game.level_editor?.pen_erasing, callback: (value) => game.level_editor?.set_pen_erasing(value) },
+                'Rechtsklick: Menü',
                 // level_editor.js shape_for_event: Shift and Alt can change while dragging
                 `<span class='key longkey'>Strg</span>&nbsp;+ ziehen: Rechteck füllen, mit <span class='key longkey'>Shift</span> nur den Rand, mit <span class='key longkey'>Alt</span> eine Linie`,
             ]
@@ -506,12 +619,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     update_color_palette();
     // initialize all other menus
     menus.level = new Menu($('#tool_menu_level'), 'level', tool_menu_items.level, null, function () {
-        if (this.active_key === 'tool/pen') {
-            $('#menu_level_sprites .button').removeClass('active');
+        $('#menu_level_sprites .button').removeClass('active');
+        // the chosen sprite is marked while the pen places it (not while it erases: X)
+        if (this.active_key === 'tool/pen' && !game.level_editor?.pen_erasing)
             $('#menu_level_sprites .button').eq(game.level_editor.sprite_index).addClass('active');
-        } else {
-            $('#menu_level_sprites .button').removeClass('active');
-        }
+        if (this.active_key !== 'tool/pen') game?.level_editor?.set_pen_erasing?.(false);
         if (this.active_key !== 'tool/select') {
             game?.level_editor?.clear_selection();
         }
@@ -525,6 +637,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     // initialize sprites menu last
     menus.sprites = new Menu($('#tool_menu'), 'sprites', tool_menu_items.sprites, canvas);
     canvas.menu = menus.sprites;
+    setup_sprite_view_toggles();
+    refresh_current_color_chip();
 
     menus.settings = new Menu($('#tool_menu_settings'), 'settings', [], null);
     menus.play = new Menu($('#tool_menu_play'), 'play', [], null);

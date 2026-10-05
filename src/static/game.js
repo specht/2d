@@ -424,6 +424,12 @@ class Game {
                     set_sprite_title(sprite, next_default_name(self.data.sprites.map(x => sprite_title(x)), 'Sprite', self.data.sprites.length + 1));
                 self.data.sprites.push(sprite);
                 self.fix_game_data();
+                // its first state, too: "Zustand 1" in the list and in the Titel field
+                const first_state = self.data.sprites[self.data.sprites.length - 1].states?.[0];
+                if (first_state && typeof next_default_name === 'function' && !String(first_state.properties?.name ?? '').trim()) {
+                    first_state.properties ??= {};
+                    first_state.properties.name = 'Zustand 1';
+                }
                 self.create_geometry_and_material_for_sprite(self.data.sprites.length - 1);
                 window.collaboration?.structure_changed?.('sprite', 'insert', sprite.id);
                 // Strg+Z takes it out again (sprite_list_history.js; not in a live session)
@@ -1784,7 +1790,7 @@ class Game {
         }
         if (children.length === 0) {
             // without a sprite trait that has pictures for something, there is no role to give
-            $('<div class="state-role-hint">').text('Wofür dieser Zustand ist (Laufen, Springen, Tür offen …), kannst du einstellen, sobald das Sprite unten bei „Eigenschaften“ zum Beispiel Spielfigur, Gegner oder Tür ist.')
+            $('<div class="state-role-hint">').text('Wofür dieser Zustand ist (Laufen, Springen, Tür offen …), kannst du einstellen, sobald das Sprite bei „Eigenschaften“ zum Beispiel Spielfigur, Gegner oder Tür ist.')
                 .appendTo(traits_menu);
             return;
         }

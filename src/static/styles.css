@@ -114,7 +114,7 @@ body {
     scrollbar-width: none;
 }
 
-.right_menu_container, .far_right_menu_container {
+.right_menu_container, .far_right_menu_container, .states_menu_container {
     position: absolute;
     top: 50px;
     left: 0px;
@@ -5134,8 +5134,38 @@ button.resize-cell.active {
 }
 
 /* Sprite pane: "this sprite" scrolls as a whole; the library is as tall as the screen. */
-#main_div_sprites .right_menu_container {
+#main_div_sprites .right_menu_container, #main_div_sprites .states_menu_container {
     max-height: calc(100vh - 90px);
+    overflow-y: auto;
+}
+/* in a column of their own, the Zustände may take more of the height */
+.states_menu_container #menu_states {
+    max-height: calc(65vh - 90px) !important;
+}
+/* The tools column has one width (studio.js SPRITE_LEFT_COLUMN): six tools,
+   and the colours fill their rows edge to edge – eight in the palette, eleven
+   in each row of variations. */
+#color_menu, #color_variations_menu {
+    display: grid;
+    gap: 3px;
+    padding-bottom: 3px;
+}
+#color_menu {
+    grid-template-columns: repeat(8, 1fr);
+}
+#color_variations_menu {
+    grid-template-columns: repeat(11, 1fr);
+    gap: 2px;
+}
+#color_menu > .button, #color_variations_menu > .button {
+    width: auto;
+    height: auto;
+    aspect-ratio: 1;
+    margin: 0;
+    box-sizing: border-box;
+}
+#color_variations_menu > br {
+    display: none;
 }
 #main_div_sprites .sprite-library {
     max-height: none;
@@ -5399,8 +5429,8 @@ button.resize-cell.active {
     font-weight: 600;
 }
 
-/* a level without a Titel is called "Level 3", dimmed: it can be named */
-.menu_level_item .unnamed {
+/* a level or layer without a Titel is called "Level 3" / "Ebene 2", dimmed: it can be named */
+.menu_level_item .unnamed, .menu_layer_item .layer-name.unnamed {
     font-style: italic;
     color: #9aa;
 }
@@ -5642,4 +5672,67 @@ input.dnd-rename {
     font-size: 85%;
     color: #8a9aab;
     font-style: italic;
+}
+
+/* Farbe ↔ durchsichtig (X): two little squares on the tool button – the
+   colour in front, durchsichtig behind, or the other way round (studio.js
+   toggle_transparent_color). The second colour is always durchsichtig. */
+.swap-transparent-button .swap-chip {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    border-radius: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    background: url(transparent.png), #777;
+    background-size: 8px 8px;
+    box-sizing: border-box;
+}
+.swap-transparent-button .swap-colour, .swap-transparent-button.transparent .swap-clear {
+    left: 4px;
+    top: 4px;
+    z-index: 2;
+}
+.swap-transparent-button .swap-clear, .swap-transparent-button.transparent .swap-colour {
+    left: 13px;
+    top: 13px;
+    z-index: 1;
+}
+.palette-erase-hint .key {
+    margin: 0 0.2em 0 0;
+    padding: 0 0.4em;
+    font-size: 10px;
+}
+#sprite_view_toggles {
+    padding-top: 8px;
+}
+/* edge to edge like the tools above, two rows */
+#sprite_view_toggles .view-toggle {
+    flex: 1 1 auto;
+    font-size: 12px;
+    gap: 4px;
+    padding: 3px 3px 3px 6px;
+}
+/* the tools column scrolls when the screen is low (1366 × 768) */
+#main_div_sprites > .menu_container:first-child {
+    max-height: calc(100vh - 90px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+#sprite_view_toggles .view-toggle .key.widget-key {
+    margin-left: auto;
+}
+/* the level palette: Radieren (X) above the sprites */
+.eraser-toggle {
+    flex: none;
+    align-self: flex-start;
+    margin: 2px 0 6px;
+}
+.eraser-toggle.active {
+    background: rgba(239, 125, 87, 0.14);
+    border-color: rgba(239, 125, 87, 0.6);
+}
+.eraser-toggle.active .view-toggle-dot {
+    background: #ef7d57;
+    box-shadow: 0 0 5px #ef7d57;
 }

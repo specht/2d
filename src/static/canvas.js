@@ -180,11 +180,11 @@ class Canvas {
         this.sprite_index = null;
         this.state_index = null;
         this.frame_index = null;
-        // right-click: the pen and the shapes draw transparent; with
-        // "Rechteck auswählen" a menu of what can be done with the selection
+        // right-click: always a menu (canvas_menu) – with every tool, so the
+        // right button never paints by surprise. Durchsichtig is X (studio.js).
         this.element.on('contextmenu', function (e) {
-            if (self.menu?.get('tool') === 'tool/select-rect' && typeof show_context_menu === 'function')
-                show_context_menu(e.clientX, e.clientY, self.selection_menu());
+            if (typeof show_context_menu === 'function')
+                show_context_menu(e.clientX, e.clientY, self.canvas_menu(e));
             return false;
         });
         // Strg+C / X / V, Entf, Esc and the arrow keys work on the selection
@@ -250,8 +250,8 @@ class Canvas {
         let p = this.get_touch_point(e);
         this.last_mouse_x = p[0] - this.element.position().left;
         this.last_mouse_y = p[1] - this.element.position().top;
-        // the right button with "Rechteck auswählen" opens the menu (contextmenu)
-        if (!e.touches && e.button === 2 && this.menu?.get('tool') === 'tool/select-rect') return;
+        // the right button opens the menu (contextmenu, canvas_menu)
+        if (!e.touches && e.button === 2) return;
         // the middle button, or the left one while the Leertaste is held: move the view
         if (!e.touches && (e.button === 1 || (e.button === 0 && this.space_pan))) {
             e.preventDefault();
@@ -1338,6 +1338,41 @@ class Canvas {
             this.nudge_selection_pixels(dx, dy);
             done();
         }
+    }
+
+    // The right-click menu of the drawing area: what can be done with the
+    // selection, if there is one – else with the pixel and the frame.
+    canvas_menu(e) {
+        if (this.has_selection()) return this.selection_menu();
+        // the pixel under the mouse, measured as in handle_down
+        this.last_mouse_x = e.clientX - this.element.position().left;
+        this.last_mouse_y = e.clientY - this.element.position().top;
+        const [x, y] = this.get_sprite_point_from_last_mouse();
+        const inside = x >= 0 && y >= 0 && x < this.bitmap.width && y < this.bitmap.height;
+        const pixel = inside ? this.get_pixel(this.bitmap, x, y) : null;
+        const transparent = typeof color_is_transparent === 'function' && color_is_transparent(this.current_color);
+        const clip = window.pixel_clipboard;
+        return [
+            { header: `Frame ${(this.frame_index ?? 0) + 1}` },
+            { label: pixel && pixel[3] === 0 ? 'Durchsichtig von hier nehmen' : 'Farbe von hier nehmen', icon: 'fa-eyedropper', key: printed_key('Z'),
+                disabled: !pixel, hint: 'Wie die Pipette: der Stift malt dann mit dieser Farbe.',
+                callback: () => setCurrentColor(tinycolor({ r: pixel[0], g: pixel[1], b: pixel[2], a: pixel[3] / 255 }).toHex8String()) },
+            { label: transparent ? 'Wieder mit Farbe malen' : 'Durchsichtig malen (radieren)', icon: 'fa-eraser', key: printed_key('X'),
+                callback: () => toggle_transparent_color() },
+            '-',
+            { label: 'Einfügen', icon: 'fa-clipboard', key: 'Strg+V', disabled: !clip,
+                hint: clip ? 'An der Stelle, an der es kopiert wurde.' : 'Erst mit „Rechteck auswählen“ etwas auswählen und kopieren.',
+                callback: () => this.paste_selection_pixels() },
+            { label: 'Alles auswählen', icon: 'fa-object-group', key: 'Strg+A', callback: () => this.select_all_pixels() },
+            '-',
+            { label: 'Waagerecht spiegeln', icon: 'fa-arrows-h', key: printed_key('B'), callback: () => this.flipHorizontal() },
+            { label: 'Senkrecht spiegeln', icon: 'fa-arrows-v', key: printed_key('N'), callback: () => this.flipVertical() },
+            { label: 'Nach links drehen', icon: 'fa-rotate-left', key: printed_key('C'), callback: () => this.rotateLeft() },
+            { label: 'Nach rechts drehen', icon: 'fa-rotate-right', key: printed_key('V'), callback: () => this.rotateRight() },
+            '-',
+            { label: 'Frame leeren', icon: 'fa-file-o', hint: 'Macht diesen Frame leer. Strg+Z holt das Bild zurück.',
+                callback: () => this.clearFrame() },
+        ];
     }
 
     // The right-click menu of "Rechteck auswählen".

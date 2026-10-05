@@ -54,6 +54,7 @@ class Menu {
             let key = key_parts.join('/');
             let button = $('<div>').addClass('button');
             if (item.css) button.attr('style', item.css);
+            if (item.css_class) button.addClass(item.css_class);
             if (item.image) button.css('background-image', `url(icons/${item.image}.png)`);
             if (item.size === 5)
                 button.addClass('button-5');
@@ -209,6 +210,7 @@ class Menu {
     refresh_toggles() {
         for (const entry of Object.values(this.status_buttons))
             if (entry.type === 'toggle') entry.button.toggleClass('active', !!entry.get());
+        if (this.pane === 'sprites' && typeof refresh_sprite_view_toggles === 'function') refresh_sprite_view_toggles();
     }
 
     refresh_status_bar() {
@@ -255,19 +257,10 @@ class Menu {
             hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'sprite-history-redo',
                 title: 'Holt zurück, was du gerade rückgängig gemacht hast.',
                 callback: () => window.sprite_history?.redo() });
-            hints.push({ key: 'O', type: 'toggle', label: 'Onion Skinning',
-                title: 'Der Frame davor (rötlich) und danach (bläulich) scheinen durch – so zeichnest du eine Bewegung Schritt für Schritt.',
-                get: () => !!canvas?.onion_skin,
-                callback: (value) => canvas?.set_onion_skin?.(value) });
-            // M: next to B and N (spiegeln) in the keyboard row of the tool buttons
-            hints.push({ key: 'M', type: 'toggle', label: 'Spiegelnd zeichnen',
-                title: 'Was du mit Stift, Formen oder Füllen zeichnest, erscheint auch gespiegelt auf der anderen Seite. Die gestrichelte Linie ist der Spiegel.',
-                get: () => !!canvas?.symmetric,
-                callback: (value) => canvas?.set_symmetric?.(value) });
-            hints.push({ key: 'P', type: 'toggle', label: 'Vorschau',
-                title: 'Spielt die Animation des Zustands oben rechts ab – mit Framerate (− / +) und gespiegelter Ansicht.',
-                get: () => !!window.sprite_preview?.shown,
-                callback: (value) => window.sprite_preview?.set_shown?.(value) });
+            // Onion Skinning, Spiegelnd zeichnen, Vorschau (also under Werkzeuge: studio.js SPRITE_VIEW_TOGGLES)
+            for (const toggle of SPRITE_VIEW_TOGGLES)
+                hints.push({ key: toggle.key, type: 'toggle', label: toggle.label, title: toggle.title,
+                    get: toggle.get, callback: toggle.set });
         }
         // hints.unshift({
         //     label: `<i class='fa fa-sign-in'></i>&nbsp;&nbsp;Anmelden`, callback: function () {

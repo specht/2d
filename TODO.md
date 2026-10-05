@@ -121,7 +121,7 @@ Fine-grained simultaneous editing of the same frame or level region only if real
 
 # Sprites and Pictures
 
-- Sprite editor: a "Wer zeigt was?" overview of the pictures the game uses for Stehen, Laufen, Springen … left and right (drawn, mirrored, missing); a frame that is held longer than the others (needs the engine); the spray can sprays over an area of one colour rather than around the mouse (an airbrush mode?); + adds an empty frame (a copy of the current one may be what animators want); onion skin of another state.
+- Sprite editor: a "Wer zeigt was?" overview of the pictures the game uses for Stehen, Laufen, Springen … left and right (drawn, mirrored, missing); a frame that is held longer than the others (needs the engine); the spray can sprays over an area of one colour rather than around the mouse (an airbrush mode?); + adds an empty frame (a copy of the current one may be what animators want); onion skin of another state. *Sprite verschieben* has no key since X became Farbe ↔ durchsichtig – give it one if children miss it (the tool grid follows the keyboard rows, so it would mean moving a button). Rectangles of erasing in the level editor (Strg + ziehen while Radieren is on) are not there yet.
 - Sprites holen: remembering recently opened source games; a small list of recommended source games for a class; a second player character, more enemies and a few more backgrounds for the catalogue.
 - Picture import: a hand-drawn grid in the dialog when the guess is wrong in a way the numbers cannot fix (frames of different widths); remembering the last choice of "Einfügen" per sprite.
 
