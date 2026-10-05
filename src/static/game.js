@@ -1059,6 +1059,10 @@ class Game {
         let self = this;
         let si = canvas.sprite_index;
         this.door_state_help = null;
+        // every picker belongs to the sprite it was built for: one left over
+        // from an enemy shown before (or from the game before) read the Beute
+        // of a sprite that is no enemy, and a game failed to load halfway
+        this.drop_sprite_picker = null;
         this.attack_sprite_picker = null;
         this.hit_sprite_picker = null;
         this.ranged_projectile_picker = null;
@@ -1241,7 +1245,8 @@ class Game {
                 hint: 'Das lässt der Gegner zurück, wenn er besiegt ist – zum Beispiel einen Schlüssel, ein Extraleben oder Münzen. Das Sprite braucht die Eigenschaft „man kann es einsammeln“ oder „ist ein Schlüssel“.',
                 sprites: () => this.data.sprites,
                 get: () => {
-                    const id = baddie().drop?.sprite_id;
+                    // a session participant may have taken the enemy trait away
+                    const id = baddie()?.drop?.sprite_id;
                     const index = typeof id === 'string' ? this.data.sprites.findIndex(sprite => sprite.id === id) : -1;
                     return index >= 0 ? String(index) : 'none';
                 },
