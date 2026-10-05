@@ -50,7 +50,7 @@ aufnahmen:
       - { hinweis: Rechtsklick auf den Zustand, nr: 6, mehr: "„Duplizieren“: Ein Zustand ist eine eigene Animation, zum Beispiel Stehen oder Laufen." }
       - rechtsklick: '#menu_states ._dnd_item:nth-child(1)'
       - menue: Duplizieren
-      - { hinweis: "Titel: laufen", nr: 7 }
+      - { hinweis: "Titel: laufen", nr: 7, mehr: "Jeder Zustand bekommt gleich einen Namen – „stehen (Kopie)“ verwechselst du schnell. Ein Doppelklick auf den Zustand geht auch." }
       - klick: { ziel: '#menu_state_properties_fixed .item:has-text("Titel") input' }
       - taste: Control+KeyA
         zeigen: false

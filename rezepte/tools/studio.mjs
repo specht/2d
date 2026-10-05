@@ -210,6 +210,29 @@ export async function open_studio(browser, repo, { width = 1600, height = 900 } 
             return ((t ^ t >>> 14) >>> 0) / 4294967296;
         };
     });
+    // The game frame (Spielen, Level testen) gets a clock the recorder can
+    // slow down (anleitung.mjs live): a screenshot takes longer than a frame
+    // of the game, so while a game runs on film it plays in slow motion and
+    // every frame is filmed – the film then shows it at its real speed, jumps
+    // included. performance.now (THREE.Clock), requestAnimationFrame,
+    // setTimeout and setInterval follow the clock; at speed 1 nothing changes.
+    await page.addInitScript(() => {
+        if (window.top === window) return;
+        const real_now = performance.now.bind(performance);
+        let real0 = real_now(), virtual0 = real0, speed = 1;
+        const now = () => virtual0 + (real_now() - real0) * speed;
+        window.__guide_time = {
+            now,
+            speed: () => speed,
+            set(s) { const v = now(); real0 = real_now(); virtual0 = v; speed = s; },
+        };
+        performance.now = now;
+        const raf = window.requestAnimationFrame.bind(window);
+        window.requestAnimationFrame = (callback) => raf(() => callback(now()));
+        const timeout = window.setTimeout.bind(window), interval = window.setInterval.bind(window);
+        window.setTimeout = (fn, ms, ...args) => timeout(fn, (Number(ms) || 0) / speed, ...args);
+        window.setInterval = (fn, ms, ...args) => interval(fn, (Number(ms) || 0) / speed, ...args);
+    });
     await page.goto(`http://${HOST}/`);
     await page.waitForFunction(() => window.game && typeof menus !== 'undefined' && menus.level && menus.sprites && $('#status-bar').children().length > 0, null, { timeout: 30000 });
     await page.waitForTimeout(500);

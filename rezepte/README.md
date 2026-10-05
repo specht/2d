@@ -662,10 +662,23 @@ to wind the film under the mouse or a finger (with the time and a mark per
 step; the Leertaste is *Weiter* for the film in view wherever the focus is,
 so it never scrolls the page), the steps beside it light up as it plays and a click on one jumps
 there, only one film plays at a time, and the film is never taller than the
-screen (below 900 px the steps go under it). The studio is recorded at a
+screen (below 900 px the steps go under it; beside it, a list taller than
+the film scrolls and keeps the current step in view). The studio is recorded at a
 1600 × 900 viewport. While recording, every frame is kept deflated
 (`packed_frame` in `anleitung.mjs`; a frame that did not change is the same
 object again), so a guide with several long films fits in memory.
+
+**Games on film in slow motion:** a screenshot takes longer than a frame of
+the game, so at full speed a jump fell between two screenshots. The harness
+gives the game frame (Spielen, Level testen) a clock the recorder can slow
+down (`__guide_time` in `studio.mjs`: `performance.now`,
+`requestAnimationFrame`, `setTimeout` and `setInterval` follow it). While a
+game runs, `warten` and `halten` play it at `ZEITLUPE` (0.12) of its speed and
+count the game's time, so the film shows it at its real speed with about 30
+frames per second; a held key is released after the same game time. A `taste`
+without `halten` is held for 0.12 s of game time while a game runs (a press
+as short as a script makes it can fall between two frames of the game: the
+jump that never happened). `ANLEITUNG_ZEITLUPE=1` switches it off.
 
 The studio runs without a server: `/api/save_game_temp` (Level testen)
 answers like the server and the game frame gets its sprite sheet laid out
@@ -723,7 +736,8 @@ A *ziel* is a selector (`'#tool_menu_level .button[title^="Verbinden"]'` –
 prefer titles and labels the children see over positions), `{ ziel, x, y }`
 (a share of its box; add `:visible` when hidden copies of it exist, e.g. the buttons of closed dialogs), `{ pixel: [x, y] }` on the drawing area, `{ feld:
 [spalte, zeile] }` in the level (cells of 24, as in the recipes' maps, row 0
-at the bottom) or `{ punkt: [x, y] }`. Captions with a comma or colon need
+at the bottom; in the current layer, or with `ebene: n` in layer n – a layer
+with Parallaxe lies elsewhere on screen) or `{ punkt: [x, y] }`. Captions with a comma or colon need
 quotes – the player refuses unknown keys, so a slip fails the build.
 
 Text: like the recipes (German, "du", Kurz gesagt → numbered steps that

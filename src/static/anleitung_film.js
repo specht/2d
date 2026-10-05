@@ -59,7 +59,7 @@
             this.full.width = this.canvas.width;
             this.full.height = this.canvas.height;
             this.full_ctx = this.full.getContext('2d');
-            this.resized = new ResizeObserver(() => this.present());
+            this.resized = new ResizeObserver(() => { this.present(); this.fit_steps(); });
             this.resized.observe(this.stage);
             this.steps = [...figure.querySelectorAll('.film-schritte li')];
             this.film = null;
@@ -237,6 +237,25 @@
             this.ctx.drawImage(this.full, 0, 0, w, h);
         }
 
+        // Beside the film, the steps are never much taller than it: a longer
+        // list scrolls (below the film, on a narrow screen, it does not).
+        fit_steps() {
+            const list = this.figure.querySelector('.film-schritte');
+            if (!list) return;
+            const row = list.parentElement && getComputedStyle(list.parentElement).flexDirection === 'row';
+            list.style.maxHeight = row ? `${Math.max(240, Math.round(this.stage.offsetHeight))}px` : '';
+        }
+
+        // the current step in view inside the scrolling list (never the page)
+        show_step(li) {
+            const list = li?.parentElement;
+            if (!list || list.scrollHeight <= list.clientHeight + 1) return;
+            const top = li.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
+            const target = Math.max(0, Math.min(list.scrollHeight - list.clientHeight,
+                top - (list.clientHeight - li.offsetHeight) / 2));
+            list.scrollTo({ top: target, behavior: 'smooth' });
+        }
+
         // what goes with this moment: the bar, the step beside, the keys
         render_progress() {
             const share = this.film ? this.time / this.film.dauer : 0;
@@ -249,6 +268,11 @@
                 li.classList.toggle('aktiv', i === current);
                 li.classList.toggle('fertig', i < current);
             });
+            if (current !== this.shown_step) {
+                this.shown_step = current;
+                // after the step's longer text has opened under it
+                if (current >= 0) requestAnimationFrame(() => this.show_step(this.steps[current]));
+            }
             const timeline = this.film?.zeitleiste ?? [];
             let entry = null;
             for (const e of timeline) { if (e.t <= this.time) entry = e; else break; }

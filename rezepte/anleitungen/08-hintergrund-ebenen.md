@@ -6,10 +6,13 @@ start:
     legende:
       P: { sprite: pip }
     zusaetzlich: [berge, wolke]
+    # longer than the screen: in the test the camera follows Pip, and the
+    # mountains behind him move more slowly
+    kamera: { bildhoehe: 216 }
     karte: |
-      ..............................
-      .P............................
-      ##############################
+      ................................................
+      ........P.......................................
+      ################################################
 aufnahmen:
   - name: himmel
     art: video
@@ -26,7 +29,7 @@ aufnahmen:
           delete L.properties.name;
           game._load();
       - klick: '#mi_level'
-      - ansicht: [-6, -3, 35, 11]
+      - ansicht: [-12, -3, 50, 11]
     ausschnitt: [0, 44, 1600, 818]
     standbild: 5
     schritte:
@@ -57,23 +60,34 @@ aufnahmen:
     ausschnitt: [0, 44, 1600, 818]
     schritte:
       - { hinweis: Mit dem Mausrad näher heran, nr: 4, mehr: "Das Mausrad zoomt dorthin, wo die Maus ist." }
-      - rad: { ziel: '#level', x: 0.15, y: 0.75 }
-        um: -4
+      - rad: { ziel: '#level', x: 0.3, y: 0.75 }
+        um: -2
       - { hinweis: "+ und Sprites: eine neue Ebene", nr: 5, mehr: "Sie kommt vor den Himmel, aber hinter deine erste Ebene. Was in der Liste oben steht, ist vorn." }
       - klick: '#menu_layers ._dnd_item.add'
       - klick: '.add_choice:has-text("Sprites")'
       - pause: 0.6
-      - { hinweis: Berge hineinsetzen, nr: 6, mehr: "In der neuen Ebene: Berge anklicken, Zeichnen auswählen, klicken." }
+      - { hinweis: "Doppelklick auf die neue Ebene – Name: Berge", nr: 6, mehr: "Gib jeder Ebene gleich einen Namen. „Ebene 2“ sagt dir später nichts mehr, „Berge“ schon." }
+      - doppelklick: '#menu_layers ._dnd_item:nth-child(2)'
+      - tippen: Berge
+      - taste: Enter
+      - pause: 0.4
+      - pruefen: "game.data.levels[0].layers[1].properties.name === 'Berge'"
+        meldung: Die neue Ebene sollte Berge heißen
+      - { hinweis: Eine Bergkette – ohne Lücke, nr: 7, mehr: "In der neuen Ebene: Berge anklicken, Zeichnen auswählen und einen Berg direkt neben den anderen setzen." }
       - klick: '#menu_level_sprites .button[title="Berge"]'
       - klick: '#tool_menu_level .button[title^="Zeichnen"]'
-      - klick: { feld: [3, 1] }
-      - klick: { feld: [12, 1] }
-      - klick: { feld: [21, 1] }
-      - { hinweis: Einstellungen der Ebene öffnen, nr: 7 }
+      # one row low: a far layer sits a little higher in the game, and the
+      # grass covers their foot
+      - klick: { feld: [-8, 0] }
+      - klick: { feld: [0, 0] }
+      - klick: { feld: [8, 0] }
+      - klick: { feld: [16, 0] }
+      - klick: { feld: [24, 0] }
+      - { hinweis: Einstellungen der Ebene öffnen, nr: 8 }
       - klick: '#layer_settings_head'
-      - { hinweis: Kollisionen erkennen ausschalten, nr: 8, mehr: "Die Berge sind nur Bild: Pip soll nicht dagegenlaufen." }
+      - { hinweis: Kollisionen erkennen ausschalten, nr: 9, mehr: "Die Berge sind nur Bild: Pip soll nicht dagegenlaufen." }
       - klick: { ziel: '#menu_layer_properties .item:has-text("Kollisionen erkennen")', x: 0.93, y: 0.5 }
-      - { hinweis: "Parallaxe: 0.5 und Enter", nr: 9, mehr: "Die Ebene wandert halb so schnell mit wie die Kamera – so wirken die Berge weit weg." }
+      - { hinweis: "Parallaxe: 0.5 und Enter", nr: 10, mehr: "Die Ebene wandert halb so schnell mit wie die Kamera – so wirken die Berge weit weg." }
       - klick: { ziel: '#menu_layer_properties .item:has-text("Parallaxe") input' }
       - taste: Control+KeyA
         zeigen: false
@@ -83,28 +97,35 @@ aufnahmen:
       - pruefen: |
           (() => {
             const l = game.data.levels[0].layers[1];
-            return l.type === 'sprites' && l.sprites.length === 3 && Number(l.properties.parallax) === 0.5 && !l.properties.collision_detection;
+            return l.type === 'sprites' && l.sprites.length === 5 && Number(l.properties.parallax) === 0.5 && !l.properties.collision_detection;
           })()
-        meldung: Die Berge-Ebene sollte drei Berge, Parallaxe 0.5 und keine Kollisionen haben
-      - { hinweis: Testen – und nach rechts laufen, nr: 10, mehr: "Mit Verschieben (Q) setzt der Stift nichts aus Versehen. Im Test zieht der Boden schnell vorbei, die Berge langsam." }
+        meldung: Die Berge-Ebene sollte fünf Berge, Parallaxe 0.5 und keine Kollisionen haben
+      - { hinweis: Auswählen (E) – Doppelklick auf Pip, nr: 11, mehr: "Pip liegt in einer anderen Ebene. Ein Doppelklick findet ein Sprite in jeder Ebene: Die Liste springt in seine Ebene, und rechts unter „Auswahl“ stehen seine Einstellungen." }
+      - klick: '#tool_menu_level .button[title^="Auswählen"]'
+      - doppelklick: { feld: [8, 1], ebene: 0 }
+      - pause: 1.2
+      - pruefen: "game.level_editor.layer_index === 0 && game.level_editor.selection?.length === 1"
+        meldung: Der Doppelklick sollte Pip in seiner Ebene auswählen
+      - { hinweis: Testen – und nach rechts laufen, nr: 12, mehr: "Mit Verschieben (Q) setzt der Stift nichts aus Versehen. Im Test zieht der Boden schnell vorbei, die Berge langsam." }
       - klick: '#tool_menu_level .button[title^="Verschieben"]'
-      - bewegen: { feld: [1, 1] }
+      - bewegen: { feld: [8, 1] }
       - taste: KeyT
       - warten: 1
         bis: "document.getElementById('play_iframe').contentWindow.game?.running === true && !!document.getElementById('play_iframe').contentWindow.game.player_character"
         meldung: Der Test ist nicht losgegangen
       - taste: ArrowRight
-        halten: 2.6
+        halten: 5
       - warten: 0.6
       - taste: Escape
       - warten: 0.6
 ---
 ## Kurz gesagt
 
-1. Ein Level besteht aus **Ebenen**, die übereinanderliegen. Was in der Liste oben steht, ist vorn.
+1. Ein Level besteht aus **Ebenen**, die übereinanderliegen. Was in der Liste oben steht, ist vorn. Ein **Doppelklick** auf eine Ebene gibt ihr einen Namen.
 2. **+ → Hintergrund** macht einen Farbverlauf – einen Himmel, ein Abendrot, eine Höhle.
 3. **+ → Sprites** macht eine neue Ebene für Dinge, die nur Bild sind: Berge, Wolken, Bäume.
 4. Mit **Parallaxe** bewegt sich eine Ebene langsamer – sie wirkt weit weg.
+5. Mit **Auswählen** (<kbd>E</kbd>) wählt ein **Doppelklick** ein Sprite aus, egal in welcher Ebene es liegt.
 
 ## Ein Himmel
 
@@ -112,7 +133,7 @@ aufnahmen:
 
 ## Berge in einer eigenen Ebene
 
-![Neue Ebene, Berge, Parallaxe, testen](aufnahme:berge)
+![Neue Ebene, benennen, Berge, Parallaxe, Doppelklick, testen](aufnahme:berge)
 
 **Parallaxe** in Zahlen:
 

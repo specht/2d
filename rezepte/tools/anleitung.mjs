@@ -15,6 +15,12 @@ const controls = createRequire(import.meta.url)('../../src/static/controls.js');
 // One frame of a video lasts this many 60 Hz steps (4: 15 frames per second).
 const FRAME_STEPS = 4;
 const SELECTOR_TIMEOUT = 6000;
+// While a game runs on film, it plays this much slower (studio.mjs gives the
+// game frame a clock the recorder can slow down): a screenshot takes longer
+// than a frame of the game, and at full speed a jump fell between two
+// screenshots. The film shows it at its real speed again (a frame lasts as
+// much game time as passed). ANLEITUNG_ZEITLUPE=1 switches it off.
+const ZEITLUPE = Number(process.env.ANLEITUNG_ZEITLUPE ?? 0.12);
 
 export class StepError extends Error { }
 
@@ -199,13 +205,21 @@ export class GuidePlayer {
             return p;
         }
         if (target?.feld) {
-            const p = await this.page.evaluate(([c, r]) => {
+            // a cell of the current layer – or, with `ebene: n`, of layer n
+            // (a layer with Parallaxe sits elsewhere on screen than the others)
+            const p = await this.page.evaluate(([c, r, li]) => {
                 const le = window.game?.level_editor;
                 if (!le?.element) return null;
                 const rect = $(le.element)[0].getBoundingClientRect();
-                const [x, y] = le.world_to_ui([c * 24, r * 24 + 12]);
-                return { x: rect.left + x, y: rect.top + y };
-            }, target.feld);
+                const current = le.layer_index;
+                if (li !== null) le.layer_index = li;
+                try {
+                    const [x, y] = le.world_to_ui([c * 24, r * 24 + 12]);
+                    return { x: rect.left + x, y: rect.top + y };
+                } finally {
+                    le.layer_index = current;
+                }
+            }, [target.feld[0], target.feld[1], target.ebene ?? null]);
             if (!p) this.fail('Der Level-Editor ist nicht da');
             return p;
         }
@@ -249,21 +263,55 @@ export class GuidePlayer {
         for (let i = 0; i < steps; i++) this.recording.frames.push(f);
     }
 
+    // The game frame while a game runs in it (Spielen, Level testen) – in
+    // slow motion from now on (ZEITLUPE) – or null.
+    async slow_game() {
+        if (!this.recording || !(ZEITLUPE > 0 && ZEITLUPE < 1)) return null;
+        try {
+            const frame = await (await this.page.$('#play_iframe'))?.contentFrame();
+            if (!frame) return null;
+            const running = await frame.evaluate((s) => {
+                if (!window.__guide_time || window.game?.running !== true) return false;
+                if (window.__guide_time.speed() !== s) window.__guide_time.set(s);
+                return true;
+            }, ZEITLUPE);
+            return running ? frame : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // the game frame at its real speed again
+    async full_speed() {
+        try {
+            const frame = await (await this.page.$('#play_iframe'))?.contentFrame();
+            await frame?.evaluate(() => { if (window.__guide_time?.speed() !== 1) window.__guide_time?.set(1); });
+        } catch (e) { /* no game frame */ }
+    }
+
     // Time passes as it does in the studio: frames as fast as they come, each
-    // as long as it really took (a test run in the Spielen pane plays at its speed).
-    async live(seconds) {
+    // as long as it really took. While a game runs, it runs in slow motion
+    // and the time is the game's (so a test run plays at its speed on film,
+    // with every jump). keep_slow: the caller sets the speed back.
+    async live(seconds, { keep_slow = false } = {}) {
         if (!this.recording) { await this.page.waitForTimeout(seconds * 1000); return; }
-        const until = Date.now() + seconds * 1000;
-        let last = Date.now();
-        while (Date.now() < until) {
+        const game = await this.slow_game();
+        const clock = game
+            ? async () => game.evaluate(() => window.__guide_time.now()).catch(() => Date.now())
+            : async () => Date.now();
+        let last = await clock();
+        let passed = 0;
+        while (passed < seconds * 1000) {
             const before = this.recording.frames.length;
             await this.frame(1);
-            const now = Date.now();
+            const now = await clock();
+            passed += now - last;
             const steps = Math.max(1, Math.round((now - last) / STEP_MS));
             const f = this.recording.frames[before];
             for (let i = 1; i < steps; i++) this.recording.frames.push(f);
             last = now;
         }
+        if (game && !keep_slow) await this.full_speed();
     }
 
     // A still moment (nothing moves): one frame, held.
@@ -379,19 +427,32 @@ export class GuidePlayer {
 
     async key(combo, hold_seconds, show = true) {
         const caps = key_caps(combo);
+        // a game looks at the keys once per frame: a press as short as a
+        // script makes it (down and up at once) can be missed – a jump that
+        // never happens. While a game runs, a key is held like a quick finger.
+        if (!hold_seconds && await this.slow_game()) hold_seconds = 0.12;
+        // a game looks at the keys once per frame: a press as short as a
+        // script makes it (down and up at once) would be missed – a jump
+        // that never happens. While a game runs, a key is held like a quick
+        // finger would.
+        if (!hold_seconds && await this.slow_game()) hold_seconds = 0.12;
         if (show) await this.set_band({ keys: caps });
         if (hold_seconds) {
             // held for exactly this long: the key goes up on a timer of its
             // own, not after a screenshot that may still be on its way (the
             // figure would walk too far)
+            // (in slow motion while a game runs: then the timer waits as much
+            // longer, and the game sees the key held for hold_seconds)
+            const game = await this.slow_game();
             const parts = String(combo).split('+');
             for (const p of parts) await this.page.keyboard.down(p);
             const released = new Promise(resolve => setTimeout(async () => {
                 for (const p of [...parts].reverse()) await this.page.keyboard.up(p);
                 resolve();
-            }, hold_seconds * 1000));
-            await this.live(hold_seconds);
+            }, hold_seconds * 1000 / (game ? ZEITLUPE : 1)));
+            await this.live(hold_seconds, { keep_slow: true });
             await released;
+            await this.full_speed();
         } else {
             await this.frame(6);
             await this.page.keyboard.press(combo);

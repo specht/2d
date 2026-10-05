@@ -71,7 +71,7 @@ aufnahmen:
       - klick: '#tool_menu .button[title^="Zeichnen"]'
       - klick: '#color_menu .button:nth-child(26)'
       - klick: { pixel: [10, 15] }
-      - { hinweis: Die Pipette (Z) holt eine Farbe aus dem Bild, nr: 12, mehr: "„Farbe auswählen“: Ein Klick ins Bild, und genau diese Farbe ist gewählt – praktisch für eine Abwandlung, die nicht in der Palette steht." }
+      - { hinweis: Die Pipette (Y) holt eine Farbe aus dem Bild, nr: 12, mehr: "„Farbe auswählen“: Ein Klick ins Bild, und genau diese Farbe ist gewählt – praktisch für eine Abwandlung, die nicht in der Palette steht." }
       - klick: '#tool_menu .button[title^="Farbe auswählen"]'
       - klick: { pixel: [15, 12] }
       - klick: '#tool_menu .button[title^="Zeichnen"]'
@@ -116,6 +116,23 @@ aufnahmen:
           })()
         meldung: Der Edelstein ist nicht so geworden wie gedacht (oder der Punkt daneben ist noch da)
 
+  - name: benennen
+    art: video
+    titel: Ein Name
+    ausschnitt: [0, 0, 1600, 862]
+    schritte:
+      - { hinweis: "Rechts oben bei Titel: Edelstein", nr: 19, mehr: "Gib jedem Sprite gleich einen Namen. Dann steht überall „Edelstein“ statt „Sprite 1“ – in der Liste, im Level und bei den Signalen." }
+      - klick: '#menu_sprite_properties .item:has-text("Titel") input'
+      - taste: Control+KeyA
+        zeigen: false
+      - tippen: Edelstein
+      - taste: Enter
+      - { hinweis: Der Name steht jetzt über den Eigenschaften, nr: 20, mehr: "Fährst du in der Sprite-Liste links über den Edelstein, steht er auch dort." }
+      - bewegen: '#menu_sprites ._dnd_item:nth-child(1)'
+      - pause: 1.6
+      - pruefen: "game.data.sprites[0].properties?.name === 'Edelstein'"
+        meldung: Das Sprite sollte Edelstein heißen
+
 ---
 ## Kurz gesagt
 
@@ -123,6 +140,7 @@ aufnahmen:
 2. Mit dem **Farbeimer** füllst du eine ganze Fläche auf einmal – hell, wo das Licht hinfällt, dunkel im Schatten. Was er nicht erreicht, malst du mit dem Stift aus; die **Pipette** holt dir dafür die Farbe aus dem Bild.
 3. Unter der Palette stehen **Abwandlungen** deiner Farbe: heller, dunkler, kräftiger, blasser.
 4. Ein Fehler? **Strg + Z** macht ihn rückgängig. Mit **X** radierst du.
+5. Gib dem Sprite gleich einen **Namen** – oben rechts bei **Titel**.
 
 ## So sieht der Sprite-Editor aus
 
@@ -131,7 +149,7 @@ Klick oben auf **Sprites**. Hier zeichnest du alles, was in deinem Spiel vorkomm
 ![Der Sprite-Editor](aufnahme:ueberblick)
 
 1. **Sprites** – alle Bilder deines Spiels. Mit **+** fängst du ein neues an.
-2. **Werkzeuge** – Stift, Linie, Rechteck, Farbeimer und mehr. Sie stehen genauso da wie ihre Tasten auf der Tastatur: oben <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd> <kbd>Y</kbd>, darunter <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd>, ganz unten <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd> – so findest du die Taste, ohne zu suchen.
+2. **Werkzeuge** – Stift, Linie, Rechteck, Farbeimer und mehr. Sie stehen genauso da wie ihre Tasten auf der Tastatur: oben <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> <kbd>T</kbd> <kbd>Z</kbd>, darunter <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd>, ganz unten <kbd>Y</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd> – so findest du die Taste, ohne zu suchen.
 3. **Palette** – die Farben. Darunter stehen Abwandlungen der gewählten Farbe: ähnliche Farbtöne, Licht und Schatten, kräftiger und blasser.
 4. **Zeichenfläche** – hier malst du. Jedes Kästchen ist ein Pixel.
 5. **Frames** – die Bilder einer Animation.
@@ -162,6 +180,19 @@ Der Punkt zeigt, wo deine Farbe selbst steht. Fährst du mit der Maus über ein 
 ![Strg + Z und X](aufnahme:verbessern)
 
 > **Tipp:** Rückgängig und Wiederholen stehen auch unten rechts in der Statusleiste, mit ihren Tasten. Daneben findest du **Speichern** (<kbd>Strg</kbd> + <kbd>S</kbd>).
+
+## Gib allem einen Namen
+
+![Titel: Edelstein](aufnahme:benennen)
+
+Mach es dir zur Gewohnheit: Was du anlegst, bekommt gleich einen Namen, der sagt, was es ist –
+
+- **Sprites** wie *Edelstein*, *Pip* oder *Gras* (rechts oben bei **Titel**),
+- **Zustände** wie *stehen*, *laufen*, *springen* (Doppelklick auf den Zustand – siehe [Animieren](rezept:animieren)),
+- **Level** wie *Wiese* oder *Höhle* (Doppelklick in der Level-Liste – siehe [Ziel und mehrere Level](rezept:ziel-und-level)),
+- **Ebenen** wie *Berge* oder *Himmel* (Doppelklick in der Ebenen-Liste – siehe [Hintergrund und Ebenen](rezept:hintergrund-ebenen)).
+
+Mit Namen findest du alles schneller wieder: in den Listen, bei der Suche über den Sprites, in den Signal-Regeln („Wenn Pip den Schalter berührt …“) und bei **→ weiter** eines Ziels. Und wer mit dir zusammen baut, weiß sofort, was gemeint ist. „Sprite 7“ und „Ebene 3“ sagen nach einer Woche niemandem mehr etwas.
 
 ## Wenn's nicht klappt
 

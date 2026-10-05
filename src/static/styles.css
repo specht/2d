@@ -3303,15 +3303,24 @@ button.film-weiter-knopf:hover {
     opacity: 1;
     transform: none;
 }
-/* the steps beside the film: the current one lit, the ones before done */
+/* the steps beside the film: the current one lit, the ones before done;
+   a list taller than the film scrolls (anleitung_film.js fit_steps sets its
+   height), the current step kept in view */
 .film-schritte {
     flex: 0 0 250px;
     list-style: none;
     margin: 0;
-    padding: 0 !important;
+    padding: 0 4px 0 0 !important;
     display: flex;
     flex-direction: column;
     gap: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+.film-schritte li {
+    flex-shrink: 0;
 }
 .film-schritte li {
     display: flex;

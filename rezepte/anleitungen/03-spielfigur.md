@@ -90,8 +90,17 @@ aufnahmen:
     vorher:
       - klick: '#mi_sprites'
       - klick: '#menu_sprites ._dnd_item:nth-child(1)'
-    ausschnitt: ['.menu:has(#menu_states)']
+      # the panel lies under the Zustände, at the bottom of the right column
+      - js: "document.getElementById('who_shows_what').scrollIntoView({ block: 'end' })"
+      - pruefen: "$('#who_shows_what .wsw-row:not(.wsw-head)').length >= 4 && $('#who_shows_what details').prop('open') === true"
+        meldung: Wer zeigt was? sollte offen sein und Pips Bewegungen zeigen
+    ausschnitt: ['.menu:has(#menu_states)', '#who_shows_what']
     rand: 6
+    marken:
+      - { ziel: '#menu_states ._dnd_item:nth-child(1)', nr: 1, x: 0.94, y: 0.5 }
+      - { ziel: '#who_shows_what .wsw-head', nr: 2, x: 0.44, y: 0.9 }
+      - { ziel: '#who_shows_what .wsw-row:has-text("Springen")', nr: 3, rahmen: true, x: 0.38, y: 0.5 }
+      - { ziel: '#who_shows_what .wsw-count', nr: 4, x: 1.13, y: 0.5 }
 ---
 ## Kurz gesagt
 
@@ -124,9 +133,16 @@ Nur *von oben* ergibt eine Plattform, durch die man von unten hindurchspringen k
 
 ## Wer zeigt was?
 
-![Wer zeigt was?](aufnahme:wer-zeigt-was)
+Sobald ein Sprite eine Spielfigur ist, steht bei den **Sprites** rechts unter den **Zuständen** die Tabelle **Wer zeigt was?** – hier für Pip:
 
-Hier siehst du, welches Bild deine Figur gerade zeigt, wenn sie steht, läuft, springt oder fällt – und in welche Richtung. Ein Bild für alles reicht schon zum Spielen! **Platz für … Bilder** sagt dir, wie viele du noch dazumalen kannst. Wie das geht, zeigt das Rezept [Laufen, Springen und Fallen animieren](rezept:laufen-animieren).
+![Wer zeigt was? für Pip: jede Bewegung in jede Richtung](aufnahme:wer-zeigt-was)
+
+1. Pip hat bis jetzt **einen** Zustand: *stehen*, mit einem einzigen Bild.
+2. Die Spalten sind die Richtungen: nach **links**, nach **rechts** – und **vorn**, so steht die Figur ganz am Anfang da.
+3. Jede Zeile ist eine Bewegung: Stehen, Laufen, Springen, Fallen, Klettern und Tot. In jedem Kästchen siehst du, welches Bild das Spiel dann zeigt. Bei Pip ist es überall dasselbe – nach links einfach gespiegelt.
+4. **Platz für 10 Bilder** heißt: An zehn Stellen zeigt Pip ein Bild, das schon für etwas anderes da ist. Dort kannst du eigene Bilder malen – zum Beispiel ein Sprungbild.
+
+Ein Bild für alles reicht schon zum Spielen! Die Farbe um ein Kästchen sagt, woher sein Bild kommt (die Erklärung steht unter der Tabelle), und ein Klick auf ein Kästchen zeigt dir diesen Zustand. Wie du Pip laufen, springen und fallen lässt, zeigt [Animieren](rezept:animieren) und das Rezept [Laufen, Springen und Fallen animieren](rezept:laufen-animieren).
 
 ## Wenn's nicht klappt
 

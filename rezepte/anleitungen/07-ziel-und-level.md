@@ -60,7 +60,17 @@ aufnahmen:
       - rechtsklick: '#menu_levels ._dnd_item:nth-child(1)'
       - menue: Duplizieren
       - pause: 0.8
-      - { hinweis: "Im zweiten Level: S und „→ weiter: zum Spielende“", nr: 6, mehr: "Nach dem zweiten Level soll das Spiel zu Ende sein. Ohne diese Wahl ginge es zum nächsten Level – das gibt es nicht, also käme auch das Ende." }
+      - { hinweis: Doppelklick – jedem Level einen Namen, nr: 6, mehr: "Doppelklick auf das Level, den Namen tippen, Enter. Mit Namen findest du jedes Level wieder – in der Levelübersicht und bei „→ weiter“." }
+      - doppelklick: '#menu_levels ._dnd_item:nth-child(1)'
+      - tippen: Wiese
+      - taste: Enter
+      - doppelklick: '#menu_levels ._dnd_item:nth-child(2)'
+      - tippen: Höhle
+      - taste: Enter
+      - pause: 0.6
+      - pruefen: "game.data.levels.map(l => l.properties?.name).join() === 'Wiese,Höhle'"
+        meldung: Die Level sollten Wiese und Höhle heißen
+      - { hinweis: "In der Höhle: S und „→ weiter: zum Spielende“", nr: 7, mehr: "Nach dem zweiten Level soll das Spiel zu Ende sein. Ohne diese Wahl ginge es zum nächsten Level – das gibt es nicht, also käme auch das Ende." }
       - klick: '#menu_levels ._dnd_item:nth-child(2)'
       - taste: KeyS
       - pause: 0.6
@@ -71,13 +81,13 @@ aufnahmen:
       - pruefen: |
           game.data.levels[1].layers.some(l => (l.sprites ?? []).some(p => p[3]?.level_complete?.target === '@end'))
         meldung: Das Ziel im zweiten Level sollte zum Spielende führen
-      - { hinweis: L – die Levelübersicht, nr: 7, mehr: "Jedes Level ist ein Kästchen. Der graue Pfeil führt vom ersten ins zweite Level, der grüne vom zweiten zum Ende." }
+      - { hinweis: L – die Levelübersicht, nr: 8, mehr: "Jedes Level ist ein Kästchen mit seinem Namen. Der graue Pfeil führt von der Wiese in die Höhle, der grüne von der Höhle zum Ende." }
       - taste: KeyL
       - pause: 2.4
       - taste: KeyL
       - pruefen: "game.data.levels.length === 2"
         meldung: Es sollte zwei Level geben
-      - { hinweis: "Testen: das erste Level, Maus vors Ziel, T", nr: 8, mehr: "Mit Verschieben (Q) setzt der Stift nichts aus Versehen. Dann lauf ins Ziel." }
+      - { hinweis: "Testen: die Wiese, Maus vors Ziel, T", nr: 9, mehr: "Mit Verschieben (Q) setzt der Stift nichts aus Versehen. Dann lauf ins Ziel." }
       - klick: '#menu_levels ._dnd_item:nth-child(1)'
       - ansicht: [-1, -1, 14, 5]
       - klick: '#tool_menu_level .button[title^="Verschieben"]'
@@ -89,12 +99,12 @@ aufnahmen:
       - taste: ArrowRight
         halten: 1.2
       - warten: 2
-      - { hinweis: Geschafft! Eine Taste – weiter, nr: 9, mehr: "Der Vorhang sagt, welches Level jetzt kommt." }
+      - { hinweis: Geschafft! Eine Taste – weiter, nr: 10, mehr: "Der Vorhang sagt, welches Level jetzt kommt." }
       - taste: Space
       - warten: 1.6
       - pruefen: "document.getElementById('play_iframe').contentWindow.game.level_index === 1"
         meldung: Das Ziel hat nicht ins zweite Level geführt
-      - { hinweis: Esc – zurück, nr: 10 }
+      - { hinweis: Esc – zurück, nr: 11 }
       - taste: Escape
       - warten: 0.6
 ---
@@ -102,7 +112,7 @@ aufnahmen:
 
 1. Ein Sprite mit der Eigenschaft **Level → Levelwechsel** ist ein **Ziel** (oder eine Tür, ein Ausgang …): Wer es berührt, hat das Level geschafft.
 2. In der Signale-Übersicht (<kbd>S</kbd>) steht ganz oben die Karte **Level geschafft**. Bei **→ weiter:** stellst du ein, wohin es danach geht – zum nächsten Level, zu einem bestimmten oder zum Spielende.
-3. Rechtsklick auf ein Level → **Duplizieren** macht ein zweites. <kbd>L</kbd> zeigt alle Level und wie sie zusammenhängen.
+3. Rechtsklick auf ein Level → **Duplizieren** macht ein zweites. Ein **Doppelklick** gibt ihm einen Namen. <kbd>L</kbd> zeigt alle Level und wie sie zusammenhängen.
 
 ## Ein Ziel
 
@@ -117,9 +127,9 @@ Dasselbe steht auch rechts bei **Auswahl**, wenn du das Ziel im Level mit **Ausw
 
 ## Ein zweites Level
 
-![Duplizieren, Levelübersicht, testen](aufnahme:zweites-level)
+![Duplizieren, benennen, Levelübersicht, testen](aufnahme:zweites-level)
 
-> **Tipp:** Gib deinen Leveln Namen: Rechtsklick → **Umbenennen**. In der Levelübersicht und bei **→ weiter:** findest du sie dann leichter.
+> **Tipp:** Gib jedem Level gleich einen Namen, der sagt, was dort passiert – *Wiese*, *Höhle*, *Endgegner*. „Level 1“, „Level 2“ verwechselst du schnell, sobald es mehr werden. Umbenennen geht auch mit Rechtsklick → **Umbenennen**.
 
 ## Wenn's nicht klappt
 
