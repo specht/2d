@@ -103,8 +103,30 @@ export async function open_studio(browser, repo, { width = 1600, height = 900 } 
     });
     const root = path.join(repo, 'src/static');
     const temp = new Map();
-    const saved = [];
+    // the saved versions of this run, like the server's GameIndex: every
+    // version knows the one it was loaded from (parent)
+    const saved = new Map();
     const originals = new Map();
+    const root_of = (tag) => {
+        const seen = new Set();
+        while (saved.get(tag)?.parent && !seen.has(tag)) { seen.add(tag); tag = saved.get(tag).parent; }
+        return tag;
+    };
+    const family_of = (tag) => {
+        const root = root_of(tag);
+        return [...saved.values()].filter(n => root_of(n.tag) === root);
+    };
+    const tips = () => {
+        const roots = [...new Set([...saved.keys()].map(root_of))];
+        return roots.map(root => {
+            const family = family_of(root);
+            const leaves = family.filter(n => !family.some(c => c.parent === n.tag));
+            const tip = leaves.sort((a, b) => b.ts_created - a.ts_created)[0];
+            const others = [...new Set(family.flatMap(n => [n.title, n.author]).filter(Boolean))]
+                .filter(x => x !== tip.title && x !== tip.author);
+            return { ...tip, relatives_count: family.length, ...(others.length ? { others } : {}) };
+        }).sort((a, b) => b.ts_created - a.ts_created);
+    };
     const handler = async route => {
         const request = route.request();
         const url = new URL(request.url());
@@ -123,16 +145,18 @@ export async function open_studio(browser, repo, { width = 1600, height = 900 } 
             if (p === '/api/save_game') {
                 const game = JSON.parse(request.postData() ?? '{}').game ?? {};
                 const tag = crypto.createHash('sha1').update(JSON.stringify(game)).digest('hex').replace(/[^a-z0-9]/g, '').slice(0, 7);
-                originals.set(tag, game);
+                if (!originals.has(tag)) originals.set(tag, game);
                 // the game frame loads the saved version, too (Game._load)
                 const t = await temp_game(game);
                 temp.set(tag, { ...t, tag });
                 const states = (game.sprites ?? []).flatMap(sp => sp.states ?? []);
-                saved.push({
-                    tag, icon: SAVE_ICON, author: game.properties?.author ?? '', title: game.properties?.title ?? '',
-                    ts_created: Math.floor(SAVE_TIME / 1000) + saved.length * 60, size: JSON.stringify(game).length,
+                // saved again unchanged: the same version (it keeps its time)
+                if (!saved.has(tag)) saved.set(tag, {
+                    tag, parent: saved.has(game.parent) ? game.parent : null,
+                    icon: SAVE_ICON, author: game.properties?.author ?? '', title: game.properties?.title ?? '',
+                    ts_created: Math.floor(SAVE_TIME / 1000) + saved.size * 60, size: JSON.stringify(game).length,
                     sprite_count: (game.sprites ?? []).length, state_count: states.length,
-                    frame_count: states.reduce((n, st) => n + (st.frames ?? []).length, 0), relatives_count: 0,
+                    frame_count: states.reduce((n, st) => n + (st.frames ?? []).length, 0),
                 });
                 return reply(JSON.stringify({ tag, icon: SAVE_ICON }));
             }
@@ -141,7 +165,17 @@ export async function open_studio(browser, repo, { width = 1600, height = 900 } 
                 if (!originals.has(tag)) return route.fulfill({ status: 404, body: '{}', contentType: MIME['.json'] });
                 return reply(JSON.stringify({ game: { ...originals.get(tag), parent: tag } }));
             }
-            if (p.startsWith('/api/get_games')) return reply(JSON.stringify({ nodes: [...saved].reverse() }));
+            if (p.startsWith('/api/get_games')) return reply(JSON.stringify({ nodes: tips() }));
+            if (p === '/api/family') {
+                const tag = JSON.parse(request.postData() ?? '{}').tag;
+                const nodes = saved.has(tag) ? family_of(tag).sort((a, b) => a.ts_created - b.ts_created) : [];
+                return reply(JSON.stringify({ tag, nodes }));
+            }
+            if (p === '/api/game_info') {
+                const tag = JSON.parse(request.postData() ?? '{}').tag;
+                const node = saved.get(tag);
+                return reply(JSON.stringify({ tag, exists: !!node, node: node ? { ...node, relatives_count: family_of(tag).length } : null }));
+            }
             // the server is there (server_watch.js), playtesting is off
             if (p === '/api/ping') return reply(JSON.stringify({ pong: true, version: null, playtest: false }));
             // nothing else is needed for the guides: no saved games, no server

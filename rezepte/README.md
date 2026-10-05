@@ -669,10 +669,11 @@ object again), so a guide with several long films fits in memory.
 
 The studio runs without a server: `/api/save_game_temp` (Level testen)
 answers like the server and the game frame gets its sprite sheet laid out
-like `Main.render_spritesheet_for_tag`; `/api/save_game`, `/api/get_games`
-and `/api/load_game` remember what the guide saved in this run, so *Laden*
-lists exactly that (with a fixed date and icon); everything else answers
-`{}`. `Math.random` is seeded.
+like `Main.render_spritesheet_for_tag`; `/api/save_game`, `/api/get_games`,
+`/api/load_game`, `/api/family` and `/api/game_info` remember what the guide
+saved in this run, versions and their parents included (like the server's
+`GameIndex`), so *Laden* lists exactly that – with a fixed icon and one
+minute between two saves; everything else answers `{}`. `Math.random` is seeded.
 
 ### Writing a guide
 
@@ -712,7 +713,7 @@ Steps (one action per step; captions and modifiers may go with it):
 | `rad: <ziel>` (`um: -4`) | turns the mouse wheel over it, `um` notches (negative = towards you: in the level, zoom in; default −3) |
 | `menue: [Blöcke, man kann …]` | walks a right-click menu, dropdown or submenu by its labels (each next label inside the submenu of the one before, which it waits to open) |
 | `taste: Control+KeyZ` | presses a key (`halten: 1.2` holds it that long, `zeigen: false` hides the caps) |
-| `tippen: Tor auf` | types text |
+| `tippen: Tor auf` | types text; `tippen: { js: … }` types what the expression gives (a code saved during the run, `window.…`) |
 | `warten: 1` | lets time pass (frames as they come: test runs); with `bis: <js>` it goes on until that is `true` (at most 10 s more, else it fails with `meldung`) – after T, wait for the test run, never for a fixed time a slower or faster computer may not keep |
 | `pause: 1` | holds the current picture |
 | `ansicht: [c0, r0, c1, r1]` | the level view shows these cells (row 0 = the lowest) |

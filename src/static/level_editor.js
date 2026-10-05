@@ -194,6 +194,14 @@ class LayerStruct {
 class LevelEditor {
     constructor(element, game) {
         let self = this;
+        // a game was loaded: the editor before this one is still game.level_editor
+        // until this constructor returns, and menus call it meanwhile – on the
+        // new game's data, which may have fewer levels or layers than its indices
+        const previous = game?.level_editor;
+        if (previous && previous !== this) {
+            previous.level_index = 0;
+            previous.layer_index = 0;
+        }
         this.element = element;
         $(this.element).empty();
         $(this.element).css('cursor', 'crosshair');
@@ -729,8 +737,12 @@ class LevelEditor {
         $(this.element).on('mousedown touchstart', (e) => self.handle_down(e));
         // select tool: double-click picks a sprite in whichever layer it is
         $(this.element).on('dblclick', (e) => self.handle_double_click(e));
-        $(window).on('mouseup touchend', (e) => self.handle_up(e));
-        $(window).on('mousemove touchmove', (e) => self.handle_move(e));
+        // every loaded game makes a new LevelEditor: the one before must stop
+        // listening, or it keeps handling the mouse with its old level index
+        // (a game with fewer levels then threw on every mouse move)
+        $(window).off('.level_editor_pointer');
+        $(window).on('mouseup.level_editor_pointer touchend.level_editor_pointer', (e) => self.handle_up(e));
+        $(window).on('mousemove.level_editor_pointer touchmove.level_editor_pointer', (e) => self.handle_move(e));
         $(this.element).on('wheel', function (e) {
             e.preventDefault();
             let p = self.ui_to_world(self.get_touch_point(e), false);
@@ -4479,6 +4491,9 @@ class LevelEditor {
             }
             this.scale = real_height / 300.0;
         }
+        // Game._load resizes before it makes the new LevelEditor: this one may
+        // still point at a level the newly loaded game does not have
+        if (!this.game.data.levels?.[this.level_index]?.layers?.[this.layer_index]) return;
         this.refresh_grid();
         this.render();
     }

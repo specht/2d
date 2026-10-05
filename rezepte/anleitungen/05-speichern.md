@@ -76,7 +76,7 @@ aufnahmen:
 
 ![Strg + O und ein Klick](aufnahme:laden)
 
-Hast du ein Spiel öfter gespeichert, steht bei **Versionen** ein Knopf. Dort kannst du auch einen älteren Stand laden.
+Oben ist ein **Suchfeld**: Dein Name, ein Wort aus dem Titel oder ein Code findet dein Spiel sofort. Hast du ein Spiel öfter gespeichert, steht bei **Versionen** ein Knopf – dort kannst du auch einen älteren Stand laden. Wie das geht, zeigt [Versionen und Stammbaum](rezept:versionen).
 
 ## Teilen
 
@@ -99,7 +99,7 @@ Unten rechts im Studio stehen die wichtigsten Knöpfe immer bereit – mit ihren
 
 ## Wenn's nicht klappt
 
-- **Ich finde mein Spiel nicht:** Hast du einen Titel eingetragen? Der Code steht unter *Einstellungen → Link zum Spiel*.
+- **Ich finde mein Spiel nicht:** Tipp deinen Namen oder den Titel ins Suchfeld. Hast du einen Titel eingetragen? Der Code steht unter *Einstellungen → Link zum Spiel* – auch er funktioniert im Suchfeld.
 - **Der Browser ist abgestürzt:** Keine Sorge – das Studio hebt deine ungespeicherte Arbeit auf und bietet sie dir beim nächsten Öffnen wieder an.
 
 ## Mach mehr draus

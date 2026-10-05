@@ -110,4 +110,4 @@ Die Werkzeuge stehen so nebeneinander wie ihre Tasten auf der Tastatur: Der link
 
 ## Mach mehr draus
 
-Das Rezept [Level dekorieren](rezept:dekorieren) zeigt, wie du mit diesen Griffen schnell viel Deko verteilst. Zum Schluss: [Tasten im Spiel](rezept:tasten).
+Das Rezept [Level dekorieren](rezept:dekorieren) zeigt, wie du mit diesen Griffen schnell viel Deko verteilst. Zum Schluss: [Versionen und Stammbaum](rezept:versionen).

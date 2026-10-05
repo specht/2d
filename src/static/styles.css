@@ -2294,38 +2294,201 @@ a, a:visited {
     display: none;
 }
 
-#games_sublist_graph {
-    display: flex;
-    justify-content: center;
-    max-width: 100%;
-    margin: 1em auto;
-}
-
-#games_sublist_graph svg {
-    max-width: 100%;
-}
-
-#games_sublist_graph svg g.node {
-    cursor: pointer;
-}
-
+/* Spiel laden (game_list.js, studio.js): two pages side by side – the list
+   with its search, and the family tree of one game with its versions */
 :root {
     --graph-highlight-color: rgba(229, 24, 93, 1.0);
 }
 
-#games_sublist_graph svg g.node.highlight ellipse {
-    fill: var(--graph-highlight-color);
+.load-games {
+    position: absolute;
+    inset: 15px;
+    overflow: hidden;
+}
+
+.load-games-page {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.load-games-page-family {
+    transform: translateX(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.load-games.family .load-games-page-list {
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.load-games.family .load-games-page-family {
+    transform: none;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.load-games-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.load-games-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.load-games-search input {
+    flex: 1;
+    max-width: 36em;
+    background-color: #222;
+    color: #fff;
+    font-size: 15px;
+    padding: 0.5em 0.8em;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+}
+
+#load_games_count {
+    opacity: 0.7;
+    font-size: 14px;
+}
+
+.load-games-code {
+    display: none;
+    flex-shrink: 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.load-games-code button {
+    margin-right: 8px;
+}
+
+.load-games-code .mono, table.game-list td.mono {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+}
+
+table.game-list th.sortable {
+    cursor: pointer;
+}
+
+table.game-list th.sortable:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+table.game-list th {
+    position: sticky;
+    top: 0;
+    background-color: #2a2a2a;
+    z-index: 1;
+}
+
+table.game-list td.game-list-icon {
+    width: 24px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+table.game-list td.game-list-icon img {
+    height: 24px;
+    width: 24px;
+    display: block;
+}
+
+table.game-list button.game-list-versions {
+    font-size: 90%;
+    width: 9.2em;
+}
+
+table.game-list tr.clickable_row {
+    cursor: pointer;
+}
+
+.game-list-more {
+    padding: 10px;
+    text-align: center;
+    opacity: 0.6;
+    cursor: pointer;
+}
+
+.game-list-more:empty {
+    padding: 0;
+}
+
+.load-games-family-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.load-games-family {
+    overflow-x: auto;
+    padding: 6px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+}
+
+.load-games-hint {
+    opacity: 0.7;
+    font-size: 14px;
+    margin: 6px 0 10px 0;
+}
+
+svg.game-family {
+    display: block;
+    margin: 0 auto;
+}
+
+svg.game-family .family-edge {
+    fill: none;
+    stroke: #808080;
+    stroke-width: 3;
+}
+
+svg.game-family .family-edge.highlight {
     stroke: var(--graph-highlight-color);
 }
 
-#games_sublist_graph svg g.edge.highlight path, #games_sublist_graph svg g.edge.highlight polygon {
-    fill: var(--graph-highlight-color);
-    stroke: var(--graph-highlight-color);
+svg.game-family .family-folded {
+    fill: #aaa;
+    font-size: 13px;
+    text-anchor: middle;
 }
 
-#games_sublist_graph svg g.node:hover ellipse {
+svg.game-family .family-node {
+    cursor: pointer;
+}
+
+svg.game-family .family-node circle {
+    fill: #fff;
+}
+
+svg.game-family .family-node text {
+    fill: #ddd;
+    font-size: 15px;
+}
+
+svg.game-family .family-node.highlight circle,
+svg.game-family .family-node:hover circle {
     fill: var(--graph-highlight-color);
-    stroke: var(--graph-highlight-color);
+    opacity: 1 !important;
+}
+
+svg.game-family .family-node.selected circle {
+    stroke: #fff;
+    stroke-width: 3;
 }
 
 /* Compact sprite thumbnail picker: the grid is a separate FULL-WIDTH row.

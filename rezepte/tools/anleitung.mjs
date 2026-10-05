@@ -506,7 +506,15 @@ export class GuidePlayer {
         else if (s.malen !== undefined) await this.drag(s.malen, s.dauer ? s.dauer * 1000 : undefined, s.mit);
         else if (s.rad !== undefined) await this.wheel(s.rad, s.um ?? -3);
         else if (s.taste !== undefined) await this.key(s.taste, s.halten, s.zeigen !== false);
-        else if (s.tippen !== undefined) await this.type(s.tippen);
+        else if (s.tippen !== undefined) {
+            // `tippen: { js: … }`: what the page knows only during the run (a code that was just saved)
+            let text = s.tippen;
+            if (text && typeof text === 'object') {
+                try { text = await page.evaluate(text.js); } catch (e) { this.fail(`tippen: ${e.message}`); }
+                if (typeof text !== 'string' || !text) this.fail(`tippen: ${s.tippen.js} ergab keinen Text`);
+            }
+            await this.type(text);
+        }
         else if (s.menue !== undefined) await this.menu(s.menue);
         else if (s.ansicht !== undefined) await this.view(s.ansicht);
         else if (s.warten !== undefined) {

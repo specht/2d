@@ -1077,128 +1077,117 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         ]
     });
 
-    function highlight_path_to(tag) {
-        $('#games_sublist_graph svg g.node').removeClass('highlight');
-        $('#games_sublist_graph svg g.edge').removeClass('highlight');
-        let node = $(`#games_sublist_graph svg g.node#g${tag}`);
-        node.addClass('highlight');
-        let p0 = tag;
-        let p = window.graph_parents[tag] ?? null;
-        while (p !== null) {
-            let node = $(`#games_sublist_graph svg g.node#g${p}`);
-            node.addClass('highlight');
-            let edge = $(`#games_sublist_graph svg g.edge#g${p}g${p0}`);
-            edge.addClass('highlight');
-            p0 = p;
-            p = window.graph_parents[p] ?? null;
+    // Spiel laden (game_list.js): the newest version of every game, a search
+    // over code, title and author, loading by code, and the family tree of
+    // a game's versions. The list stays drawn between two openings; the
+    // server's answer (from its prewarmed index) only redraws it when
+    // something changed.
+    const load_games = {
+        list: null,
+        family: null,
+        versions: null,
+        code: null,        // the code typed into the search field, if any
+        code_info: null,   // what the server knows about it
+        request: 0,
+    };
+
+    function load_games_secret() {
+        let secret = window.location.search.toString().replace('?', '').trim();
+        return secret.length === 0 ? 'x' : secret;
+    }
+
+    function load_game_and_close(tag) {
+        game.load(tag);
+        window.loadGameModal.dismiss();
+    }
+
+    function load_games_show_page(page) {
+        $('#load_games').toggleClass('family', page === 'family');
+        // the search keeps what was typed last time, selected: typing replaces it
+        if (page === 'list') setTimeout(() => $('#ti_load_games_search').trigger('focus').trigger('select'), 0);
+    }
+
+    function load_games_count(visible, total) {
+        const q = $('#ti_load_games_search').val().trim();
+        let text = '';
+        if (load_games.list?.signature === null) text = 'Spiele werden geholt …';
+        else if (q && visible === 0 && game_list_code(q)) text = '';
+        else if (q && visible === 0 && /^[a-z0-9]{1,6}$/i.test(q) && /\d/.test(q)) text = 'Kein Spiel passt. Ein Code hat genau 7 Zeichen.';
+        else if (q && visible === 0) text = 'Kein Spiel passt – lösch die Suche oder versuch ein anderes Wort.';
+        else if (q) text = `${visible} von ${total} Spielen`;
+        else text = `${total} Spiele`;
+        $('#load_games_count').text(text);
+    }
+
+    // A code in the search field: a line to load exactly that version (also
+    // an older one, which the list does not show).
+    function load_games_code_line() {
+        const div = $('#load_games_code').empty();
+        const code = load_games.code;
+        if (!code) { div.hide(); return; }
+        const info = load_games.code_info?.tag === code ? load_games.code_info : null;
+        div.show();
+        if (!info) {
+            div.append($('<span>').text(`Code ${code} …`));
+            return;
+        }
+        if (!info.exists) {
+            div.append($('<span>').text(`Ein Spiel mit dem Code ${code} gibt es nicht. Hast du dich vertippt?`));
+            return;
+        }
+        const n = info.node ?? {};
+        const what = [n.title || 'ohne Titel', n.author ? `von ${n.author}` : null, n.ts_created ? moment.unix(n.ts_created).format('L LT') : null].filter(x => x).join(' · ');
+        const button = $(`<button class="green"><i class="fa fa-folder-open-o"></i>&nbsp;&nbsp;Laden</button>`)
+            .on('click', () => load_game_and_close(code));
+        div.append(button).append($('<span class="mono">').text(` ${code} `)).append($('<span>').text(what));
+        if (n.relatives_count > 1 || n.parent) {
+            const family = $(`<button><i class="fa fa-code-fork"></i>&nbsp;&nbsp;Stammbaum</button>`)
+                .on('click', () => load_games_open_family(code));
+            div.append(' ').append(family);
         }
     }
 
-    function populate_games_list(nodes) {
-        console.log(nodes);
-        $('#load_games_sublist').empty();
-        new SortableTable({
-            element: $('#load_games_sublist'),
-            headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames'].map(function (x) {
-                let th = $('<th>').text(x);
-                if (['Größe', 'Sprites', 'Zustände', 'Frames'].indexOf(x) >= 0) {
-                    th.addClass('right');
-                    th.data('type', 'int');
-                }
-                return th;
-            }),
-            rows: nodes.map(function (node) {
-                return [
-                    node.tag,
-                    $('<td>').append($('<img>').attr('src', `noto/${node.icon}.png`).css('height', '24px')),
-                    $('<td>').addClass('mono').text(node.tag),
-                    $('<td>').text(node.author || '–'),
-                    $('<td>').text(node.title || '–'),
-                    $('<td>').text(moment.unix(node.ts_created).format('L LT')),
-                    $('<td>').addClass('right').text(bytes_to_str(node.size)).data('sort_value', node.size),
-                    $('<td>').addClass('right').text(`${node.sprite_count}`).data('sort_value', node.sprite_count),
-                    $('<td>').addClass('right').text(`${node.state_count}`).data('sort_value', node.state_count),
-                    $('<td>').addClass('right').text(`${node.frame_count}`).data('sort_value', node.frame_count),
-                ];
-            }),
-            // filter_callback: user_filter,
-            clickable_rows: true,
-            clickable_row_callback: (tag) => {
-                game.load(tag);
-                window.loadGameModal.dismiss();
-            }
-        });
-
-    }
-
-    function populate_tips_games(div, nodes) {
-        new SortableTable({
-            element: div,
-            headers: ['', 'Code', 'Autor', 'Titel', 'Datum', 'Größe', 'Sprites', 'Zustände', 'Frames', 'Versionen'].map(function (x) {
-                let th = $('<th>').text(x);
-                if (['Größe', 'Sprites', 'Zustände', 'Frames'].indexOf(x) >= 0) {
-                    th.addClass('right');
-                    th.data('type', 'int');
-                }
-                if (['Versionen'].indexOf(x) >= 0) {
-                    th.data('type', 'int');
-                }
-                return th;
-            }),
-            rows: nodes.map(function (node) {
-                let bu_versions = $('');
-                if (node.relatives_count > 0) {
-                    bu_versions = $('<button>').css('font-size', '90%').css('width', '9.2em').append($(`<div>${node.relatives_count} Versionen <i class='fa fa-angle-right'></i></div>`));
-                    bu_versions.click(function (e) {
-                        api_call('/api/graph', { tag: node.tag }, function (data) {
-                            if (data.success) {
-                                window.graph_parents = data.graph_parents;
-                                $('#games_sublist_graph').empty().append($(data.svg)).show();
-                                highlight_path_to(node.tag);
-                                $('#games_sublist_graph svg g.node').on('click', function (e) {
-                                    let id = $(e.target).closest('g.node').attr('id').substr(1);;
-                                    highlight_path_to(id);
-                                    fetch_game_versions_until(id);
-                                })
-                            }
-                        });
-                        e.stopPropagation();
-                        $('#load_games_list').css('left', '-100%').css('opacity', 0);
-                        $('#load_games_sublist').css('left', '0').css('opacity', 1);
-                        $('#bu_load_game_back').css('left', '0').css('opacity', 1);
-                        $('#load_games_list').parent().css('pointer-events', 'none');
-                        $('#load_games_sublist').parent().css('pointer-events', 'auto');
-                        fetch_game_versions_until(node.tag);
-                    });
-                }
-                return [
-                    node.tag,
-                    $('<td>').append($('<img>').attr('src', `noto/${node.icon}.png`).css('height', '24px')),
-                    $('<td>').addClass('mono').text(node.tag),
-                    $('<td>').text(node.author || '–'),
-                    $('<td>').text(node.title || '–'),
-                    $('<td>').text(moment.unix(node.ts_created).format('L LT')),
-                    $('<td>').addClass('right').text(bytes_to_str(node.size)).data('sort_value', node.size),
-                    $('<td>').addClass('right').text(`${node.sprite_count}`).data('sort_value', node.sprite_count),
-                    $('<td>').addClass('right').text(`${node.state_count}`).data('sort_value', node.state_count),
-                    $('<td>').addClass('right').text(`${node.frame_count}`).data('sort_value', node.frame_count),
-                    $('<td>').append(bu_versions).data('sort_value', node.relatives_count),
-                ];
-            }),
-            // filter_callback: user_filter,
-            clickable_rows: true,
-            clickable_row_callback: (tag) => {
-                game.load(tag);
-                window.loadGameModal.dismiss();
+    function load_games_search_changed() {
+        const text = $('#ti_load_games_search').val();
+        const code = game_list_code(text);
+        load_games.list?.set_query(text.trim());
+        if (code === load_games.code) return;
+        load_games.code = code;
+        load_games_code_line();
+        if (!code) return;
+        api_call('/api/game_info', { tag: code }, function (data) {
+            if (data.success && load_games.code === code) {
+                load_games.code_info = { tag: code, exists: data.exists, node: data.node };
+                load_games_code_line();
             }
         });
     }
 
-    function fetch_game_versions_until(tag) {
-        api_call('/api/get_versions_for_game', { tag: tag }, function (data) {
-            if (data.success) {
-                populate_games_list(data.nodes);
-            }
+    function load_games_refresh() {
+        const request = ++load_games.request;
+        api_call(`/api/get_games/${load_games_secret()}`, {}, function (data) {
+            if (!data.success || request !== load_games.request) return;
+            const scroll = $('#load_games_scroll');
+            const top = scroll.scrollTop();
+            if (load_games.list.set_nodes(data.nodes ?? []))
+                scroll.scrollTop(top);
+        });
+    }
+
+    // The family tree of a game and, below, a version with everything
+    // before it; a click on a row loads that version.
+    function load_games_open_family(tag) {
+        load_games_show_page('family');
+        $('#games_sublist_graph').empty();
+        $('#load_games_family_title').text('');
+        load_games.versions.set_nodes([]);
+        api_call('/api/family', { tag: tag }, function (data) {
+            if (!data.success) return;
+            const nodes = data.nodes ?? [];
+            const newest = nodes.slice().sort((a, b) => (b.ts_created ?? 0) - (a.ts_created ?? 0))[0];
+            const name = [newest?.title, newest?.author ? `von ${newest.author}` : null].filter(x => x).join(' ');
+            $('#load_games_family_title').text(`${name || 'Ohne Titel'} – ${nodes.length} ${nodes.length === 1 ? 'Version' : 'Versionen'}`);
+            load_games.family.set_family(nodes, tag);
         });
     }
 
@@ -1207,60 +1196,62 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         width: '90vw',
         height: '90vh',
         body: `
-        <div style='position: absolute; width: calc(100% - 30px); height: calc(100% - 30px);'>
-            <div style='position: absolute; width: 100%; height: 100%;' class='scroll-helper'>
-                <div id='load_games_list' style='position: relative; left: 0; opacity: 1; transition: left 0.5s ease, opacity 0.5s ease;'></div>
+        <div id='load_games' class='load-games'>
+            <div class='load-games-page load-games-page-list'>
+                <div class='load-games-search'>
+                    <i class='fa fa-search'></i>
+                    <input id='ti_load_games_search' type='text' autocomplete='off' spellcheck='false'
+                        placeholder='Suchen: Titel, Name oder Code (z. B. k3x9a1b) …'/>
+                    <span id='load_games_count'></span>
+                </div>
+                <div id='load_games_code' class='load-games-code'></div>
+                <div id='load_games_scroll' class='load-games-scroll'><div id='load_games_list'></div></div>
             </div>
-            <div style='position: absolute; width: 100%; height: 100%;' class='scroll-helper'>
-                <button id='bu_load_game_back' style='position: absolute; left: 100%; opacity: 0; transition: left 0.5s ease, opacity 0.5s ease; margin-bottom: 5px;'><i class='fa fa-angle-left'></i> Zurück</button>
-                <span id='games_sublist_graph'></span>
-                <div id='load_games_sublist' style='position: relative; left: 100%; opacity: 0; transition: left 0.5s ease, opacity 0.5s ease;'></div>
+            <div class='load-games-page load-games-page-family'>
+                <div class='load-games-family-head'>
+                    <button id='bu_load_game_back'><i class='fa fa-angle-left'></i> Zurück</button>
+                    <span id='load_games_family_title'></span>
+                </div>
+                <div class='load-games-scroll'>
+                    <div id='games_sublist_graph' class='load-games-family'></div>
+                    <p class='load-games-hint'>Jeder Punkt ist eine gespeicherte Version – links die erste, rechts die neueste. Eine Abzweigung entsteht, wenn jemand eine ältere Version lädt und weiterbaut. Klick einen Punkt an: Unten steht diese Version mit allen davor. Ein Klick auf eine Zeile lädt sie.</p>
+                    <div id='load_games_sublist'></div>
+                </div>
             </div>
         </div>
         `,
-        onshow: () => {
-            $('#games_sublist_graph').hide();
-            $('#load_games_list').css('left', '0').css('opacity', 1);
-            $('#load_games_sublist').css('left', '100%').css('opacity', 0);
-            $('#bu_load_game_back').css('left', '100%').css('opacity', 0);
-            $('#load_games_list').parent().css('pointer-events', 'auto');
-            $('#load_games_sublist').parent().css('pointer-events', 'none');
-            let body = $('#load_games_list');
-            body.empty();
-            let self = this;
-            let secret = window.location.search.toString().replace('?', '').trim();
-            if (secret.length === 0) secret = 'x';
-            api_call(`/api/get_games/${secret}`, {}, function (data) {
-                console.log(data);
-                if (data.success) {
-                    console.log(data);
-                    let div = $('<div>');
-                    body.append(div);
-                    populate_tips_games(div, data.nodes);
+        onbody: () => {
+            load_games.list = new GameList({
+                container: document.getElementById('load_games_list'),
+                on_load: load_game_and_close,
+                on_versions: load_games_open_family,
+            });
+            load_games.list.on_render = load_games_count;
+            load_games.versions = new GameList({
+                container: document.getElementById('load_games_sublist'),
+                columns: GAME_LIST_COLUMNS.filter(c => !c.versions),
+                on_load: load_game_and_close,
+            });
+            load_games.family = new GameFamily({
+                container: document.getElementById('games_sublist_graph'),
+                on_select: (tag) => load_games.versions.set_nodes(game_family_ancestors(load_games.family.nodes, tag)),
+            });
+            $('#ti_load_games_search').on('input', load_games_search_changed).on('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    if (load_games.code && load_games.code_info?.tag === load_games.code && load_games.code_info.exists)
+                        load_game_and_close(load_games.code);
+                    else if (load_games.list.visible.length === 1)
+                        load_game_and_close(load_games.list.visible[0].tag);
                 }
+                e.stopPropagation();
             });
         },
+        onshow: () => {
+            load_games_show_page('list');
+            load_games_count(load_games.list.visible.length, load_games.list.nodes.length);
+            load_games_refresh();
+        },
         footer: [
-            // {
-            //     type: 'input',
-            //     label: 'Suchen',
-            //     icon: 'fa-search',
-            //     callback: (self, text) => {
-            //         text = text.trim();
-            //         window.current_search_query = text;
-            //         api_call(text.length === 0 ? '/api/get_games' : '/api/search_game', {query: text}, function(data) {
-            //             if (data.success) {
-            //                 if (window.current_search_query === (data.query ?? '')) {
-            //                     let body = $('#load_games_list');
-            //                     body.empty();
-            //                     let div = $('<div>');
-            //                     body.append(div);
-            //                     populate_tips_games(div, data.nodes);
-            //                 }
-            //             }
-            //         });
-            //     },
-            // },
             {
                 type: 'button',
                 label: 'Neues Spiel …',
@@ -1277,13 +1268,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     });
 
     $('#bu_load_game_back').click(function (e) {
-        $('#load_games_list').css('left', '0').css('opacity', 1);
-        $('#load_games_sublist').css('left', '100%').css('opacity', 0);
-        $('#bu_load_game_back').css('left', '100%').css('opacity', 0);
-        $('#load_games_list').parent().css('pointer-events', 'auto');
-        $('#load_games_sublist').parent().css('pointer-events', 'none');
-        $('#load_games_sublist').empty();
-        $('#games_sublist_graph').hide().attr('src', '');
+        load_games_show_page('list');
     });
 
     window.resizeCanvasModal = new ModalDialog({

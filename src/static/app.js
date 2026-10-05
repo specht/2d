@@ -2220,21 +2220,24 @@ class Game {
 
 	// The F hint of a door, sign, Schalter or exit is drawn in front of every
 	// sprite of its layer (the scene is drawn in order, renderer.sortObjects is
-	// off), but behind the figure: in the figure's own layer it comes right
-	// before the figure, in a layer in front of the figure's it stays in front,
-	// like the sprites of that layer.
+	// off), but behind the figure: the hints go to the end of their layer, and
+	// in the figure's own layer the figure comes last, after them – in front of
+	// every sprite of its layer. (Before, the hints went just before the figure,
+	// so a sign placed after the figure covered its own hint, and the figure
+	// stood behind every sprite placed after it: an intentional fix.) In a layer
+	// in front of the figure's, the hints stay in front, like that layer.
 	place_overlay_meshes() {
-		const player = this.player_character?.mesh ?? null;
 		for (const mesh of this.overlay_meshes) {
 			const group = mesh.parent;
 			if (!group) continue;
 			group.remove(mesh);
-			const at = player && player.parent === group ? group.children.indexOf(player) : -1;
-			if (at < 0) group.add(mesh);
-			else {
-				group.children.splice(at, 0, mesh);
-				mesh.parent = group;
-			}
+			group.add(mesh);
+		}
+		const player = this.player_character?.mesh ?? null;
+		const group = player?.parent ?? null;
+		if (group) {
+			group.remove(player);
+			group.add(player);
 		}
 	}
 

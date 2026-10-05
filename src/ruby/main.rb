@@ -13,6 +13,7 @@ require 'vips'
 require_relative "collaboration"
 require_relative "client_errors"
 require_relative "playtesting"
+require_relative "game_index"
 
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 DEVELOPMENT = ENV['DEVELOPMENT'] == '1'
@@ -28,6 +29,11 @@ CLIENT_ERRORS_PATH = "/raw/client-errors"
 # Playtesting in the classroom (playtesting.rb, switched on and off with
 # playtest.rb in the terminal). Private like the sessions: /raw is not served.
 PLAYTESTING_PATH = "/raw/playtesting"
+
+# The saved games in memory (game_index.rb), read again from Neo4j this often
+# (seconds). Saves of this process update it at once; the refresh only picks up
+# what was written elsewhere (a loaded dump, a cleared database).
+GAME_INDEX_REFRESH = 15 * 60
 
 Neo4jBolt.bolt_host = "neo4j"
 Neo4jBolt.bolt_port = 7687
@@ -103,6 +109,10 @@ class SetupDatabase
             begin
                 neo4j_query("MATCH (n) RETURN n LIMIT 1;")
                 break unless ENV["SERVICE"] == "ruby"
+                # every save, load and version list looks games up by tag
+                # and strings by content: without these, each is a full scan
+                neo4j_query("CREATE INDEX game_tag IF NOT EXISTS FOR (g:Game) ON (g.tag);")
+                neo4j_query("CREATE INDEX string_content IF NOT EXISTS FOR (s:String) ON (s.content);")
                 debug "Setup finished."
                 break
             rescue
@@ -112,6 +122,43 @@ class SetupDatabase
                 delay += 1
             end
         end
+    end
+end
+
+# Reads every saved game for the GameIndex (game_index.rb): four flat scans
+# instead of following PARENT paths. Older saves wrote TITLE, AUTHOR and PARENT
+# edges with CREATE, so a game saved twice may have the same edge twice; the
+# smallest value wins, which keeps the result the same on every run.
+class GameIndexLoader
+    include Neo4jBolt
+
+    def rows
+        games = {}
+        neo4j_query(<<~END_OF_QUERY).each do |row|
+            MATCH (g:Game)
+            RETURN g.tag AS tag, g.ts_created AS ts_created, g.ts_updated AS ts_updated,
+                   g.size AS size, g.sprite_count AS sprite_count, g.state_count AS state_count,
+                   g.frame_count AS frame_count, g.unique_frame_count AS unique_frame_count;
+        END_OF_QUERY
+            next unless row['tag']
+            game = { :tag => row['tag'] }
+            GameIndex::STATS.each { |key| game[key] = row[key.to_s] }
+            games[row['tag']] = game
+        end
+        { :parent => "MATCH (g:Game)-[:PARENT]->(o:Game) RETURN g.tag AS tag, o.tag AS value;",
+          :title => "MATCH (g:Game)-[:TITLE]->(o:String) RETURN g.tag AS tag, o.content AS value;",
+          :author => "MATCH (g:Game)-[:AUTHOR]->(o:String) RETURN g.tag AS tag, o.content AS value;",
+        }.each_pair do |key, query|
+            neo4j_query(query).each do |row|
+                game = games[row['tag']]
+                value = row['value']
+                next unless game && value.is_a?(String)
+                game[key] = value if game[key].nil? || value < game[key]
+            end
+        end
+        games.values
+    ensure
+        cleanup_neo4j
     end
 end
 
@@ -159,6 +206,38 @@ class Main < Sinatra::Base
         set :show_exceptions, false
     end
 
+    @@game_index = GameIndex.new
+    @@game_list_cache = nil
+    @@game_list_cache_mutex = Mutex.new
+
+    def self.refresh_game_index
+        t0 = Time.now
+        @@game_index.begin_load
+        @@game_index.load(GameIndexLoader.new.rows)
+        debug "Game index: #{@@game_index.size} versions in #{(Time.now - t0).round(2)} s"
+    end
+
+    # Read all games once in the background right after start-up, so the
+    # first "Spiel laden" is already answered from memory, and again every
+    # GAME_INDEX_REFRESH seconds. Until the first read is done, the requests
+    # ask Neo4j as before.
+    def self.start_game_index
+        Thread.new do
+            delay = 5
+            loop do
+                begin
+                    refresh_game_index
+                    delay = 5
+                    sleep GAME_INDEX_REFRESH
+                rescue => e
+                    debug_error "Could not read the game index: #{e}"
+                    sleep delay
+                    delay = [delay * 2, 300].min
+                end
+            end
+        end
+    end
+
     def self.collect_data
         $neo4j.wait_for_neo4j
     end
@@ -189,6 +268,7 @@ class Main < Sinatra::Base
         if ENV["SERVICE"] == "ruby" && (File.basename($0) == "thin" || File.basename($0) == "pry.rb")
             setup = SetupDatabase.new()
             setup.setup(self)
+            Main.start_game_index
         end
         @@playtesting = Playtesting::Store.new(PLAYTESTING_PATH)
         if ["thin", "rackup"].include?(File.basename($0))
@@ -979,7 +1059,8 @@ class Main < Sinatra::Base
         end
         Main.render_spritesheet_for_tag(tag)
         if add_to_database
-            neo4j_query(<<~END_OF_QUERY, { :tag => tag, :ts => Time.now.to_i, :size => size, :sprite_count => sprite_count, :state_count => state_count, :frame_count => frame_count, :unique_frame_count => unique_frame_count })
+            ts = Time.now.to_i
+            neo4j_query(<<~END_OF_QUERY, { :tag => tag, :ts => ts, :size => size, :sprite_count => sprite_count, :state_count => state_count, :frame_count => frame_count, :unique_frame_count => unique_frame_count })
                 MERGE (g:Game {tag: $tag})
                 SET g.ts_created = COALESCE(g.ts_created, $ts)
                 SET g.ts_updated = $ts
@@ -990,17 +1071,17 @@ class Main < Sinatra::Base
                 SET g.unique_frame_count = $unique_frame_count;
             END_OF_QUERY
             if (game["properties"] || {})["title"]
-                neo4j_query(<<~END_OF_QUERY, { :content => game["properties"]["title"], :tag => tag, :ts => Time.now.to_i })
+                neo4j_query(<<~END_OF_QUERY, { :content => game["properties"]["title"], :tag => tag, :ts => ts })
                     MATCH (g:Game {tag: $tag})
                     MERGE (s:String {content: $content})
-                    CREATE (g)-[:TITLE]->(s);
+                    MERGE (g)-[:TITLE]->(s);
                 END_OF_QUERY
             end
             if (game["properties"] || {})["author"]
-                neo4j_query(<<~END_OF_QUERY, { :content => game["properties"]["author"], :tag => tag, :ts => Time.now.to_i })
+                neo4j_query(<<~END_OF_QUERY, { :content => game["properties"]["author"], :tag => tag, :ts => ts })
                     MATCH (g:Game {tag: $tag})
                     MERGE (s:String {content: $content})
-                    CREATE (g)-[:AUTHOR]->(s);
+                    MERGE (g)-[:AUTHOR]->(s);
                 END_OF_QUERY
             end
             if parent && parent != tag
@@ -1008,9 +1089,16 @@ class Main < Sinatra::Base
                     MATCH (g:Game {tag: $tag})
                     MATCH (p:Game {tag: $parent})
                     WHERE p.ts_created < g.ts_created
-                    CREATE (g)-[:PARENT]->(p);
+                    MERGE (g)-[:PARENT]->(p);
                 END_OF_QUERY
             end
+            # the same in memory: the load dialog sees the new version at once
+            properties = game["properties"].is_a?(Hash) ? game["properties"] : {}
+            @@game_index.add(:tag => tag, :parent => parent.is_a?(String) ? parent : nil,
+                :title => properties["title"].is_a?(String) ? properties["title"] : nil,
+                :author => properties["author"].is_a?(String) ? properties["author"] : nil,
+                :ts_created => ts, :ts_updated => ts, :size => size, :sprite_count => sprite_count,
+                :state_count => state_count, :frame_count => frame_count, :unique_frame_count => unique_frame_count)
         end
         return tag
     end
@@ -1035,8 +1123,14 @@ class Main < Sinatra::Base
     end
 
     post '/api/search_game' do
-        data = parse_request_data(:required_keys => [:query], :max_body_length => 256)
-        query = data[:query].strip.downcase
+        data = parse_request_data(:required_keys => [:query], :optional_keys => [:secret], :max_body_length => 256)
+        query = data[:query].to_s.strip.downcase
+        if @@game_index.ready?
+            hidden = hidden_root_tags(data[:secret].to_s)
+            nodes = @@game_index.search(query).reject { |node| hidden.include?(node[:root]) }
+            respond(:query => query, :nodes => nodes.map { |node| game_list_entry(node) })
+            return
+        end
         query_parts = query.split(/\s+/)
         strings = neo4j_query('MATCH (s:String) RETURN s.content AS s;').map { |x| x['s'] }
         tags = neo4j_query('MATCH (g:Game) RETURN g.tag AS s;').map { |x| x['s'] }
@@ -1075,21 +1169,41 @@ class Main < Sinatra::Base
         respond(:query => query, :nodes => nodes)
     end
 
+    HIDDEN_ROOT_TAGS_PATH = "/app/hidden-root-tags.txt"
+
+    # Families hidden from the load dialog (one root tag per line), unless the
+    # dialog was opened with ?<magic word> ("# magic word: …" in the file).
+    def hidden_root_tags(secret = '')
+        return Set.new unless File.exist?(HIDDEN_ROOT_TAGS_PATH)
+        lines = File.read(HIDDEN_ROOT_TAGS_PATH).split("\n").map(&:strip)
+        magic_word = lines.find { |x| x.start_with?("# magic word:") }.to_s.sub("# magic word:", "").strip
+        return Set.new if !magic_word.empty? && secret == magic_word
+        lines.reject { |x| x.empty? || x.start_with?("#") }.to_set
+    end
+
     def all_root_tags(secret = '')
         root_tags = neo4j_query(<<~END_OF_QUERY).map { |x| x['tag'] }
             MATCH (r:Game)
             WHERE NOT (r)-[:PARENT]->(:Game)
             RETURN r.tag AS tag;
         END_OF_QUERY
-        if File.exist?("/app/hidden-root-tags.txt")
-            hidden_root_tags = File.read("/app/hidden-root-tags.txt").split("\n").to_set
-            magic_word = hidden_root_tags.select { |x| x.start_with?("# magic word:") }.first.to_s.sub("# magic word:", "").strip
-            unless secret == magic_word
-                STDERR.puts "Hiding root tags: #{hidden_root_tags.to_a.join(", ")}"
-                root_tags.reject! { |tag| hidden_root_tags.include?(tag) }
-            end
-        end
+        hidden = hidden_root_tags(secret)
+        root_tags.reject! { |tag| hidden.include?(tag) }
         root_tags
+    end
+
+    # One game (a version) as the load dialog gets it. The tips of the list
+    # also carry the other titles and authors of their family (others), so
+    # the dialog's search finds a game by an older name too.
+    def game_list_entry(node)
+        entry = node.slice(:tag, :parent, :ts_created, :size, :sprite_count, :state_count, :frame_count, :author, :title)
+        entry[:icon] = icon_for_tag(node[:tag])
+        entry[:relatives_count] = node[:relatives_count] if node[:relatives_count]
+        if node[:family_titles]
+            others = (node[:family_titles] + node[:family_authors]).uniq - [node[:title], node[:author]]
+            entry[:others] = others unless others.empty?
+        end
+        entry
     end
 
     def get_current_tips_for_root_nodes(root_tags)
@@ -1145,11 +1259,101 @@ class Main < Sinatra::Base
         nodes
     end
 
+    # The load dialog's list: the newest version of every family. From the
+    # index this is a few milliseconds, and the JSON is kept until the next
+    # save (the index's version) or a change of the hidden families.
     post "/api/get_games/:secret" do
-        STDERR.puts "Request for /api/get_games/#{params[:secret]}"
-        root_tags = all_root_tags(params[:secret] || '')
+        secret = params[:secret] || ''
+        if @@game_index.ready?
+            hidden = hidden_root_tags(secret)
+            key = [@@game_index.version, hidden.to_a.sort]
+            json = @@game_list_cache_mutex.synchronize do
+                if @@game_list_cache.nil? || @@game_list_cache[:key] != key
+                    roots = @@game_index.root_tags.reject { |tag| hidden.include?(tag) }
+                    nodes = @@game_index.tips(roots).map { |node| game_list_entry(node) }
+                    @@game_list_cache = { :key => key, :json => { :nodes => nodes, :indexed => true }.to_json }
+                end
+                @@game_list_cache[:json]
+            end
+            respond_raw_with_mimetype(json, "application/json")
+            return
+        end
+        root_tags = all_root_tags(secret)
         nodes = get_current_tips_for_root_nodes(root_tags)
         respond(:nodes => nodes)
+    end
+
+    # Spiel laden with a code: does the game exist, and what is it? A code
+    # that was only played (save_game_temp: Spielen, the play link) exists
+    # without being in the index; it loads all the same.
+    post "/api/game_info" do
+        data = parse_request_data(:required_keys => [:tag])
+        tag = data[:tag].to_s
+        assert(tag =~ /\A[a-z0-9]{7}\z/, "bad_tag")
+        node = if @@game_index.ready?
+            entry = @@game_index.node(tag)
+            if entry
+                family = @@game_index.family(tag)
+                entry[:relatives_count] = family.size
+            end
+            entry
+        else
+            neo4j_query(<<~END_OF_QUERY, :tag => tag).map { |row| %w(tag parent title author ts_created).map { |k| [k.to_sym, row[k]] }.to_h }.first
+                MATCH (g:Game {tag: $tag})
+                OPTIONAL MATCH (g)-[:PARENT]->(p:Game)
+                OPTIONAL MATCH (g)-[:TITLE]->(t:String)
+                OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
+                RETURN g.tag AS tag, p.tag AS parent, t.content AS title, a.content AS author, g.ts_created AS ts_created
+                LIMIT 1;
+            END_OF_QUERY
+        end
+        exists = File.exist?("/gen/games/#{tag}.json")
+        if exists && node.nil?
+            # only played, never saved: title and author from the file itself
+            properties = (JSON.parse(File.read("/gen/games/#{tag}.json"))["properties"] rescue nil)
+            properties = {} unless properties.is_a?(Hash)
+            node = { :tag => tag, :title => properties["title"].is_a?(String) ? properties["title"] : nil,
+                     :author => properties["author"].is_a?(String) ? properties["author"] : nil }
+        end
+        respond(:tag => tag, :exists => exists, :node => node && game_list_entry(node))
+    end
+
+    # Every version of the family of a game (oldest first, each with its
+    # parent): the dialog draws the family tree from it (game_family.js).
+    post "/api/family" do
+        data = parse_request_data(:required_keys => [:tag])
+        tag = data[:tag].to_s
+        assert(tag =~ /\A[a-z0-9]{7}\z/, "bad_tag")
+        nodes = if @@game_index.ready?
+            @@game_index.family(tag)
+        else
+            family_from_database(tag)
+        end
+        respond(:tag => tag, :nodes => nodes.map { |node| game_list_entry(node) })
+    end
+
+    # The same as GameIndex#family, asked from Neo4j (before the index is read).
+    def family_from_database(tag)
+        root_tag = neo4j_query(<<~END_OF_QUERY, :tag => tag).map { |row| row['tag'] }.first
+            MATCH (g:Game {tag: $tag})-[:PARENT*0..]->(r:Game)
+            WHERE NOT (r)-[:PARENT]->(:Game)
+            RETURN r.tag AS tag LIMIT 1;
+        END_OF_QUERY
+        return [] unless root_tag
+        rows = {}
+        neo4j_query(<<~END_OF_QUERY, :root_tag => root_tag).each do |row|
+            MATCH (g:Game)-[:PARENT*0..]->(:Game {tag: $root_tag})
+            OPTIONAL MATCH (g)-[:PARENT]->(p:Game)
+            OPTIONAL MATCH (g)-[:TITLE]->(t:String)
+            OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
+            RETURN DISTINCT g.tag AS tag, p.tag AS parent, t.content AS title, a.content AS author,
+                   g.ts_created AS ts_created, g.size AS size, g.sprite_count AS sprite_count,
+                   g.state_count AS state_count, g.frame_count AS frame_count;
+        END_OF_QUERY
+            rows[row['tag']] ||= %w(tag parent title author ts_created size sprite_count state_count frame_count).map { |k| [k.to_sym, row[k]] }.to_h
+        end
+        index = GameIndex.new.load(rows.values)
+        index.family(tag)
     end
 
     post "/api/get_versions_for_game" do
@@ -1157,6 +1361,10 @@ class Main < Sinatra::Base
         tag = data[:tag]
         assert(!tag.include?("."))
         assert(!tag.include?("/"))
+        if @@game_index.ready?
+            respond(:nodes => @@game_index.ancestors(tag).map { |node| game_list_entry(node) })
+            return
+        end
         nodes = neo4j_query(<<~END_OF_QUERY, { :tag => tag }).map { |x| x["g"][:author] = x["author"]; x["g"][:title] = x["title"]; x["g"][:ancestor_count] = x["ac"]; x["g"] }
             MATCH (l:Game {tag: $tag})-[:PARENT*0..]->(g:Game)
             OPTIONAL MATCH (g)-[:AUTHOR]->(a:String)
