@@ -1152,6 +1152,35 @@ sprites:
     label: Feder (springt höher)
     traits: { pickup: { speed_boost_duration: 6, speed_boost_vrun: 1.0, speed_boost_vjump: 1.4 } }
     states: [{ strip: extra/feder, fps: 4 }]
+  # a red potion: one life more (it shows as one more heart in the HUD)
+  heiltrank:
+    label: Heiltrank (Extraleben)
+    traits: { pickup: { lives: 1 } }
+    states: [{ strip: extra/heiltrank, fps: 6 }]
+  # ------------------------------------------- Laden (Rezept "Ein Laden")
+  # the Händler is a Hinweistext that speaks itself (and "spricht im Laden");
+  # 48 high: behind the counter only his upper half shows
+  haendler:
+    label: Händler (spricht)
+    groesse: [24, 48]
+    traits: { text: {} }
+    states:
+      - { strip: laden/haendler, fps: 3 }
+      - { strip: laden/haendler_spricht, fps: 6, traits: { text: [speaking] } }
+  theke_links: { label: Ladentheke (links), states: [{ strip: laden/theke_links }] }
+  theke: { label: Ladentheke, states: [{ strip: laden/theke }] }
+  theke_rechts: { label: Ladentheke (rechts), states: [{ strip: laden/theke_rechts }] }
+  markise: { label: Markise, states: [{ strip: laden/markise }] }
+  stange: { label: Holzstange, states: [{ strip: laden/stange }] }
+  laden_wand: { label: Holzwand, states: [{ strip: laden/wand }] }
+  regal_traenke: { label: Regal mit Tränken, states: [{ strip: laden/regal_traenke }] }
+  regal_glaeser: { label: Regal mit Gläsern, states: [{ strip: laden/regal_glaeser }] }
+  regal_buecher: { label: Regal mit Büchern, states: [{ strip: laden/regal_buecher }] }
+  laden_schild: { label: Ladenschild, groesse: [48, 24], states: [{ strip: laden/schild, fps: 2 }] }
+  dielen:
+    label: Holzdielen
+    traits: { block_above: {}, block_sides: {}, block_below: {} }
+    states: [{ strip: laden/dielen }]
   # Things that stay for the whole game (src/static/inventory.js): "bleibt fürs
   # ganze Spiel" (pickup.keep). With an attack a thing is a weapon: whoever holds
   # it attacks with it (J or K); several of a kind: the number keys choose.
@@ -1334,8 +1363,9 @@ sammlung:
   - Spielfiguren: [pip, pip_einfach, pip_schwert, pip_bogen, pip_bogen_schraeg, pip_wurf, pip_bombe, pip_taucher, astronaut, fisch, u_boot]
   - Gegner: [glibber, schnecke, spuckpilz, kaefer, keiler, frosch, fledermaus, klotz, klotz_einmal, maus, waschbaer, katze, geist, strohpuppe, qualle, hai]
   - Begleiter: [hund, kaetzchen, vogel, eule, roboter]
-  - Zum Einsammeln: [muenze, edelstein, herz, trank, schutzschild, feder, krone, geldsack, perle, stern, schluessel, zauberschluessel]
+  - Zum Einsammeln: [muenze, edelstein, herz, trank, heiltrank, schutzschild, feder, krone, geldsack, perle, stern, schluessel, zauberschluessel]
   - Waffen zum Einsammeln: [schwert, bogen, schleuder]
+  - Laden: [haendler, theke_links, theke, theke_rechts, markise, stange, laden_wand, dielen, regal_traenke, regal_glaeser, regal_buecher, laden_schild]
   - Essen: [apfel, kirschen, erdbeere, banane, karotte, kuchen, eiswaffel]
   - Fallen und Gefahren: [stacheln, lava, broeckel, broeckel_klein, saege, lagerfeuer, dornen]
   - Boden und Blöcke: [boden, erde, boden_schnee, boden_tot, wurzeln, mauer, mauer_fenster, dach, kiste, eis, strohballen, block_rot, block_gruen]

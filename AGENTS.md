@@ -40,7 +40,7 @@ German everywhere; keep gaming terms (Hitbox, Knockback, Cooldown, Coyote Time).
 **Gameplay**
 - Combat is one path for player and enemies; damage only through `take_damage` / `apply_hit` (they honour `invincible`). Rules never come from pixels, frame counts or colours.
 - Companions never act on the level (collect, press, send, hold doors), are never enemies, and use `companion_random`, never `Math.random`. The level may act on them.
-- What "bleibt fürs ganze Spiel" lives in `game.inventory`, emptied only by `reset()`. A weapon changes the figure's attacks at runtime only (`apply_weapons`), never its JSON; a shop item (placed `pickup.price`) is never collected on touch.
+- What "bleibt fürs ganze Spiel" lives in `game.inventory`, emptied only by `reset()`. A weapon changes the figure's attacks at runtime only (`apply_weapons`), never its JSON; a shop item (placed `pickup.price`) is never collected on touch. What the shop says (`shop_text`, `shop_buy_line`, the Verkäufer's `shop_greeting` / `shop_chatter`) uses speech sources starting with `shop`, which never interrupt a sign (`app.js` `shop_*`).
 - Moving platforms carry, never push or squash. Exit targets are level ids (`level_flow.js`). A level entered again restores what `level_memory` remembers. Gravity and camera changes are opt-in.
 - Speech, HUD and the curtain screens are pixel text drawn into the canvas, never HTML made from names.
 - Intentional fixes (old games may differ): a figure without left/right roles faces right; the figure is drawn in front of its layer, F hints just behind it; doors wait instead of closing onto somebody; a game starts at the first level in use; lives are set only by `reset()`.

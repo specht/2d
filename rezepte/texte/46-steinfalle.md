@@ -1,6 +1,5 @@
 ---
 titel: Eine Steinfalle für Gegner
-entwurf: true
 kategorie: Kampf
 stufe: 3
 skala: 4
@@ -14,8 +13,8 @@ szene:
     ............
     .P..........
     ###....#####
-    ###BBBB#####
-    ###..g.#####
+    ===BBBB=====
+    ===..g.=====
     ############
 ablauf:
   - { t: 0.4, halten: rechts, dauer: 1.2 }

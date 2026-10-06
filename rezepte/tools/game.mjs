@@ -554,7 +554,8 @@ export async function build_game(catalog, recipe, repo) {
     })).reverse();
     const figure_layers = [layer('Figuren', figures)];
     const level = {
-        properties: { name: recipe.titel, background_color: sky[1],
+        // levelname: what the HUD shows as the level starts (else the recipe's title)
+        properties: { name: scene.levelname ?? recipe.titel, background_color: sky[1],
             ...(scene.bewegung ? { movement: movement_of(scene.bewegung, 'bewegung') } : {}),
             // alle_besiegt: 9 – the level sends Code 9 once no enemy is left
             ...(Number.isInteger(scene.alle_besiegt) ? { signal_all_defeated: scene.alle_besiegt } : {}),
@@ -584,7 +585,9 @@ export async function build_game(catalog, recipe, repo) {
                 ...(sky_def.dither ? { dither: sky_def.dither, dither_levels: sky_def.stufen ?? 8 } : {}),
                 // exactly the scene's height: colour positions (0 = bottom, 1 = top) match the picture
                 // (and above it, when the picture is lifted: bild_hoch)
-                rects: [{ left: -TILE * 4 + X0, bottom: 0, width: (cols + 8) * TILE, height: rows * TILE + (follow ? 0 : Math.max(0, view.y1 - rows * TILE)) }],
+                // (with kamera: up to the screen's top edge, the camera lifted by bild_hoch)
+                rects: [{ left: -TILE * 4 + X0, bottom: 0, width: (cols + 8) * TILE,
+                    height: follow ? Math.max(rows * TILE, Math.ceil(cy + lift + follow / 2)) : rows * TILE + Math.max(0, view.y1 - rows * TILE) }],
             },
         ],
     };

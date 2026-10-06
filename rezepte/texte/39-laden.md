@@ -2,82 +2,192 @@
 titel: Ein Laden
 kategorie: Level gestalten
 stufe: 2
-kurz: Über dem Schwert steht ein Preis. Mit F kauft Pip es für ihre Münzen – und der Wichtel hinter der Theke sagt, wenn das Geld nicht reicht.
+kurz: Über dem Trank und dem Schwert steht ein Preis. Pip schaut sich alles an, der Händler preist es an – und mit F kauft Pip für ihre Münzen.
 tasten_zeigen: true
-# the whole screen: the coins counting down and the sword in the HUD
+# the whole screen: the coins counting down and the new heart in the HUD
 hud: true
-bild_hoch: 2
-standbild: 2.0
+schritte: 2
+standbild: 37.0
+# the stall fills the screen: the floor at the bottom, the sign at the top
+bild_hoch: 3
 szene:
-  kamera: { bildhoehe: 180 }
+  kamera: { bildhoehe: 216 }
+  eigenschaften: { max_lives: 5 }
   legende:
-    S: { sprite: schwert, platziert: { pickup: { price: 40 } } }
-    T: { sprite: trank, platziert: { pickup: { price: 20, buy_again: true } } }
-    # the Verkäufer: a sign that speaks itself, with "spricht im Laden"
-    W: { sprite: wichtel, platziert: { text: { text: 'Willkommen im Laden!', speaker: self, shop_keeper: true, shop_thanks: 'Danke schön!' } } }
-  karte: |
-    .............
-    .............
-    .............
-    .............
-    .............
-    Pooooo..S..TW
-    #############
-    =============
-    =============
+    w: laden_wand
+    l: wandlampe
+    s: laden_schild
+    m: markise
+    i: stange
+    a: regal_traenke
+    b: regal_buecher
+    c: regal_glaeser
+    '[': theke_links
+    '-': theke
+    ']': theke_rechts
+    _: dielen
+    g: geldsack
+    # the Händler: a Hinweistext that speaks itself and "spricht im Laden"
+    V:
+      sprite: haendler
+      platziert:
+        text:
+          text: 'Ich bin Sigi. Sigi, der Sagenhafte! Mein Name ist Programm. Und das Programm heißt: Verkaufen!'
+          speaker: self
+          shop_keeper: true
+          shop_thanks: 'Danke, danke! Beehre mich bald wieder!'
+          shop_greeting: 'Hereinspaziert! Willkommen bei Sigis Sagenhaftem Sonderposten!'
+          shop_chatter: 'Nur heute: Preise so niedrig, dass ich nachts weine! | Fass ruhig alles an. Kaputt gemacht heißt gekauft! | Psst! Der Trank ist heute im Angebot. Wie gestern. Und morgen.'
+    T:
+      sprite: heiltrank
+      platziert:
+        pickup:
+          price: 30
+          buy_again: true
+          shop_text: 'Ein Heiltrank! Ein Schluck – und schwupp, ein Leben mehr!'
+          shop_buy_line: 'Eine ausgezeichnete Wahl! Den hätte ich fast selbst getrunken.'
+    S:
+      sprite: schwert
+      platziert:
+        pickup:
+          price: 120
+          shop_text: 'Dieses Schwert gehörte einem echten Helden. Oder seinem Nachbarn.'
+  ebenen:
+    - name: Wand
+      kollision: false
+      karte: |
+        wwwwwwwwwwwwwwww
+        wwwwwwwwwwwwwwww
+        wwwwwwwwwwwwwwww
+        wwwwwwwwwwwwwwww
+        wwwwwwwwwwwwwwww
+        wwwwwwwwwwwwwwww
+        wwwwwwwwwwwwwwww
+        wwwwwwwwwwwwwwww
+    - name: Deko
+      kollision: false
+      karte: |
+        ................
+        ................
+        .........s......
+        .l....mmmmmmmm.l
+        ......iab..cai..
+        ......i......i..
+        ......i......i..
+    - name: Händler
+      karte: |
+        ................
+        ................
+        ................
+        ................
+        ................
+        ................
+        ................
+        ..........V.....
+    - name: Theke
+      kollision: false
+      karte: |
+        ................
+        ................
+        ................
+        ................
+        ................
+        ................
+        ................
+        ......[------]..
+    - name: Welt
+      karte: |
+        ................
+        ................
+        ................
+        ................
+        ................
+        ................
+        ........T..S....
+        P.goo...........
+        ________________
 ablauf:
-  - { t: 0.3, halten: rechts, dauer: 0.9667 }
-  - { t: 1.7, drücken: aktion }
-  - { t: 2.5, halten: rechts, dauer: 0.4 }
-  - { t: 3.6, drücken: aktion }
-dauer: 5.6
+  # in: the coins, and the Händler greets
+  - { t: 0.3, halten: rechts, dauer: 0.6 }
+  # to the potion: its Beschreibung
+  - { t: 7.0, halten: rechts, dauer: 0.45 }
+  # to the sword: its Beschreibung – and F: too expensive
+  - { t: 13.0, halten: rechts, dauer: 0.42 }
+  - { t: 19.8, drücken: aktion }
+  # after a quiet while the Händler chats; back to the potion and F: bought
+  - { t: 31.4, halten: links, dauer: 0.42 }
+  - { t: 32.8, drücken: aktion }
+dauer: 40.0
 erwartet:
-  punkte_gleich: 10
-  inventar: { Schwert: 1 }
-  waffe: Schwert
-  gesagt: ['Danke schön!', 'Dafür fehlen dir noch 10 Münzen.']
+  punkte_gleich: 40
+  leben: 4
+  gesagt:
+    - 'Hereinspaziert!'
+    - 'Willkommen bei Sigis Sagenhaftem Sonderposten!'
+    - 'Ein Heiltrank!'
+    - 'Ein Schluck – und schwupp, ein Leben mehr!'
+    - 'Dieses Schwert gehörte einem echten Helden.'
+    - 'Oder seinem Nachbarn.'
+    - 'Dafür fehlen dir noch 50 Münzen.'
+    - 'Nur heute: Preise so niedrig, dass ich nachts weine!'
+    - 'Ein Heiltrank!'
+    - 'Eine ausgezeichnete Wahl!'
+    - 'Den hätte ich fast selbst getrunken.'
 ---
 ## Kurz gesagt
 
-1. Leg etwas zum Einsammeln ins Level – ein Schwert, einen Trank, ein Extraleben.
-2. Klick es im Level an und gib ihm einen **Preis**.
-3. Im Spiel steht der Preis darüber. Die Spielfigur stellt sich davor und kauft es mit **F**.
+1. Leg etwas zum Einsammeln ins Level – einen Trank, ein Schwert, ein Extraleben.
+2. Klick es im Level an und gib ihm einen **Preis**. Bei **Beschreibung** schreibst du, was es ist.
+3. Im Spiel steht der Preis darüber. Die Spielfigur stellt sich davor, hört die Beschreibung und kauft es mit **F**.
 
 ## Das brauchst du
 
 - **Das musst du zeichnen:** Münzen (oder etwas anderes, das **gibt Punkte**) und etwas, das man kaufen kann.
-- **Das kannst du später dazumalen:** einen Verkäufer, der mit dir spricht (hier der Wichtel), eine Ladentheke, ein Schild „Laden“.
+- **Das kannst du später dazumalen:** einen Verkäufer, der redet wie ein Wasserfall, eine Ladentheke, ein Regal, ein Schild „Laden“.
 
+![Heiltrank](katalog:extra/heiltrank 6)
 ![Schwert](katalog:extra/schwert 5)
-![Zaubertrank](katalog:extra/trank 6)
+![Händler](katalog:laden/haendler_spricht 6)
 
 ## Schritt für Schritt
 
-1. Zum Bezahlen braucht die Spielfigur Punkte. Verteil Münzen mit **gibt Punkte 10** im Level davor – hier sind es fünf, also 50.
-2. Leg das Schwert in den Laden. Es hat **man kann es einsammeln** mit **bleibt fürs ganze Spiel** und einen **Nahkampfangriff** – eine Waffe (Rezept *Waffen einsammeln und wechseln*).
-3. Klick das Schwert im Level mit dem Auswahl-Werkzeug an und stell **Preis** auf **40**.
-4. Leg einen **Zaubertrank** daneben: **Preis 20** und **kann man öfter kaufen** – dann bleibt er nach dem Kaufen liegen.
-5. Stell einen Verkäufer dazu – hier den Wichtel. Er hat **Hinweistext** mit dem Text „Willkommen im Laden!“ und **Wer spricht: das Sprite spricht selbst**. Klick ihn im Level an und stell **spricht im Laden** an. Bei **sagt beim Kaufen** steht, wofür er sich bedankt.
-6. Probier es aus: Pip sammelt die Münzen ein und drückt vor dem Schwert **F**. Die Münzen oben rechts zählen von 50 auf 10 herunter, oben links ist jetzt das Schwert, und der Wichtel bedankt sich. Vor dem Trank reicht das Geld nicht mehr – der Wichtel sagt, wie viel fehlt.
+1. Zum Bezahlen braucht die Spielfigur Punkte. Leg einen Geldsack (**gibt Punkte 50**) und zwei Münzen (**gibt Punkte 10**) vor den Laden – zusammen 70.
+2. Bau die Theke: eine Ebene **Theke** ohne **Kollision**, also läuft die Spielfigur davor vorbei. Dahinter liegt eine Ebene mit dem Händler, ganz hinten die Wand, die Regale und die Markise.
+3. Leg einen **Heiltrank** auf die Theke. Er hat **man kann es einsammeln** mit **gibt Leben 1**. Klick ihn im Level mit dem Auswahl-Werkzeug an: **Preis 30** und **kann man öfter kaufen**.
+4. Schreib bei **Beschreibung**, was der Trank kann: „Ein Heiltrank! Ein Schluck – und schwupp, ein Leben mehr!“ Und bei **Verkäufer sagt beim Kaufen**: „Eine ausgezeichnete Wahl! Den hätte ich fast selbst getrunken.“
+5. Leg ein Schwert daneben, **Preis 120**, mit der Beschreibung „Dieses Schwert gehörte einem echten Helden. Oder seinem Nachbarn.“ So viel Geld hat die Spielfigur nicht – mal sehen, was der Händler dazu sagt.
+6. Stell den Händler hinter die Theke. Er hat **Hinweistext** und **Wer spricht: das Sprite spricht selbst**. Klick ihn im Level an und stell **spricht im Laden** an. Jetzt kannst du ihm noch mehr Text geben:
+   - **begrüßt:** „Hereinspaziert! Willkommen bei Sigis Sagenhaftem Sonderposten!“ – das sagt er einmal, sobald die Spielfigur in seine Nähe kommt.
+   - **plaudert:** Sprechblasen, getrennt mit **|**. Sagt ein paar Sekunden lang niemand etwas, sagt er die nächste: „Nur heute: Preise so niedrig, dass ich nachts weine! | Fass ruhig alles an. Kaputt gemacht heißt gekauft! | …“
+   - **sagt beim Kaufen:** „Danke, danke! Beehre mich bald wieder!“ – das sagt er bei allem, was keinen eigenen Satz hat.
+7. Probier es aus: Pip sammelt das Geld ein, und der Händler grüßt. Vor dem Trank preist er den Trank an, vor dem Schwert das Schwert. Für das Schwert reicht das Geld nicht – er sagt, wie viel fehlt. Pip geht zurück zum Trank und drückt **F**: Die Münzen oben rechts zählen von 70 auf 40 herunter, oben links kommt ein Herz dazu, und der Händler freut sich.
 
 ## Was passiert beim Kaufen?
 
 - Hat die Spielfigur genug Punkte, werden sie abgezogen, und sie bekommt alles, was das Sprite gibt – genau wie beim Einsammeln: Energie, Leben, eine Waffe, sein Signal („sendet, wenn eingesammelt“).
-- Reicht das Geld nicht, sagt der Verkäufer, wie viele Münzen noch fehlen. Es wird nichts abgezogen. Ohne Verkäufer sagt es die Spielfigur selbst – der Verkäufer ist nur ein Extra.
+- Reicht das Geld nicht, sagt der Verkäufer, wie viele Münzen noch fehlen. Es wird nichts abgezogen.
 - Hat sie schon alle Leben, kauft sie kein Extraleben. Eine Waffe, die sie schon hat, kauft sie nicht noch einmal.
 - **Preis 0** heißt: umsonst. Dann wird das Sprite wie immer beim Berühren eingesammelt.
+
+## Ohne Verkäufer
+
+Der Verkäufer ist nur ein Extra. Ohne ihn liest die Spielfigur die **Beschreibung** selbst vor, und sie sagt auch, wenn das Geld nicht reicht. Nur der Satz beim Kaufen fällt dann weg.
 
 ## Tipps
 
 - Mach aus dem Laden ein **Nebenlevel**: Eine Tür im Level führt hinein („führt zu“), der Ausgang im Laden führt zurück. Was die Spielfigur gekauft hat, bleibt gekauft.
-- Den Preis stellst du für jedes Sprite im Level einzeln ein. Derselbe Trank kann in einem Laden 20 kosten und in einem anderen 50.
+- Den Preis und die Beschreibung stellst du für jedes Sprite im Level einzeln ein. Derselbe Trank kann in einem Laden 30 kosten und in einem anderen 50 – und jeder Händler preist ihn anders an.
+- Der Händler darf ruhig übertreiben. Je länger und alberner, desto besser!
+- Gibt dein Spiel kein Herz-Sprite her, das Leben gibt, zeigt die Anzeige oben links eingebaute Herzen. Ein Trank, den man nur kaufen kann, wird dort nicht zum Herz-Bild.
 - Wenn du einem Sprite einen Preis gibst, zeigt der Startbildschirm des Spiels, dass man mit **F** kaufen kann.
 
 ## Wenn's nicht klappt
 
 - **Über dem Sprite steht kein Preis:** Hast du den Preis beim Sprite *im Level* eingestellt (Auswahl-Werkzeug), nicht beim Zeichnen?
+- **Die Spielfigur kommt nicht an die Sachen auf der Theke:** Liegen sie höchstens einen Block über dem Boden, auf dem die Spielfigur steht?
+- **Der Händler grüßt nicht:** Hat er **spricht im Laden** an? Erst dann gibt es **begrüßt** und **plaudert**.
 - **Die Spielfigur kann nie etwas kaufen:** Gibt in deinem Spiel etwas Punkte? Sonst zeigt der Level-Editor beim Preis einen Hinweis.
 
 ## Mach mehr draus
 
-Lass den Verkäufer schon grüßen, wenn man den Laden betritt: Gib ihm **spricht bei Signal** und leg einen Signalbereich vor die Tür.
+Gib dem Händler beim Anklicken etwas zu sagen: Sein **Hinweistext** kommt, wenn die Spielfigur vor ihm steht und **F** drückt. Hier stellt er sich vor: „Ich bin Sigi. Sigi, der Sagenhafte! …“

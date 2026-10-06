@@ -92,3 +92,31 @@ test('items in the HUD keep their own look: no ink outline around them', () => {
     assert.equal(at(plain, 0, 1)[3], 0, 'nothing beside it');
     assert.deepEqual(at(outlined, 0, 1), [0x1a, 0x1c, 0x2c, 255]);
 });
+
+test("the game's own pictures keep every pixel and fit a fixed box", () => {
+    // a 4 × 4 picture with a 2 × 1 red bar: cut to the bar, nothing added around it
+    const rgba = new Uint8ClampedArray(4 * 4 * 4);
+    for (const x of [1, 2]) rgba.set([255, 0, 0, 255], 4 * (1 * 4 + x));
+    const p = hud.hud_sprite_pixels(rgba, 4, 4);
+    assert.deepEqual([p.width, p.height], [2, 1]);
+    assert.deepEqual([...p.rgba.slice(0, 4)], [255, 0, 0, 255]);
+    assert.deepEqual([...hud.hud_sprite_pixels(rgba, 4, 4, '#3b4260').rgba.slice(4, 8)], [0x3b, 0x42, 0x60, 255]);
+    // a big picture: every pixel kept (no halving) …
+    const big = new Uint8ClampedArray(24 * 24 * 4).fill(255);
+    assert.deepEqual([hud.hud_sprite_pixels(big, 24, 24).width, hud.hud_sprite_pixels(big, 24, 24).height], [24, 24]);
+    // … drawn with smaller pixels, whole screen pixels each
+    assert.equal(hud.hud_sprite_scale(7, 4), 4);                 // fits the box: the HUD's own pixels
+    assert.equal(hud.hud_sprite_scale(hud.HUD.ICON_BOX, 4), 4);
+    assert.equal(hud.hud_sprite_scale(24, 6), 3);                // 13 × 6 / 24 = 3.25
+    assert.equal(hud.hud_sprite_scale(24, 1), 1);                // never less than one screen pixel
+});
+
+test('a life that is only sold in a shop does not become the picture of a life', () => {
+    const potion = sprite({ pickup: { lives: 1 } });
+    const sold = { sprites: [sprite({ actor: {} }), potion], properties: { lives_at_begin: 1 },
+        levels: [{ layers: [{ type: 'sprites', sprites: [[0, 0, 0], [1, 24, 0, { pickup: { price: 30 } }]] }] }] };
+    assert.deepEqual(hud.hud_plan(sold).lives, { show: true, sprite: null });
+    // lying about for free somewhere, too: then it is the picture
+    sold.levels[0].layers[0].sprites.push([1, 48, 0]);
+    assert.deepEqual(hud.hud_plan(sold).lives, { show: true, sprite: 1 });
+});

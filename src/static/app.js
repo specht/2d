@@ -11,6 +11,10 @@ let KEY_RANGED = 'ranged';
 const ACTION_KEYS = { left: KEY_LEFT, right: KEY_RIGHT, up: KEY_UP, down: KEY_DOWN,
 	jump: KEY_JUMP, action: KEY_ACTION, melee: KEY_MELEE, ranged: KEY_RANGED };
 window.yt_player = null;
+// Laden (app.js shop_*): how near a Verkäufer greets and chats, and how many
+// quiet seconds before he chats (Character.SHOP_REACH_UP: what is in reach)
+const SHOP_NEAR = 144;
+const SHOP_CHAT_PAUSE = 4;
 let OVERLAY_ICONS = {
 	f_key: [36, 36, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAf0lEQVRYw+2YQQqAIBQFv9GBWygE0SqCoM7nr9PUVtyEpJIwbye4GHjDAzWDc7uEMcZKxZyqR3ju5GcB6C197IyqVgW4vLdU1rhDidmWNen+OE9UhkNZHaEyHHrbpa9OURk7RGUAAQRQ6R3KvTtU1r5D8f9M/NYunVuE/6G2gR7lsx2d8NUeyQAAAABJRU5ErkJggg=="],
 };
@@ -42,6 +46,9 @@ class FutureEventList {
 };
 
 class Character {
+	// Laden: how far above the figure's head something for sale is still within reach (on a counter)
+	static SHOP_REACH_UP = 14;
+
 	constructor(game, sprite_index, mesh) {
 		this.game = game;
 		this.active = true;
@@ -1681,18 +1688,21 @@ void main() {
 				this.game.action_key_targets.text.push(entry.entry_index);
 			}
 
-			// Laden: standing at something with a Preis – the F hint, bought on a fresh press (below)
+			// Laden: standing at something with a Preis – the F hint, bought on a fresh press (below).
+			// Within reach also when it lies on a counter a little above the figure's head.
 			entry = this.has_trait_at(['pickup'],
 				-this.traits.ex_left * this.sprite.width * 0.5 - 4,
 				this.traits.ex_right * this.sprite.width * 0.5 + 4,
 				-4,
-				this.traits.ex_top * this.sprite.height + 4,
+				this.traits.ex_top * this.sprite.height + Character.SHOP_REACH_UP,
 				(e) => e.shop_price > 0 && !e.collected);
 			if (entry) {
 				const overlay = this.game.active_level_sprites[entry.entry_index].overlay_mesh;
 				if (overlay) overlay.visible = true;
 				this.game.action_key_targets.shop = [entry.entry_index];
 			}
+			// stepping up to it: its Beschreibung is said
+			this.game.shop_look?.(entry ? entry.entry_index : null, t);
 
 			entry = this.has_trait_at(['checkpoint'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
@@ -2371,7 +2381,9 @@ class Game {
 	// A fresh press of the action key at something with a Preis: buy it, or the
 	// figure says why not. True if the press went to the shop.
 	shop_action(pc, t) {
-		if (this.speech?.active) return false;
+		// while a sign speaks, F goes on to its next sentence; what the shop says
+		// (a Beschreibung, chatting) does not stand in the way of buying
+		if (this.speech?.active && !String(this.speech.current?.source ?? '').startsWith('shop')) return false;
 		const entry_index = (this.action_key_targets.shop ?? [])[0];
 		const entry = entry_index === undefined ? null : this.active_level_sprites[entry_index];
 		if (!entry || entry.collected || !pc) return false;
@@ -2382,18 +2394,77 @@ class Game {
 			lives: this.lives, max_lives: this.data.properties.max_lives });
 		// a Verkäufer (text.shop_keeper) speaks for the shop, else the figure says it
 		const keeper = this.shop_keeper_near(entry);
-		const settings = speech_settings(this.data.properties);
-		const say = (parts) => parts.length && this.speech.start({ parts, source: 'shop', speed: settings.speed,
-			...(keeper === null ? { speaker: 'player', color: settings.color } :
-				{ speaker: keeper, color: speech_color(this.active_level_sprites[keeper].color, SPEECH_SELF_COLOR) }) }, t);
 		if (refusal) {
-			say([refusal]);
+			this.shop_say(keeper, [refusal], 'shop', t);
 			return true;
 		}
 		this.points -= price;
 		pc.collect_pickup({ ...entry, entry_index }, t, entry.shop_again === true);
-		if (keeper !== null) say(speech_parts(this.active_level_sprites[keeper].shop_thanks ?? ''));
+		// this item's own line, else the Verkäufer's "sagt beim Kaufen" (absent: "Danke!")
+		if (keeper !== null) {
+			const own = typeof entry.shop_buy_line === 'string' ? entry.shop_buy_line.trim() : '';
+			const parts = speech_parts(own || this.active_level_sprites[keeper].shop_thanks || '');
+			if (parts.length) this.shop_say(keeper, parts, 'shop', t);
+			else this.speech.stop();
+		} else if (String(this.speech.current?.source ?? '').startsWith('shop')) this.speech.stop();
 		return true;
+	}
+
+	// The shop speaks: the Verkäufer (an entry index) in his colour, or the figure.
+	// source: 'shop' (buying), 'shop_info' (a Beschreibung), 'shop_greet', 'shop_chat'.
+	shop_say(keeper, parts, source, t) {
+		const settings = speech_settings(this.data.properties);
+		return this.speech.start({ parts, source, speed: settings.speed,
+			...(keeper === null ? { speaker: 'player', color: settings.color } :
+				{ speaker: keeper, color: speech_color(this.active_level_sprites[keeper].color, SPEECH_SELF_COLOR) }) }, t);
+	}
+
+	// The figure stands at something for sale (an entry index) or at nothing
+	// (null): when it steps up to a new one, its Beschreibung is said – it
+	// interrupts the shop's own talk, never a sign.
+	shop_look(entry_index, t) {
+		if (entry_index === this.shop_looking) return;
+		this.shop_looking = entry_index;
+		const entry = entry_index === null ? null : this.active_level_sprites[entry_index];
+		const text = typeof entry?.shop_text === 'string' ? entry.shop_text : '';
+		const parts = speech_parts(text);
+		if (!parts.length || this.replaying_memory) return;
+		if (this.speech.active && !String(this.speech.current?.source ?? '').startsWith('shop')) return;
+		this.shop_say(this.shop_keeper_near(entry), parts, 'shop_info', t);
+	}
+
+	// Verkäufer with "begrüßt": once, when the figure first comes near (in this
+	// visit of the level). With "plaudert": while the figure is near and nobody
+	// has said anything for SHOP_CHAT_PAUSE seconds, the next sentence.
+	update_shop_keepers(t) {
+		const pc = this.player_character;
+		if (!pc?.mesh || pc.dead?.()) return;
+		this.speech.update(t);
+		if (this.speech.active) this.shop_quiet_since = t;
+		this.shop_quiet_since ??= t;
+		for (const keeper of this.shop_keepers) {
+			const entry = this.active_level_sprites[keeper.entry_index];
+			if (!entry || entry.signal_hidden) continue;
+			const near = Math.abs(entry.mesh.position.x - pc.mesh.position.x) <= SHOP_NEAR &&
+				Math.abs(entry.mesh.position.y - pc.mesh.position.y) <= SHOP_NEAR;
+			if (!near) continue;
+			if (!keeper.greeted) {
+				keeper.greeted = true;
+				const parts = speech_parts(entry.shop_greeting ?? '');
+				// the greeting waits for nobody but a sign
+				if (parts.length && !(this.speech.active && !String(this.speech.current?.source ?? '').startsWith('shop'))) {
+					this.shop_say(keeper.entry_index, parts, 'shop_greet', t);
+					this.shop_quiet_since = t;
+					continue;
+				}
+			}
+			const chatter = speech_parts(entry.shop_chatter ?? '');
+			if (!chatter.length || this.speech.active || t - this.shop_quiet_since < SHOP_CHAT_PAUSE) continue;
+			const part = chatter[keeper.chat_index % chatter.length];
+			keeper.chat_index += 1;
+			this.shop_say(keeper.entry_index, [part], 'shop_chat', t);
+			this.shop_quiet_since = t;
+		}
 	}
 
 	// The Verkäufer nearest to what is for sale (an entry index), or null.
@@ -2410,6 +2481,8 @@ class Game {
 	// The prices above what is for sale, in screen pixels like the HUD (k
 	// per HUD pixel), drawn after the scene: crisp at every level size.
 	draw_price_tags() {
+		// where the tags are (draw_speech keeps its bubble out of their way)
+		this.price_tag_rects = [];
 		if (!this.price_tags?.length || !this.hud || typeof document === 'undefined' || !this.renderer || !this.camera) return;
 		const font = SPEECH_FONTS[speech_settings(this.data.properties).font] ?? SPEECH_FONTS[SPEECH_DEFAULT_FONT];
 		const k = hud_scale(this.height, this.screen_pixel_height, font.cap);
@@ -2449,12 +2522,7 @@ class Game {
 			const sx = (p.x - cam.left) / (cam.right - cam.left) * this.width;
 			const sy = (p.y + sprite.height - cam.bottom) / (cam.top - cam.bottom) * this.height;
 			const left = Math.round(sx - tag.width / 2), bottom = Math.round(sy + k);
-			// what the figure says goes first: a tag under the bubble waits
-			const r = this.speech_rect;
-			if (r && left < r.right && left + tag.width > r.left && bottom < r.top && bottom + tag.height > r.bottom) {
-				entry.tag_mesh.visible = false;
-				continue;
-			}
+			this.price_tag_rects.push({ left, bottom, right: left + tag.width, top: bottom + tag.height });
 			entry.tag_mesh.scale.set(tag.width, tag.height, 1);
 			entry.tag_mesh.position.set(left + tag.width / 2, bottom + tag.height / 2, 0);
 			used.add(entry.tag_mesh);
@@ -2492,7 +2560,7 @@ class Game {
 		};
 		const font = speech_settings(this.data.properties).font;
 		const text_bitmap = (text, color, k) => render_speech_bitmap([text], font, k, color, make_canvas).canvas;
-		this.hud = new HudPainter(hud_plan(this.data), { make_canvas, sprite_rgba, text_bitmap });
+		this.hud = new HudPainter(hud_plan(this.data), { make_canvas, sprite_rgba, text_bitmap, font: SPEECH_FONTS[font] ?? null });
 		this.hud.reset(name);
 		// numbers and names in the game's pixel font: drawn again once it is loaded
 		const hud = this.hud;
@@ -2908,6 +2976,13 @@ class Game {
 			this.tag_scene.remove(mesh);
 		}
 		this.price_tags = this.active_level_sprites.filter(entry => entry.layer_index !== null && entry.shop_price > 0);
+		// Verkäufer who greet or chat (update_shop_keepers); what the figure looks at
+		this.shop_keepers = this.active_level_sprites.map((entry, entry_index) => ({ entry, entry_index }))
+			.filter(({ entry }) => entry.shop_keeper === true && entry.layer_index !== null &&
+				(speech_parts(entry.shop_greeting ?? '').length || speech_parts(entry.shop_chatter ?? '').length))
+			.map(({ entry_index }) => ({ entry_index, greeted: false, chat_index: 0 }));
+		this.shop_looking = null;
+		this.shop_quiet_since = null;
 		// Bewegungsbereiche: swimming, floating, other gravity, currents (player and walking enemies)
 		this.movement_regions = typeof MovementRegions !== 'undefined' ? MovementRegions.resolve(level) : null;
 		// Bewegte Plattformen und Aufzüge (platforms.js; old games have none)
@@ -3405,8 +3480,6 @@ class Game {
 	// The last render pass: the sentence being said, in screen pixels, on top
 	// of everything (also of the CRT effect), so it is crisp and readable.
 	draw_speech() {
-		// where the bubble was (draw_price_tags keeps out of its way)
-		this.speech_rect = null;
 		if (!this.speech?.active || typeof document === 'undefined') return;
 		this.speech.update(this.clock.getElapsedTime());
 		const anchor = this.speech.active ? this.speech_anchor() : null;
@@ -3451,13 +3524,22 @@ class Game {
 		let left = Math.round(sx - w / 2);
 		left = Math.max(margin, Math.min(this.width - w - margin, left));
 		let bottom = Math.round(sy + k);
+		// a price in the way (a Verkäufer next to what he sells): the bubble goes above it
+		for (let moved = true; moved;) {
+			moved = false;
+			for (const r of this.price_tag_rects ?? []) {
+				if (left < r.right && left + w > r.left && bottom < r.top && bottom + h > r.bottom) {
+					bottom = r.top + k;
+					moved = true;
+				}
+			}
+		}
 		bottom = Math.max(margin, Math.min(this.height - h - margin, bottom));
 		this.speech_camera.right = this.width;
 		this.speech_camera.top = this.height;
 		this.speech_camera.updateProjectionMatrix();
 		this.speech_mesh.scale.set(w, h, 1);
 		this.speech_mesh.position.set(left + w / 2, bottom + h / 2, 0);
-		this.speech_rect = { left, bottom, right: left + w, top: bottom + h };
 		const auto_clear = this.renderer.autoClear;
 		this.renderer.autoClear = false;
 		this.renderer.setRenderTarget(null);
@@ -4247,6 +4329,8 @@ class Game {
 		for (const companion of this.companions ?? [])
 			if (!companion.signal_hidden) companion.simulation_step(t);
 		this.update_signal_areas(t);
+		// Verkäufer: greet and chat (only in levels that have one)
+		if (this.shop_keepers?.length) this.update_shop_keepers(t);
 		// signals with a Verzögerung that are due now, then doors that close again
 		this.signals?.deliver_due(t);
 		this.update_auto_closing_doors(t);

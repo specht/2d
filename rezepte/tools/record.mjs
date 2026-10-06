@@ -422,6 +422,8 @@ export function check(expect, state) {
         fail.push(`energie: ${state.energy} statt ${e.energie_gleich}`);
     if (e.punkte !== undefined && state.points < e.punkte) fail.push(`punkte: ${state.points} statt ${e.punkte}`);
     if (e.punkte_gleich !== undefined && state.points !== e.punkte_gleich) fail.push(`punkte: ${state.points} statt genau ${e.punkte_gleich}`);
+    // leben: exactly so many lives at the end (e.g. one more, bought in a shop)
+    if (e.leben !== undefined && state.lives !== e.leben) fail.push(`leben: ${state.lives} statt ${e.leben}`);
     // inventar: { Titel: Anzahl } – what stays for the whole game (a Titel by its beginning);
     // waffe: Titel – the weapon chosen at the end
     const held = (name) => Object.entries(state.inventory ?? {}).find(([title]) => title.startsWith(name))?.[1] ?? 0;
