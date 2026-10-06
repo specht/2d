@@ -195,7 +195,9 @@ export async function record(browser, repo, game, recipe) {
         const doors = g.active_level_sprites.filter(e => 'door' in (g.data.sprites[e.sprite_index].traits ?? {}));
         const pc = g.player_character;
         return {
-            player: pc ? { x: pc.mesh.position.x, y: pc.mesh.position.y, dead: pc.dead() } : null,
+            // schwerkraft: where gravity pulls the figure at the end (movement_regions.js direction)
+            player: pc ? { x: pc.mesh.position.x, y: pc.mesh.position.y, dead: pc.dead(),
+                schwerkraft: ['unten', 'rechts', 'oben', 'links'][pc.gravity_k ?? 0] } : null,
             energy: g.energy, points: g.points, lives: g.lives,
             // the inventory (inventory.js): { Titel: count }, and the chosen weapons' Titel
             inventory: Object.fromEntries((g.inventory ?? []).map(item =>
@@ -414,6 +416,9 @@ export function check(expect, state) {
     // column N starts at x = N × 24 − 12 (game.mjs X0)
     if (e.figur_rechts_von !== undefined && !(state.player?.x > e.figur_rechts_von * 24 - 12))
         fail.push(`Figur steht bei x=${state.player?.x?.toFixed(1)}, erwartet rechts von Spalte ${e.figur_rechts_von}`);
+    // figur_schwerkraft: links | oben | rechts | unten – where gravity pulls the figure at the end
+    if (e.figur_schwerkraft !== undefined && state.player?.schwerkraft !== e.figur_schwerkraft)
+        fail.push(`Schwerkraft zieht die Figur nach ${state.player?.schwerkraft}, erwartet nach ${e.figur_schwerkraft}`);
     if (e.figur_hoeher_als !== undefined && !(state.player?.y >= e.figur_hoeher_als * 24))
         fail.push(`Figur steht bei y=${state.player?.y?.toFixed(1)}, erwartet mindestens auf Höhe ${e.figur_hoeher_als}`);
     if (e.checkpoint_aktiv && !state.checkpoints_active) fail.push('Checkpoint wurde nicht aktiviert');

@@ -2091,7 +2091,8 @@ class LevelEditor {
 
     // Signale (signals.js): a layer can appear or disappear when something
     // sends its Code. Absent = it does not react.
-    add_layer_signal_controls(layer) {
+    // hint: the explanation of "Bei Signal" (absent: the one for sprite layers)
+    add_layer_signal_controls(layer, hint = null) {
         const container = $('#menu_layer_properties');
         const level = this.game.data.levels[this.level_index];
         const links = $('<div class="signal-links">');
@@ -2108,7 +2109,7 @@ class LevelEditor {
         new SelectWidget({
             container,
             label: 'Bei Signal',
-            hint: 'Die Ebene kann erscheinen oder verschwinden, wenn etwas mit ihrem Code ein Signal sendet: ein Schlüssel, ein Schalter, eine Druckplatte, ein Signalbereich oder ein besiegter Gegner. „erscheint“: am Anfang weg, beim ersten Signal „an“ da. „verschwindet“: am Anfang da, beim ersten Signal „an“ weg. „da, solange an“ und „weg, solange an“: folgt dem Signal – praktisch mit einer Druckplatte oder einem Signalbereich (ein Dach, das verschwindet, solange man im Haus ist). „wechselt“: jedes Signal macht die Ebene da oder weg. Eine Ebene, die weg ist, wird nicht gezeichnet, man kann nicht auf ihr stehen, und Gegner auf ihr warten, bis sie erscheint – so baust du Brücken, Wände, die verschwinden, oder einen Hinterhalt. Die Spielfigur gehört nicht auf so eine Ebene.',
+            hint: hint ?? 'Die Ebene kann erscheinen oder verschwinden, wenn etwas mit ihrem Code ein Signal sendet: ein Schlüssel, ein Schalter, eine Druckplatte, ein Signalbereich oder ein besiegter Gegner. „erscheint“: am Anfang weg, beim ersten Signal „an“ da. „verschwindet“: am Anfang da, beim ersten Signal „an“ weg. „da, solange an“ und „weg, solange an“: folgt dem Signal – praktisch mit einer Druckplatte oder einem Signalbereich (ein Dach, das verschwindet, solange man im Haus ist). „wechselt“: jedes Signal macht die Ebene da oder weg. Eine Ebene, die weg ist, wird nicht gezeichnet, man kann nicht auf ihr stehen, und Gegner auf ihr warten, bis sie erscheint – so baust du Brücken, Wände, die verschwinden, oder einen Hinterhalt. Die Spielfigur gehört nicht auf so eine Ebene.',
             options: LAYER_SIGNAL_REACTIONS,
             get: () => layer.properties.signal_reaction ?? 'none',
             set: (value) => {
@@ -2621,6 +2622,8 @@ class LevelEditor {
                 layer.movement ??= { mode: 'swim' };
                 const box = $('<div>').appendTo($('#menu_layer_properties'));
                 self.add_movement_controls(box, layer.movement, false);
+                // a Schalter can switch the region on and off (a gravity that turns)
+                self.add_layer_signal_controls(layer, 'Der Bereich kann an- und ausgehen, wenn etwas mit seinem Code ein Signal sendet: ein Schalter, eine Druckplatte, ein Schlüssel, ein Signalbereich oder ein besiegter Gegner. „erscheint“: am Anfang aus, beim ersten Signal „an“ an. „verschwindet“: am Anfang an, beim ersten Signal „an“ aus. „da, solange an“ und „weg, solange an“: folgt dem Signal. „wechselt“: jedes Signal schaltet ihn um. So dreht ein Schalter die Schwerkraft: ein Bereich über dem ganzen Level mit „Schwerkraft zieht nach oben“ und „wechselt“.');
             } else {
             // -----------------------------------------------------------
             new SelectWidget({
@@ -2940,6 +2943,31 @@ class LevelEditor {
         if (mode === 'swim') {
             number('stroke', { label: 'Schwimmzug', suffix: '×', min: 0, max: 3, step: 0.1, decimalPlaces: 1,
                 hint: 'Wie kräftig ein Druck auf die Sprungtaste nach oben schwimmt – als Vielfaches der Sprungkraft. Direkt unter der Wasseroberfläche springt die Figur damit aus dem Wasser. 0: Die Sprungtaste macht im Wasser nichts.' });
+        }
+        if (mode !== 'inherit') {
+            new SelectWidget({
+                container: box, label: 'Schwerkraft zieht nach',
+                hint: 'Wohin die Schwerkraft hier zieht. Nach links, oben oder rechts: Die Spielfigur und laufende Gegner drehen sich mit – ihr Boden ist dann eine Wand oder die Decke. Die Kamera dreht sich mit der Spielfigur, so bleibt sie auf dem Bildschirm aufrecht. Schräge und Leitern gehen nur, wenn die Schwerkraft nach unten zieht; sonst ist eine Schräge ein Block. Mit „Bei Signal“ kann ein Schalter den Bereich an- und ausschalten.',
+                options: { down: 'unten (wie immer)', left: 'links', up: 'oben', right: 'rechts' },
+                get: () => get()?.direction ?? 'down',
+                set: (value) => {
+                    if (value === 'down') {
+                        delete get().direction;
+                        delete get().turn_seconds;
+                    } else get().direction = value;
+                    self.add_movement_controls(box, settings, whole_level);
+                    self.render();
+                },
+            });
+            if (get()?.direction) {
+                const [lo, hi] = MovementRegions.TURN_LIMITS;
+                new NumberWidget({
+                    container: box, label: 'Drehdauer', suffix: 's', min: lo, max: hi, step: 0.1, decimalPlaces: 1,
+                    hint: 'Wie lange das Drehen dauert, wenn die Spielfigur in diesen Bereich kommt – und wieder hinaus. Die Schwerkraft wechselt genau in der Mitte. 0 Sekunden: sofort.',
+                    get: () => get()?.turn_seconds ?? MovementRegions.TURN_SECONDS,
+                    set: (value) => { if (Number.isFinite(value) && value >= lo && value <= hi) get().turn_seconds = value; },
+                });
+            }
         }
         const current = () => get()?.current ?? {};
         const set_current = (key, value) => {
@@ -3765,6 +3793,24 @@ class LevelEditor {
     // Signalbereich (yellow) and Bewegungsbereich (green) as thin lines, each
     // where its layer is drawn (Parallaxe). The current layer's own are drawn
     // by the rectangle editing (backdrop_cursor) while no tool is chosen.
+    // A Bewegungsbereich with a turned gravity (movement_regions.js direction):
+    // an arrow in each rectangle, pointing where gravity pulls.
+    gravity_arrows(layer, material) {
+        const k = MovementRegions.direction_k(layer.movement?.direction);
+        if (layer.type !== 'movement_region' || !k) return [];
+        const [dx, dy] = MovementRegions.to_world(k, 0, -1);
+        return (layer.rects ?? []).map(normalized_rect).filter(r => r.width > 0 && r.height > 0).map(r => {
+            const cx = r.left + r.width / 2, cy = r.bottom + r.height / 2;
+            const len = Math.min(r.width, r.height) * 0.3, head = Math.min(len * 0.4, 10);
+            const tip = [cx + dx * len, cy + dy * len];
+            // the head: back from the tip and to both sides
+            const points = [[cx - dx * len, cy - dy * len], tip,
+                [tip[0] - dx * head - dy * head, tip[1] - dy * head + dx * head], tip,
+                [tip[0] - dx * head + dy * head, tip[1] - dy * head - dx * head]];
+            return new THREE.Line(new THREE.BufferGeometry().setFromPoints(points.map(([x, y]) => new THREE.Vector3(x, y))), material);
+        });
+    }
+
     region_outlines() {
         const group = new THREE.Group();
         const level = this.game.data.levels[this.level_index];
@@ -3787,6 +3833,8 @@ class LevelEditor {
                 line.computeLineDistances();
                 layer_group.add(line);
             }
+            for (const arrow of this.gravity_arrows(layer, new THREE.LineBasicMaterial({ color: colours[layer.type], transparent: true, opacity: 0.55 })))
+                layer_group.add(arrow);
             group.add(layer_group);
         });
         return group;
@@ -4966,6 +5014,7 @@ class LevelEditor {
                     ];
                     this.backdrop_cursor.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), outline));
                 }
+                for (const arrow of this.gravity_arrows(backdrop, outline)) this.backdrop_cursor.add(arrow);
             }
             let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true });
 

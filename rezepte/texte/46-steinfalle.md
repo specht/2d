@@ -1,5 +1,6 @@
 ---
 titel: Eine Steinfalle für Gegner
+entwurf: true
 kategorie: Kampf
 stufe: 3
 skala: 4

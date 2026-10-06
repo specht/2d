@@ -540,10 +540,19 @@ export async function build_game(catalog, recipe, repo) {
             if (b[de] !== undefined) out[en] = Number(b[de]);
         // stroemung: [px/s, Richtung in Grad (0 rechts, 90 oben, 270 unten)]
         if (b.stroemung) out.current = { speed: Number(b.stroemung[0]), angle: Number(b.stroemung[1] ?? 0) };
+        // schwerkraft_nach: links | oben | rechts (unten = as always); drehdauer: seconds
+        if (b.schwerkraft_nach !== undefined && b.schwerkraft_nach !== 'unten') {
+            const directions = { links: 'left', oben: 'up', rechts: 'right' };
+            if (!directions[b.schwerkraft_nach]) throw new Error(`${recipe.id}: ${where}: schwerkraft_nach muss links, oben, rechts oder unten sein`);
+            out.direction = directions[b.schwerkraft_nach];
+        }
+        if (b.drehdauer !== undefined) out.turn_seconds = Number(b.drehdauer);
         return out;
     };
     const movement_regions = (scene.bewegungsbereiche ?? []).map((b, i) => ({
-        type: 'movement_region', properties: { name: b.name ?? `Bewegungsbereich ${i + 1}` },
+        // signal: { code, reaktion } – a Schalter switches the region on and off
+        type: 'movement_region', properties: { name: b.name ?? `Bewegungsbereich ${i + 1}`,
+            ...layer_signal_of(b.signal, `${recipe.id}: Bewegungsbereich ${i + 1}: `) },
         movement: movement_of(b, `Bewegungsbereich ${i + 1}`),
         rects: b.rechtecke.map(([c, r, w, h]) => ({ left: c * TILE + X0, bottom: (rows - r - h) * TILE, width: w * TILE, height: h * TILE })),
     })).reverse();

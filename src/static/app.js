@@ -15,6 +15,9 @@ window.yt_player = null;
 // quiet seconds before he chats (Character.SHOP_REACH_UP: what is in reach)
 const SHOP_NEAR = 144;
 const SHOP_CHAT_PAUSE = 4;
+// Weather that falls or rises: it stays upright on the screen when the
+// camera turns with a turned gravity (Game.turn_upright_effects)
+const UPRIGHT_EFFECTS = ['snow', 'rain', 'smoke', 'fire', 'bubbles', 'lightning'];
 let OVERLAY_ICONS = {
 	f_key: [36, 36, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAf0lEQVRYw+2YQQqAIBQFv9GBWygE0SqCoM7nr9PUVtyEpJIwbye4GHjDAzWDc7uEMcZKxZyqR3ju5GcB6C197IyqVgW4vLdU1rhDidmWNen+OE9UhkNZHaEyHHrbpa9OURk7RGUAAQRQ6R3KvTtU1r5D8f9M/NYunVuE/6G2gR7lsx2d8NUeyQAAAABJRU5ErkJggg=="],
 };
@@ -224,6 +227,202 @@ class Character {
 		// Bewegungsbereiche: sideways speed in the water or in space (px per frame)
 		this.vx = 0;
 		this.stroke_held = false;
+		// Schwerkraft-Richtung (movement_regions.js direction): quarter turns of
+		// the figure's own "down" (0: down, as always); frame_k: the same while
+		// its simulation step runs in its own coordinates (enter_frame)
+		this.gravity_k = 0;
+		this.frame_k = 0;
+		this.gravity_turn = null;
+	}
+
+	// ---------------------------------------------------- turned gravity
+	// A Bewegungsbereich may pull to the left, up or to the right. The figure's
+	// own directions turn with it: its floor is where gravity pulls. During its
+	// simulation step (frame_k) mesh.position holds its own coordinates – x
+	// along its floor, y up from its feet – so walking, jumping and the enemies'
+	// senses stay as they are; every question to the world (has_trait_at,
+	// intersect_*, the interval trees) is turned into world coordinates here.
+	// Without a turned gravity (gravity_k 0) none of this happens.
+
+	enter_frame() {
+		const p = this.mesh.position;
+		[p.x, p.y] = MovementRegions.to_local(this.gravity_k, p.x, p.y);
+		this.frame_k = this.gravity_k;
+	}
+
+	leave_frame() {
+		const p = this.mesh.position;
+		[p.x, p.y] = MovementRegions.to_world(this.frame_k, p.x, p.y);
+		this.frame_k = 0;
+	}
+
+	// a world point in the figure's own coordinates while its step runs (else as it is)
+	local_xy(x, y) {
+		return this.frame_k ? MovementRegions.to_local(this.frame_k, x, y) : [x, y];
+	}
+
+	// …and back
+	world_of(x, y) {
+		return this.frame_k ? MovementRegions.to_world(this.frame_k, x, y) : [x, y];
+	}
+
+	// the feet in the world
+	world_xy() {
+		return this.world_of(this.mesh.position.x, this.mesh.position.y);
+	}
+
+	// A rectangle relative to the feet, in the figure's own directions (dx
+	// along its floor, dy up from it), in the world: [x0, x1, y0, y1].
+	world_box(dx0, dx1, dy0, dy1) {
+		const p = this.mesh.position;
+		const k = this.gravity_k ?? 0;
+		if (!k) return [p.x + dx0, p.x + dx1, p.y + dy0, p.y + dy1];
+		const [x, y] = this.frame_k ? [p.x, p.y] : MovementRegions.to_local(k, p.x, p.y);
+		return MovementRegions.box_to_world(k, x + dx0, x + dx1, y + dy0, y + dy1);
+	}
+
+	// The middle of the figure (half its height above the feet) in the world.
+	world_center() {
+		const p = this.mesh.position, h2 = this.sprite.height * 0.5;
+		if (!this.gravity_k) return [p.x, p.y + h2];
+		if (this.frame_k) return MovementRegions.to_world(this.frame_k, p.x, p.y + h2);
+		const [ox, oy] = MovementRegions.to_world(this.gravity_k, 0, h2);
+		return [p.x + ox, p.y + oy];
+	}
+
+	// Above the head (its own up), in the world – where a speech bubble goes.
+	head_world() {
+		const p = this.mesh.position, h = this.sprite.height;
+		if (!this.gravity_k) return [p.x, p.y + h];
+		const [ox, oy] = MovementRegions.to_world(this.gravity_k, 0, h);
+		return [p.x + ox, p.y + oy];
+	}
+
+	// A level sprite's rectangle in the figure's own coordinates.
+	entry_box(entry, sprite) {
+		const x = entry.mesh.position.x, y = entry.mesh.position.y;
+		const x0 = x - sprite.width / 2, x1 = x + sprite.width / 2, y0 = y, y1 = y + sprite.height;
+		if (!this.frame_k) return { x0, x1, y0, y1 };
+		const b = MovementRegions.box_to_local(this.frame_k, x0, x1, y0, y1);
+		return { x0: b[0], x1: b[1], y0: b[2], y1: b[3] };
+	}
+
+	// The sprite has the trait – seen in the figure's own directions. face: for
+	// "von der Seite", which side of the sprite the figure runs into ('left' |
+	// 'right'), or null for either.
+	has_local_trait(sprite, trait, face = null) {
+		if (!this.frame_k) return trait in sprite.traits;
+		// ladders and slopes go with the world's up: turned, a slope is a block, a ladder nothing
+		if (trait === 'ladder' || trait === 'slope') return false;
+		if (trait !== 'block_above' && trait !== 'block_below' && trait !== 'block_sides') return trait in sprite.traits;
+		const faces = MovementRegions.local_faces(sprite.traits, this.frame_k);
+		if (trait === 'block_above') return faces.up;
+		if (trait === 'block_below') return faces.down;
+		return face ? faces[face] : (faces.left || faces.right);
+	}
+
+	// Level sprites overlapping a rectangle given in the figure's own coordinates.
+	candidates_at(x0, x1, y0, y1) {
+		if (!this.frame_k) return this.game.collision_candidates(x0, x1, y0, y1);
+		const b = MovementRegions.box_to_world(this.frame_k, x0, x1, y0, y1);
+		return this.game.collision_candidates(b[0], b[1], b[2], b[3]);
+	}
+
+	// The angle the figure is drawn at (radians, counter-clockwise): its
+	// gravity, or on the way to the next – the camera follows the player's
+	// (Game.render). A turn takes turn.seconds; gravity changes halfway.
+	visual_angle(t) {
+		const base = (this.gravity_k ?? 0) * Math.PI / 2;
+		const turn = this.gravity_turn;
+		if (!turn) return base;
+		const s = turn.seconds > 0 ? (t - turn.at) / turn.seconds : 1;
+		if (!(s < 1) && turn.switched) {
+			this.gravity_turn = null;
+			return base;
+		}
+		const u = Math.min(1, Math.max(0, s));
+		return turn.from + (turn.to - turn.from) * u * u * (3 - 2 * u);
+	}
+
+	// Back to gravity pulling down at once (starting again after a lost life).
+	reset_gravity() {
+		this.gravity_k = 0;
+		this.gravity_turn = null;
+		this.turn_settle = false;
+	}
+
+	// Before the step: the Bewegungsbereich at the figure's middle says where
+	// gravity pulls. The player and walking enemies turn with it (a flyer, a
+	// stomper and a Begleiter keep theirs). A new direction starts a turn on
+	// the screen (as long as the region's "Drehdauer"); halfway through it
+	// gravity changes (turn_gravity). Changing its mind before that, the
+	// figure turns back from where it is.
+	update_gravity_direction(t) {
+		if (typeof MovementRegions === 'undefined' || !MovementRegions.to_world) return;
+		const regions = this.game.movement_regions;
+		if (!this.gravity_k && !this.gravity_turn && !regions?.turns) return;
+		const turns = this.character_trait === 'actor' || (this.character_trait === 'baddie' && !this.ai_no_gravity);
+		let turn = this.gravity_turn;
+		if (turns) {
+			const [cx, cy] = this.world_center();
+			const here = MovementRegions.at(regions, cx, cy, this.game.signal_hidden_layers);
+			const want = here?.direction ?? 0;
+			const heading = turn && !turn.switched ? turn.to_k : this.gravity_k;
+			// a short pause between two turns: no flicker at the edge of a region
+			if (want !== heading && t - (this.gravity_turn_started ?? -Infinity) >= 0.2) {
+				// turning back out of a region takes as long as turning in
+				const seconds = here?.direction ? here.turn_seconds : (this.gravity_turn_seconds ?? MovementRegions.TURN_SECONDS);
+				if (here?.direction) this.gravity_turn_seconds = here.turn_seconds;
+				const from = this.visual_angle(t);
+				const from_k = this.gravity_k;
+				// from the angle it is drawn at, the short way to the new direction
+				const to = from_k * Math.PI / 2 + MovementRegions.turn_delta(from_k, want);
+				const unwound = from - Math.round((from - from_k * Math.PI / 2) / (2 * Math.PI)) * 2 * Math.PI;
+				turn = this.gravity_turn = { from: unwound, to, to_k: want, at: t, seconds, switched: want === from_k };
+				this.gravity_turn_started = t;
+			}
+		}
+		// halfway through the turn, gravity changes
+		if (turn && !turn.switched && (turn.seconds <= 0 || t >= turn.at + turn.seconds / 2)) {
+			turn.switched = true;
+			this.turn_gravity(turn.to_k);
+		}
+	}
+
+	// Gravity pulls somewhere else from now on: the figure turns around its
+	// middle (so it stays where it is), and its speed turns along.
+	turn_gravity(k) {
+		if (k === this.gravity_k) return;
+		const [cx, cy] = this.world_center();
+		const [wvx, wvy] = MovementRegions.to_world(this.gravity_k, this.vx, this.vy);
+		this.gravity_k = k;
+		const [ox, oy] = MovementRegions.to_world(k, 0, this.sprite.height * 0.5);
+		this.mesh.position.x = cx - ox;
+		this.mesh.position.y = cy - oy;
+		[this.vx, this.vy] = MovementRegions.to_local(k, wvx, wvy);
+		// the coyote time belonged to the old floor
+		this.standing_on_ground_cache = null;
+		this.turn_settle = true;
+	}
+
+	// Right after a turn (in the figure's own coordinates): if its turned body
+	// sticks into a block, it moves out – up first, then to the sides.
+	settle_after_turn() {
+		this.turn_settle = false;
+		const w = this.sprite.width * 0.5, h = this.sprite.height * this.traits.ex_top;
+		const l = w * this.traits.ex_left - 0.5, r = w * this.traits.ex_right - 0.5;
+		const blocked = () => this.has_trait_at(['block_sides', 'block_above', 'block_below'], -l, r, 0.5, h - 0.5) !== null;
+		if (!blocked()) return;
+		const p = this.mesh.position, x = p.x, y = p.y;
+		for (let d = 2; d <= Math.max(h, w * 2); d += 2) {
+			for (const [dx, dy] of [[0, d], [-d, 0], [d, 0], [0, -d]]) {
+				p.x = x + dx;
+				p.y = y + dy;
+				if (!blocked()) return;
+			}
+		}
+		p.x = x;
+		p.y = y;
 	}
 
 	assign_sti(state, direction, sti, confidence, flipped) {
@@ -374,21 +573,23 @@ void main() {
 			}
 		}
 
-		let result = this.game.collision_candidates(x0, x1, y0, y1);
+		// (turned gravity: x0 … y1 are the figure's own coordinates, candidates_at turns them)
+		let result = this.candidates_at(x0, x1, y0, y1);
 		for (let entry_index of result) {
 			let entry = this.game.active_level_sprites[entry_index];
 			let sprite = this.game.data.sprites[entry.sprite_index];
 			for (let trait of trait_or_traits) {
-				if (trait in sprite.traits) {
+				if (this.has_local_trait(sprite, trait)) {
 					let ok = true;
 					if (trait === 'door') {
 						// Doors are a special case because of their proximity sensing capabilities.
 						// We search an area +- 100 px around the door and now have to test whether
 						// the hit was really within the door's area via xsense and ysense.
-						if (this.mesh.position.x < entry.mesh.position.x - sprite.width / 2 - sprite.traits.door.xsense ||
-							this.mesh.position.x > entry.mesh.position.x + sprite.width / 2 + sprite.traits.door.xsense ||
-							this.mesh.position.y < entry.mesh.position.y - sprite.traits.door.ysense ||
-							this.mesh.position.y > entry.mesh.position.y + sprite.height + sprite.traits.door.ysense)
+						const [px, py] = this.world_xy();
+						if (px < entry.mesh.position.x - sprite.width / 2 - sprite.traits.door.xsense ||
+							px > entry.mesh.position.x + sprite.width / 2 + sprite.traits.door.xsense ||
+							py < entry.mesh.position.y - sprite.traits.door.ysense ||
+							py > entry.mesh.position.y + sprite.height + sprite.traits.door.ysense)
 							ok = false;
 					}
 					if (trait === 'slope') {
@@ -424,10 +625,7 @@ void main() {
 	has_baddie_at(dx0, dx1, dy0, dy1) {
 		this.game.update_dynamic_interval_tree_if_necessary();
 
-		let x0 = this.mesh.position.x + dx0;
-		let x1 = this.mesh.position.x + dx1;
-		let y0 = this.mesh.position.y + dy0;
-		let y1 = this.mesh.position.y + dy1;
+		const [x0, x1, y0, y1] = this.world_box(dx0, dx1, dy0, dy1);
 
 		return this.game.has_baddie_at(x0, x1, y0, y1);
 	}
@@ -451,17 +649,19 @@ void main() {
 		let check_for_block_sides = trait_or_traits.indexOf('block_sides') >= 0;
 		let check_for_block_below = trait_or_traits.indexOf('block_below') >= 0;
 
-		let result = this.game.collision_candidates(x0, x1, y0, y1);
+		let result = this.candidates_at(x0, x1, y0, y1);
 		for (let entry_index of result) {
 			let entry = this.game.active_level_sprites[entry_index];
 			let sprite = this.game.data.sprites[entry.sprite_index];
+			const box = this.entry_box(entry, sprite);
 			for (let trait of trait_or_traits) {
-				if (trait in sprite.traits) {
+				// going left the figure runs into the sprite's right side
+				if (this.has_local_trait(sprite, trait, dx < 0 ? 'right' : 'left')) {
 					let winx = this.mesh.position.x;
 					if (dx < 0)
-						winx = Math.max(x0, entry.mesh.position.x + sprite.width / 2 + this.traits.ex_left * this.sprite.width * 0.5);
+						winx = Math.max(x0, box.x1 + this.traits.ex_left * this.sprite.width * 0.5);
 					else if (dx > 0)
-						winx = Math.min(x0, entry.mesh.position.x - sprite.width / 2 - this.traits.ex_right * this.sprite.width * 0.5);
+						winx = Math.min(x0, box.x0 - this.traits.ex_right * this.sprite.width * 0.5);
 					dx = winx - this.mesh.position.x;
 				}
 			}
@@ -469,9 +669,9 @@ void main() {
 				if (('door' in sprite.traits) && entry.door_closed) {
 					let winx = this.mesh.position.x;
 					if (dx < 0)
-						winx = Math.max(x0, entry.mesh.position.x + sprite.width / 2 + this.traits.ex_left * this.sprite.width * 0.5);
+						winx = Math.max(x0, box.x1 + this.traits.ex_left * this.sprite.width * 0.5);
 					else if (dx > 0)
-						winx = Math.min(x0, entry.mesh.position.x - sprite.width / 2 - this.traits.ex_right * this.sprite.width * 0.5);
+						winx = Math.min(x0, box.x0 - this.traits.ex_right * this.sprite.width * 0.5);
 					dx = winx - this.mesh.position.x;
 				}
 			}
@@ -503,25 +703,24 @@ void main() {
 		let y0 = this.mesh.position.y + dy0;
 		let y1 = this.mesh.position.y + dy1;
 
-		let result = this.game.collision_candidates(x0, x1, y0, y1);
+		let result = this.candidates_at(x0, x1, y0, y1);
 		for (let entry_index of result) {
 			let entry = this.game.active_level_sprites[entry_index];
 			let sprite = this.game.data.sprites[entry.sprite_index];
 			for (let trait of trait_or_traits) {
-				if (trait in sprite.traits) {
+				if (this.has_local_trait(sprite, trait)) {
 					let winy = this.mesh.position.y;
+					const box = this.entry_box(entry, sprite);
 					if (dy < 0) {
-						// accomodate for slope
-						let height = sprite.height;
+						// accomodate for slope (only with gravity pulling down: has_local_trait)
 						if (trait === 'slope') {
 							let tx = (this.mesh.position.x - (entry.mesh.position.x - sprite.width * 0.5)) / sprite.width;
 							if (sprite.traits.slope.direction === 'negative') tx = 1.0 - tx;
 							tx = tx.clamp(0.0, 1.0);
-							height = tx * sprite.height;
-						}
-						winy = Math.max(y0, entry.mesh.position.y + height);
+							winy = Math.max(y0, entry.mesh.position.y + tx * sprite.height);
+						} else winy = Math.max(y0, box.y1);
 					} else if (dy > 0)
-						winy = Math.min(y0, entry.mesh.position.y - this.sprite.height * this.traits.ex_top);
+						winy = Math.min(y0, box.y0 - this.sprite.height * this.traits.ex_top);
 					dy = winy - this.mesh.position.y;
 				}
 			}
@@ -538,8 +737,9 @@ void main() {
 				dy = this.intersect_y_with_trait(dy, ['block_above', 'ladder'], -0.5, 0.5, dy, 0.0);
 				if (this.character_trait === 'baddie' && old_dy != dy) {
 					this.game.ts_camera_shake = this.game.clock.getElapsedTime();
-					let dx = this.mesh.position.x - this.game.player_character.mesh.position.x;
-					let dy = this.mesh.position.y - this.game.player_character.mesh.position.y;
+					const [wx, wy] = this.world_xy();
+					let dx = wx - this.game.player_character.mesh.position.x;
+					let dy = wy - this.game.player_character.mesh.position.y;
 					let dist = 1.0 - Math.pow(dx * dx + dy * dy, 0.5) / this.traits.camera_shake_max_dist;
 					if (dist < 0.0) dist = 0.0;
 					this.game.camera_shake_strength = dist * this.traits.camera_shake_on_land ?? 0;
@@ -630,6 +830,16 @@ void main() {
 	// Now it keeps moving and lands on the top edge (try_move_y lifts it there).
 	standing_on_block_top() {
 		const x = this.mesh.position.x, y = this.mesh.position.y;
+		if (this.frame_k) {
+			// turned gravity: the same, in the figure's own coordinates
+			for (const i of this.candidates_at(x - 0.5, x + 0.5, y - 0.5, y - 0.01)) {
+				const entry = this.game.active_level_sprites[i];
+				const sprite = this.game.data.sprites[entry.sprite_index];
+				const carries = this.has_local_trait(sprite, 'block_above') || ('door' in sprite.traits && entry.door_closed);
+				if (carries && y >= this.entry_box(entry, sprite).y1 - 1.0) return true;
+			}
+			return false;
+		}
 		const ids_x = new Set(this.game.interval_tree_x.search([x - 0.5, x + 0.5]));
 		for (const i of this.game.interval_tree_y.search([y - 0.5, y - 0.01])) {
 			if (!ids_x.has(i)) continue;
@@ -701,6 +911,9 @@ void main() {
 		// how far a jump carries at the current speed (a chasing enemy runs faster)
 		const hop = this.traits.vrun * (this.ai_speed || 1) * (this.traits.jump_vfactor ?? 1) * 2 * this.traits.vjump / gravity;
 		const side = dir => (dir === 'left' ? -1 : 1);
+		// (turned gravity: the player and its own start in the enemy's coordinates)
+		const [px, py] = alive ? this.local_xy(player.mesh.position.x, player.mesh.position.y) : [0, 0];
+		const home = this.local_xy(this.initial_position[0], this.initial_position[1]);
 		return {
 			now: this.game.clock.getElapsedTime(),
 			on_ground: this.touching_ground(),
@@ -709,13 +922,13 @@ void main() {
 			on_ladder: Boolean(this.has_trait_at(['ladder'], -0.5, 0.5, -1.1, 1.1)),
 			facing: this.last_horizontal_facing ?? (this.traits.start_dir === 'left' ? 'left' : 'right'),
 			x: this.mesh.position.x, y: this.mesh.position.y,
-			x0: this.initial_position[0], y0: this.initial_position[1],
+			x0: home[0], y0: home[1],
 			half_width: w2,
 			player: alive ? {
-				dx: player.mesh.position.x - this.mesh.position.x,
-				dy: player.mesh.position.y - this.mesh.position.y,
+				dx: px - this.mesh.position.x,
+				dy: py - this.mesh.position.y,
 				// how far apart the two centres are when their collision boxes touch
-				touch: (player.mesh.position.x >= this.mesh.position.x ?
+				touch: (px >= this.mesh.position.x ?
 					w2 * (this.traits.ex_right ?? 1) + player.sprite.width * 0.5 * (player.traits.ex_left ?? 1) :
 					w2 * (this.traits.ex_left ?? 1) + player.sprite.width * 0.5 * (player.traits.ex_right ?? 1)),
 			} : null,
@@ -929,7 +1142,7 @@ void main() {
 	update_companion_lost(t, player) {
 		const dx = player.mesh.position.x - this.mesh.position.x;
 		const dy = player.mesh.position.y - this.mesh.position.y;
-		const c = this.game.camera;
+		const c = this.game.camera ? (this.game.view_box?.() ?? this.game.camera) : null;
 		const w2 = this.sprite.width * 0.5, h = this.sprite.height;
 		const x = this.mesh.position.x, y = this.mesh.position.y;
 		const visible = Boolean(c) && x + w2 >= c.left && x - w2 <= c.right && y + h >= c.bottom && y <= c.top;
@@ -991,7 +1204,7 @@ void main() {
 	// behind the player (or ahead), and walks or flies in. Only if there is no
 	// such place, it appears right beside the player.
 	return_to_player(player, t, nearby = false) {
-		const c = this.game.camera;
+		const c = this.game.camera ? (this.game.view_box?.() ?? this.game.camera) : null;
 		const facing = player.last_horizontal_facing ?? 'right';
 		const behind = facing === 'left' ? 'right' : 'left';
 		let spot = null;
@@ -1047,8 +1260,12 @@ void main() {
 			this.mesh.parent.add(this.alert_mesh);
 		}
 		this.alert_mesh.visible = show;
-		if (show) this.alert_mesh.position.set(this.mesh.position.x,
-			this.mesh.position.y + this.sprite.height * this.traits.ex_top + 7, 1.0);
+		if (show) {
+			// above its head – its own up (turned gravity)
+			const [ax, ay] = this.world_of(this.mesh.position.x, this.mesh.position.y + this.sprite.height * this.traits.ex_top + 7);
+			this.alert_mesh.position.set(ax, ay, 1.0);
+			this.alert_mesh.rotation.z = this.frame_k * Math.PI / 2;
+		}
 	}
 
 	// The classic enemy: walk, turn at walls and ledges (or jump off them).
@@ -1077,7 +1294,7 @@ void main() {
 
 			const range = (this.behavior?.range ?? 0) * 24;
 			if (range > 0) {
-				const from_start = this.mesh.position.x - this.initial_position[0];
+				const from_start = this.mesh.position.x - this.local_xy(this.initial_position[0], this.initial_position[1])[0];
 				if (this.intention.direction === 'left' && from_start <= -range) this.intention.direction = 'right';
 				else if (this.intention.direction === 'right' && from_start >= range) this.intention.direction = 'left';
 			}
@@ -1196,6 +1413,7 @@ void main() {
 			});
 		} else {
 			this.game.curtain.show_screen('lost_life', { lives: this.game.lives }, 0.5, 1.0, function () {
+				self.reset_gravity();
 				self.mesh.position.x = self.initial_position[0];
 				self.mesh.position.y = self.initial_position[1];
 				// Begleiter come along to the place where the figure starts again
@@ -1270,11 +1488,9 @@ void main() {
 			return;
 		}
 		if (!this.simulate_this) {
-			let x0 = this.mesh.position.x - this.sprite.width * 0.5 * this.traits.ex_left;
-			let x1 = this.mesh.position.x + this.sprite.width * 0.5 * this.traits.ex_right;
-			let y0 = this.mesh.position.y;
-			let y1 = this.mesh.position.y + this.sprite.height * this.traits.ex_top;
-			let c = this.game.camera;
+			let [x0, x1, y0, y1] = this.world_box(-this.sprite.width * 0.5 * this.traits.ex_left,
+				this.sprite.width * 0.5 * this.traits.ex_right, 0, this.sprite.height * this.traits.ex_top);
+			let c = this.game.view_box?.() ?? this.game.camera;
 			if ((x0 >= c.left && x0 <= c.right && y0 >= c.bottom && y0 <= c.top) ||
 				(x1 >= c.left && x1 <= c.right && y0 >= c.bottom && y0 <= c.top) ||
 				(x0 >= c.left && x0 <= c.right && y1 >= c.bottom && y1 <= c.top) ||
@@ -1284,6 +1500,21 @@ void main() {
 		}
 
 		if (!this.simulate_this) return;
+		// a Bewegungsbereich may turn gravity: then the step runs in the figure's
+		// own coordinates (enter_frame) and is turned back into the world after it
+		this.update_gravity_direction(t);
+		if (!this.gravity_k) return this.simulation_body(t);
+		this.enter_frame();
+		try {
+			if (this.turn_settle) this.settle_after_turn();
+			this.simulation_body(t);
+		} finally {
+			this.leave_frame();
+		}
+	}
+
+	// One step of moving, colliding and collecting (simulation_step).
+	simulation_body(t) {
 		// move left / right
 
 		if (this.character_trait === 'baddie') {
@@ -1364,8 +1595,12 @@ void main() {
 		// (flying and stomping behaviours move themselves); old games have none.
 		let move = (this.character_trait === 'actor' || ((this.character_trait === 'baddie' || this.character_trait === 'companion') && !this.ai_no_gravity)) &&
 			typeof MovementRegions !== 'undefined' ?
-			MovementRegions.at(this.game.movement_regions, this.mesh.position.x,
-				this.mesh.position.y + this.sprite.height * 0.5) : null;
+			MovementRegions.at(this.game.movement_regions, ...this.world_center(), this.game.signal_hidden_layers) : null;
+		// turned gravity: a current pushes in the world's direction – in the figure's own
+		if (move && this.frame_k) {
+			const [cx, cy] = MovementRegions.to_local(this.frame_k, move.current.x, move.current.y);
+			move = { ...move, current: { x: cx, y: cy } };
+		}
 		// A Begleiter that cannot swim does not swim: water is no Bewegungsbereich
 		// for it (it waits at the shore; companion_ai.js). A flyer flies over it.
 		if (move?.mode === 'swim' && this.character_trait === 'companion' && !this.companion.swim) move = null;
@@ -1391,7 +1626,7 @@ void main() {
 					vjump: this.traits.vjump * (actor ? this.vjump_factor() : 1),
 					gravity: this.traits.affected_by_gravity === false ? 0 : this.game.data.properties.gravity,
 					// the player (and a Begleiter following it) leaps out of the water; enemies stay in it
-					near_surface: (actor || this.character_trait === 'companion') && fluid.surface - (this.mesh.position.y + this.sprite.height * 0.5) < this.sprite.height * 0.6,
+					near_surface: (actor || this.character_trait === 'companion') && !this.frame_k && fluid.surface - (this.mesh.position.y + this.sprite.height * 0.5) < this.sprite.height * 0.6,
 				});
 			this.stroke_held = jump;
 			if (stroke && fluid.mode === 'swim' && fluid.stroke > 0) this.stroke_at = this.game.clock.getElapsedTime();
@@ -1561,7 +1796,7 @@ void main() {
 			// of the sea onto the beach, it turns back at the edge.
 			if (this.character_trait === 'baddie') {
 				const h2 = this.sprite.height * 0.5;
-				const inside = (x, y) => MovementRegions.at(this.game.movement_regions, x, y + h2)?.mode === fluid.mode;
+				const inside = (x, y) => MovementRegions.at(this.game.movement_regions, ...this.world_of(x, y + h2), this.game.signal_hidden_layers)?.mode === fluid.mode;
 				if (!inside(this.mesh.position.x, this.mesh.position.y)) {
 					// keep what stays inside: along the surface, it may still swim sideways
 					this.mesh.position.y = fluid_from[1];
@@ -1756,19 +1991,27 @@ void main() {
 				}
 			}
 
+			// (the camera follows the feet in the world; a turned camera: Game.view_extents)
+			const [wx, wy] = this.world_xy();
 			if (this.follow_camera) {
 				let scale = this.game.height / this.game.screen_pixel_height;
-				let safe_zone_x0 = this.mesh.position.x - (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
-				let safe_zone_x1 = this.mesh.position.x + (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
-				let safe_zone_y0 = this.mesh.position.y - (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
-				let safe_zone_y1 = this.mesh.position.y + (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
+				const half_x = (this.game.width / 2 / scale) * this.game.screen_safe_zone_x;
+				const half_y = (this.game.height / 2 / scale) * this.game.screen_safe_zone_y;
+				const [safe_x, safe_y] = this.game.view_extents?.(half_x, half_y) ?? [half_x, half_y];
+				let safe_zone_x0 = wx - safe_x;
+				let safe_zone_x1 = wx + safe_x;
+				let safe_zone_y0 = wy - safe_y;
+				let safe_zone_y1 = wy + safe_y;
 				if (this.game.camera_x < safe_zone_x0) this.game.camera_x = safe_zone_x0;
 				if (this.game.camera_x > safe_zone_x1) this.game.camera_x = safe_zone_x1;
 				if (this.game.camera_y < safe_zone_y0) this.game.camera_y = safe_zone_y0;
 				if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
 			}
 			if (!this.dead()) {
-				if (this.mesh.position.y < this.game.miny - this.game.screen_pixel_height * 1.5) this.die(null, null);
+				// fallen out of the level – where its gravity pulls
+				const out = this.game.screen_pixel_height * 1.5;
+				if ([wy < this.game.miny - out, wx > this.game.maxx + out, wy > this.game.maxy + out, wx < this.game.minx - out][this.gravity_k])
+					this.die(null, null);
 			}
 			// A switch flips once per press, not in every step the key is held.
 			const action_pressed = Boolean(this.pressed_keys[KEY_ACTION]);
@@ -2490,7 +2733,6 @@ class Game {
 			this.tag_scene = new THREE.Scene();
 			this.tag_camera = new THREE.OrthographicCamera(0, 1, 1, 0, -10, 10);
 		}
-		const cam = this.camera;
 		const used = new Set();
 		for (const entry of this.price_tags) {
 			const visible = !entry.collected && entry.mesh.visible && !entry.signal_hidden &&
@@ -2519,8 +2761,8 @@ class Game {
 			const sprite = this.data.sprites[entry.sprite_index];
 			const p = new THREE.Vector3();
 			entry.mesh.getWorldPosition(p);
-			const sx = (p.x - cam.left) / (cam.right - cam.left) * this.width;
-			const sy = (p.y + sprite.height - cam.bottom) / (cam.top - cam.bottom) * this.height;
+			// (a turned camera: above it on the screen – screen_top_of)
+			const [sx, sy] = this.screen_top_of(p.x, p.y, sprite.width, sprite.height);
 			const left = Math.round(sx - tag.width / 2), bottom = Math.round(sy + k);
 			this.price_tag_rects.push({ left, bottom, right: left + tag.width, top: bottom + tag.height });
 			entry.tag_mesh.scale.set(tag.width, tag.height, 1);
@@ -2634,6 +2876,11 @@ class Game {
             character?.dispose_hit_flash?.();
 		this.running = false;
 		this.time_meshes = [];
+		// falling or rising weather, upright on a turned screen (turn_upright_effects)
+		this.upright_effects = [];
+		this.upright_effects_angle = 0;
+		this.view = null;
+		this.view_angle = 0;
 		this.clock = new VariableClock();
 		this.scene = new THREE.Scene();
 		this.camera = new THREE.OrthographicCamera(-1, 1, -1, 1, 1, 1000);
@@ -2945,6 +3192,14 @@ class Game {
 					let mesh = new THREE.Mesh(geometry, material);
 					if (backdrop.backdrop_type === 'effect')
 						this.time_meshes.push({ mesh: mesh, speed: backdrop.speed });
+					// falling or rising weather stays upright on a turned screen (turn_upright_effects)
+					if (backdrop.backdrop_type === 'effect' && UPRIGHT_EFFECTS.includes(backdrop.effect)) {
+						const uv = geometry.attributes.uv;
+						this.upright_effects.push({ mesh,
+							corners: [0, 1, 2, 3].map(i => [uv.getX(i), uv.getY(i)]),
+							points: Object.entries(material.uniforms ?? {}).filter(([name]) => /^cp[a-z]$/.test(name))
+								.map(([name, u]) => [name, [u.value[0], u.value[1]]]) });
+					}
 					game_layer.add(mesh);
 				}
 			}
@@ -3465,16 +3720,20 @@ class Game {
 		return document.fonts.load(`${font.em * 4}px "${font.family}"`).catch(() => null);
 	}
 
-	// The world point above the speaker's head: [x, y].
+	// The point above the speaker's head, in screen pixels from the bottom
+	// left: [x, y]. The figure's head is where its own up is (turned gravity);
+	// a sign's top is the top on the screen (screen_top_of).
 	speech_anchor() {
 		const speaker = this.speech.current?.speaker;
 		if (speaker === 'player') {
 			const pc = this.player_character;
-			return pc?.mesh ? [pc.mesh.position.x, pc.mesh.position.y + pc.sprite.height] : null;
+			if (!pc?.mesh) return null;
+			return this.world_to_screen(...(pc.head_world?.() ?? [pc.mesh.position.x, pc.mesh.position.y + pc.sprite.height]));
 		}
 		const entry = this.active_level_sprites[speaker];
 		if (!entry?.mesh) return null;
-		return [entry.mesh.position.x, entry.mesh.position.y + this.data.sprites[entry.sprite_index].height];
+		const sprite = this.data.sprites[entry.sprite_index];
+		return this.screen_top_of(entry.mesh.position.x, entry.mesh.position.y, sprite.width, sprite.height);
 	}
 
 	// The last render pass: the sentence being said, in screen pixels, on top
@@ -3517,9 +3776,7 @@ class Game {
 		}
 		// world → screen pixels (y up), above the head, kept on the screen
 		const [w, h] = this.speech_size;
-		const cam = this.camera;
-		const sx = (anchor[0] - cam.left) / (cam.right - cam.left) * this.width;
-		const sy = (anchor[1] - cam.bottom) / (cam.top - cam.bottom) * this.height;
+		const [sx, sy] = anchor;
 		const margin = 2 * k;
 		let left = Math.round(sx - w / 2);
 		left = Math.max(margin, Math.min(this.width - w - margin, left));
@@ -3598,10 +3855,11 @@ class Game {
 	// A Druckplatte is down while the middle of the figure is above it (not
 	// already when the figure's edge touches the plate's tile).
 	update_pressure_plates(character, t) {
-		const x = character.mesh.position.x;
-		const y = character.mesh.position.y;
-		const pressed = new Set(this.collision_candidates(x - 1.0, x + 1.0,
-			y - 1.0, y + character.traits.ex_top * character.sprite.height - 0.1));
+		// (in the figure's own directions – a turned gravity: Character.world_box)
+		const box = character.world_box ? character.world_box(-1.0, 1.0, -1.0, character.traits.ex_top * character.sprite.height - 0.1) :
+			[character.mesh.position.x - 1.0, character.mesh.position.x + 1.0, character.mesh.position.y - 1.0,
+				character.mesh.position.y + character.traits.ex_top * character.sprite.height - 0.1];
+		const pressed = new Set(this.collision_candidates(...box));
 		this.active_level_sprites.forEach((entry, entry_index) => {
 			if (!('pressure_plate' in this.data.sprites[entry.sprite_index].traits)) return;
 			const down = pressed.has(entry_index) && !character.dead();
@@ -3677,13 +3935,97 @@ class Game {
 		const y0 = entry.mesh.position.y, y1 = entry.mesh.position.y + sprite.height;
 		const inside = (character) => {
 			if (!character?.mesh) return false;
-			const cx = character.mesh.position.x, cy = character.mesh.position.y;
 			const w = character.sprite.width / 2, ex = character.traits ?? {};
-			return cx + w * (ex.ex_right ?? 1) > x0 && cx - w * (ex.ex_left ?? 1) < x1 &&
-				cy + character.sprite.height * (ex.ex_top ?? 1) > y0 && cy < y1;
+			// its body in the world (turned gravity: Character.world_box)
+			const [bx0, bx1, by0, by1] = character.world_box ?
+				character.world_box(-w * (ex.ex_left ?? 1), w * (ex.ex_right ?? 1), 0, character.sprite.height * (ex.ex_top ?? 1)) :
+				[character.mesh.position.x - w * (ex.ex_left ?? 1), character.mesh.position.x + w * (ex.ex_right ?? 1),
+					character.mesh.position.y, character.mesh.position.y + character.sprite.height * (ex.ex_top ?? 1)];
+			return bx1 > x0 && bx0 < x1 && by1 > y0 && by0 < y1;
 		};
 		if (inside(this.player_character)) return true;
 		return (this.baddies ?? []).some(baddie => baddie.active && !baddie.signal_hidden && inside(baddie));
+	}
+
+	// ------------------------------------------------ the camera, turned or not
+	// Half the width and height of the world rectangle around a screen-sized
+	// box (half_w × half_h) turned by an angle (the camera's: view_angle) –
+	// exactly half_w × half_h while it is not turned.
+	view_extents(half_w, half_h, angle = this.view_angle ?? 0) {
+		if (!angle) return [half_w, half_h];
+		const c = Math.abs(Math.cos(angle)), s = Math.abs(Math.sin(angle));
+		return [c * half_w + s * half_h, s * half_w + c * half_h];
+	}
+
+	// The world rectangle the screen shows (around it, when the camera is turned).
+	view_box() {
+		const v = this.view, c = this.camera;
+		if (!v) return { left: c.left, right: c.right, top: c.top, bottom: c.bottom };
+		const [ex, ey] = this.view_extents(v.half_w, v.half_h);
+		return { left: v.cx - ex, right: v.cx + ex, bottom: v.cy - ey, top: v.cy + ey };
+	}
+
+	// A world point in screen pixels from the bottom left: [x, y].
+	world_to_screen(x, y) {
+		const v = this.view, cam = this.camera;
+		if (!v) return [(x - cam.left) / (cam.right - cam.left) * this.width, (y - cam.bottom) / (cam.top - cam.bottom) * this.height];
+		const c = Math.cos(-v.angle), s = Math.sin(-v.angle);
+		const dx = x - v.cx, dy = y - v.cy;
+		return [(c * dx - s * dy + v.half_w) / (2 * v.half_w) * this.width, (s * dx + c * dy + v.half_h) / (2 * v.half_h) * this.height];
+	}
+
+	// A point on the screen (u, v: 0 … 1 from the top left) in the world: [x, y].
+	screen_to_world(u, v) {
+		const view = this.view, cam = this.camera;
+		if (!view) return [cam.left + u * (cam.right - cam.left), cam.top - v * (cam.top - cam.bottom)];
+		const dx = (u - 0.5) * 2 * view.half_w, dy = (0.5 - v) * 2 * view.half_h;
+		const c = Math.cos(view.angle), s = Math.sin(view.angle);
+		return [view.cx + c * dx - s * dy, view.cy + s * dx + c * dy];
+	}
+
+	// Where something placed at (x, y) – its feet, w × h big – has its top on
+	// the screen (a price tag, a speech bubble): [x, y] in screen pixels.
+	screen_top_of(x, y, w, h) {
+		if (!this.view) return this.world_to_screen(x, y + h);
+		const [sx, sy] = this.world_to_screen(x, y + h / 2);
+		const c = Math.abs(Math.cos(this.view.angle)), s = Math.abs(Math.sin(this.view.angle));
+		return [sx, sy + (c * h / 2 + s * w / 2) / (2 * this.view.half_h) * this.height];
+	}
+
+	// Figures in the middle of a turn: drawn at their angle, turning around
+	// their middle. Returns [mesh, x, y] to put back after drawing.
+	show_turning_figures() {
+		const back = [];
+		const t = this.clock.getElapsedTime();
+		for (const figure of [this.player_character, ...(this.baddies ?? []), ...(this.companions ?? [])]) {
+			if (!figure?.mesh || (!figure.gravity_k && !figure.gravity_turn && !figure.mesh.rotation.z)) continue;
+			const angle = figure.visual_angle(t);
+			figure.mesh.rotation.z = angle;
+			const base = figure.gravity_k * Math.PI / 2;
+			if (angle === base) continue;
+			const p = figure.mesh.position, h2 = figure.sprite.height * 0.5;
+			const [cx, cy] = figure.world_center();
+			back.push([figure.mesh, p.x, p.y]);
+			p.set(cx + Math.sin(angle) * h2, cy - Math.cos(angle) * h2, p.z);
+		}
+		return back;
+	}
+
+	// Snow, rain, smoke, fire, bubbles and lightning fall or rise: when the
+	// camera turns, they stay upright on the screen. Their texture coordinates
+	// (the world position the shader reads, backdrops.js set_backdrop_uv) and
+	// control points turn the other way round.
+	turn_upright_effects(angle) {
+		if (!this.upright_effects?.length || (this.upright_effects_angle ?? 0) === angle) return;
+		this.upright_effects_angle = angle;
+		const c = Math.cos(-angle), s = Math.sin(-angle);
+		const turn = ([x, y]) => [c * x - s * y, s * x + c * y];
+		for (const effect of this.upright_effects) {
+			const uv = effect.mesh.geometry.attributes.uv;
+			effect.corners.forEach((corner, i) => uv.setXY(i, ...turn(corner)));
+			uv.needsUpdate = true;
+			for (const [name, point] of effect.points) effect.mesh.material.uniforms[name].value = turn(point);
+		}
 	}
 
 	render() {
@@ -3825,31 +4167,72 @@ class Game {
 			}
 		}
 
-		this.camera.left = this.camera_x - this.width * 0.5 / scale;
-		this.camera.right = this.camera_x + this.width * 0.5 / scale;
-		this.camera.top = this.camera_y + this.height * 0.5 / scale;
-		this.camera.bottom = this.camera_y - this.height * 0.5 / scale;
+		// A turned gravity turns the camera with the player (Character.visual_angle):
+		// the player stays upright on the screen. The level's edges then hold the
+		// rectangle around the turned screen (view_extents) – on all four sides
+		// while the camera is turned, as there is no sky beyond a wall. During a
+		// turn the camera glides from where the edges held it before to where
+		// they hold it after, so the player stays in the picture. Unturned, all
+		// of this is exactly as it has always been.
+		const view_angle = this.player_character?.visual_angle?.(this.clock.getElapsedTime()) ?? 0;
+		this.view_angle = view_angle;
+		const turn = view_angle ? this.player_character?.gravity_turn : null;
+		const held = (angle) => {
+			// (a whole turn round is upright again)
+			const turned = Math.abs(Math.sin(angle / 2)) > 1e-9;
+			if (!turned) angle = 0;
+			const [view_ex, view_ey] = this.view_extents(this.width * 0.5 / scale, this.height * 0.5 / scale, angle);
+			let camera_x = this.camera_x, camera_y = this.camera_y;
+			this.camera.left = camera_x - view_ex;
+			this.camera.right = camera_x + view_ex;
+			this.camera.top = camera_y + view_ey;
+			this.camera.bottom = camera_y - view_ey;
+			const [span_x, span_y] = angle ? this.view_extents(this.screen_pixel_height * 16.0 / 9, this.screen_pixel_height, angle) :
+				[this.screen_pixel_height * 16.0 / 9, this.screen_pixel_height];
 
-		// fix camera
-		if (this.maxx - this.minx > this.screen_pixel_height * 16.0 / 9) {
-			if (this.camera.left < this.minx)
-				this.camera_x += (this.minx - this.camera.left);
-			if (this.camera.right > this.maxx)
-				this.camera_x += (this.maxx - this.camera.right);
-		} else {
-			this.camera_x = (this.minx + this.maxx) * 0.5;
-		}
-		if (this.maxy - this.miny > this.screen_pixel_height) {
-			if (this.camera.bottom < this.miny)
-				this.camera_y += (this.miny - this.camera.bottom);
-			// if (this.camera.top > this.maxy)
-			// 	this.camera_y += (this.maxy - this.camera.top);
-		} else {
-			this.camera_y = (this.miny + this.maxy) * 0.5;
+			// fix camera
+			if (this.maxx - this.minx > span_x) {
+				if (this.camera.left < this.minx)
+					camera_x += (this.minx - this.camera.left);
+				if (this.camera.right > this.maxx)
+					camera_x += (this.maxx - this.camera.right);
+			} else {
+				camera_x = (this.minx + this.maxx) * 0.5;
+			}
+			if (this.maxy - this.miny > span_y) {
+				if (this.camera.bottom < this.miny)
+					camera_y += (this.miny - this.camera.bottom);
+				// turned: nothing beyond the top either (unturned there is sky above)
+				else if (turned && this.camera.top > this.maxy)
+					camera_y += (this.maxy - this.camera.top);
+			} else {
+				camera_y = (this.miny + this.maxy) * 0.5;
+			}
+			return [camera_x, camera_y];
+		};
+		const turned_to = turn ? turn.to : view_angle;
+		const before = turn ? held(turn.from) : null;
+		[this.camera_x, this.camera_y] = held(turned_to);
+		let view_x = this.camera_x, view_y = this.camera_y;
+		if (before && turn.to !== turn.from) {
+			// where the player is on the screen glides from before to after – it
+			// never leaves the picture while everything turns around it
+			const e = Math.min(1, Math.max(0, (view_angle - turn.from) / (turn.to - turn.from)));
+			const [px, py] = this.player_character.world_center();
+			const on_screen = (cx, cy, a) => {
+				const c = Math.cos(-a), s = Math.sin(-a), dx = px - cx, dy = py - cy;
+				return [c * dx - s * dy, s * dx + c * dy];
+			};
+			const [ax, ay] = on_screen(before[0], before[1], turn.from);
+			const [bx, by] = on_screen(view_x, view_y, turn.to);
+			const sx = ax + (bx - ax) * e, sy = ay + (by - ay) * e;
+			const c = Math.cos(view_angle), s = Math.sin(view_angle);
+			view_x = px - (c * sx - s * sy);
+			view_y = py - (s * sx + c * sy);
 		}
 
-		let cx = this.camera_x;
-		let cy = this.camera_y;
+		let cx = view_x;
+		let cy = view_y;
 		if (this.ts_camera_shake >= 0) {
 			let t = (this.clock.getElapsedTime() - this.ts_camera_shake) / 1.0;
 			if (t < 0.0) t = 0.0;
@@ -3862,10 +4245,29 @@ class Game {
 			cy += (Math.random() * 2.0 - 1.0) * this.camera_shake_strength * (1.0 - t);
 		}
 
-		this.camera.left = cx - this.width * 0.5 / scale;
-		this.camera.right = cx + this.width * 0.5 / scale;
-		this.camera.top = cy + this.height * 0.5 / scale;
-		this.camera.bottom = cy - this.height * 0.5 / scale;
+		const half_w = this.width * 0.5 / scale, half_h = this.height * 0.5 / scale;
+		if (!view_angle) {
+			this.camera.left = cx - half_w;
+			this.camera.right = cx + half_w;
+			this.camera.top = cy + half_h;
+			this.camera.bottom = cy - half_h;
+			this.camera.position.x = 0;
+			this.camera.position.y = 0;
+			this.camera.rotation.z = 0;
+			this.view = null;
+		} else {
+			// turned: the camera sits in the middle and turns there
+			this.camera.left = -half_w;
+			this.camera.right = half_w;
+			this.camera.top = half_h;
+			this.camera.bottom = -half_h;
+			this.camera.position.x = cx;
+			this.camera.position.y = cy;
+			this.camera.rotation.z = view_angle;
+			this.view = { cx, cy, angle: view_angle, half_w, half_h };
+		}
+		// weather that falls or rises stays upright on the screen (screen_upright_effects)
+		this.turn_upright_effects(view_angle);
 
 		for (let i = 0; i < this.layers.length; i++) {
 			this.layers[i].position.x = this.camera_x * this.data.levels[this.level_index].layers[i].properties.parallax;
@@ -3880,7 +4282,10 @@ class Game {
 		// this.renderer.outputEncoding = THREE.sRGBEncoding;
 
 		this.renderer.setRenderTarget(this.data.properties.crt_effect ? this.render_target : null);
+		// figures in the middle of a turn are drawn turning (Character.visual_angle)
+		const turning = this.show_turning_figures();
 		this.renderer.render(this.scene, this.camera);
+		for (const [mesh, x, y] of turning) mesh.position.set(x, y, mesh.position.z);
 
 		if (this.data.properties.crt_effect) {
 			this.screen_camera.left = -this.width * 0.5;
@@ -3902,6 +4307,7 @@ class Game {
 	resume_game() {
 		if (this.lives > 0) {
 			this.ts_zoom_actor = -1;
+			this.player_character.reset_gravity?.();
 			this.player_character.mesh.position.x = this.player_character.initial_position[0];
 			this.player_character.mesh.position.y = this.player_character.initial_position[1];
 			this.player_character.invincible_until = this.clock.getElapsedTime() + this.data.properties.respawn_invincible;
@@ -4145,8 +4551,7 @@ class Game {
 		if (!rect || !(rect.width > 0) || !this.camera) return false;
 		const u = (clientX - rect.left) / rect.width, v = (clientY - rect.top) / rect.height;
 		if (u < 0 || u > 1 || v < 0 || v > 1) return false;
-		const x = this.camera.left + u * (this.camera.right - this.camera.left);
-		const y = this.camera.top - v * (this.camera.top - this.camera.bottom);
+		const [x, y] = this.screen_to_world(u, v);
 		const p = new THREE.Vector3();
 		for (const mesh of this.overlay_meshes ?? []) {
 			if (!mesh.visible) continue;
@@ -4169,8 +4574,7 @@ class Game {
 		}
 		const u = (clientX - rect.left) / rect.width;
 		const v = (clientY - rect.top) / rect.height;
-		this.pointer_world.x = this.camera.left + u * (this.camera.right - this.camera.left);
-		this.pointer_world.y = this.camera.top - v * (this.camera.top - this.camera.bottom);
+		[this.pointer_world.x, this.pointer_world.y] = this.screen_to_world(u, v);
 		this.pointer_world.valid = true;
 	}
 
@@ -4372,7 +4776,7 @@ class Game {
 				}
 			}
 
-			if (mesh.position.y < this.camera.bottom - this.data.properties.screen_pixel_height) {
+			if (mesh.position.y < this.view_box().bottom - this.data.properties.screen_pixel_height) {
 				mesh.visible = false;
 				delete_these.push(entry_index);
 			}
@@ -4399,12 +4803,9 @@ class Game {
 			for (let bi = 0; bi < this.baddies.length; bi++) {
 				let baddie = this.baddies[bi];
 				if (!baddie.active || baddie.signal_hidden) continue;
-				let x = baddie.mesh.position.x;
-				let y = baddie.mesh.position.y;
-				let x0 = x - (baddie.sprite.width / 2) * baddie.traits.ex_left;
-				let x1 = x + (baddie.sprite.width / 2) * baddie.traits.ex_right;
-				let y0 = y;
-				let y1 = y + baddie.sprite.height * baddie.traits.ex_top;
+				// its body in the world (turned gravity: Character.world_box)
+				let [x0, x1, y0, y1] = baddie.world_box(-(baddie.sprite.width / 2) * baddie.traits.ex_left,
+					(baddie.sprite.width / 2) * baddie.traits.ex_right, 0, baddie.sprite.height * baddie.traits.ex_top);
 				this.dynamic_interval_tree_x.insert([x0, x1], bi);
 				this.dynamic_interval_tree_y.insert([y0, y1], bi);
 			}

@@ -3,7 +3,7 @@
 // whole level (level.properties.movement). Absent everywhere in old games: then
 // nothing changes.
 //
-// Saved as { mode, gravity, glide, speed, stroke, current: { speed, angle } }:
+// Saved as { mode, gravity, glide, speed, stroke, current: { speed, angle }, direction }:
 //   mode     normal  walking and jumping as usual (only gravity and the current
 //                    may differ – a moon crater, a strong wind)
 //            swim    Schwimmen: buoyancy, drag, the arrow keys steer in all four
@@ -17,8 +17,19 @@
 //   stroke   × the jump strength: a swim stroke with the jump key (swim only)
 //   current  a push in one direction: speed in px/s, angle in degrees
 //            (0 = right, 90 = up, 180 = left, 270 = down)
+//   direction where gravity pulls: 'left', 'up' or 'right' (absent = down,
+//            as always). The figure turns with it: its floor is where gravity
+//            pulls, the camera turns along with the player (app.js
+//            Character gravity_k). Slopes and ladders only work with gravity
+//            pulling down; in a turned gravity a slope is a block.
+//   turn_seconds  how long the turn into this region's gravity takes on the
+//            screen (absent = 0.4 s; 0 = at once). Gravity itself changes
+//            halfway through the turn. Turning back out of the region takes
+//            as long as turning in.
 // The frontmost region that contains the centre of the figure decides the mode
-// and its settings; the currents of all regions there add up.
+// and its settings; the currents of all regions there add up. A region whose
+// layer a Signal has taken away (layer properties signal_code /
+// signal_reaction, like any layer) does not count.
 const MovementRegions = (() => {
     const MODES = ['normal', 'swim', 'float', 'inherit'];
     const DEFAULTS = {
@@ -27,6 +38,12 @@ const MovementRegions = (() => {
         float: { gravity: 0, glide: 97, speed: 0.7, stroke: 0 },
     };
     const LIMITS = { gravity: [0, 300], glide: [0, 99], speed: [0.1, 5], stroke: [0, 3] };
+    // where gravity pulls; the index is the number of quarter turns (counter-clockwise)
+    const DIRECTIONS = ['down', 'right', 'up', 'left'];
+    // how long a turn takes on the screen (s): the figure and the camera turn
+    // together; gravity changes halfway (absent turn_seconds = this)
+    const TURN_SECONDS = 0.4;
+    const TURN_LIMITS = [0, 3];
 
     const number = (value, [lo, hi], fallback) =>
         typeof value === 'number' && Number.isFinite(value) ? Math.min(hi, Math.max(lo, value)) : fallback;
@@ -46,6 +63,10 @@ const MovementRegions = (() => {
             for (const key of Object.keys(LIMITS))
                 out[key] = number(raw[key], LIMITS[key], DEFAULTS[mode][key]);
         }
+        // a turned gravity (absent or unknown: down, as always)
+        const k = direction_k(raw.direction);
+        if (k && mode !== 'inherit') out.direction = k;
+        if (mode !== 'inherit') out.turn_seconds = number(raw.turn_seconds, TURN_LIMITS, TURN_SECONDS);
         const speed = number(raw.current?.speed, [0, 1200], 0);
         const angle = number(raw.current?.angle, [-360, 720], 0) * Math.PI / 180;
         out.current = speed > 0 ? { x: Math.cos(angle) * speed / 60, y: Math.sin(angle) * speed / 60 } : { x: 0, y: 0 };
@@ -65,20 +86,24 @@ const MovementRegions = (() => {
             if (layer?.type !== 'movement_region') continue;
             const rects = Array.isArray(layer.rects) ? layer.rects.filter(valid_rect) : [];
             const s = settings(layer.movement ?? {});
-            if (rects.length && s) regions.push({ rects, settings: s });
+            if (rects.length && s) regions.push({ rects, settings: s, layer_index: i });
         }
-        return { base, regions };
+        // anything that turns gravity (else the figures never ask: app.js)
+        const turns = Boolean(base?.direction) || regions.some(region => region.settings.direction);
+        return { base, regions, turns };
     }
 
     const inside = (rect, x, y) => x >= rect.left && x <= rect.left + rect.width &&
         y >= rect.bottom && y <= rect.bottom + rect.height;
 
     // What applies at (x, y) – the figure's centre. null: move as always.
-    function at(resolved, x, y) {
+    // hidden: the indices of layers a Signal has taken away (a Set), or null.
+    function at(resolved, x, y, hidden = null) {
         if (!resolved || (!resolved.base && !resolved.regions?.length)) return null;
         let effective = resolved.base ? { ...resolved.base, surface: Infinity } : null;
         let cx = resolved.base?.current.x ?? 0, cy = resolved.base?.current.y ?? 0;
         for (const region of resolved.regions) {
+            if (hidden?.has?.(region.layer_index)) continue;
             const hits = region.rects.filter(rect => inside(rect, x, y));
             if (!hits.length) continue;
             const s = region.settings;
@@ -93,8 +118,65 @@ const MovementRegions = (() => {
             effective = { ...settings({ mode: 'normal' }), surface: Infinity };
         }
         effective.current = { x: cx, y: cy };
-        if (effective.mode === 'normal' && effective.gravity === 100 && cx === 0 && cy === 0) return null;
+        if (effective.mode === 'normal' && effective.gravity === 100 && cx === 0 && cy === 0 && !effective.direction) return null;
         return effective;
+    }
+
+    // ---------------------------------------------------- turned gravity
+    // k: quarter turns (0 down, 1 right, 2 up, 3 left). A figure's own
+    // coordinates: x along its floor, y up from its feet. Turning by quarter
+    // turns keeps every rectangle a rectangle – the collision trees, tiles and
+    // hitboxes stay as they are.
+    function direction_k(value) {
+        const k = DIRECTIONS.indexOf(value);
+        return k > 0 ? k : 0;
+    }
+
+    // the figure's own coordinates (or a vector) → the world's
+    function to_world(k, x, y) {
+        switch (k & 3) {
+            case 1: return [-y, x];
+            case 2: return [-x, -y];
+            case 3: return [y, -x];
+            default: return [x, y];
+        }
+    }
+
+    function to_local(k, x, y) {
+        return to_world((4 - (k & 3)) & 3, x, y);
+    }
+
+    // a rectangle [x0, x1, y0, y1] in the figure's coordinates → the world's (and back)
+    function box_to_world(k, x0, x1, y0, y1) {
+        const [ax, ay] = to_world(k, x0, y0), [bx, by] = to_world(k, x1, y1);
+        return [Math.min(ax, bx), Math.max(ax, bx), Math.min(ay, by), Math.max(ay, by)];
+    }
+
+    function box_to_local(k, x0, x1, y0, y1) {
+        return box_to_world((4 - (k & 3)) & 3, x0, x1, y0, y1);
+    }
+
+    // Which sides of a block stop the figure, in its own directions: up is the
+    // side it stands on ("von oben"), down the one it bumps its head on ("von
+    // unten"), left and right are walls ("von der Seite"). A slope is a block
+    // to a turned figure.
+    function local_faces(traits, k) {
+        const t = traits ?? {};
+        const solid = 'slope' in t;
+        const world = { up: solid || 'block_above' in t, down: solid || 'block_below' in t,
+            left: solid || 'block_sides' in t, right: solid || 'block_sides' in t };
+        const side = (lx, ly) => {
+            const [wx, wy] = to_world(k, lx, ly);
+            return wx > 0 ? 'right' : wx < 0 ? 'left' : wy > 0 ? 'up' : 'down';
+        };
+        return { up: world[side(0, 1)], down: world[side(0, -1)], left: world[side(-1, 0)], right: world[side(1, 0)] };
+    }
+
+    // The angle (radians) from one direction to another: the short way round,
+    // half a turn counter-clockwise.
+    function turn_delta(from_k, to_k) {
+        const d = ((to_k - from_k) % 4 + 4) % 4;
+        return (d === 3 ? -1 : d) * Math.PI / 2;
     }
 
     // One simulation step (1/60 s) in the water or in space – velocities in px
@@ -130,7 +212,8 @@ const MovementRegions = (() => {
         return { vx, vy };
     }
 
-    return { MODES, DEFAULTS, settings, resolve, at, fluid_step, valid_rect };
+    return { MODES, DEFAULTS, DIRECTIONS, TURN_SECONDS, TURN_LIMITS, settings, resolve, at, fluid_step, valid_rect,
+        direction_k, to_world, to_local, box_to_world, box_to_local, local_faces, turn_delta };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = MovementRegions;
