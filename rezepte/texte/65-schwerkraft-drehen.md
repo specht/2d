@@ -2,7 +2,7 @@
 titel: Die Schwerkraft drehen
 kategorie: Wasser & Weltall
 stufe: 3
-kurz: In einem Bewegungsbereich kann die Schwerkraft nach links, oben oder rechts ziehen. Pip läuft dort die Wand hinauf – und die Kamera dreht sich mit.
+kurz: In einem Bewegungsbereich kann die Schwerkraft nach links, oben oder rechts ziehen. Pip läuft dort die Wand hinauf – und die Kamera dreht sich mit. Oben ist der Bereich zu Ende, und alles dreht sich zurück.
 schritte: 2
 # the gallery card: Pip walks up the wall, the camera has turned
 standbild: 2.9
@@ -10,37 +10,38 @@ szene:
   # the whole screen: the camera turns with Pip
   kamera: { bildhoehe: 216 }
   himmel: ['#29366f', '#3b5dc9']
-  legende: { o: muenze }
-  effekte:
-    # snow falls down the screen – also when the camera has turned
-    - { effekt: snow, name: Schnee, farbe: '#f4f4f4ff', menge: 0.6 }
+  legende: { o: muenze, f: fahne }
   bewegungsbereiche:
-    # the right part of the room: gravity pulls to the right
-    - { name: Schwerkraft nach rechts, art: laufen, schwerkraft_nach: rechts, drehdauer: 0.6, rechtecke: [[10, 1, 5, 14]] }
+    # the lower right part of the room: gravity pulls to the right (as high as the coins)
+    - { name: Schwerkraft nach rechts, art: laufen, schwerkraft_nach: rechts, drehdauer: 2, rechtecke: [[10, 9, 5, 6]] }
   karte: |
-    MMMMMMMMMMMMMMMM
-    M..............M
-    M..............M
-    M.............oM
-    M.............oM
-    M.............oM
-    M..............M
-    M..............M
-    M..............M
-    M..............M
-    M..............M
-    M..............M
-    M..............M
-    M..............M
-    M.P............M
-    MMMMMMMMMMMMMMMM
+    MMMMMMMMMMMMMMMMMMMMMM
+    M................M...M
+    M................M...M
+    M................M...M
+    M................M...M
+    M................M...M
+    M................M...M
+    M...............fM...M
+    M..............MMMMMMM
+    M..............M.....M
+    M.............oM.....M
+    M.............oM.....M
+    M.............oM.....M
+    M..............M.....M
+    M.P............M.....M
+    MMMMMMMMMMMMMMMMMMMMMM
 ablauf:
-  # Pip keeps walking to the right – on the wall that is up
-  - { t: 0.3, halten: rechts, dauer: 3.2 }
-dauer: 4.4
+  # Pip keeps walking to the right – on the wall that is up. Above the coins she
+  # leaves the region: gravity still pulls right for a moment (half the Drehdauer),
+  # she drops against the pillar, then gravity pulls down and she lands by the flag
+  - { t: 0.3, halten: rechts, dauer: 6.0 }
+dauer: 7.0
 erwartet:
-  figur_schwerkraft: rechts
+  figur_schwerkraft: unten
   punkte_gleich: 30
+  figur_rechts_von: 15
+  figur_hoeher_als: 8
   lebt: true
 # a picture of its own in the text: a Schalter turns gravity upside down
 einzelbilder: true
@@ -52,11 +53,9 @@ varianten:
       legende:
         o: muenze
         S: { sprite: schalter, platziert: { switch: { signal_code: 1 } } }
-      effekte:
-        - { effekt: snow, name: Schnee, farbe: '#f4f4f4ff', menge: 0.6 }
       bewegungsbereiche:
         # the whole room, switched on by the Schalter: gravity pulls up
-        - { name: Schwerkraft nach oben, art: laufen, schwerkraft_nach: oben, drehdauer: 0.8,
+        - { name: Schwerkraft nach oben, art: laufen, schwerkraft_nach: oben, drehdauer: 2,
             signal: { code: 1, reaktion: erscheint }, rechtecke: [[0, 0, 16, 16]] }
       karte: |
         MMMMMMMMMMMMMMMM
@@ -79,8 +78,8 @@ varianten:
       - { t: 0.3, halten: rechts, dauer: 0.3 }
       - { t: 1.0, drücken: aktion }
       # on the ceiling the room stands on its head: the coins are now to the left on the screen
-      - { t: 2.4, halten: links, dauer: 1.0 }
-    dauer: 5.2
+      - { t: 3.3, halten: links, dauer: 1.0 }
+    dauer: 5.0
     erwartet:
       signale: ['1 an']
       figur_schwerkraft: oben
@@ -96,15 +95,18 @@ varianten:
 ## Das brauchst du
 
 - **Das musst du zeichnen:** einen Raum mit Wänden, an denen die Spielfigur entlanglaufen kann.
-- **Das kannst du später dazumalen:** etwas zum Einsammeln oben an der Wand, einen Schalter, Schnee oder Regen.
+- **Das kannst du später dazumalen:** etwas zum Einsammeln an der Wand, eine Fahne oben auf der Mauer, einen Schalter.
 
 ## Schritt für Schritt
 
-1. Bau einen Raum aus Mauersteinen, die von allen Seiten fest sind (**von oben**, **von der Seite** und **von unten**).
-2. Leg einen Bewegungsbereich über den rechten Teil des Raums. **Bewegung:** Laufen – andere Schwerkraft. **Schwerkraft zieht nach:** rechts.
-3. Bei **Drehdauer** stellst du ein, wie lange das Drehen dauert – hier 0,6 Sekunden. Genau in der Mitte wechselt die Schwerkraft. 0 Sekunden: sofort.
-4. Leg drei Münzen oben an die rechte Wand.
-5. Probier es aus: Pip läuft nach rechts. Sobald ihre Mitte im Bereich ist, dreht sich alles: Pip fällt an die rechte Wand, und die Kamera dreht sich, bis die Wand unten ist. Pip hält weiter **rechts** gedrückt – auf der Wand ist das nach oben. Sie läuft die Wand hinauf und sammelt die Münzen ein.
+1. Bau einen Raum aus Mauersteinen, die von allen Seiten fest sind (**von oben**, **von der Seite** und **von unten**). Rechts steht eine hohe Mauer, oben auf ihr eine Fahne.
+2. Leg einen Bewegungsbereich über den unteren rechten Teil des Raums, bis zur Mauer und so hoch wie die Münzen. **Bewegung:** Laufen – andere Schwerkraft. **Schwerkraft zieht nach:** rechts.
+3. Bei **Drehdauer** stellst du ein, wie lange das Drehen dauert – hier 2 Sekunden, so lange wie ohne Änderung. Genau in der Mitte wechselt die Schwerkraft. 0 Sekunden: sofort.
+4. Leg drei Münzen an die Mauer.
+5. Probier es aus: Pip läuft nach rechts. Sobald ihre Mitte im Bereich ist, dreht sich alles: Pip steht an der Mauer, und die Kamera dreht sich, bis die Mauer unten ist. Pip hält weiter **rechts** gedrückt – auf der Mauer ist das nach oben. Sie läuft die Mauer hinauf und sammelt die Münzen ein.
+6. Über den Münzen ist der Bereich zu Ende. Pip läuft hinaus, und alles dreht sich zurück. Bis zur Mitte der Drehdauer zieht die Schwerkraft noch nach rechts: Pip fällt an die Säule. Dann zieht sie wieder nach unten, und Pip landet aufrecht oben auf der Mauer bei der Fahne.
+
+Die Schwerkraft gilt nur, solange die Mitte der Spielfigur im Bereich ist. Achte darauf, dass die Spielfigur nach dem Zurückdrehen auf etwas landet – sonst fällt sie wieder in den Bereich hinein.
 
 Der Pfeil im Rechteck zeigt dir im Level-Editor, wohin die Schwerkraft dort zieht.
 
@@ -114,7 +116,7 @@ Ein Bewegungsbereich kann bei einem Signal an- und ausgehen – genau wie eine E
 
 ![Ein Schalter dreht die Schwerkraft](variante:1)
 
-Mit **wechselt** dreht jeder Druck auf den Schalter die Schwerkraft wieder um.
+Mit **wechselt** schaltet jeder Druck auf den Schalter den Bereich an oder aus – die Schwerkraft dreht sich jedes Mal um.
 
 ## Was dreht sich mit?
 
