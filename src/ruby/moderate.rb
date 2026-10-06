@@ -9,20 +9,22 @@
 #   ./moderate.rb show 3fa2b1c      one game: its texts, pictures, versions
 #   ./moderate.rb delete 3fa2b1c …  delete versions (asks; --ja does not;
 #                                   --mit-spaeteren: also every later version)
-#   ./moderate.rb web [60]          a moderation page for 60 minutes: every
-#                                   version's pictures and texts, newest first,
-#                                   with the word search and deleting; prints
-#                                   its secret link (Strg+C closes it earlier)
+#   ./moderate.rb web [480]         a moderation page for 8 hours: every new
+#                                   picture and text, newest first, each only
+#                                   once, with the word search and deleting;
+#                                   prints its secret link (Strg+C closes it)
 #   ./moderate.rb log               what was deleted, when and why
 #
 # Words are found in every text of a game (title, author, names of sprites,
 # states, levels and layers, signs, …), whatever the case or accents
-# ("blod" finds "Blöd"); several words: any of them. Deleting removes the game
+# ("blod" finds "Blöd"); several words: any of them. Pictures and texts of
+# the recipes and the Sprite-Katalog are safe: never shown, never deleted. Deleting removes the game
 # file, its pictures and sheets where no other game uses them, its gifs, the
 # database entry, playtesting submissions, and the server's game list (at
 # once). Versions made from a deleted one stay and become the first of their
 # own family. In a terminal the output is coloured; NO_COLOR=1 switches that off.
 
+require "date"
 require_relative "moderation"
 require_relative "playtesting"
 require_relative "terminal_colors"
@@ -33,7 +35,9 @@ Encoding.default_external = Encoding::UTF_8
 GEN = ENV["GEN_PATH"] || "/gen"
 RAW = ENV["MODERATION_PATH"] || "/raw/moderation"
 PLAYTESTING = ENV["PLAYTESTING_PATH"] || "/raw/playtesting"
-DEFAULT_MINUTES = 60
+STATIC = ENV["STATIC_PATH"] || "/static"
+DEFAULT_MINUTES = 8 * 60
+MAX_MINUTES = 24 * 60
 
 include TerminalColors::Helpers
 
@@ -58,10 +62,12 @@ end
 
 def catalog
     return $catalog if $catalog
-    $catalog = Moderation::Catalog.new(GEN)
+    $catalog = Moderation::Catalog.new(GEN, cache: Moderation.cache_path(RAW), safe: Moderation.recipe_safe(STATIC))
     tty = $stderr.tty?
     $catalog.refresh do |done, total|
-        $stderr.print "\r#{ce("Spiele lesen … #{done} von #{total}", :dim)}\e[K" if tty && total > 200
+        next unless total > 200
+        line = "Spiele lesen … #{done} von #{total} (nur beim ersten Mal, dann kennt der Zwischenspeicher sie)"
+        tty ? $stderr.print("\r#{ce(line, :dim)}\e[K") : (done % 10_000 == 0 && warn(line))
     end
     $stderr.print "\r\e[K" if tty
     $catalog
@@ -147,16 +153,15 @@ def show(tag)
     parent = entry.parent && catalog[entry.parent] ? entry.parent : nil
     puts c("Gemacht aus #{parent}", :dim) if parent
     puts c("Spätere Versionen: #{later.join(' ')}", :dim) unless later.empty?
-    new_frames = parent ? entry.frames - catalog[parent].frames : entry.frames
-    puts "#{plural(entry.frames.size, 'Bild', 'Bilder')}#{parent ? ", davon #{new_frames.size} neu" : ''} " +
+    novel = catalog.novelty(tag)
+    puts "#{plural(entry.frames.size, 'Bild', 'Bilder')}, davon #{novel[:frames].size} zum ersten Mal in einem Spiel " +
          c("(ansehen: ./moderate.rb web)", :dim)
     puts
-    old_texts = parent ? catalog[parent].texts.to_set : Set.new
+    fresh = novel[:texts].to_set
     Moderation.each_text(game) do |where, text|
-        fresh = !old_texts.include?(text)
-        puts "#{c(where, :dim)}: #{fresh && parent ? c(text, :yellow) : text}"
+        puts "#{c(where, :dim)}: #{fresh.include?(text) ? c(text, :yellow) : text}"
     end
-    puts c("(gelb: neu gegenüber #{parent})", :dim) if parent
+    puts c("(gelb: zum ersten Mal in einem Spiel)", :dim)
     next_steps(["./moderate.rb delete #{tag}", "diese Version löschen"],
                (["./moderate.rb delete #{tag} --mit-spaeteren", later.size == 1 ? "mit der späteren Version löschen" : "mit allen #{later.size} späteren Versionen löschen"] unless later.empty?))
 end
@@ -203,15 +208,20 @@ end
 
 def web(minutes)
     $stdout.sync = true
+    # the page needs every game: read here first (with the progress), the
+    # server then takes them from the cache in a few seconds
+    catalog
     session = Moderation::Session.start(RAW, minutes)
-    root = ENV["WEB_ROOT"].to_s.sub(%r{/+\z}, "")
+    root = Moderation.web_root(RAW)
     link = "#{root}/moderation/#{session['token']}"
-    until_time = Time.at(session["expires_at"]).localtime.strftime("%H:%M")
-    puts "Die Moderationsseite ist bis #{c(until_time, :bold)} offen (#{minutes} Minuten):"
+    expires = Time.at(session["expires_at"]).localtime
+    until_time = expires.strftime(expires.to_date == Date.today ? "%H:%M" : "%d.%m. %H:%M")
+    duration = minutes % 60 == 0 ? plural(minutes / 60, "Stunde", "Stunden") : "#{minutes} Minuten"
+    puts "Die Moderationsseite ist bis #{c(until_time, :bold)} offen (#{duration}):"
     puts
     puts "  #{c(link, :cyan, :bold)}"
     puts
-    puts c("Vor den Link gehört noch die Adresse des Studios (z. B. https://2d.hackschule.de).", :yellow) if root.empty?
+    puts c("Vor den Link gehört noch die Adresse des Studios (WEB_ROOT in env.rb; ./config.rb schreibt sie bei jedem Aufruf nach #{RAW}).", :yellow) if root.empty?
     puts c("Der Link ist geheim: wer ihn hat, kann Spiele löschen. Strg+C schließt die Seite sofort.", :dim)
     stop = -> { Moderation::Session.stop(RAW, session["token"]) }
     %w(INT TERM HUP).each { |signal| trap(signal) { stop.call; puts; puts "Die Moderationsseite ist geschlossen."; exit } }
@@ -262,7 +272,7 @@ when "delete"
     delete_tags(tags, reason: reason, yes: ARGV.include?("--ja"))
 when "web"
     minutes = (args.first || DEFAULT_MINUTES).to_i
-    fail_with "Bitte eine Zahl von Minuten angeben (1 bis 600)." unless minutes.between?(1, 600)
+    fail_with "Bitte eine Zahl von Minuten angeben (1 bis #{MAX_MINUTES})." unless minutes.between?(1, MAX_MINUTES)
     web(minutes)
 when "log"
     log

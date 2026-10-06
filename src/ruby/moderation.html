@@ -68,6 +68,7 @@
     .result { margin-top: 8px; color: var(--ok); }
     .error { color: var(--danger); }
     #more { display: block; margin: 16px auto; }
+    [hidden] { display: none !important; }
     #closed { position: fixed; inset: 0; background: rgba(0, 0, 0, .6); display: none; place-items: center; z-index: 20; }
     #closed div { background: var(--card); padding: 24px 28px; border-radius: 12px; max-width: 420px; }
     #zoom { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: none; place-items: center; z-index: 10; cursor: zoom-out; }
@@ -88,7 +89,7 @@
         <span id="clock"></span>
     </div>
     <div class="bar" style="margin-top: 8px">
-        <label><input type="checkbox" id="only_new" checked> nur Neues (Bilder und Texte, die die Version davor nicht hatte)</label>
+        <label><input type="checkbox" id="only_new" checked> nur Neues (jedes Bild und jeder Text nur einmal: im ältesten Spiel, das ihn hat)</label>
         <label><input type="checkbox" id="only_saved"> nur gespeicherte Versionen</label>
     </div>
 </header>
@@ -181,7 +182,8 @@ async function load(path, data) {
         const result = await api(path, data);
         if (!result.loading) return result;
         const [done, total] = result.loading;
-        show_status(total ? `Die Spiele werden gelesen … ${done} von ${total}` : 'Die Spiele werden gelesen …');
+        show_status((total ? `Die Spiele werden gelesen … ${done} von ${total}` : 'Die Spiele werden gelesen …') +
+            ' (beim ersten Mal dauert es, danach kennt der Zwischenspeicher sie)');
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
 }
@@ -269,14 +271,17 @@ function card(game, terms = []) {
         node.append(el('ul', { class: 'hits' }, game.hits.map(hit =>
             el('li', {}, el('span', { class: 'where' }, `${hit.where}: `), marked(hit.text, hit.term)))));
     }
-    const only_new = $('only_new').checked && state.mode === 'list' && game.parent;
+    const only_new = $('only_new').checked;
+    // pictures from the recipes, or shown with an older game already
+    const known = game.frame_count - game.frames.length;
     if (game.frames.length) {
         node.append(el('div', { class: 'frames' }, game.frames.map(frame =>
             el('button', { type: 'button', title: frame, onclick: () => zoom(frame) },
                 el('img', { src: `/gen/png/${frame}.png`, alt: '', loading: 'lazy' })))));
     } else {
-        node.append(el('div', { class: 'none' }, only_new ? 'keine neuen Bilder' : 'keine Bilder'));
+        node.append(el('div', { class: 'none' }, only_new ? 'keine neuen Bilder' : 'keine eigenen Bilder'));
     }
+    if (known > 0) node.append(el('div', { class: 'none' }, `${plural(known, 'weiteres Bild ist', 'weitere Bilder sind')} aus den Rezepten${only_new ? ' oder schon bei einem älteren Spiel gezeigt' : ''}.`));
     if (game.texts.length) {
         node.append(el('div', { class: 'texts', title: only_new ? 'neue Texte' : 'alle Texte' },
             game.texts.map(text => el('span', {}, terms.length ? marked_any(text, terms) : text))));
@@ -302,7 +307,8 @@ async function show_list(more = false) {
         const data = await load('games', { offset: state.offset, limit: PAGE, only_new: $('only_new').checked, only_saved: $('only_saved').checked });
         state.offset += data.games.length;
         show_status(`${data.total} von ${data.all} Versionen, die neuesten zuerst` +
-            ($('only_new').checked ? ' (Versionen ohne neue Bilder oder Texte sind ausgelassen)' : '') + '.');
+            ($('only_new').checked ? ' (Versionen ohne neue Bilder oder Texte sind ausgelassen)' : '') +
+            '. Bilder und Texte aus den Rezepten werden nie gezeigt.');
         $('games').append(...data.games.map(game => card(game)));
         $('more').hidden = state.offset >= data.total;
     } catch (e) {
@@ -317,7 +323,7 @@ async function search(query) {
     $('more').hidden = true;
     show_status('Wird gesucht …');
     try {
-        const data = await load('search', { query });
+        const data = await load('search', { query, only_new: $('only_new').checked });
         if (!data.terms.length) return show_list();
         const words = data.terms.map(t => `»${t}«`).join(' oder ');
         if (!data.total) {
@@ -355,7 +361,7 @@ $('search').addEventListener('submit', (e) => {
 });
 $('list').addEventListener('click', () => { $('query').value = ''; show_list(); });
 $('more').addEventListener('click', () => show_list(true));
-for (const id of ['only_new', 'only_saved']) $(id).addEventListener('change', () => { if (state.mode === 'list') show_list(); });
+for (const id of ['only_new', 'only_saved']) $(id).addEventListener('change', () => { if (state.mode === 'list') show_list(); else search(state.query); });
 
 status();
 setInterval(status, 30000);

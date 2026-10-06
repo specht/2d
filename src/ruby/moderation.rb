@@ -22,6 +22,7 @@
 #
 # Pure Ruby (no Neo4j, no Sinatra): the database comes in as an object with
 # neo4j_query(query, params). Tested in test/moderation_test.rb.
+require "base64"
 require "digest"
 require "fileutils"
 require "json"
@@ -41,6 +42,16 @@ module Moderation
     MAX_HITS_PER_GAME = 30
 
     def self.log_path(dir) = File.join(dir, "geloescht.jsonl")
+    def self.cache_path(dir) = File.join(dir, "spiele.cache")
+
+    # The studio's address for printed links: WEB_ROOT of env.rb, which
+    # config.rb writes to /raw/moderation/adresse.txt every time it runs (so a
+    # changed env.rb counts without rebuilding), else the container's WEB_ROOT.
+    def self.web_root(dir, env = ENV)
+        root = (File.read(File.join(dir, "adresse.txt")) rescue "").strip
+        root = env["WEB_ROOT"].to_s.strip if root.empty?
+        root.sub(%r{/+\z}, "")
+    end
 
     # Lower case, without accents, ß as ss, spaces collapsed: "Ärger" finds
     # "ärger", "ARGER" and "Ärger".
@@ -92,6 +103,11 @@ module Moderation
             block.call(where, value)
         when Array
             value.each_with_index do |item, i|
+                # a placed sprite [sprite id, x, y, settings]: only its settings
+                if item.is_a?(Array) && placed?(item)
+                    item.drop(3).each { |x| walk(x, where + ["platziertes Sprite #{i + 1}"], nil, true, ids, &block) }
+                    next
+                end
                 word = if key == "sprites"
                     in_layer ? "platziertes Sprite" : "Sprite"
                 else
@@ -145,21 +161,111 @@ module Moderation
         result
     end
 
+    # Every string of a game that each_text names, each once, without the
+    # walk that names where it is: fast enough for tens of thousands of games.
+    def self.texts_of(game)
+        ids = Set.new
+        %w(sprites levels).each do |key|
+            list = game.is_a?(Hash) ? game[key] : nil
+            (list.is_a?(Array) ? list : []).each { |item| ids << item["id"] if item.is_a?(Hash) && item["id"].is_a?(String) }
+        end
+        out = []
+        collect_strings(game, out)
+        out.uniq.select { |text| text_worth?(text, ids) }
+    end
+
+    def self.collect_strings(value, out)
+        if value.is_a?(Hash)
+            value.each do |k, v|
+                case v
+                when String then out << v unless SKIP_KEYS.include?(k)
+                when Hash, Array then collect_strings(v, out) unless SKIP_KEYS.include?(k)
+                end
+            end
+        elsif value.is_a?(Array)
+            value.each do |v|
+                case v
+                when String then out << v
+                when Hash then collect_strings(v, out)
+                when Array
+                    # a placed sprite [sprite id, x, y, settings]: only its settings
+                    if placed?(v)
+                        v.each_with_index { |x, i| collect_strings(x, out) if i >= 3 && (x.is_a?(Hash) || x.is_a?(Array)) }
+                    else
+                        collect_strings(v, out)
+                    end
+                end
+            end
+        elsif value.is_a?(String)
+            out << value
+        end
+    end
+
+    def self.placed?(v) = v[0].is_a?(String) && v[1].is_a?(Numeric) && v[2].is_a?(Numeric)
+
+    # No text of the child: empty, an id, a colour, a number.
+    def self.text_worth?(text, ids)
+        s = text.strip
+        !(s.empty? || ids.include?(s) || s =~ /\A#\h{3,8}\z/ || s =~ /\A-?\d+(\.\d+)?\z/)
+    end
+
+    # The tag the server gives a picture (main.rb save_game).
+    def self.frame_tag(png)
+        Digest::SHA1.hexdigest(png).to_i(16).to_s(36)[0, 7]
+    end
+
+    # Pictures and texts of the recipes and the Sprite-Katalog
+    # (/static/rezepte, written by the recipe build): safe, never shown for
+    # moderation and never deleted. { frames: Set, texts: Set }
+    def self.recipe_safe(static_dir)
+        frames = Set.new
+        texts = Set.new
+        files = Dir[File.join(static_dir, "rezepte", "spiele", "*.json")] + [File.join(static_dir, "rezepte", "katalog.json")]
+        files.each do |path|
+            data = (JSON.parse(File.read(path)) rescue nil)
+            next unless data.is_a?(Hash)
+            game = data["spiel"].is_a?(Hash) ? data["spiel"] : data
+            (game["sprites"] || []).each do |sprite|
+                (sprite.is_a?(Hash) ? sprite["states"] || [] : []).each do |state|
+                    (state.is_a?(Hash) ? state["frames"] || [] : []).each do |frame|
+                        src = frame.is_a?(Hash) ? frame["src"].to_s : ""
+                        next unless src.start_with?("data:image/png;base64,")
+                        frames << frame_tag(Base64.decode64(src.sub("data:image/png;base64,", "")))
+                    end
+                end
+            end
+            texts.merge(texts_of(game))
+        end
+        { frames: frames, texts: texts }
+    end
+
     # ------------------------------------------------ all games on the disk
 
     # What moderation needs to know of every game file (saved or only played),
-    # read once and then only what is new: a tag's content never changes.
+    # read once and then only what is new: a tag's content never changes. The
+    # first read of a big server takes a while, so what was read is kept in a
+    # cache file (cache:, appended to, shared by the terminal and the server).
+    #
+    # Novelty: a picture or text is shown for moderation only in the version
+    # where it appeared first (the oldest game file that has it), and never if
+    # it comes from the recipes (safe:) – so every picture is looked at once.
     class Catalog
         Entry = Struct.new(:tag, :parent, :title, :author, :time, :frames, :texts, :search, keyword_init: true)
+        CACHE_HEADER = [:moderation_catalog, 2].freeze
+        CACHE_CHUNK = 2000
 
         attr_reader :gen
 
-        def initialize(gen = "/gen")
+        def initialize(gen = "/gen", cache: nil, safe: nil)
             @gen = gen
+            @cache = cache
+            @safe = safe || { frames: Set.new, texts: Set.new }
             @entries = {}
             @mutex = Mutex.new
             @refresh_mutex = Mutex.new
             @progress = nil
+            @cache_loaded = false
+            @novel = nil
         end
 
         def games_dir = File.join(@gen, "games")
@@ -169,25 +275,50 @@ module Moderation
 
         def size = @mutex.synchronize { @entries.size }
 
+        def safe=(safe)
+            @mutex.synchronize do
+                @safe = safe
+                @novel = nil
+            end
+        end
+
+        def safe_frame?(frame) = @safe[:frames].include?(frame)
+        def safe_text?(text) = @safe[:texts].include?(text)
+
         # Reads new game files and forgets deleted ones. Yields (done, total)
         # now and then while it reads.
         def refresh
             @refresh_mutex.synchronize do
+                load_cache unless @cache_loaded
                 names = Dir.exist?(games_dir) ? Dir.children(games_dir) : []
                 tags = names.filter_map { |n| n.end_with?(".json") && (t = n[0..-6]) =~ TAG ? t : nil }.to_set
                 known = @mutex.synchronize { @entries.keys.to_set }
                 fresh = (tags - known).to_a
-                @mutex.synchronize { (known - tags).each { |t| @entries.delete(t) } }
+                gone = known - tags
+                @mutex.synchronize do
+                    gone.each { |t| @entries.delete(t) }
+                    @novel = nil unless gone.empty?
+                end
+                pending = []
                 fresh.each_with_index do |tag, i|
                     if i % 200 == 0
                         @progress = [i, fresh.size]
                         yield i, fresh.size if block_given?
                     end
                     entry = read_entry(tag)
-                    @mutex.synchronize { @entries[tag] = entry } if entry
+                    next unless entry
+                    @mutex.synchronize { @entries[tag] = entry }
+                    pending << entry
+                    if pending.size >= CACHE_CHUNK
+                        append_cache(pending)
+                        pending = []
+                    end
                 end
+                append_cache(pending) unless pending.empty?
+                @mutex.synchronize { add_novelty(fresh.filter_map { |t| @entries[t] }) if @novel }
                 @progress = nil
                 yield fresh.size, fresh.size if block_given? && !fresh.empty?
+                compact_cache if gone.size > 200 && gone.size > size / 10
             end
             self
         end
@@ -197,7 +328,7 @@ module Moderation
             game = JSON.parse(File.read(path))
             return nil unless game.is_a?(Hash)
             properties = game["properties"].is_a?(Hash) ? game["properties"] : {}
-            texts = Moderation.each_text(game).map { |_, text| text }.uniq
+            texts = Moderation.texts_of(game)
             Entry.new(tag: tag, parent: game["parent"].is_a?(String) && game["parent"] != tag ? game["parent"] : nil,
                       title: properties["title"].is_a?(String) ? properties["title"] : nil,
                       author: properties["author"].is_a?(String) ? properties["author"] : nil,
@@ -250,6 +381,27 @@ module Moderation
             (tags + tags.flat_map { |t| later_versions(t, children) }).uniq
         end
 
+        # What a version shows for the first time: { frames:, texts: } (not
+        # from the recipes, in no older game file).
+        def novelty(tag)
+            @mutex.synchronize do
+                unless @novel
+                    @novel = {}
+                    @seen_frames = Set.new
+                    @seen_texts = Set.new
+                    add_novelty(@entries.values)
+                end
+                @novel[tag] || { frames: [], texts: [] }
+            end
+        end
+
+        # The pictures and texts of a version that are not from the recipes.
+        def own(tag)
+            entry = self[tag]
+            return { frames: [], texts: [] } unless entry
+            { frames: entry.frames.reject { |f| safe_frame?(f) }, texts: entry.texts.reject { |t| safe_text?(t) } }
+        end
+
         # Games with a text that contains one of the terms, with where:
         # [{ entry:, hits: [{ where:, text:, term: }] }], newest first.
         def search(terms)
@@ -276,7 +428,78 @@ module Moderation
         end
 
         def forget(tags)
-            @mutex.synchronize { tags.each { |t| @entries.delete(t) } }
+            @mutex.synchronize do
+                tags.each { |t| @entries.delete(t) }
+                # a picture first shown in a deleted game is new in the next one
+                @novel = nil
+            end
+        end
+
+        private
+
+        # oldest first; called with @mutex held
+        def add_novelty(list)
+            list.sort_by { |e| [e.time, e.tag] }.each do |e|
+                frames = e.frames.reject { |f| safe_frame?(f) || @seen_frames.include?(f) }
+                texts = e.texts.reject { |t| safe_text?(t) || @seen_texts.include?(t) }
+                @seen_frames.merge(frames)
+                @seen_texts.merge(texts)
+                @novel[e.tag] = { frames: frames, texts: texts }
+            end
+        end
+
+        def row(e) = [e.tag, e.parent, e.title, e.author, e.time, e.frames, e.texts, e.search]
+
+        def entry_of(r)
+            Entry.new(tag: r[0], parent: r[1], title: r[2], author: r[3], time: r[4], frames: r[5], texts: r[6], search: r[7])
+        end
+
+        # Our own file below /raw (never served, never written by anybody else).
+        def load_cache
+            @cache_loaded = true
+            return unless @cache && File.exist?(@cache)
+            rows = []
+            File.open(@cache, "rb") do |f|
+                f.flock(File::LOCK_SH)
+                return compact_cache unless (Marshal.load(f) rescue nil) == CACHE_HEADER
+                begin
+                    rows.concat(Marshal.load(f)) until f.eof?
+                rescue StandardError
+                    @cache_broken = true
+                end
+            end
+            @mutex.synchronize { rows.each { |r| @entries[r[0]] = entry_of(r) if r.is_a?(Array) && r[0].is_a?(String) } }
+        rescue StandardError
+            nil
+        ensure
+            compact_cache if @cache_broken
+        end
+
+        def append_cache(entries)
+            return unless @cache
+            return compact_cache unless File.exist?(@cache)
+            File.open(@cache, "ab") do |f|
+                f.flock(File::LOCK_EX)
+                Marshal.dump(entries.map { |e| row(e) }, f)
+            end
+        rescue StandardError
+            nil
+        end
+
+        # The whole cache written anew (missing, broken, or many games gone).
+        def compact_cache
+            @cache_broken = false
+            return unless @cache
+            FileUtils.mkpath(File.dirname(@cache))
+            temp = "#{@cache}.#{Process.pid}.tmp"
+            File.open(temp, "wb") do |f|
+                Marshal.dump(CACHE_HEADER, f)
+                entries.each_slice(CACHE_CHUNK) { |slice| Marshal.dump(slice.map { |e| row(e) }, f) }
+            end
+            File.rename(temp, @cache)
+        rescue StandardError
+            FileUtils.rm_f(temp) if temp
+            nil
         end
     end
 
@@ -327,7 +550,7 @@ module Moderation
             text = (File.read(File.join(games_dir, name)) rescue "")
             remaining_frames.merge(text.scan(/"tag"\s*:\s*"([a-z0-9]+)"/).flatten)
         end
-        frames = games.values.flat_map { |g| frames_of(g) }.uniq.reject { |f| remaining_frames.include?(f) }
+        frames = games.values.flat_map { |g| frames_of(g) }.uniq.reject { |f| remaining_frames.include?(f) || catalog.safe_frame?(f) }
         # sheets of these games no other game's sheets list
         sheet_dir = File.join(gen, "spritesheets")
         own_sheets = Set.new
@@ -434,28 +657,30 @@ module Moderation
     # ------------------------------------------------ the temporary page
 
     # One version as the page shows it. only_new: just the pictures and texts
-    # its parent did not have. saved: tag → true/false (in the database), or
-    # nil when that is not known.
+    # shown here for the first time (Catalog#novelty), else all of its own;
+    # pictures and texts of the recipes are never shown. saved: tag →
+    # true/false (in the database), or nil when that is not known.
     def self.page_entry(catalog, entry, children, only_new, saved)
-        parent = entry.parent && catalog[entry.parent]
+        shown = only_new ? catalog.novelty(entry.tag) : catalog.own(entry.tag)
         {
-            :tag => entry.tag, :parent => parent ? entry.parent : nil, :title => entry.title, :author => entry.author,
-            :time => entry.time, :saved => saved ? saved.call(entry.tag) : nil,
-            :frames => only_new && parent ? entry.frames - parent.frames : entry.frames, :frame_count => entry.frames.size,
-            :texts => (only_new && parent ? entry.texts - parent.texts : entry.texts).first(300), :text_count => entry.texts.size,
+            :tag => entry.tag, :parent => entry.parent && catalog[entry.parent] ? entry.parent : nil,
+            :title => entry.title, :author => entry.author, :time => entry.time, :saved => saved ? saved.call(entry.tag) : nil,
+            :frames => shown[:frames], :frame_count => entry.frames.size,
+            :texts => shown[:texts].first(300), :text_count => entry.texts.size,
             :later => catalog.later_versions(entry.tag, children),
         }
     end
 
-    # Newest first, a page of them. only_new: versions without new pictures or
-    # texts are left out; only_saved: versions that were only played (needs saved).
+    # Newest first, a page of them. only_new: versions that show nothing for
+    # the first time are left out; only_saved: versions that were only played
+    # (needs saved).
     def self.page_games(catalog, offset: 0, limit: 30, only_new: false, only_saved: false, saved: nil)
         children = catalog.children
         list = catalog.newest_first.select do |entry|
             next false if only_saved && saved && !saved.call(entry.tag)
             next true unless only_new
-            parent = entry.parent && catalog[entry.parent]
-            parent.nil? || !(entry.frames - parent.frames).empty? || !(entry.texts - parent.texts).empty?
+            novel = catalog.novelty(entry.tag)
+            !novel[:frames].empty? || !novel[:texts].empty?
         end
         offset = [offset.to_i, 0].max
         games = list[offset, limit.to_i.clamp(1, 100)].to_a.map { |entry| page_entry(catalog, entry, children, only_new, saved) }
@@ -463,11 +688,11 @@ module Moderation
     end
 
     # The word search on the page: the newest 200 games found, with where.
-    def self.page_search(catalog, query, saved: nil)
+    def self.page_search(catalog, query, saved: nil, only_new: false)
         terms = terms(query.to_s[0, 500])
         children = catalog.children
         found = catalog.search(terms)
-        games = found.first(200).map { |f| page_entry(catalog, f[:entry], children, false, saved).merge(:hits => f[:hits]) }
+        games = found.first(200).map { |f| page_entry(catalog, f[:entry], children, only_new, saved).merge(:hits => f[:hits]) }
         { :terms => terms, :total => found.size, :all => catalog.size, :games => games }
     end
 

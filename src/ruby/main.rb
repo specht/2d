@@ -1445,11 +1445,13 @@ class Main < Sinatra::Base
     def moderation_catalog
         state = @@moderation_catalog_mutex.synchronize do
             unless @@moderation_catalog
-                catalog = Moderation::Catalog.new("/gen")
+                catalog = Moderation::Catalog.new("/gen", cache: Moderation.cache_path(MODERATION_PATH))
                 fresh = { :catalog => catalog, :ready => false }
                 @@moderation_catalog = fresh
                 Thread.new do
                     begin
+                        # pictures and texts of the recipes are never shown or deleted
+                        catalog.safe = Moderation.recipe_safe("/static")
                         catalog.refresh
                         fresh[:ready] = true
                     rescue => e
@@ -1506,7 +1508,7 @@ class Main < Sinatra::Base
         data = moderation_request
         catalog = moderation_catalog
         return respond(moderation_loading) unless catalog
-        respond(Moderation.page_search(catalog, data["query"], saved: moderation_saved))
+        respond(Moderation.page_search(catalog, data["query"], saved: moderation_saved, only_new: data["only_new"] == true))
     end
 
     # { tags: [...], later: true|false, reason: "…" }

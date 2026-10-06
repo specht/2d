@@ -195,8 +195,10 @@ FileUtils::mkpath(File::join(RAW_FILES_PATH, 'collaboration'))
 FileUtils::mkpath(File::join(RAW_FILES_PATH, 'client-errors'))
 # Playtesting in the classroom (src/ruby/playtesting.rb, playtest.rb)
 FileUtils::mkpath(File::join(RAW_FILES_PATH, 'playtesting'))
-# Moderation: the log of deleted games and the open moderation page (src/ruby/moderation.rb, moderate.rb)
+# Moderation: the log of deleted games and the open moderation page (src/ruby/moderation.rb, moderate.rb),
+# and the site's address for the link moderate.rb prints – written on every run, so it follows env.rb
 FileUtils::mkpath(File::join(RAW_FILES_PATH, 'moderation'))
+File.write(File::join(RAW_FILES_PATH, 'moderation', 'adresse.txt'), "#{WEB_ROOT}\n") if defined?(WEB_ROOT)
 FileUtils::mkpath(GEN_FILES_PATH)
 FileUtils::mkpath(File.join(GEN_FILES_PATH, 'png'))
 FileUtils::mkpath(File.join(GEN_FILES_PATH, 'games'))

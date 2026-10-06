@@ -28,7 +28,7 @@ class ModerationTest < Minitest::Test
                                            "frames" => frames.map { |f| { "tag" => f } } }] }],
             "levels" => [{ "id" => "lklmnopqrst", "properties" => { "name" => "Wald", "background_color" => "#000000" },
                            "layers" => [{ "properties" => { "name" => "Ebene 1" },
-                                          "sprites" => [[0, 0, "sabcdefghij"]],
+                                          "sprites" => [["sabcdefghij", 0, 0], ["sabcdefghij", 24, 0, { "text" => { "text" => "Schild" } }]],
                                           "sprite_properties" => { "0" => { "text" => "Hallo Welt" } } }] }],
         }.merge(extra)
     end
@@ -78,6 +78,10 @@ class ModerationTest < Minitest::Test
         assert_includes texts, ["Titel", "Pip"]
         assert_includes texts, ["Sprite 1 »Pip« › Zustand 1 »laufen« › Name", "laufen"]
         assert_includes texts, ["Level 1 »Wald« › Ebene 1 »Ebene 1« › Einstellungen › 0 › Text", "Hallo Welt"]
+        assert_includes texts, ["Level 1 »Wald« › Ebene 1 »Ebene 1« › platziertes Sprite 2 › Text › Text", "Schild"]
+        # the fast way finds the same texts
+        game = JSON.parse(File.read(File.join(@gen, "games", "aaaaaaa.json")))
+        assert_equal texts.map(&:last).uniq.sort, Moderation.texts_of(game).sort
         # no frame tags, ids, colours or numbers
         assert texts.none? { |_, t| t =~ /\Af0000|\As[a-z]{10}\z|\A#|\A8\z/ }, texts.inspect
     end
@@ -94,7 +98,7 @@ class ModerationTest < Minitest::Test
         assert_equal [], @catalog.resolve("bb")
     end
 
-    def test_page_lists_newest_first_with_what_is_new
+    def test_page_shows_every_picture_and_text_once
         saved = ->(tag) { tag != "ddddddd" }
         page = Moderation.page_games(@catalog, offset: 0, limit: 2, only_new: true, saved: saved)
         assert_equal 4, page[:total]
@@ -102,13 +106,17 @@ class ModerationTest < Minitest::Test
         d, c = page[:games]
         assert_equal false, d[:saved]
         assert_equal %w(f000003), d[:frames]
+        assert_equal [], d[:texts]
+        # c has nothing new but its title: everything else was shown with a or b
         assert_equal [], c[:frames]
-        # b had another level: its texts are new again in c
-        assert_equal ["Pip 2", "Wald", "Ebene 1", "Hallo Welt"], c[:texts]
+        assert_equal ["Pip 2"], c[:texts]
         b = Moderation.page_games(@catalog, offset: 2, limit: 1, only_new: true)[:games].first
         assert_equal %w(fbad001), b[:frames]
+        assert_equal ["Blöder Wald"], b[:texts]
         assert_equal %w(ccccccc), b[:later]
         assert_nil b[:saved]
+        a = Moderation.page_games(@catalog, offset: 3, limit: 1, only_new: true)[:games].first
+        assert_equal %w(f000001 f000002), a[:frames]
         all = Moderation.page_games(@catalog, offset: 0, limit: 10, only_saved: true, saved: saved)
         assert_equal %w(ccccccc bbbbbbb aaaaaaa), all[:games].map { |g| g[:tag] }
         assert_equal %w(f000001 f000002 fbad001), all[:games].first[:frames]
@@ -116,6 +124,62 @@ class ModerationTest < Minitest::Test
         assert_equal %w(blod wald), found[:terms]
         assert_equal %w(ddddddd ccccccc bbbbbbb aaaaaaa), found[:games].map { |g| g[:tag] }
         assert_equal %w(bbbbbbb ccccccc), @catalog.with_later_versions(%w(bbbbbbb))
+        # deleting the version that showed a picture first shows it with the next one
+        @catalog.forget(%w(bbbbbbb))
+        assert_equal %w(fbad001), @catalog.novelty("ccccccc")[:frames]
+    end
+
+    def test_pictures_and_texts_of_the_recipes_are_safe
+        static = File.join(@dir, "static")
+        FileUtils.mkpath(File.join(static, "rezepte", "spiele"))
+        png = "PNG des Rezepts"
+        recipe = { "sprites" => [{ "states" => [{ "frames" => [{ "src" => "data:image/png;base64,#{Base64.strict_encode64(png)}" }] }] }],
+                   "levels" => [{ "properties" => { "name" => "Rezeptlevel" } }] }
+        File.write(File.join(static, "rezepte", "spiele", "leiter.json"), recipe.to_json)
+        File.write(File.join(static, "rezepte", "katalog.json"), { "gruppen" => [], "spiel" => { "properties" => { "title" => "Sprite-Katalog" } } }.to_json)
+        safe = Moderation.recipe_safe(static)
+        tag = Moderation.frame_tag(png)
+        assert_equal Set[tag], safe[:frames]
+        assert_includes safe[:texts], "Rezeptlevel"
+        assert_includes safe[:texts], "Sprite-Katalog"
+        write_game("eeeeeee", game("Rezeptlevel", [tag, "fnew001"]), 500)
+        catalog = Moderation::Catalog.new(@gen, safe: safe).refresh
+        assert_equal %w(fnew001), catalog.novelty("eeeeeee")[:frames]
+        assert_equal %w(fnew001), catalog.own("eeeeeee")[:frames]
+        refute_includes catalog.own("eeeeeee")[:texts], "Rezeptlevel"
+        Moderation.delete(%w(eeeeeee), catalog: catalog, raw: @raw)
+        assert File.exist?(File.join(@gen, "png", "#{tag}.png"))
+        refute File.exist?(File.join(@gen, "png", "fnew001.png"))
+    end
+
+    def test_the_cache_keeps_what_was_read
+        cache = File.join(@raw, "spiele.cache")
+        Moderation::Catalog.new(@gen, cache: cache).refresh
+        assert File.exist?(cache)
+        # a file read before is not read again (its content never changes)
+        File.write(File.join(@gen, "games", "aaaaaaa.json"), "kaputt")
+        warm = Moderation::Catalog.new(@gen, cache: cache).refresh
+        assert_equal 4, warm.size
+        assert_equal "Pip", warm["aaaaaaa"].title
+        # a new game is added to the cache, a deleted one forgotten
+        write_game("eeeeeee", game("Neu", %w(f000009)), 500)
+        File.delete(File.join(@gen, "games", "ddddddd.json"))
+        Moderation::Catalog.new(@gen, cache: cache).refresh
+        third = Moderation::Catalog.new(@gen, cache: cache).refresh
+        assert_equal %w(aaaaaaa bbbbbbb ccccccc eeeeeee), third.entries.map(&:tag).sort
+        # a broken cache is simply written anew
+        File.write(cache, "kaputt")
+        assert_equal 3, Moderation::Catalog.new(@gen, cache: cache).refresh.size
+        assert_equal 3, Moderation::Catalog.new(@gen, cache: cache).refresh.size
+    end
+
+    def test_web_root
+        FileUtils.mkpath(@raw)
+        assert_equal "https://env.example", Moderation.web_root(@raw, { "WEB_ROOT" => "https://env.example/" })
+        File.write(File.join(@raw, "adresse.txt"), "https://2d.hackschule.de/\n")
+        assert_equal "https://2d.hackschule.de", Moderation.web_root(@raw, { "WEB_ROOT" => "https://env.example" })
+        File.write(File.join(@raw, "adresse.txt"), "")
+        assert_equal "", Moderation.web_root(@raw, {})
     end
 
     def test_delete_removes_what_no_other_game_needs
