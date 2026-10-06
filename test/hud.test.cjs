@@ -79,3 +79,16 @@ test('pictures are cut to what is drawn, halved when big, and outlined', () => {
     assert.equal(hud.hud_opaque_box(new Uint8ClampedArray(16), 2, 2), null);
     assert.deepEqual(hud.hud_heart_rgba().width, hud.HUD_HEART[0].length);
 });
+
+test('items in the HUD keep their own look: no ink outline around them', () => {
+    // a 2 × 1 red bar
+    const rgba = new Uint8ClampedArray(4 * 4 * 4);
+    for (const x of [1, 2]) rgba.set([255, 0, 0, 255], 4 * (1 * 4 + x));
+    const plain = hud.hud_icon_pixels(rgba, 4, 4, null, false);
+    const outlined = hud.hud_icon_pixels(rgba, 4, 4);
+    assert.deepEqual([plain.width, plain.height], [outlined.width, outlined.height], 'the same size, so the row does not move');
+    const at = (icon, x, y) => [...icon.rgba.slice(4 * (y * icon.width + x), 4 * (y * icon.width + x) + 4)];
+    assert.deepEqual(at(plain, 1, 1), [255, 0, 0, 255]);
+    assert.equal(at(plain, 0, 1)[3], 0, 'nothing beside it');
+    assert.deepEqual(at(outlined, 0, 1), [0x1a, 0x1c, 0x2c, 255]);
+});

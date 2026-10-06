@@ -147,9 +147,11 @@ function hud_opaque_box(rgba, width, height) {
 
 // A picture for the HUD: cut to what is drawn, at half size when it is big,
 // with a one-pixel outline in ink all around (so it reads on any background).
-// fill: draw every pixel in this colour instead (a lost heart). Returns
-// { rgba, width, height } – the picture with its outline.
-function hud_icon_pixels(rgba, width, height, fill = null) {
+// fill: draw every pixel in this colour instead (a lost heart). outline:
+// false leaves the ink away (the items, which bring their own outline; a
+// second one around a small picture made it hard to read) – the picture keeps
+// its size. Returns { rgba, width, height } – the picture with its outline.
+function hud_icon_pixels(rgba, width, height, fill = null, outline = true) {
     const box = hud_opaque_box(rgba, width, height) ?? { x: 0, y: 0, width: 1, height: 1 };
     const half = Math.max(box.width, box.height) > HUD.ICON_MAX ? 2 : 1;
     const w = Math.ceil(box.width / half), h = Math.ceil(box.height / half);
@@ -173,7 +175,7 @@ function hud_icon_pixels(rgba, width, height, fill = null) {
         }
     }
     const [ir, ig, ib] = [1, 3, 5].map(i => parseInt(HUD.INK.slice(i, i + 2), 16));
-    for (let y = 0; y < H; y++) {
+    for (let y = 0; y < H && outline; y++) {
         for (let x = 0; x < W; x++) {
             if (on[y * W + x]) continue;
             const near = (x > 0 && on[y * W + x - 1]) || (x < W - 1 && on[y * W + x + 1]) ||
@@ -212,9 +214,9 @@ class HudPainter {
         this.make_canvas = make_canvas;
         this.text_bitmap = text_bitmap;
         this.texts = new Map();
-        const icon = (pixels, fill = null) => {
+        const icon = (pixels, fill = null, outline = true) => {
             if (!pixels) return null;
-            const p = hud_icon_pixels(pixels.rgba, pixels.width, pixels.height, fill);
+            const p = hud_icon_pixels(pixels.rgba, pixels.width, pixels.height, fill, outline);
             const canvas = make_canvas(p.width, p.height);
             const ctx = canvas.getContext('2d');
             const image = ctx.createImageData(p.width, p.height);
@@ -237,9 +239,9 @@ class HudPainter {
         this.reset();
     }
 
-    // the picture of a kept item (its first frame, outlined like the coin)
+    // the picture of a kept item (its first frame, without the ink outline)
     item_icon(si) {
-        if (!this.item_icons.has(si)) this.item_icons.set(si, this.icon(this.sprite_rgba(si)));
+        if (!this.item_icons.has(si)) this.item_icons.set(si, this.icon(this.sprite_rgba(si), null, false));
         return this.item_icons.get(si);
     }
 
