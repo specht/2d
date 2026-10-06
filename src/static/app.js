@@ -2009,7 +2009,8 @@ class Game {
 
 		this.points = 0;
 
-		if (this.data === null)
+		// no game yet – or one whose load failed halfway: nothing to start from
+		if (!this.data?.properties)
 			return;
 
 		this.lives = this.data.properties.lives_at_begin;
@@ -2099,6 +2100,10 @@ class Game {
 		}
 
 		this.data = await (await fetch(`/gen/games/${tag}.json`)).json();
+		// Games saved before December 2022 have no properties at all (the studio
+		// fills them in, game.js fix_game_data): each value is absent, as in any
+		// game that never set it.
+		this.data.properties ??= {};
 		// Door codes and Sichtbarkeitsbereiche of older games become Signale
 		// (signals.js), exactly as the studio does when it loads them.
 		promote_legacy_signals(this.data);
