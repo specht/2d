@@ -1430,7 +1430,7 @@ class CollaborationClient {
             status_bar.prepend(control);
         } else {
             control.attr('title', 'Mit anderen zusammen an diesem Spiel arbeiten');
-            control.append($('<i class="fa fa-users"></i>'), $('<span>').text('Zusammenarbeiten'));
+            control.append($('<span>').text('Zusammenarbeiten'));
             status_bar.append(control);
         }
     }

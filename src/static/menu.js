@@ -45,13 +45,10 @@ function toggle_studio_fullscreen() {
     const request = el.requestFullscreen ?? el.webkitRequestFullscreen;
     request?.call(el)?.catch?.(() => { });
 }
-// the button shows what a press will do: ⤢ into the Vollbild, ⤡ out of it
-// (also after Esc or F11 left it)
+// the button is lit while the studio fills the screen (also after Esc or F11 left it)
 function refresh_studio_fullscreen_button() {
     if (typeof $ === 'undefined') return;
-    const full = !!studio_fullscreen_element();
-    $('#status-bar .status-bar-fullscreen .status-bar-icon')
-        .toggleClass('fa-expand', !full).toggleClass('fa-compress', full);
+    $('#status-bar .status-bar-fullscreen').toggleClass('active', !!studio_fullscreen_element());
 }
 if (typeof document !== 'undefined') {
     document.addEventListener('fullscreenchange', refresh_studio_fullscreen_button);
@@ -293,10 +290,10 @@ class Menu {
         if (active_command.label) hints.unshift(`<b>${active_command.label}</b>`);
         // Level editor (level_editor.js): right after the tool, before the general keys
         if (this.pane === 'level') {
-            hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'level-history-undo', general: true, show_key: true, icon: 'fa-undo',
+            hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'level-history-undo', general: true,
                 title: 'Macht die letzte Änderung an diesem Level rückgängig – Sprites, Ebenen, Einstellungen.',
                 callback: () => game.level_editor?.undo() });
-            hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'level-history-redo', general: true, show_key: true, icon: 'fa-repeat',
+            hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'level-history-redo', general: true,
                 title: 'Holt zurück, was du gerade rückgängig gemacht hast.',
                 callback: () => game.level_editor?.redo() });
             // the view settings of the level editor (also under Werkzeuge)
@@ -319,10 +316,10 @@ class Menu {
         // Sprite editor: undo/redo (sprite_history.js, matched by the printed
         // letter there), Onion Skinning (canvas.js), Vorschau (sprite_preview.js)
         if (this.pane === 'sprites') {
-            hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'sprite-history-undo', general: true, show_key: true, icon: 'fa-undo',
+            hints.push({ key_label: 'Control+Z', label: 'Rückgängig', class: 'sprite-history-undo', general: true,
                 title: 'Macht die letzte Änderung rückgängig – an diesem Sprite (Pixel, Frames, Zustände, Framerate, Eigenschaften) oder in der Sprite-Liste (ein neues, dupliziertes oder geholtes Sprite, ein verschobenes Sprite).',
                 callback: () => window.sprite_history?.undo() });
-            hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'sprite-history-redo', general: true, show_key: true, icon: 'fa-repeat',
+            hints.push({ key_label: 'Control+Y', label: 'Wiederholen', class: 'sprite-history-redo', general: true,
                 title: 'Holt zurück, was du gerade rückgängig gemacht hast.',
                 callback: () => window.sprite_history?.redo() });
             // Onion Skinning, Spiegelnd zeichnen, Vorschau (also under Werkzeuge: studio.js SPRITE_VIEW_TOGGLES)
@@ -338,25 +335,24 @@ class Menu {
 
         // hints.push({ key: 'Control+Z', label: 'Rückgängig', callback: function () { self.canvas.undo(); } });
         hints.push({
-            key: 'Control+O', label: 'Laden', title: 'Ein Spiel laden', general: true, show_key: true, icon: 'fa-folder-open-o', callback: function () {
+            key: 'Control+O', label: 'Laden', title: 'Ein Spiel laden', general: true, callback: function () {
                 window.loadGameModal.show();
             }
             // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
         });
         hints.push({
-            key: 'Control+S', label: 'Speichern', title: 'Das Spiel speichern', general: true, show_key: true, icon: 'fa-floppy-o', callback: function () {
+            key: 'Control+S', label: 'Speichern', title: 'Das Spiel speichern', general: true, callback: function () {
                 game.save();
             }
             // if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
         });
         hints.push({
-            key: 'F11', label: 'Vollbild', class: 'status-bar-fullscreen', general: true,
-            icon: studio_fullscreen_element() ? 'fa-compress' : 'fa-expand',
+            key: 'F11', label: 'Vollbild', class: 'status-bar-fullscreen' + (studio_fullscreen_element() ? ' active' : ''), general: true,
             title: 'Das Studio füllt den ganzen Bildschirm. Noch einmal klicken (oder Esc) beendet den Vollbildmodus.',
             visible: studio_fullscreen_available(),
             callback: toggle_studio_fullscreen
         });
-        hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', general: true, icon: 'fa-question-circle-o',
+        hints.push({ key: 'H', type: 'checkbox', label: 'Hilfe', general: true,
             title: 'Gedrückt halten: jeder Knopf zeigt seine Taste, und bei vielen Einstellungen erklärt ein ? (anklicken), was sie tut.',
             callback: function (flag) {
             if (flag) {
@@ -476,15 +472,13 @@ class Menu {
                     // key_label: shown like a key, but handled elsewhere (e.g. by the
                     // printed letter instead of the key's position, see level_editor.js)
                     const shown_key = hint.key ?? hint.key_label;
-                    // the always-there entries on the right: an icon and a word, the key on
-                    // hover – or, with show_key, also on the entry itself (Strg+Z, Strg+Y,
-                    // Strg+O and Strg+S: shortcuts the children should learn)
-                    if (hint.icon) {
+                    // the always-there entries on the right: the key and a word, no icon
+                    // (Strg+Z, Strg+O, F11, H …: shortcuts the children should learn)
+                    if (hint.general) {
                         const keys = shown_key ? shown_key.split('+').map(part => KEY_TR[part] || (hint.key ? printed_key(part) : part)).join('+') : '';
                         button.attr('title', [`${hint.label}${keys ? ` (${keys})` : ''}`, hint.title].filter(Boolean).join(' – '));
-                        button.append($('<i>').addClass(`fa ${hint.icon} status-bar-icon`));
                     }
-                    if (shown_key && (!hint.icon || hint.show_key)) {
+                    if (shown_key) {
                         let key_parts = shown_key.split('+');
                         for (let i = 0; i < key_parts.length; i++) {
                             // hint.key goes by position: show what is printed there

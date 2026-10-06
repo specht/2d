@@ -6828,7 +6828,3 @@ body {
 #status-bar .status-bar-item, #status-bar > #collaboration-control {
     flex: none;
 }
-#status-bar .status-bar-icon {
-    margin-right: 0.45em;
-    opacity: 0.8;
-}
