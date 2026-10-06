@@ -15,6 +15,7 @@ require_relative "client_errors"
 require_relative "playtesting"
 require_relative "game_index"
 require_relative "moderation"
+require_relative "play_copies"
 
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 DEVELOPMENT = ENV['DEVELOPMENT'] == '1'
@@ -26,6 +27,13 @@ COLLABORATION_SESSIONS_PATH = "/raw/collaboration/sessions.json"
 # Fehlerberichte from the studio (client_errors.rb, crash_report.js), one file
 # per day. Private like the sessions: /raw is not served.
 CLIENT_ERRORS_PATH = "/raw/client-errors"
+# The game of a Fehlerbericht (crash_report.js): kept with the reports (errors.rb
+# prunes and clears them together), loaded only by the teacher (/?<code>).
+CLIENT_ERROR_GAMES_PATH = ClientErrors.games_dir(CLIENT_ERRORS_PATH)
+
+# Spielen and Level testen: the copy of the studio's game that the game frame
+# plays (play_copies.rb). Private: /raw is not served.
+PLAY_COPIES_PATH = "/raw/play"
 
 # Playtesting in the classroom (playtesting.rb, switched on and off with
 # playtest.rb in the terminal). Private like the sessions: /raw is not served.
@@ -277,6 +285,7 @@ class Main < Sinatra::Base
     configure do
         @@cache_buster = Main.static_digest || RandomTag.generate()
         @@client_error_limiter = ClientErrors::Limiter.new
+        @@play_copies_pruned_at = 0
         self.collect_data() unless defined?(SKIP_COLLECT_DATA) && SKIP_COLLECT_DATA
         if ENV["SERVICE"] == "ruby" && (File.basename($0) == "thin" || File.basename($0) == "pry.rb")
             setup = SetupDatabase.new()
@@ -712,12 +721,14 @@ class Main < Sinatra::Base
         end
     end
 
-    def self.render_spritesheet_for_tag(tag)
-        path = "/gen/spritesheets/#{tag}.json"
+    # games_dir: where the game is; info_dir: where its sheet info goes (the
+    # sheets themselves are shared: /gen/spritesheets/<sha>.png)
+    def self.render_spritesheet_for_tag(tag, games_dir: "/gen/games", info_dir: "/gen/spritesheets")
+        path = "#{info_dir}/#{tag}.json"
         return if File.exist?(path)
         # debug "Rendering spritesheet for #{tag}!"
         FileUtils.mkpath(File.dirname(path))
-        game = JSON.parse(File.read("/gen/games/#{tag}.json"))
+        game = JSON.parse(File.read("#{games_dir}/#{tag}.json"))
         sprite_sizes = {}
         sprite_paths = {}
         game["sprites"].each.with_index do |sprite, si|
@@ -822,7 +833,7 @@ class Main < Sinatra::Base
         info[:tiles] = tiles
         info[:width] = MAX_SPRITESHEET_WIDTH * SPRITESHEET_FACTOR
         info[:height] = MAX_SPRITESHEET_HEIGHT * SPRITESHEET_FACTOR
-        File.open("/gen/spritesheets/#{tag}.json", "w") do |f|
+        File.open(path, "w") do |f|
             f.write(info.to_json)
         end
     end
@@ -1003,14 +1014,22 @@ class Main < Sinatra::Base
     post "/api/load_game" do
         data = parse_request_data(:required_keys => [:tag])
         tag = data[:tag]
-        Main.render_spritesheet_for_tag(tag)
         assert(!tag.include?("."))
         assert(!tag.include?("/"))
         if tag == "test-game"
             test_game = YAML::load(File.read("/static/test-game.yaml"))
             File.open("/gen/games/test-game.json", "w") { |f| f.write test_game.to_json }
         end
-        game = JSON.parse(File.read("/gen/games/#{tag}.json"))
+        path = "/gen/games/#{tag}.json"
+        # the game of a Fehlerbericht: the teacher opens it with /?<code>
+        # (errors.rb show) – no saved game, no sheets
+        report_game = File.join(CLIENT_ERROR_GAMES_PATH, "#{tag}.json")
+        if !File.exist?(path) && tag =~ PlayCopies::TAG && File.exist?(report_game)
+            path = report_game
+        else
+            Main.render_spritesheet_for_tag(tag)
+        end
+        game = JSON.parse(File.read(path))
         # STDERR.puts File.read("/gen/games/#{tag}.json")
         # STDERR.puts game.to_yaml
         game["sprites"].map! do |sprite|
@@ -1028,7 +1047,10 @@ class Main < Sinatra::Base
         respond(:game => game)
     end
 
-    def save_game(game, add_to_database)
+    # games_dir: where the game file goes (a play copy or a Fehlerbericht's game
+    # elsewhere, see /api/play_copy); sheets_dir: where its sheet info goes (nil:
+    # none needed)
+    def save_game(game, add_to_database, games_dir: "/gen/games", sheets_dir: "/gen/spritesheets")
         size = 0
         sprite_count = 0
         state_count = 0
@@ -1066,8 +1088,9 @@ class Main < Sinatra::Base
         game_json = game.to_json
         size += game_json.size
         tag = Digest::SHA1.hexdigest(game_json).to_i(16).to_s(36)[0, 7]
-        path = "/gen/games/#{tag}.json"
+        path = "#{games_dir}/#{tag}.json"
         unless File.exist?(path)
+            FileUtils.mkpath(games_dir)
             File.open(path, "w") do |f|
                 f.write game_json
             end
@@ -1075,7 +1098,7 @@ class Main < Sinatra::Base
         # a picture deleted by moderation in the moment between (moderation.rb
         # counts this game only once its file is there) is written again
         pictures.each_pair { |picture_path, png| File.binwrite(picture_path, png) unless File.exist?(picture_path) }
-        Main.render_spritesheet_for_tag(tag)
+        Main.render_spritesheet_for_tag(tag, games_dir: games_dir, info_dir: sheets_dir) if sheets_dir
         if add_to_database
             ts = Time.now.to_i
             neo4j_query(<<~END_OF_QUERY, { :tag => tag, :ts => ts, :size => size, :sprite_count => sprite_count, :state_count => state_count, :frame_count => frame_count, :unique_frame_count => unique_frame_count })
@@ -1134,10 +1157,43 @@ class Main < Sinatra::Base
         respond(:tag => tag, :icon => icon_for_tag(tag))
     end
 
-    post "/api/save_game_temp" do
-        data = parse_request_data(:required_keys => [:game], :types => { :game => Hash }, :max_body_length => 1024 * 1024 * 20)
-        tag = save_game(data[:game], false)
-        respond(:tag => tag, :icon => icon_for_tag(tag))
+    # Spielen and Level testen (studio.js) play the studio's game as it is,
+    # without saving it: a play copy (play_copies.rb), private below /raw and
+    # never a version of anything. for_report: the game of a Fehlerbericht
+    # (crash_report.js), kept with the reports instead.
+    post "/api/play_copy" do
+        data = parse_request_data(:required_keys => [:game], :optional_keys => [:for_report],
+                                  :types => { :game => Hash, :for_report => Object }, :max_body_length => 1024 * 1024 * 20)
+        if data[:for_report] == true
+            tag = save_game(data[:game], false, games_dir: CLIENT_ERROR_GAMES_PATH, sheets_dir: nil)
+        else
+            tag = save_game(data[:game], false, games_dir: PlayCopies.games_dir(PLAY_COPIES_PATH),
+                            sheets_dir: PlayCopies.sheets_dir(PLAY_COPIES_PATH))
+            PlayCopies.touch(PLAY_COPIES_PATH, tag)
+            if Time.now.to_i - @@play_copies_pruned_at > PlayCopies::PRUNE_EVERY
+                @@play_copies_pruned_at = Time.now.to_i
+                PlayCopies.prune(PLAY_COPIES_PATH)
+            end
+        end
+        respond(:tag => tag)
+    end
+
+    # The game frame loads a play copy (app.js Game.load) and its sheet info.
+    get "/api/play_copy/:tag" do
+        play_copy_response(PlayCopies.read(PLAY_COPIES_PATH, params[:tag], :game))
+    end
+
+    get "/api/play_copy/:tag/sheets" do
+        play_copy_response(PlayCopies.read(PLAY_COPIES_PATH, params[:tag], :sheets))
+    end
+
+    def play_copy_response(json)
+        if json
+            respond_raw_with_mimetype(json, "application/json")
+        else
+            status 404
+            respond(:error => "unknown_play_copy")
+        end
     end
 
     post '/api/search_game' do
@@ -1301,9 +1357,9 @@ class Main < Sinatra::Base
         respond(:nodes => nodes)
     end
 
-    # Spiel laden with a code: does the game exist, and what is it? A code
-    # that was only played (save_game_temp: Spielen, the play link) exists
-    # without being in the index; it loads all the same.
+    # Spiel laden with a code: does the game exist, and what is it? Only a
+    # saved version does: a game file nobody saved (a copy of Spielen from
+    # before play_copies.rb) is no game to load.
     post "/api/game_info" do
         data = parse_request_data(:required_keys => [:tag])
         tag = data[:tag].to_s
@@ -1325,14 +1381,8 @@ class Main < Sinatra::Base
                 LIMIT 1;
             END_OF_QUERY
         end
-        exists = File.exist?("/gen/games/#{tag}.json")
-        if exists && node.nil?
-            # only played, never saved: title and author from the file itself
-            properties = (JSON.parse(File.read("/gen/games/#{tag}.json"))["properties"] rescue nil)
-            properties = {} unless properties.is_a?(Hash)
-            node = { :tag => tag, :title => properties["title"].is_a?(String) ? properties["title"] : nil,
-                     :author => properties["author"].is_a?(String) ? properties["author"] : nil }
-        end
+        exists = !node.nil? && File.exist?("/gen/games/#{tag}.json")
+        node = nil unless exists
         respond(:tag => tag, :exists => exists, :node => node && game_list_entry(node))
     end
 

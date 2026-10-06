@@ -13,9 +13,12 @@ function method(start, next) {
     return source.slice(begin, end);
 }
 
+let fetched = [];
 function make_game(files) {
+    fetched = [];
     const jq = () => new Proxy({}, { get: (t, k) => (k === 'width' || k === 'height') ? () => 0 : () => jq() });
     const fetch = async (url) => {
+        fetched.push(url);
         const name = url.replace(/^\/gen\//, '');
         if (!(name in files)) throw new SyntaxError(`no ${name}`);
         return { json: async () => JSON.parse(JSON.stringify(files[name])) };
@@ -27,7 +30,7 @@ function make_game(files) {
             constructor() { this.data = null; this.curtain = { hide() {} }; }
             handle_resize() {} stop() {} render_start_screen() {} setup() {}
             ${method('reset() {', '// Is a key that means')}
-            ${method('async load(tag) {', 'stop() {')}
+            ${method('async load(tag', 'stop() {')}
         }
         return Game;`)(
         jq, fetch, { yt_player: null }, () => 0, () => {}, () => {}, () => {}, {}, () => ({}));
@@ -56,4 +59,14 @@ test('a load that failed halfway does not break the next one', async () => {
     await game.load('newgame');
     game.reset();
     assert.equal(game.lives, 3);
+});
+
+test('Spielen plays the play copy, a tag alone a saved game', async () => {
+    const game = make_game({ '/api/play_copy/copy123': NEW, '/api/play_copy/copy123/sheets': SHEETS,
+        'games/newgame.json': NEW, 'spritesheets/newgame.json': SHEETS });
+    await game.load('copy123', { play_copy: true });
+    assert.deepEqual(fetched, ['/api/play_copy/copy123', '/api/play_copy/copy123/sheets']);
+    assert.equal(game.data.properties.title, 'Neu');
+    await game.load('newgame');
+    assert.deepEqual(fetched.slice(2), ['/gen/games/newgame.json', '/gen/spritesheets/newgame.json']);
 });

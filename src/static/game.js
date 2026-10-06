@@ -712,14 +712,7 @@ class Game {
         let game_link = $(`<a>`).attr('id', 'game_link').css('margin', '4px 6px').attr('target', '_blank').html(``);
         div.append(game_link);
         this.arrange_settings_cards($('#game-settings-here'));
-        if (typeof (this.data.parent) !== 'undefined') {
-            $('#play_iframe').hide();
-            if ($('#play_iframe')[0].contentWindow.game) {
-                $('#play_iframe')[0].contentWindow.game.load(this.data.parent);
-                $('#play_iframe').fadeIn();
-                $('#play_iframe').focus();
-            }
-        }
+        // (the game frame loads nothing here: Spielen sends it the game as it is)
         // nothing is unsaved yet
         this.remember_saved_state?.();
     }

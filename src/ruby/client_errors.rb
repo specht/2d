@@ -6,8 +6,8 @@
 #
 # Only what helps to reproduce a bug is kept: the message, where it happened,
 # the last few clicks and keys, the studio version, which pane and tool, and
-# the code of a temporary copy of the game (saved like "Level testen" does,
-# never listed anywhere). Strings are cut and unknown keys dropped, so a
+# the code of a copy of the game (in spiele/ beside the day files, see
+# game_path; pruned and cleared with the reports, never listed anywhere). Strings are cut and unknown keys dropped, so a
 # report can never fill the disk or carry arbitrary data.
 
 require "json"
@@ -206,17 +206,37 @@ module ClientErrors
     def self.clear(dir)
         all = files(dir)
         all.each { |path| File.delete(path) }
+        game_files(dir).each { |path| File.delete(path) }
         all.size
     end
 
-    # A report's game (game_tag) as one JSON file that the studio can load
-    # (Spiel laden → a file, or a test): the saved game from /gen/games with
-    # its frames put back in as data URLs, like /api/load_game does. Without
-    # pictures, every frame keeps only its tag – much smaller, and enough for
-    # most bugs, which are about the data and not the pixels.
-    def self.game_json(tag, gen_dir, pictures: true)
+    # The reports' games (/api/play_copy with for_report): <dir>/spiele/<tag>.json.
+    def self.games_dir(dir) = File.join(dir, "spiele")
+    def self.game_files(dir) = Dir[File.join(games_dir(dir), "*.json")].sort
+
+    # Where a report's game is: with the reports, or – a report from before –
+    # among the game files in gen_dir. nil when it is gone.
+    def self.game_path(tag, gen_dir, dir: nil)
         raise ArgumentError, "Kein gültiger Spielcode: #{tag}" unless tag.to_s =~ /\A[a-z0-9]{7}\z/
-        game = JSON.parse(File.read(File.join(gen_dir, "games", "#{tag}.json")))
+        [(File.join(games_dir(dir), "#{tag}.json") if dir), File.join(gen_dir, "games", "#{tag}.json")]
+            .compact.find { |path| File.exist?(path) }
+    end
+
+    # Games older than `days` days: to delete with the old day files.
+    def self.old_games(dir, days, now = Time.now)
+        limit = now - days * 24 * 3600
+        game_files(dir).select { |path| File.mtime(path) < limit }
+    end
+
+    # A report's game (game_tag) as one JSON file (for a test): the copy
+    # (game_path; dir: the reports' directory) with its frames put back in as
+    # data URLs, like /api/load_game does. Without pictures, every frame keeps
+    # only its tag – much smaller, and enough for most bugs, which are about
+    # the data and not the pixels.
+    def self.game_json(tag, gen_dir, pictures: true, dir: nil)
+        path = game_path(tag, gen_dir, dir: dir)
+        raise ArgumentError, "Das Spiel #{tag} gibt es nicht mehr." unless path
+        game = JSON.parse(File.read(path))
         if pictures
             (game["sprites"] || []).each do |sprite|
                 (sprite["states"] || []).each do |state|

@@ -1,8 +1,8 @@
 // The real studio (src/static/studio.html) in headless Chromium, for the
 // Erste-Schritte guides (anleitung.mjs). Nothing of the studio is changed:
 // its files are served from src/static, the server's API is stubbed here
-// (a test run saves a temporary game like /api/save_game_temp, and the game
-// frame loads it with its sprite sheet like the server renders it).
+// (Spielen sends a play copy like /api/play_copy, and the game frame loads it
+// with its sprite sheet like the server renders it).
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -99,13 +99,7 @@ export async function open_studio(browser, repo, { width = 1600, height = 900 } 
     const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, locale: 'de-DE' });
     const page = await context.newPage();
     const errors = [];
-    // Known and harmless: Game._load (game.js) asks the game frame for the
-    // parent version even when it is null (a recipe scene, a new game), and
-    // the frame's fetch of /gen/games/null.json fails. Not counted as a fault
-    // of the guide.
-    let null_loads = 0;
     page.on('pageerror', e => {
-        if (null_loads > 0 && /Unexpected end of JSON input/.test(e.message)) { null_loads--; return; }
         errors.push(`${e.message} (${String(e.stack ?? '').split('\n').find(l => l.includes('studio.local'))?.trim() ?? ''})`);
     });
     const root = path.join(repo, 'src/static');
@@ -149,20 +143,20 @@ export async function open_studio(browser, repo, { width = 1600, height = 900 } 
         const reply = (body, type = MIME['.json']) => route.fulfill({ status: 200, body, contentType: type });
         if (p.startsWith('/api/')) {
             if (process.env.ANLEITUNG_DEBUG) console.log(`api ${p}`);
-            if (p === '/api/save_game_temp') {
+            if (p === '/api/play_copy') {
                 const t = await temp_game(JSON.parse(request.postData() ?? '{}').game ?? {});
                 temp.set(t.tag, t);
                 return reply(JSON.stringify({ tag: t.tag }));
             }
+            let m;
+            if ((m = p.match(/^\/api\/play_copy\/(\w+)(\/sheets)?$/)) && temp.has(m[1]))
+                return reply(JSON.stringify(m[2] ? temp.get(m[1]).sheet.info : temp.get(m[1]).game));
             // Saving: the game gets a code like on the server, and Laden lists
             // exactly what was saved in this run (nothing made up)
             if (p === '/api/save_game') {
                 const game = JSON.parse(request.postData() ?? '{}').game ?? {};
                 const tag = crypto.createHash('sha1').update(JSON.stringify(game)).digest('hex').replace(/[^a-z0-9]/g, '').slice(0, 7);
                 if (!originals.has(tag)) originals.set(tag, game);
-                // the game frame loads the saved version, too (Game._load)
-                const t = await temp_game(game);
-                temp.set(tag, { ...t, tag });
                 const states = (game.sprites ?? []).flatMap(sp => sp.states ?? []);
                 // saved again unchanged: the same version (it keeps its time)
                 if (!saved.has(tag)) saved.set(tag, {
@@ -196,12 +190,9 @@ export async function open_studio(browser, repo, { width = 1600, height = 900 } 
             return reply('{}');
         }
         let m;
-        if ((m = p.match(/^\/gen\/games\/(\w+)\.json$/)) && temp.has(m[1])) return reply(JSON.stringify(temp.get(m[1]).game));
-        if ((m = p.match(/^\/gen\/spritesheets\/(\w+)\.json$/)) && temp.has(m[1])) return reply(JSON.stringify(temp.get(m[1]).sheet.info));
         if ((m = p.match(/^\/gen\/spritesheets\/(\w+\.png)$/))) {
             for (const t of temp.values()) if (t.sheet.name === m[1]) return reply(t.sheet.png, MIME['.png']);
         }
-        if (p === '/gen/games/null.json') { null_loads++; return route.fulfill({ status: 404, body: '' }); }
         let file = path.join(root, p === '/' ? 'studio.html' : p);
         if (!path.extname(file) && fs.existsSync(file + '.html')) file += '.html';
         if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {

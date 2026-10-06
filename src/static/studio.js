@@ -696,14 +696,15 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             const playtest = window.studio_pending_playtest ?? null;
             window.studio_pending_playtest = null;
             $('#play_iframe').hide();
-            api_call('/api/save_game_temp', { game: game.data }, function (data) {
+            // the game as it is, without saving it: a play copy (play_copies.rb),
+            // no version of anything – only Speichern makes one
+            api_call('/api/play_copy', { game: game.data }, function (data) {
                 if (data.success) {
-                    console.log(`tag: ${data.tag}`);
                     const frame = $('#play_iframe')[0].contentWindow;
                     // keys must reach the game, not the editor that was open
                     // before (a test run starts with T in the level editor)
                     const focus_game = focus_play_frame;
-                    const loaded = frame.game.load(data.tag);
+                    const loaded = frame.game.load(data.tag, { play_copy: true });
                     Promise.resolve(loaded).then(() => {
                         if (playtest) frame.game.start_playtest?.(playtest);
                         // the level's Signale beside the test run (level_editor.js)

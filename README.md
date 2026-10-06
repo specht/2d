@@ -52,7 +52,7 @@ Run inside the Ruby container (`./config.rb exec ruby sh`), or from outside as `
 ./errors.rb show 3f2a1c      # one group: stack, the clicks before, the game
 ./errors.rb game 3f2a1c > spiel.json
 ./errors.rb resolve 3f2a1c   # fixed (hidden until it happens again)
-./errors.rb prune 30         # delete reports older than 30 days
+./errors.rb prune 30         # delete reports (and their games) older than 30 days
 ```
 
 **Playtesting.** Children test each other's games and fill in a survey; the server hands out the games.

@@ -2123,7 +2123,9 @@ class Game {
 		return fade ? (LayerFade.copy_for(fade.materials, material, fade.alpha) ?? material) : material;
 	}
 
-	async load(tag) {
+	// tag: a saved game (/gen/games, the play link) – or, with play_copy, the
+	// studio's game as Spielen sent it (/api/play_copy, play_copies.rb)
+	async load(tag, { play_copy = false } = {}) {
 		// load game json
 		this.playtest = null;
 		$('#playtest_badge').removeClass('showing');
@@ -2134,7 +2136,10 @@ class Game {
 			} catch { }
 		}
 
-		this.data = await (await fetch(`/gen/games/${tag}.json`)).json();
+		const urls = play_copy ?
+			{ game: `/api/play_copy/${tag}`, sheets: `/api/play_copy/${tag}/sheets` } :
+			{ game: `/gen/games/${tag}.json`, sheets: `/gen/spritesheets/${tag}.json` };
+		this.data = await (await fetch(urls.game)).json();
 		// Games saved before December 2022 have no properties at all (the studio
 		// fills them in, game.js fix_game_data): each value is absent, as in any
 		// game that never set it.
@@ -2147,7 +2152,7 @@ class Game {
 		resolve_sprite_references_to_indices(this.data);
 		// the first level of the order (reset() ran before this game was there)
 		this.level_index = first_level_index(this.data.levels);
-		this.spritesheet_info = await (await fetch(`/gen/spritesheets/${tag}.json`)).json();
+		this.spritesheet_info = await (await fetch(urls.sheets)).json();
 		this.spritesheets = [];
 		for (let i = 0; i < this.spritesheet_info.spritesheets.length; i++) {
 			console.log(this.spritesheet_info.spritesheets[i]);

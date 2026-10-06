@@ -173,10 +173,11 @@ class CrashReporter {
         const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
         const timeout = setTimeout(() => controller?.abort(), CRASH_TEMP_SAVE_TIMEOUT_MS);
         try {
-            const response = await fetch('/api/save_game_temp', {
+            // kept with the reports (client_errors.rb), not a version of anything
+            const response = await fetch('/api/play_copy', {
                 method: 'POST', cache: 'no-store', signal: controller?.signal,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ game: game.data }),
+                body: JSON.stringify({ game: game.data, for_report: true }),
             });
             const data = await response.json();
             return typeof data?.tag === 'string' ? data.tag : null;

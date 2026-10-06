@@ -58,7 +58,8 @@ German everywhere; keep gaming terms (Hitbox, Knockback, Cooldown, Coyote Time).
 - Every action that adds, deletes or moves a sprite or level calls `window.collaboration?.structure_changed(kind, action, id)`; replacing the game asks `collaboration.confirm_leave` first. `COLOR_COUNT` and `COLLABORATION_COLORS` have the same length.
 
 **Server**
-- Saved games are immutable and content-addressed (`/gen`, public). Everything private stays below `/raw` (collaboration sessions, Fehlerberichte, playtesting, moderation), never below `/gen`.
+- Saved games are immutable and content-addressed (`/gen`, public). Everything private stays below `/raw` (collaboration sessions, Fehlerberichte, playtesting, moderation, play copies), never below `/gen`.
+- Only Speichern makes a version. Spielen and Level testen play a copy below `/raw/play` (`play_copies.rb`, gone after a week); a Fehlerbericht's game stays with the reports. Neither is ever a game anybody loads by code, plays by link or sees in a family.
 - `GameIndex` answers Spiel laden from memory; saves call `add`, deletions `remove`; each endpoint has a Neo4j fallback until the index is ready.
 - Playtesting state changes only inside `Store#transaction`; the server, not the studio, chooses what a child tests.
 - Moderation deletes a game everywhere (database first, then files nobody else uses, then the log the server follows); recipe pictures are never deleted; the page exists only with a valid token and builds every game text with `textContent`.
@@ -77,5 +78,5 @@ German everywhere; keep gaming terms (Hitbox, Knockback, Cooldown, Coyote Time).
 - `image_import.js`, `palette_apply.js`, `sprite_basket.js`, `sprite_filter.js`, `own_game.js`, `new_game.js`, `game_list.js` – authoring helpers and Spiel laden.
 - `rescue.js`, `server_watch.js`, `crash_report.js` – nothing is lost to reloads, restarts and crashes.
 - `collaboration.js`, `playtesting.js`, `rezepte.js`, `anleitung_film.js` – sessions, the Playtesting tab, the Hilfe tab.
-- `src/ruby/main.rb` – the API. `game_index.rb`, `collaboration.rb`, `client_errors.rb`, `playtesting.rb`, `moderation.rb` – its parts. `errors.rb`, `playtest.rb`, `moderate.rb` – the teacher's scripts.
+- `src/ruby/main.rb` – the API. `game_index.rb`, `collaboration.rb`, `client_errors.rb`, `playtesting.rb`, `moderation.rb`, `play_copies.rb` – its parts. `errors.rb`, `playtest.rb`, `moderate.rb` – the teacher's scripts.
 - `rezepte/` – recipes, the Sprite-Katalog and the guides (`rezepte/README.md`). `test/` – `node --test test/*.cjs`, `ruby test/<name>_test.rb`.

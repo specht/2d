@@ -13,12 +13,13 @@
 #                                  a path instead of > writes there, e.g. /raw/…)
 #   ./errors.rb watch              new reports as they come in (Strg+C ends)
 #   ./errors.rb resolve 3f2a1c     fixed: hidden until it happens again
-#   ./errors.rb prune 30           delete days older than 30 days
+#   ./errors.rb prune 30           delete days (and their games) older than 30 days
 #   ./errors.rb clear              delete every report (asks; --ja does not)
 #
-# A report's game is a temporary copy of the child's game at the moment of
-# the error: open the studio with /?<code> to look at it and reproduce the
-# bug, then fix it and add a regression test.
+# A report's game is a copy of the child's game at the moment of the error,
+# kept with the reports (spiele/, pruned and cleared with them): open the
+# studio with /?<code> to look at it and reproduce the bug, then fix it and
+# add a regression test.
 #
 # One group is one bug: the same message reached the same way (the first two
 # frames of the studio's code in the stack), whatever the line numbers of the
@@ -158,7 +159,7 @@ when "game"
     id, out = args
     fail_with "Bitte eine Kennung (aus »./errors.rb list«) oder einen Spielcode angeben." if id.to_s.empty?
     g = nil
-    tag = id if id =~ /\A[a-z0-9]{7}\z/ && File.exist?(File.join(GEN, "games", "#{id}.json"))
+    tag = id if id =~ /\A[a-z0-9]{7}\z/ && ClientErrors.game_path(id, GEN, dir: DIR)
     unless tag
         g = find_group(id)
         tags = g["reports"].map { |r| r["game_tag"] }.compact.uniq
@@ -166,8 +167,8 @@ when "game"
         tag = tags.last
         warn ce("#{g['id']} hat #{tags.size} Spiele, hier das neueste. Die anderen: #{(tags - [tag]).join(' ')}", :dim) if tags.size > 1
     end
-    fail_with "Das Spiel #{tag} gibt es nicht mehr (gelöscht: ./moderate.rb log)." unless File.exist?(File.join(GEN, "games", "#{tag}.json"))
-    json = ClientErrors.game_json(tag, GEN, pictures: pictures)
+    fail_with "Das Spiel #{tag} gibt es nicht mehr (mit alten Berichten gelöscht, oder: ./moderate.rb log)." unless ClientErrors.game_path(tag, GEN, dir: DIR)
+    json = ClientErrors.game_json(tag, GEN, pictures: pictures, dir: DIR)
     hint = g ? ["./errors.rb resolve #{g['id']}", "repariert? Dann ist die Gruppe erledigt"] : nil
     if out
         File.write(out, json)
@@ -206,7 +207,9 @@ when "prune"
     days = 30 if ARGV[1].nil?
     old = ClientErrors.old_files(DIR, days)
     old.each { |path| File.delete(path) }
-    puts c("#{old.size} Tag(e) gelöscht (älter als #{days} Tage).", :green)
+    games = ClientErrors.old_games(DIR, days)
+    games.each { |path| File.delete(path) }
+    puts c("#{old.size} Tag(e) und #{games.size} Spiel(e) gelöscht (älter als #{days} Tage).", :green)
     next_steps(["./errors.rb list all", "was noch da ist"])
 when "clear"
     files = ClientErrors.files(DIR)

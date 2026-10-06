@@ -167,6 +167,29 @@ class ClientErrorsTest < Minitest::Test
         end
     end
 
+    def test_a_reports_game_is_kept_with_the_reports
+        Dir.mktmpdir do |root|
+            gen, dir = File.join(root, "gen"), File.join(root, "client-errors")
+            FileUtils.mkpath([File.join(gen, "games"), ClientErrors.games_dir(dir)])
+            game = { "sprites" => [], "levels" => [], "properties" => { "title" => "Kopie" } }
+            File.write(File.join(ClientErrors.games_dir(dir), "new1234.json"), game.to_json)
+            # a report from before: its game among the game files
+            File.write(File.join(gen, "games", "old1234.json"), game.merge("properties" => { "title" => "Alt" }).to_json)
+            assert_equal "Kopie", JSON.parse(ClientErrors.game_json("new1234", gen, dir: dir))["properties"]["title"]
+            assert_equal "Alt", JSON.parse(ClientErrors.game_json("old1234", gen, dir: dir))["properties"]["title"]
+            assert_nil ClientErrors.game_path("gone123", gen, dir: dir)
+            assert_raises(ArgumentError) { ClientErrors.game_json("gone123", gen, dir: dir) }
+
+            File.write(File.join(dir, "2026-10-12.jsonl"), "{}\n")
+            now = File.mtime(File.join(ClientErrors.games_dir(dir), "new1234.json"))
+            assert_equal [], ClientErrors.old_games(dir, 30, now)
+            assert_equal ["new1234.json"], ClientErrors.old_games(dir, 30, now + 31 * 24 * 3600).map { |p| File.basename(p) }
+            assert_equal 1, ClientErrors.clear(dir)
+            assert_equal [], ClientErrors.game_files(dir)
+            assert File.exist?(File.join(gen, "games", "old1234.json")), "a saved game is never a report's to delete"
+        end
+    end
+
     def test_day_files_for_listing_and_pruning
         Dir.mktmpdir do |dir|
             %w(2026-10-01 2026-10-10 2026-10-12).each { |day| File.write(File.join(dir, "#{day}.jsonl"), "") }
