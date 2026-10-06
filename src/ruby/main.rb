@@ -243,6 +243,26 @@ class Main < Sinatra::Base
     # first "Spiel laden" is already answered from memory, and again every
     # GAME_INDEX_REFRESH seconds. Until the first read is done, the requests
     # ask Neo4j as before.
+    # Once when the server starts (sheet_repair.rb): sheets that are no
+    # picture, infos that name a missing sheet, and recent games and play
+    # copies without an info are rendered again.
+    # It starts while this file is still being read (configure, below): it
+    # waits until the renderer further down is there.
+    def self.repair_spritesheets
+        50.times { break if Main.respond_to?(:render_spritesheet_for_tag); sleep 0.1 }
+        report = SheetRepair.repair("/gen/spritesheets", [
+            { games_dir: "/gen/games", info_dir: "/gen/spritesheets", since: Time.now - 14 * 24 * 3600 },
+            { games_dir: PlayCopies.games_dir(PLAY_COPIES_PATH), info_dir: PlayCopies.sheets_dir(PLAY_COPIES_PATH), since: nil },
+        ]) { |tag, games_dir, info_dir| Main.render_spritesheet_for_tag(tag, games_dir: games_dir, info_dir: info_dir) }
+        if report.values.any?(&:any?)
+            STDERR.puts "Sprite sheets repaired: #{report[:broken_sheets].size} broken sheet(s) removed, " +
+                "#{report[:rendered].size} game(s) rendered again, #{report[:failed].size} failed"
+            report[:failed].first(20).each { |line| STDERR.puts "  #{line}" }
+        end
+    rescue => e
+        STDERR.puts "Sprite sheet repair: #{e}"
+    end
+
     def self.start_game_index
         Thread.new do
             delay = 5
@@ -842,23 +862,6 @@ class Main < Sinatra::Base
         # written next to it and renamed: nobody reads half an info
         File.write(path + ".tmp", info.to_json)
         File.rename(path + ".tmp", path)
-    end
-
-    # Once when the server starts (sheet_repair.rb): sheets that are no
-    # picture, infos that name a missing sheet, and recent games and play
-    # copies without an info are rendered again.
-    def self.repair_spritesheets
-        report = SheetRepair.repair("/gen/spritesheets", [
-            { games_dir: "/gen/games", info_dir: "/gen/spritesheets", since: Time.now - 14 * 24 * 3600 },
-            { games_dir: PlayCopies.games_dir(PLAY_COPIES_PATH), info_dir: PlayCopies.sheets_dir(PLAY_COPIES_PATH), since: nil },
-        ]) { |tag, games_dir, info_dir| Main.render_spritesheet_for_tag(tag, games_dir: games_dir, info_dir: info_dir) }
-        if report.values.any?(&:any?)
-            STDERR.puts "Sprite sheets repaired: #{report[:broken_sheets].size} broken sheet(s) removed, " +
-                "#{report[:rendered].size} game(s) rendered again, #{report[:failed].size} failed"
-            report[:failed].first(20).each { |line| STDERR.puts "  #{line}" }
-        end
-    rescue => e
-        STDERR.puts "Sprite sheet repair: #{e}"
     end
 
     def icon_for_tag(tag)
