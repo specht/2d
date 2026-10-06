@@ -69,6 +69,28 @@ function refresh_status_bar_fade(el) {
 const status_bar_resize_observer = typeof ResizeObserver === 'function' ?
     new ResizeObserver((entries) => { for (const entry of entries) refresh_status_bar_fade(entry.target); }) : null;
 
+// On a small screen (a tablet) the entries on the right would leave the
+// tool's hints next to no room. Then they show only their word, without the
+// key (class compact-keys, styles.css) – the key is still in their title.
+// Measured with the keys every time, so it switches back once there is room.
+const STATUS_BAR_MIN_TOOLS_WIDTH = 240;
+function refresh_status_bar_keys(bar) {
+    if (!bar?.isConnected) return;
+    const tools = bar.querySelector('.status-bar-tools');
+    if (!tools) return;
+    bar.classList.remove('compact-keys');
+    let right = 0;
+    for (const child of bar.children)
+        if (child !== tools) right += child.getBoundingClientRect().width;
+    // a hidden bar (phones) has no width: nothing to decide
+    if (bar.clientWidth > 0)
+        bar.classList.toggle('compact-keys', bar.clientWidth - right < STATUS_BAR_MIN_TOOLS_WIDTH);
+    refresh_status_bar_fade(tools);
+}
+// the bar itself changes its width with the window only
+const status_bar_width_observer = typeof ResizeObserver === 'function' ?
+    new ResizeObserver((entries) => { for (const entry of entries) refresh_status_bar_keys(entry.target); }) : null;
+
 class Menu {
     constructor(element, pane, info, canvas, callback) {
         this.element = element;
@@ -506,7 +528,8 @@ class Menu {
             }
         }
         window.collaboration?.append_status_control?.(bar);
-        refresh_status_bar_fade(statusBar[0]);
+        status_bar_width_observer?.observe(bar[0]);
+        refresh_status_bar_keys(bar[0]);
         if (this.pane === 'level') game?.level_editor?.update_history_buttons?.();
         if (this.pane === 'sprites') window.sprite_history?.update_buttons?.();
     }

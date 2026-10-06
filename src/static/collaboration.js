@@ -1433,6 +1433,8 @@ class CollaborationClient {
             control.append($('<span>').text('Zusammenarbeiten'));
             status_bar.append(control);
         }
+        // its width changes what is left for the tool's hints (menu.js)
+        if (typeof refresh_status_bar_keys === 'function') refresh_status_bar_keys(status_bar[0]);
     }
 
     render_control() {

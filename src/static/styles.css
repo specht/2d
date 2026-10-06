@@ -121,6 +121,22 @@ body {
     width: 216px;
 }
 
+/* The tabs at the top (#main-nav) are this tall. A column that scrolls as a
+   whole begins right under them and keeps the gap above its first box as
+   padding: at the top nothing moves, but what is scrolled up stays visible
+   up to the tabs instead of being cut off 9 px below them. The bottom stays
+   where it was (max-height and height are without the padding). */
+:root {
+    --nav-height: 41px;
+}
+#main_div_sprites > .menu_container:first-child,
+#main_div_sprites .right_menu_container,
+#main_div_sprites .states_menu_container,
+#main_div_level .level-right-column {
+    top: var(--nav-height);
+    padding-top: calc(50px - var(--nav-height));
+}
+
 .full_right_menu_container {
     position: absolute;
     top: 50px;
@@ -2166,13 +2182,16 @@ input.clr-color {
        padding keeps the content itself 800 px wide and centred. */
     box-sizing: border-box;
     width: 100%;
-    margin-top: 60px;
+    /* it scrolls from right under the tabs; at the top the content still
+       begins 60 px down (--nav-height, see .menu_container) */
+    margin-top: var(--nav-height);
+    padding-top: calc(60px - var(--nav-height));
     padding-bottom: 300px;
     /* On 1920 px school screens the gallery gets four large columns. */
     padding-left: max(24px, calc((100% - 1480px) / 2));
     padding-right: max(24px, calc((100% - 1480px) / 2));
     font-size: 120%;
-    max-height: calc(100vh - 120px);
+    max-height: calc(100vh - 60px - var(--nav-height));
     overflow-y: auto;
 }
 
@@ -3493,9 +3512,9 @@ button.film-weiter-knopf:hover {
         display: none;
     }
     #main_div_help {
-        max-height: calc(100vh - 60px);
-        max-height: calc(100dvh - 60px);
-        margin-top: 44px;
+        max-height: calc(100vh - 16px - var(--nav-height));
+        max-height: calc(100dvh - 16px - var(--nav-height));
+        padding-top: calc(44px - var(--nav-height));
         padding-bottom: 120px;
     }
     #main_div_help {
@@ -6824,6 +6843,12 @@ body {
     display: flex;
     flex: none;
     border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+/* little room (a small tablet, menu.js refresh_status_bar_keys): the
+   entries on the right keep their word and lose the key, so the tool's
+   hints keep some room – the key is still in the title */
+#status-bar.compact-keys > .status-bar-general .key {
+    display: none;
 }
 #status-bar .status-bar-item, #status-bar > #collaboration-control {
     flex: none;
