@@ -58,6 +58,32 @@ class PlaytestPDFTest < Minitest::Test
         assert_equal %w(T1 T2), summary["texts"]["good"].map { |t| t["name"] }
     end
 
+    def test_ratings_are_words_and_several_authors_are_addressed_as_ihr
+        assert_equal "gar nicht", PlaytestPDF.scale_word(1.2)
+        assert_equal "gut", PlaytestPDF.scale_word(3.5)
+        assert_equal "super", PlaytestPDF.scale_word(5)
+        assert PlaytestPDF.several_authors?("Smilli und Charlie")
+        assert PlaytestPDF.several_authors?("Lea, Max")
+        refute PlaytestPDF.several_authors?("vincgames")
+        refute PlaytestPDF.several_authors?("Undine")
+    end
+
+    # A game tested once with short answers: the whole handout, with the
+    # plan, on one page (October 2026: the plan used to go to a second page).
+    def test_a_game_tested_once_fits_on_one_page
+        state = Playtesting.fresh_state(true)
+        submission, = Playtesting.submit(state, "aaaaaaa", { "properties" => { "title" => "Harry Potter", "author" => "Smilli und Charlie" } }, "owner")
+        a = Playtesting.next_assignment(state, "t1", "Bob")
+        Playtesting.give_feedback(state, a["id"], "t1", { "fun" => 4, "looks" => 4, "animation" => 2, "controls" => 4, "fair" => 3, "story" => 2,
+            "mood" => 5, "difficulty" => "easy", "reached" => "start", "bugs" => "none", "good" => "Die Figuren", "better" => "Gameplay" })
+        Dir.mktmpdir do |dir|
+            path = PlaytestPDF.render(state, File.join(dir, "r.pdf"), static: File.expand_path("../src/static", __dir__), gen: dir, games: dir)
+            # the handout and the teacher's overview
+            assert_equal 2, File.binread(path).scan(%r{/Type /Page\b}).size
+        end
+        assert submission
+    end
+
     def test_writes_a_pdf_with_a_page_per_game_and_the_overview
         state, = round
         Dir.mktmpdir do |dir|
