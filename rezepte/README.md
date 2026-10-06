@@ -668,17 +668,36 @@ the film scrolls and keeps the current step in view). The studio is recorded at 
 (`packed_frame` in `anleitung.mjs`; a frame that did not change is the same
 object again), so a guide with several long films fits in memory.
 
-**Games on film in slow motion:** a screenshot takes longer than a frame of
-the game, so at full speed a jump fell between two screenshots. The harness
-gives the game frame (Spielen, Level testen) a clock the recorder can slow
-down (`__guide_time` in `studio.mjs`: `performance.now`,
-`requestAnimationFrame`, `setTimeout` and `setInterval` follow it). While a
-game runs, `warten` and `halten` play it at `ZEITLUPE` (0.12) of its speed and
-count the game's time, so the film shows it at its real speed with about 30
-frames per second; a held key is released after the same game time. A `taste`
-without `halten` is held for 0.12 s of game time while a game runs (a press
-as short as a script makes it can fall between two frames of the game: the
-jump that never happened). `ANLEITUNG_ZEITLUPE=1` switches it off.
+**The guide clock – the same film every time:** in the studio and in the
+game frame, time passes only when the recorder moves it on, from the first
+line of the page on (`__guide_time` in `studio.mjs`): `performance.now`,
+`Date` (fixed to the harness's save time), `setTimeout`, `setInterval`, the
+callbacks of `requestAnimationFrame` (they run when the clock says, not with
+the screen's frames) and the CSS transitions and animations (paused the
+moment they start and stepped by hand) all follow it. `pass_time` moves it
+on – in steps of two 60 Hz frames while a game runs, otherwise at once – and
+time moves on only when everything the page loads is there: the requests
+(answered by the harness), XHR and fetch, and the pictures (lazy ones load
+at once). A film frame shows the page and then moves the clock on by
+exactly as long as the frame lasts; waits outside a film (`vorher`,
+pictures) move it on, too. Math.random and crypto's random values are
+seeded, the text cursor (it blinks on the browser's own clock) is left out,
+and Chromium runs with one raster thread, whole tiles and software raster
+(`BROWSER_ARGS`), so it draws the same pixels. So a guide does the same in
+every run, however fast or busy the computer is: the same steps give the
+same films byte for byte, and a rebuild after a change that does not touch
+a guide leaves its files as they are (git sees nothing). It also lets a
+game play on film at its real speed: while a game runs, `warten` and
+`halten` film 30 frames per second (15 otherwise), so every jump is there,
+and a `taste` without `halten` is held for 0.12 s (a press as short as a
+script makes it would fall between two frames of the game). Since a
+recording no longer depends on the computer, several guides are recorded at
+once, each in its own browser context (`ANLEITUNG_PARALLEL=n`; default half
+the cores, at most 4). A guide takes a few minutes – longer than before,
+since every frame of a game is drawn. Never wait with real time in a step
+or the recorder (`waitForTimeout`): nothing would happen in the page – use
+`GuidePlayer.pass`. To find what differs between two runs:
+`ANLEITUNG_BILDER=dir` writes every filmed frame as a PNG.
 
 The studio runs without a server: `/api/save_game_temp` (Level testen)
 answers like the server and the game frame gets its sprite sheet laid out

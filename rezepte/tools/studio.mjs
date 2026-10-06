@@ -17,6 +17,13 @@ const MIME = {
 };
 
 export const HOST = 'studio.local';
+// Chromium draws the same pixels every time: one raster thread, whole tiles,
+// software raster, a fixed colour profile and text without hinting (with
+// several threads or partial tiles, an edge here and there came out a shade
+// different from run to run – and the film files with it)
+export const BROWSER_ARGS = ['--num-raster-threads=1', '--disable-partial-raster', '--disable-gpu-rasterization',
+    '--force-color-profile=srgb', '--font-render-hinting=none', '--disable-lcd-text', '--disable-threaded-animation',
+    '--disable-threaded-scrolling', '--disable-checker-imaging'];
 // what a save shows (src/static/noto/<icon>.png) and when it happened: fixed,
 // so the same guide always looks the same
 const SAVE_ICON = '114g99w';
@@ -127,7 +134,14 @@ export async function open_studio(browser, repo, { width = 1600, height = 900 } 
             return { ...tip, relatives_count: family.length, ...(others.length ? { others } : {}) };
         }).sort((a, b) => b.ts_created - a.ts_created);
     };
+    // requests still being answered (the film waits for them before a frame)
+    const pending = new Set();
     const handler = async route => {
+        const entry = { url: route.request().url() };
+        pending.add(entry);
+        try { return await answer(route); } finally { pending.delete(entry); }
+    };
+    const answer = async route => {
         const request = route.request();
         const url = new URL(request.url());
         if (url.hostname !== HOST) return route.abort();
@@ -209,32 +223,245 @@ export async function open_studio(browser, repo, { width = 1600, height = 900 } 
             t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
             return ((t ^ t >>> 14) >>> 0) / 4294967296;
         };
+        // IDs come from crypto (game_ids.js): the same ones every time, too
+        if (globalThis.crypto) {
+            crypto.getRandomValues = (array) => {
+                const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+                for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+                return array;
+            };
+            crypto.randomUUID = () => {
+                const b = crypto.getRandomValues(new Uint8Array(16));
+                b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+                const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+                return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+            };
+        }
     });
-    // The game frame (Spielen, Level testen) gets a clock the recorder can
-    // slow down (anleitung.mjs live): a screenshot takes longer than a frame
-    // of the game, so while a game runs on film it plays in slow motion and
-    // every frame is filmed – the film then shows it at its real speed, jumps
-    // included. performance.now (THREE.Clock), requestAnimationFrame,
-    // setTimeout and setInterval follow the clock; at speed 1 nothing changes.
-    await page.addInitScript(() => {
-        if (window.top === window) return;
-        const real_now = performance.now.bind(performance);
-        let real0 = real_now(), virtual0 = real0, speed = 1;
-        const now = () => virtual0 + (real_now() - real0) * speed;
+    // The guide clock: in the studio and in the game frame, time passes only
+    // when the recorder moves it on (pass_time below, anleitung.mjs) – from
+    // the first line of the page on, never by itself. performance.now, Date,
+    // requestAnimationFrame, setTimeout, setInterval and the CSS transitions
+    // and animations (paused and stepped by hand) all follow it. So a guide
+    // does the same thing in every run, however fast the computer or a
+    // screenshot is: the same steps give the same films, byte for byte (git
+    // sees no change when nothing changed), and a game runs on film as fast
+    // as in real life, every jump included.
+    await page.addInitScript((epoch) => {
+        const real = {
+            setTimeout: window.setTimeout.bind(window), clearTimeout: window.clearTimeout.bind(window),
+            raf: window.requestAnimationFrame.bind(window),
+        };
+        let virtual = 0;
+        const now = () => virtual;
+        // the date is the same in every run, too
+        const RealDate = Date;
+        class GuideDate extends RealDate {
+            constructor(...args) { if (args.length) super(...args); else super(GuideDate.now()); }
+            static now() { return Math.round(epoch + virtual); }
+        }
+        window.Date = GuideDate;
+        performance.now = now;
+        // what the page is still loading (requests, pictures): time moves on
+        // only when it is all there, so an answer never arrives a step earlier
+        // or later from one run to the next
+        let loading = 0;
+        const send = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send = function (...args) {
+            loading++;
+            this.addEventListener('loadend', () => { loading--; }, { once: true });
+            return send.apply(this, args);
+        };
+        const real_fetch = window.fetch.bind(window);
+        window.fetch = (...args) => {
+            loading++;
+            return real_fetch(...args).then(async (response) => {
+                // the body is read later: keep it, so reading it is part of the request
+                const body = await response.clone().arrayBuffer().catch(() => null);
+                loading--;
+                return body === null ? response : new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
+            }, (e) => { loading--; throw e; });
+        };
+        const image_src = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+        const images_loading = new WeakSet();
+        Object.defineProperty(HTMLImageElement.prototype, 'src', {
+            configurable: true, enumerable: image_src.enumerable,
+            get() { return image_src.get.call(this); },
+            set(value) {
+                if (!images_loading.has(this)) {
+                    images_loading.add(this);
+                    loading++;
+                    const finish = () => {
+                        this.removeEventListener('load', finish);
+                        this.removeEventListener('error', finish);
+                        images_loading.delete(this);
+                        loading--;
+                    };
+                    this.addEventListener('load', finish);
+                    this.addEventListener('error', finish);
+                }
+                image_src.set.call(this, value);
+            },
+        });
+        // requestAnimationFrame: the callbacks run when the clock says (drawn),
+        // not with the screen's own frames – so code that looks at another
+        // frame of the page (the Signale watch reads the game) always sees the
+        // same moment
+        const frame_callbacks = new Map();
+        let frame_id = 0;
+        window.requestAnimationFrame = (callback) => { frame_callbacks.set(++frame_id, callback); return frame_id; };
+        window.cancelAnimationFrame = (id) => { frame_callbacks.delete(id); };
+        const run_frame_callbacks = () => {
+            const due = [...frame_callbacks.values()];
+            frame_callbacks.clear();
+            for (const callback of due) {
+                try { callback(virtual); } catch (e) { real.setTimeout(() => { throw e; }); }
+            }
+        };
+        const timers = new Map();       // id → { due, fn, args, every, seq }
+        let seq = 0;
+        const add_timer = (fn, ms, args, every) => {
+            const id = ++seq;
+            const delay = Math.max(0, Number(ms) || 0);
+            timers.set(id, { id, due: virtual + delay, fn: typeof fn === 'function' ? fn : () => {}, args, every: every ? Math.max(4, delay) : 0, seq });
+            return id;
+        };
+        window.setTimeout = (fn, ms, ...args) => add_timer(fn, ms, args, false);
+        window.setInterval = (fn, ms, ...args) => add_timer(fn, ms, args, true);
+        window.clearTimeout = window.clearInterval = (id) => { timers.delete(id); };
+        // the text cursor blinks on the real clock (the browser's own): it is
+        // left out of the films
+        document.addEventListener('DOMContentLoaded', () => {
+            const style = document.createElement('style');
+            style.textContent = '*, *::before, *::after { caret-color: transparent !important; }';
+            document.head.appendChild(style);
+        });
+        const animations = new WeakSet();   // CSS animations under the clock
+        const step_animations = (ms) => {
+            for (const a of document.getAnimations?.() ?? []) {
+                try {
+                    // a new one starts now (it may have run a few real ms already)
+                    if (!animations.has(a)) { animations.add(a); a.pause(); a.currentTime = 0; }
+                    if (ms) a.currentTime = (a.currentTime ?? 0) + ms;
+                } catch (e) { /* finished or removed */ }
+            }
+        };
+        // caught as soon as the browser starts one (a short transition could
+        // otherwise be over before the next step looks)
+        window.addEventListener('transitionrun', () => step_animations(0), true);
+        window.addEventListener('animationstart', () => step_animations(0), true);
         window.__guide_time = {
             now,
-            speed: () => speed,
-            set(s) { const v = now(); real0 = real_now(); virtual0 = v; speed = s; },
+            loading: () => {
+                if (loading > 0 || document.readyState !== 'complete') return true;
+                // pictures from the page's HTML: a lazy one loads now (when it would
+                // load depends on the screen's frames), and each must be there
+                let waiting = false;
+                for (const image of document.images) {
+                    if (image.loading === 'lazy') image.loading = 'eager';
+                    if (image.getAttribute('src') && !image.complete) waiting = true;
+                }
+                return waiting;
+            },
+            // the page has drawn what the time shows: one real frame, so every
+            // requestAnimationFrame callback has seen the new time (a hidden
+            // frame does not draw, there is nothing to wait for)
+            drawn: () => new Promise((resolve) => {
+                // what started since the last step (a class changed by a key or
+                // a click) waits for the clock, too
+                step_animations(0);
+                let hidden = false;
+                try { hidden = !!window.frameElement && window.frameElement.getClientRects().length === 0; } catch (e) { /* other origin */ }
+                // a hidden frame gets no frames (like in a browser)
+                if (hidden || document.hidden) { resolve(); return; }
+                run_frame_callbacks();
+                // what they started waits for the clock, too
+                step_animations(0);
+                real.raf(() => resolve());
+            }),
+            // one step of the clock and the frame drawn with it; says whether a
+            // game runs here (then the steps are short: a game moves in small ones)
+            async step(ms) {
+                this.advance(ms);
+                await this.drawn();
+                return window.game?.running === true;
+            },
+            // time moves on by ms: the timers due until then run in order
+            advance(ms) {
+                const end = virtual + ms;
+                for (let guard = 0; guard < 100000; guard++) {
+                    let next = null;
+                    for (const t of timers.values())
+                        if (t.due <= end && (!next || t.due < next.due || (t.due === next.due && t.seq < next.seq))) next = t;
+                    if (!next) break;
+                    virtual = Math.max(virtual, next.due);
+                    if (next.every) { next.due += next.every; next.seq = ++seq; } else timers.delete(next.id);
+                    try { next.fn(...next.args); } catch (e) { real.setTimeout(() => { throw e; }); }
+                }
+                virtual = end;
+                step_animations(ms);
+            },
         };
-        performance.now = now;
-        const raf = window.requestAnimationFrame.bind(window);
-        window.requestAnimationFrame = (callback) => raf(() => callback(now()));
-        const timeout = window.setTimeout.bind(window), interval = window.setInterval.bind(window);
-        window.setTimeout = (fn, ms, ...args) => timeout(fn, (Number(ms) || 0) / speed, ...args);
-        window.setInterval = (fn, ms, ...args) => interval(fn, (Number(ms) || 0) / speed, ...args);
-    });
+    }, SAVE_TIME);
+    page.guide_pending = () => pending.size;
+    page.guide_pending_urls = () => [...pending].map(e => e.url);
     await page.goto(`http://${HOST}/`);
-    await page.waitForFunction(() => window.game && typeof menus !== 'undefined' && menus.level && menus.sprites && $('#status-bar').children().length > 0, null, { timeout: 30000 });
-    await page.waitForTimeout(500);
+    // the studio sets itself up (its timers run as the clock moves on)
+    for (let waited = 0; ; waited += 100) {
+        await pass_time(page, 100);
+        const ready = await page.evaluate(() => !!(window.game && typeof menus !== 'undefined' && menus.level && menus.sprites && $('#status-bar').children().length > 0));
+        if (ready) break;
+        if (waited > 30000) throw new Error('Das Studio startet nicht');
+    }
+    await pass_time(page, 500);
     return { context, page, errors };
+}
+
+// Moves the guide clock on by ms (studio.mjs init script): while a game runs,
+// in steps of two 60 Hz frames (it moves in small steps, as on a screen),
+// otherwise at once. After each step every frame of the page has drawn once
+// and every request is answered, so the page does the same in every run.
+export const CLOCK_STEP_MS = 1000 / 30;
+export async function pass_time(page, ms) {
+    await answered(page);
+    for (let left = ms; left > 0.01;) {
+        const step = page.guide_game_running ? Math.min(CLOCK_STEP_MS, left) : left;
+        left -= step;
+        let running = false;
+        for (const f of page.frames()) {
+            try { running = (await f.evaluate((m) => window.__guide_time?.step(m), step)) || running; } catch (e) { /* a frame going away */ }
+        }
+        page.guide_game_running = running;
+        // a request was answered: the page handles the answer before time moves on
+        if (await answered(page)) await drawn(page);
+    }
+}
+
+async function drawn(page) {
+    for (const f of page.frames()) {
+        try { await f.evaluate(() => window.__guide_time?.drawn()); } catch (e) { /* a frame going away */ }
+    }
+}
+
+// every request answered (they are served by this harness) and every frame
+// of the page done with what it loads – twice in a row, a moment apart, so
+// a request that an answer starts is caught, too
+async function answered(page) {
+    let waited = false, quiet = 0;
+    for (let i = 0; i < 400 && quiet < 2; i++) {
+        let busy = (page.guide_pending?.() ?? 0) > 0;
+        for (const f of busy ? [] : page.frames()) {
+            try { if (await f.evaluate(() => window.__guide_time?.loading() ?? false)) { busy = true; break; } } catch (e) { /* a frame going away */ }
+        }
+        if (busy) { waited = true; quiet = 0; } else quiet++;
+        if (busy || quiet < 2) await new Promise(r => setTimeout(r, busy ? 10 : 2));
+    }
+    if (process.env.ANLEITUNG_DEBUG && page.guide_pending?.() > 0) console.log('   still pending', page.guide_pending_urls());
+    return waited;
+}
+
+// the requests answered, every frame drawn
+export async function settle(page) {
+    await answered(page);
+    await drawn(page);
 }

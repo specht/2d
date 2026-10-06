@@ -8,19 +8,19 @@
 import sharp from 'sharp';
 import zlib from 'node:zlib';
 import { createRequire } from 'node:module';
+import fs from 'node:fs';
+import path from 'node:path';
 import { STEP_MS } from './record.mjs';
+import { pass_time, settle } from './studio.mjs';
 
 const controls = createRequire(import.meta.url)('../../src/static/controls.js');
 
 // One frame of a video lasts this many 60 Hz steps (4: 15 frames per second).
 const FRAME_STEPS = 4;
 const SELECTOR_TIMEOUT = 6000;
-// While a game runs on film, it plays this much slower (studio.mjs gives the
-// game frame a clock the recorder can slow down): a screenshot takes longer
-// than a frame of the game, and at full speed a jump fell between two
-// screenshots. The film shows it at its real speed again (a frame lasts as
-// much game time as passed). ANLEITUNG_ZEITLUPE=1 switches it off.
-const ZEITLUPE = Number(process.env.ANLEITUNG_ZEITLUPE ?? 0.12);
+// While a game runs, a film has twice as many frames (30 per second): jumps
+// and runs look smooth.
+const GAME_FRAME_STEPS = 2;
 
 export class StepError extends Error { }
 
@@ -168,13 +168,22 @@ export class GuidePlayer {
     }
 
     // ── where things are ────────────────────────────────────────────────
+    // Waits until it can be seen. While a film is recorded, time passes
+    // only frame by frame (studio.mjs, the film clock): what appears after a
+    // moment (a menu, a dialog) needs frames to appear.
+    async visible(locator) {
+        const until = Date.now() + SELECTOR_TIMEOUT;
+        while (!(await locator.isVisible().catch(() => false))) {
+            if (Date.now() > until) return false;
+            if (this.recording) await this.frame(1);
+            else await this.pass(40);
+        }
+        return true;
+    }
+
     async box(selector, which = 'first') {
         const locator = this.page.locator(selector)[which]();
-        try {
-            await locator.waitFor({ state: 'visible', timeout: SELECTOR_TIMEOUT });
-        } catch {
-            this.fail(`„${selector}“ ist nicht zu sehen (umbenannt oder verschoben?)`);
-        }
+        if (!(await this.visible(locator))) this.fail(`„${selector}“ ist nicht zu sehen (umbenannt oder verschoben?)`);
         await locator.scrollIntoViewIfNeeded().catch(() => { });
         const b = await locator.boundingBox();
         if (!b) this.fail(`„${selector}“ hat keine Größe`);
@@ -228,8 +237,18 @@ export class GuidePlayer {
     }
 
     // ── recording ───────────────────────────────────────────────────────
+    // Time passes on the guide clock (studio.mjs): nothing in the page moves
+    // on by itself, only here – the same amount in every run.
+    async pass(ms) {
+        await pass_time(this.page, ms);
+    }
+
+    // A frame of the film: what the page shows now, for `steps` 60 Hz steps –
+    // then the clock moves on by just as long: the same guide gives the same
+    // frames every time, however long a screenshot takes.
     async frame(steps = FRAME_STEPS) {
         if (!this.recording) return;
+        await settle(this.page);
         const t0 = Date.now(), tm = [];
         const { clip } = this.recording;
         // Headless Chromium (software WebGL) may show the level view empty
@@ -256,62 +275,31 @@ export class GuidePlayer {
         const last = this.recording.frames.at(-1);
         const f = last && this.last_raw && last.w === info.width && last.h === info.height && this.last_raw.equals(data)
             ? last : packed_frame(info.width, info.height, data);
+        // ANLEITUNG_BILDER=dir: every frame as a PNG (to compare two runs)
+        if (process.env.ANLEITUNG_BILDER) {
+            this.debug_n = (this.debug_n ?? 0) + 1;
+            fs.mkdirSync(process.env.ANLEITUNG_BILDER, { recursive: true });
+            fs.writeFileSync(path.join(process.env.ANLEITUNG_BILDER, `${this.id}-${String(this.debug_n).padStart(5, '0')}-${this.step_no}.png`), png);
+        }
         this.last_raw = data;
         this.note_band();
         tm.push(Date.now() - t0);
         if (process.env.ANLEITUNG_DEBUG && tm[tm.length - 1] > 400) console.log('   slow frame', tm.join(' '));
         for (let i = 0; i < steps; i++) this.recording.frames.push(f);
+        await this.pass(steps * STEP_MS);
     }
 
-    // The game frame while a game runs in it (Spielen, Level testen) – in
-    // slow motion from now on (ZEITLUPE) – or null.
-    async slow_game() {
-        if (!this.recording || !(ZEITLUPE > 0 && ZEITLUPE < 1)) return null;
-        try {
-            const frame = await (await this.page.$('#play_iframe'))?.contentFrame();
-            if (!frame) return null;
-            const running = await frame.evaluate((s) => {
-                if (!window.__guide_time || window.game?.running !== true) return false;
-                if (window.__guide_time.speed() !== s) window.__guide_time.set(s);
-                return true;
-            }, ZEITLUPE);
-            return running ? frame : null;
-        } catch (e) {
-            return null;
+    // Time passes: frames one after the other, on the film clock – 15 per
+    // second, 30 while a game runs.
+    async live(seconds) {
+        if (!this.recording) { await this.pass(seconds * 1000); return; }
+        let left = seconds * 1000;
+        while (left > 0.5) {
+            // (the clock knows from its last step whether a game runs)
+            const steps = this.page.guide_game_running ? GAME_FRAME_STEPS : FRAME_STEPS;
+            await this.frame(steps);
+            left -= steps * STEP_MS;
         }
-    }
-
-    // the game frame at its real speed again
-    async full_speed() {
-        try {
-            const frame = await (await this.page.$('#play_iframe'))?.contentFrame();
-            await frame?.evaluate(() => { if (window.__guide_time?.speed() !== 1) window.__guide_time?.set(1); });
-        } catch (e) { /* no game frame */ }
-    }
-
-    // Time passes as it does in the studio: frames as fast as they come, each
-    // as long as it really took. While a game runs, it runs in slow motion
-    // and the time is the game's (so a test run plays at its speed on film,
-    // with every jump). keep_slow: the caller sets the speed back.
-    async live(seconds, { keep_slow = false } = {}) {
-        if (!this.recording) { await this.page.waitForTimeout(seconds * 1000); return; }
-        const game = await this.slow_game();
-        const clock = game
-            ? async () => game.evaluate(() => window.__guide_time.now()).catch(() => Date.now())
-            : async () => Date.now();
-        let last = await clock();
-        let passed = 0;
-        while (passed < seconds * 1000) {
-            const before = this.recording.frames.length;
-            await this.frame(1);
-            const now = await clock();
-            passed += now - last;
-            const steps = Math.max(1, Math.round((now - last) / STEP_MS));
-            const f = this.recording.frames[before];
-            for (let i = 1; i < steps; i++) this.recording.frames.push(f);
-            last = now;
-        }
-        if (game && !keep_slow) await this.full_speed();
     }
 
     // A still moment (nothing moves): one frame, held.
@@ -327,7 +315,7 @@ export class GuidePlayer {
     }
 
     // { frames (one per 60 Hz step), timeline: [{ t (ms), nr, text, keys, maus }] }
-    stop_video() {
+    async stop_video() {
         const r = this.recording;
         this.recording = null;
         return { frames: r.frames, timeline: r.timeline };
@@ -380,7 +368,7 @@ export class GuidePlayer {
             await this.page.mouse.up({ button, clickCount: i + 1 });
         }
         await this.ripple(button === 'right');
-        await this.page.waitForTimeout(150);
+        if (!this.recording) await this.pass(150);
         await this.frame(6);
         if (mit) await this.modifiers(mit, false);
         await this.set_band({ maus: '' });
@@ -405,7 +393,7 @@ export class GuidePlayer {
         this.down = false;
         await this.page.evaluate(([x, y]) => window.__guide.move(x, y, false), [this.x, this.y]);
         if (mit) { await this.modifiers(mit, false); await this.set_band({ maus: '' }); }
-        await this.page.waitForTimeout(120);
+        if (!this.recording) await this.pass(120);
         await this.frame(6);
     }
 
@@ -418,7 +406,7 @@ export class GuidePlayer {
         const n = Math.round(Number(notches) || 0);
         for (let i = 0; i < Math.abs(n); i++) {
             await this.page.mouse.wheel(0, Math.sign(n) * 100);
-            await this.page.waitForTimeout(60);
+            if (!this.recording) await this.pass(60);
             await this.frame(4);
         }
         await this.frame(4);
@@ -428,35 +416,20 @@ export class GuidePlayer {
     async key(combo, hold_seconds, show = true) {
         const caps = key_caps(combo);
         // a game looks at the keys once per frame: a press as short as a
-        // script makes it (down and up at once) can be missed – a jump that
+        // script makes it (down and up at once) would be missed – a jump that
         // never happens. While a game runs, a key is held like a quick finger.
-        if (!hold_seconds && await this.slow_game()) hold_seconds = 0.12;
-        // a game looks at the keys once per frame: a press as short as a
-        // script makes it (down and up at once) would be missed – a jump
-        // that never happens. While a game runs, a key is held like a quick
-        // finger would.
-        if (!hold_seconds && await this.slow_game()) hold_seconds = 0.12;
+        if (!hold_seconds && this.recording && this.page.guide_game_running) hold_seconds = 0.12;
         if (show) await this.set_band({ keys: caps });
         if (hold_seconds) {
-            // held for exactly this long: the key goes up on a timer of its
-            // own, not after a screenshot that may still be on its way (the
-            // figure would walk too far)
-            // (in slow motion while a game runs: then the timer waits as much
-            // longer, and the game sees the key held for hold_seconds)
-            const game = await this.slow_game();
+            // held for exactly this long, on the guide clock
             const parts = String(combo).split('+');
             for (const p of parts) await this.page.keyboard.down(p);
-            const released = new Promise(resolve => setTimeout(async () => {
-                for (const p of [...parts].reverse()) await this.page.keyboard.up(p);
-                resolve();
-            }, hold_seconds * 1000 / (game ? ZEITLUPE : 1)));
-            await this.live(hold_seconds, { keep_slow: true });
-            await released;
-            await this.full_speed();
+            await this.live(hold_seconds);
+            for (const p of [...parts].reverse()) await this.page.keyboard.up(p);
         } else {
             await this.frame(6);
             await this.page.keyboard.press(combo);
-            await this.page.waitForTimeout(200);
+            if (!this.recording) await this.pass(200);
             await this.frame(14);
         }
         if (show) await this.set_band({ keys: [] });
@@ -478,11 +451,7 @@ export class GuidePlayer {
             entry = entry ? entry.locator(`xpath=./div[${cls('context-menu-sub')}]/div[${cls('context-menu-item')}]` +
                 `[span[${cls('context-menu-label')}][normalize-space(.)="${label}"]]`).first()
                 : this.page.locator(`.context-menu-item:visible${has}`).last();
-            try {
-                await entry.waitFor({ state: 'visible', timeout: SELECTOR_TIMEOUT });
-            } catch {
-                this.fail(`Im Menü steht kein „${labels[i]}“ (umbenannt oder verschoben?)`);
-            }
+            if (!(await this.visible(entry))) this.fail(`Im Menü steht kein „${labels[i]}“ (umbenannt oder verschoben?)`);
             // pinned to this element: a locator is looked up again on every use,
             // and "the last visible one" changes as soon as its submenu opens
             await entry.evaluate((el, n) => { el.dataset.guideEntry = n; }, String(i));
@@ -490,15 +459,15 @@ export class GuidePlayer {
             const b = await entry.boundingBox();
             const p = { x: b.x + Math.min(b.width / 2, 60), y: b.y + b.height / 2 };
             // into a submenu sideways first: it spans its entry's height, so the
-            // pointer crosses no other entry of the menu before (recording is
-            // slower than real time – resting on a neighbour would open its submenu)
+            // pointer crosses no other entry of the menu before (resting on a
+            // neighbour for a frame or two would open its submenu)
             if (i > 0 && Math.abs(p.y - this.y) > 4) await this.move_to({ x: p.x, y: this.y });
             if (i < labels.length - 1) {
                 await this.move_to(p);
                 // a submenu opens at once – or, when another one of that menu is
                 // open, after the mouse rested a moment (widgets.js SUBMENU_SWITCH_MS)
                 for (let n = 0; n < 60 && !(await entry.evaluate(el => el.classList.contains('open'))); n++)
-                    await (this.recording ? this.frame(2) : this.page.waitForTimeout(40));
+                    await (this.recording ? this.frame(2) : this.pass(40));
                 await this.frame(5);
             } else await this.click({ punkt: [p.x, p.y] });
         }
@@ -593,7 +562,7 @@ export class GuidePlayer {
         else if (s.pause !== undefined) await this.hold(Number(s.pause));
         else if (s.js !== undefined) {
             try { await page.evaluate(s.js); } catch (e) { this.fail(`js: ${e.message}`); }
-            await page.waitForTimeout(200);
+            await this.pass(200);
         } else if (s.pruefen !== undefined) {
             const ok = await page.evaluate(s.pruefen).catch(e => `Fehler: ${e.message}`);
             if (ok !== true) this.fail(`${s.meldung ?? 'Prüfung fehlgeschlagen'} (${s.pruefen} → ${JSON.stringify(ok)})`);
@@ -636,6 +605,7 @@ export class GuidePlayer {
     }
 
     async picture(clip) {
+        await settle(this.page);
         const png = await this.page.screenshot({ clip, animations: 'allow' });
         const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
         return { w: info.width, h: info.height, data };

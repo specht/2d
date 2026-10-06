@@ -16,6 +16,7 @@
 // Kept apart from build.mjs on purpose: the tools build.mjs uses are part of
 // the recipes' fingerprint, and the guides must not re-record the recipes.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +26,7 @@ import sharp from 'sharp';
 import { chromium } from 'playwright';
 import { write_webp } from './record.mjs';
 import { load_catalog, build_game, studio_game } from './game.mjs';
-import { open_studio } from './studio.mjs';
+import { open_studio, BROWSER_ARGS } from './studio.mjs';
 import { GuidePlayer, StepError } from './anleitung.mjs';
 import { encode_film, film_steps } from './film.mjs';
 
@@ -195,7 +196,7 @@ async function record_guide(browser, guide, start) {
                 game._load();
                 game.saved_state = JSON.stringify(game.data);
             }, start);
-            await page.waitForTimeout(400);
+            await player.pass(400);
         }
         for (const a of guide.aufnahmen) {
             await player.steps(a.vorher);
@@ -204,7 +205,7 @@ async function record_guide(browser, guide, start) {
                 await player.steps(a.schritte);
                 await page.evaluate(() => window.__guide.hide_pointer());
                 await player.place_marks(a.marken);
-                await page.waitForTimeout(150);
+                await player.pass(150);
                 const f = await player.picture(clip);
                 await page.evaluate(() => window.__guide.marks([]));
                 media[a.name] = { art: 'bild', frames: [f] };
@@ -215,7 +216,7 @@ async function record_guide(browser, guide, start) {
                 await player.steps(a.schritte);
                 await player.hold(a.ende ?? 1.6);
                 await player.set_band({ nr: null, text: '', mehr: '', keys: [], maus: '' });
-                const { frames, timeline } = player.stop_video();
+                const { frames, timeline } = await player.stop_video();
                 media[a.name] = { art: 'video', frames, timeline, standbild: a.standbild };
                 // ANLEITUNG_SICHTEN=1: every film also as an animated WebP, to look at
                 if (process.env.ANLEITUNG_SICHTEN)
@@ -227,7 +228,7 @@ async function record_guide(browser, guide, start) {
         if (e instanceof StepError) problems.push(e.message);
         else throw e;
         // what was recorded up to the failing step, to look at
-        const partial = player.recording ? player.stop_video().frames : null;
+        const partial = player.recording ? (await player.stop_video()).frames : null;
         if (partial?.length) {
             await write_webp(partial, path.join(here, `fehler-${guide.id}.webp`), 1);
             problems.push(`Aufnahme bis zum Fehler: rezepte/tools/fehler-${guide.id}.webp`);
@@ -257,15 +258,20 @@ async function main() {
     const entries = [];
     let failed = 0;
     let browser = null;
-    try {
-        for (const g of guides) {
+    // Several guides at once (each in its own browser context): the guide clock
+    // makes a recording independent of how busy the computer is, so this only
+    // saves time. ANLEITUNG_PARALLEL=n sets how many (default: half the cores, at most 4).
+    const parallel = Math.max(1, Number(process.env.ANLEITUNG_PARALLEL) || Math.min(4, Math.floor(os.cpus().length / 2)));
+    const one = async (g) => {
+        {
+            const entries = [];
             const old = previous.anleitungen.find(e => e.id === g.id);
             // every file of an entry: pictures, films and their sheets, the card
             const files_of = (e) => [e.bild, e.standbild,
                 ...(e.medien ?? []).flatMap(m => [m.bild, m.film, ...(m.dateien ?? [])])].filter(Boolean);
             const keep_files = (e) => { for (const f of files_of(e)) written.add(f); };
             // named guides only: the others stay as they are (or stay missing)
-            if (only.length && !only.includes(g.id)) { if (old) { entries.push(old); keep_files(old); } continue; }
+            if (only.length && !only.includes(g.id)) { if (old) { entries.push(old); keep_files(old); } return entries; }
             const start = await start_game(g, catalog);
             const { body, ...meta } = g;
             const quelle = crypto.createHash('sha1').update(studio_hash()).update(JSON.stringify(meta))
@@ -277,10 +283,11 @@ async function main() {
                 for (const m of old.medien ?? []) media[m.name] = m;
                 entries.push({ ...old, titel: g.titel, kurz: g.kurz, html: render_body(g.body, media, g.id) });
                 console.log(`= ${g.id} (unverändert)`);
-                continue;
+                return entries;
             }
             // the studio's WebGL (level editor, Spielen) works with the default headless Chromium
-            browser ??= await chromium.launch();
+            browser ??= chromium.launch({ args: BROWSER_ARGS });
+            browser = await browser;
             const t0 = Date.now();
             const { media, problems } = await record_guide(browser, g, start);
             const medien = [];
@@ -342,9 +349,23 @@ async function main() {
                 id: g.id, titel: g.titel, kategorie: KATEGORIE, kurz: g.kurz, anleitung: true,
                 ...card, medien, html: render_body(g.body, by_name, g.id), quelle,
             });
+            return entries;
         }
+    };
+    try {
+        // the entries in the order of the guides, however they finish
+        const results = new Array(guides.length);
+        let next = 0;
+        const worker = async () => {
+            while (next < guides.length) {
+                const i = next++;
+                results[i] = await one(guides[i]);
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(parallel, guides.length) }, worker));
+        for (const r of results) entries.push(...r);
     } finally {
-        await browser?.close();
+        await (await browser)?.close();
     }
     if (!check_only) {
         fs.mkdirSync(out_dir, { recursive: true });
