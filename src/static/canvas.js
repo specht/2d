@@ -37,11 +37,12 @@ class Canvas {
         this.overlay_bitmap_outline = document.createElement('canvas');
         this.selection_bitmap = document.createElement('canvas');
         this.selection_bitmap_outline = document.createElement('canvas');
-        // their outline is read back on every pointer move (update_outline): the
-        // first getContext decides, so the browser keeps them where reading is fast
-        this.overlay_bitmap.getContext('2d', { willReadFrequently: true });
-        this.selection_bitmap.getContext('2d', { willReadFrequently: true });
         this.stamp_bitmap = document.createElement('canvas');
+        // read back on every pointer move (set_pixels, update_outline, the
+        // stamp): only the first getContext of a canvas decides, so they ask for
+        // it here, before anything else does – later calls cannot change it
+        for (const bitmap of [this.bitmap, this.overlay_bitmap, this.selection_bitmap, this.stamp_bitmap])
+            bitmap.getContext('2d', { willReadFrequently: true });
         this.overlay_grid = document.createElement('canvas');
         // Onion Skinning: the frame before (and after) shines through (update_onion_skin)
         this.onion_bitmap = document.createElement('canvas');
