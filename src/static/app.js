@@ -4021,6 +4021,27 @@ class Game {
 		return back;
 	}
 
+	// Things to collect (Einsammeln, keys) stay upright on the screen when the
+	// camera turns with a turned gravity: a sideways heart or coin looks
+	// wrong. They turn around their middle, only while drawing – where they
+	// are and what touches them stays as it is. Returns [mesh, x, y] to put back.
+	show_upright_items(angle) {
+		const back = [];
+		if (!angle && !this.items_turned) return back;
+		this.items_turned = Boolean(angle);
+		const c = Math.cos(angle), s = Math.sin(angle);
+		for (const entry of this.active_level_sprites ?? []) {
+			const sprite = this.data.sprites[entry.sprite_index];
+			if (!entry.mesh || !sprite?.traits || !('pickup' in sprite.traits || 'key' in sprite.traits)) continue;
+			entry.mesh.rotation.z = angle;
+			if (!angle) continue;
+			const p = entry.mesh.position, h2 = sprite.height * 0.5 * Math.abs(entry.mesh.scale?.y ?? 1);
+			back.push([entry.mesh, p.x, p.y]);
+			p.set(p.x + s * h2, p.y + h2 - c * h2, p.z);
+		}
+		return back;
+	}
+
 	// Snow, rain, smoke, fire, bubbles and lightning fall or rise: when the
 	// camera turns, they stay upright on the screen. Their texture coordinates
 	// (the world position the shader reads, backdrops.js set_backdrop_uv) and
@@ -4299,6 +4320,8 @@ class Game {
 		this.renderer.setRenderTarget(this.data.properties.crt_effect ? this.render_target : null);
 		// figures in the middle of a turn are drawn turning (Character.visual_angle)
 		const turning = this.show_turning_figures();
+		// coins, hearts, keys: upright on the screen, however the camera has turned
+		turning.push(...this.show_upright_items(this.view_angle ?? 0));
 		this.renderer.render(this.scene, this.camera);
 		for (const [mesh, x, y] of turning) mesh.position.set(x, y, mesh.position.z);
 
