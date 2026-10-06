@@ -23,7 +23,7 @@
 //            Character gravity_k). Slopes and ladders only work with gravity
 //            pulling down; in a turned gravity a slope is a block.
 //   turn_seconds  how long the turn into this region's gravity takes on the
-//            screen (absent = 0.4 s; 0 = at once). Gravity itself changes
+//            screen (absent = 2 s; 0 = at once, at most 5 s). Gravity itself changes
 //            halfway through the turn. Turning back out of the region takes
 //            as long as turning in.
 // The frontmost region that contains the centre of the figure decides the mode
@@ -42,8 +42,8 @@ const MovementRegions = (() => {
     const DIRECTIONS = ['down', 'right', 'up', 'left'];
     // how long a turn takes on the screen (s): the figure and the camera turn
     // together; gravity changes halfway (absent turn_seconds = this)
-    const TURN_SECONDS = 0.4;
-    const TURN_LIMITS = [0, 3];
+    const TURN_SECONDS = 2;
+    const TURN_LIMITS = [0, 5];
 
     const number = (value, [lo, hi], fallback) =>
         typeof value === 'number' && Number.isFinite(value) ? Math.min(hi, Math.max(lo, value)) : fallback;

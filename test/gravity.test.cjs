@@ -62,8 +62,9 @@ test('a region\'s gravity direction and Drehdauer; absent: down, as always', () 
     assert.equal(MovementRegions.at(resolved, 50, 50).turn_seconds, 1.5);
     // normal gravity, no current: nothing changes (as before)
     assert.equal(MovementRegions.at(resolved, 250, 50), null);
-    // the Drehdauer is kept within 0 … 3 s
-    assert.equal(MovementRegions.at(resolved, 450, 50).turn_seconds, 3);
+    // the Drehdauer is kept within 0 … 5 s; absent: 2 s
+    assert.equal(MovementRegions.at(resolved, 450, 50).turn_seconds, 5);
+    assert.equal(MovementRegions.settings({ mode: 'normal', direction: 'up' }).turn_seconds, 2);
     assert.equal(MovementRegions.resolve({ properties: {}, layers: [region({ mode: 'swim' }, [rect(0, 0, 10, 10)])] }).turns, false);
     // "wie darunter" only adds its current: it does not turn gravity
     assert.equal(MovementRegions.settings({ mode: 'inherit', direction: 'up' }).direction, undefined);

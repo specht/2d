@@ -2963,7 +2963,7 @@ class LevelEditor {
                 const [lo, hi] = MovementRegions.TURN_LIMITS;
                 new NumberWidget({
                     container: box, label: 'Drehdauer', suffix: 's', min: lo, max: hi, step: 0.1, decimalPlaces: 1,
-                    hint: 'Wie lange das Drehen dauert, wenn die Spielfigur in diesen Bereich kommt – und wieder hinaus. Die Schwerkraft wechselt genau in der Mitte. 0 Sekunden: sofort.',
+                    hint: 'Wie lange das Drehen dauert, wenn die Spielfigur in diesen Bereich kommt – und wieder hinaus. Die Schwerkraft wechselt genau in der Mitte. Ohne Änderung: 2 Sekunden. 0 Sekunden: sofort.',
                     get: () => get()?.turn_seconds ?? MovementRegions.TURN_SECONDS,
                     set: (value) => { if (Number.isFinite(value) && value >= lo && value <= hi) get().turn_seconds = value; },
                 });
