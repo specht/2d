@@ -146,6 +146,7 @@ class LayerStruct {
                 // a new Schalter or Druckplatte gets a free Code (signals.js)
                 const level = this.level_editor.game.data.levels[this.level_editor.level_index];
                 give_new_senders_codes(level, [placed], () => this.level_editor.game.data.sprites[sprite_index].traits);
+                give_new_signs_their_voice([placed], () => this.level_editor.game.data.sprites[sprite_index].traits);
                 (level.layers[this.level_editor.layer_index].sprites ?? [])[use_placed_sprite_index] = placed;
             }
             $(this.el_sprite_count).text(`${(this.level_editor.game.data.levels[this.level_editor.level_index].layers[this.level_editor.layer_index].sprites ?? []).length}`);
@@ -1320,6 +1321,7 @@ class LevelEditor {
         // new Schalter and Druckplatten: each its own free Code (signals.js)
         give_new_senders_codes(this.game.data.levels[this.level_index],
             filled.selection.map(i => filled.sprites[i]), () => sprite.traits);
+        give_new_signs_their_voice(filled.selection.map(i => filled.sprites[i]), () => sprite.traits);
         this.set_layer_sprites(this.layer_index, filled.sprites, []);
     }
 
@@ -1345,6 +1347,7 @@ class LevelEditor {
         if (!result.changed.length) return;
         give_new_senders_codes(this.game.data.levels[this.level_index],
             result.changed.map(i => result.sprites[i]), () => sprite.traits);
+        give_new_signs_their_voice(result.changed.map(i => result.sprites[i]), () => sprite.traits);
         this.set_layer_sprites(this.layer_index, result.sprites, result.selection);
         this.build_signal_links();
         const count = result.changed.length;
@@ -5696,6 +5699,20 @@ function signal_link_color(code) {
 // that is for this object – a null Code, or switching its signal off); without
 // data.clear an empty field goes back to the Code it had.
 // data: { editor, container, label, hint, get, set, clear?, max }.
+// A Hinweistext placed from now on speaks itself ("Wer spricht: das Sprite
+// spricht selbst"): its sentences stay above it, and it shows "spricht gerade"
+// if drawn. Stored on the copy, so copies placed before – which have no
+// "Wer spricht" and are read out by the figure – stay exactly as they are.
+// A copy that already says who speaks (replaced by another sign) keeps it.
+function give_new_signs_their_voice(placed_list, traits_of) {
+    for (const placed of placed_list ?? []) {
+        if (!placed || !('text' in (traits_of(placed[0]) ?? {}))) continue;
+        if (!placed[3] || typeof placed[3] !== 'object') placed[3] = {};
+        const props = placed[3].text ??= {};
+        props.speaker ??= 'self';
+    }
+}
+
 class SignalCodeWidget {
     constructor(data) {
         this.data = data;

@@ -4027,7 +4027,7 @@ class Game {
 		const fullscreen = typeof window.toggle_game_fullscreen === 'function';
 		$('#start_hint').text(touch ?
 			(fullscreen ? 'Vollbild: Tipp unten rechts auf ⛶' : '') :
-			'Vollbild: Strg + Enter oder ⛶ unten rechts · Esc beendet das Spiel');
+			'Vollbild: Alt + Enter oder ⛶ unten rechts · Esc beendet das Spiel');
 	}
 
 	// The end of the game: its title, and the points if the HUD counts them.

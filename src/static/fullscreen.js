@@ -1,5 +1,5 @@
 // Play the game truly full screen – with a button in the corner (like on
-// YouTube) or Strg+Enter. In the studio the game runs inside an iframe; then
+// YouTube) or Alt+Enter. In the studio the game runs inside an iframe; then
 // the iframe itself goes full screen, so only the game fills the screen.
 (function () {
     // The element that goes full screen and the document that owns it.
@@ -40,9 +40,10 @@
     }
     window.toggle_game_fullscreen = toggle;
 
-    // Strg+Enter (⌘+Enter on a Mac). Capture phase: the game must not also see Enter.
+    // Alt+Enter (Option+Enter on a Mac), as in many PC games. Capture phase: the
+    // game must not also see Enter.
     window.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && (e.code === 'Enter' || e.code === 'NumpadEnter')) {
+        if (e.altKey && !e.ctrlKey && !e.metaKey && (e.code === 'Enter' || e.code === 'NumpadEnter')) {
             e.preventDefault();
             e.stopImmediatePropagation();
             if (!e.repeat) toggle();
@@ -81,7 +82,7 @@
         const update = () => {
             const full = is_fullscreen();
             button.innerHTML = full ? ICON_EXIT : ICON_ENTER;
-            button.title = full ? 'Vollbild beenden (Strg+Enter oder Esc)' : 'Vollbild (Strg+Enter)';
+            button.title = full ? 'Vollbild beenden (Alt+Enter oder Esc)' : 'Vollbild (Alt+Enter)';
             button.setAttribute('aria-label', button.title);
             window.dispatchEvent(new Event('resize'));
         };
