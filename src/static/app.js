@@ -512,6 +512,18 @@ void main() {
         this.hit_flash_materials = null;
     }
 
+	// Something collected flies up and fades (Game.render) – up as the figure
+	// that collected it sees it: with a turned gravity, away from its floor.
+	collected_flies_up(entry, t) {
+		const flight = { t0: t, y0: entry.mesh.position.y };
+		if (this.gravity_k) {
+			[flight.ux, flight.uy] = MovementRegions.to_world(this.gravity_k, 0, 1);
+			flight.x0 = entry.mesh.position.x;
+		}
+		this.game.transitioning_sprites['pickup'] ??= {};
+		this.game.transitioning_sprites['pickup'][entry.entry_index] = flight;
+	}
+
 	// Collects a pickup (an entry as has_trait_at gives it): it goes, its Code is
 	// sent, the figure gets what it gives, and what "bleibt fürs ganze Spiel" goes
 	// into the inventory (inventory.js). stays: bought in a shop that has more of
@@ -527,8 +539,7 @@ void main() {
 			let y1 = y + sprite.height;
 			this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
 			this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
-			this.game.transitioning_sprites['pickup'] ??= {};
-			this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+			this.collected_flies_up(entry, t);
 			this.game.remember_collected?.(this.game.active_level_sprites[entry.entry_index]);
 		}
 		// "sendet, wenn eingesammelt" (signals.js; absent = sends nothing)
@@ -1855,8 +1866,7 @@ void main() {
 				let y1 = y + sprite.height;
 				this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
 				this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
-				this.game.transitioning_sprites['pickup'] ??= {};
-				this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+				this.collected_flies_up(entry, t);
 				// a key with "kein Signal" opens nothing
 				if (entry.signal_code !== null) this.game.found_keys[entry.signal_code] = true;
 				this.game.remember_collected?.(this.game.active_level_sprites[entry.entry_index]);
@@ -4099,7 +4109,12 @@ class Game {
 			// just as far as before: Bewegung × Ausblenden.
 			const k = Math.min(Math.max(dt, 0.0), 1.0);
 			const rise = ((sprite.traits.pickup ?? {}).move_up ?? 100) * duration;
-			entry.mesh.position.y = this.transitioning_sprites.pickup[pi].y0 + rise * (1.0 - Math.pow(1.0 - k, 3));
+			const flight = this.transitioning_sprites.pickup[pi];
+			if (flight.ux !== undefined) {
+				// collected in a turned gravity: up is where the figure's up is (Character.collected_flies_up)
+				entry.mesh.position.x = flight.x0 + flight.ux * rise * (1.0 - Math.pow(1.0 - k, 3));
+				entry.mesh.position.y = flight.y0 + flight.uy * rise * (1.0 - Math.pow(1.0 - k, 3));
+			} else entry.mesh.position.y = flight.y0 + rise * (1.0 - Math.pow(1.0 - k, 3));
 			const pop = k < 0.18 ? 1.0 + 0.3 * Math.sin(k / 0.18 * Math.PI * 0.5) : 1.3 - 0.45 * (k - 0.18) / 0.82;
 			entry.mesh.scale.set(Math.sign(entry.mesh.scale.x || 1) * pop, pop, 1);
 			let t = k < 0.4 ? 1.0 : 1.0 - (k - 0.4) / 0.6;

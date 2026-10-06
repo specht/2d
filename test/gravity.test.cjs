@@ -166,11 +166,14 @@ const walls = () => {
 };
 
 test('without a turned gravity the figure walks as always', () => {
-    const { pc, run } = room({ blocks: walls(), player: [48, 24] });
+    const { pc, run, game } = room({ blocks: walls(), player: [48, 24] });
     run(1.0, () => ['right']);
     assert.equal(pc.gravity_k, 0);
     assert.equal(pc.mesh.position.y, 24);
     assert.ok(pc.mesh.position.x > 200);
+    // and what it collects flies straight up, as always
+    pc.collected_flies_up({ entry_index: 0, mesh: { position: { x: 1, y: 2 } } }, 5);
+    assert.deepEqual({ ...game.transitioning_sprites.pickup[0] }, { t0: 5, y0: 2 });
 });
 
 test('walking into a region with gravity to the right: on the wall, "right" walks up it', () => {
@@ -192,6 +195,10 @@ test('walking into a region with gravity to the right: on the wall, "right" walk
     assert.equal(game.points, 10, 'the coin up on the wall');
     // drawn turned a quarter, like the camera
     assert.equal(pc.visual_angle(100), Math.PI / 2);
+    // what it collects flies up as it sees it: away from the wall, to the world's left
+    pc.collected_flies_up({ entry_index: 0, mesh: { position: { x: 264, y: 192 } } }, 5);
+    const flight = game.transitioning_sprites.pickup[0];
+    assert.deepEqual([flight.ux + 0, flight.uy + 0, flight.x0, flight.y0], [-1, 0, 264, 192]);
 });
 
 test('gravity up by a Signal: the figure falls to the ceiling and stands there', () => {
