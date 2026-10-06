@@ -1911,6 +1911,9 @@ class Game {
 		this.key_actions = controls_key_map(null);
 		// the keys that are down right now (unlike pressed_keys, not forgotten by setup())
 		this.keys_down = new Set();
+		// keys pressed in the game (setup() starts it anew); there before the first level, so a key
+		// pressed while a game is still loading (or failed to load) does no harm
+		this.pressed_keys = {};
 		// Sprechtexte (speech.js): what is being said, drawn in a last render pass
 		this.speech = new Speech();
 		this.reset();

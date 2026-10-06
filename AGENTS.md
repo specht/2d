@@ -78,5 +78,5 @@ German everywhere; keep gaming terms (Hitbox, Knockback, Cooldown, Coyote Time).
 - `image_import.js`, `palette_apply.js`, `sprite_basket.js`, `sprite_filter.js`, `own_game.js`, `new_game.js`, `game_list.js` – authoring helpers and Spiel laden.
 - `rescue.js`, `server_watch.js`, `crash_report.js` – nothing is lost to reloads, restarts and crashes.
 - `collaboration.js`, `playtesting.js`, `rezepte.js`, `anleitung_film.js` – sessions, the Playtesting tab, the Hilfe tab.
-- `src/ruby/main.rb` – the API. `game_index.rb`, `collaboration.rb`, `client_errors.rb`, `playtesting.rb`, `moderation.rb`, `play_copies.rb` – its parts. `errors.rb`, `playtest.rb`, `moderate.rb` – the teacher's scripts.
+- `src/ruby/main.rb` – the API. `game_index.rb`, `sheet_repair.rb`, `collaboration.rb`, `client_errors.rb`, `playtesting.rb`, `moderation.rb`, `play_copies.rb` – its parts. `errors.rb`, `playtest.rb`, `moderate.rb` – the teacher's scripts.
 - `rezepte/` – recipes, the Sprite-Katalog and the guides (`rezepte/README.md`). `test/` – `node --test test/*.cjs`, `ruby test/<name>_test.rb`.

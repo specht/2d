@@ -16,6 +16,7 @@ require_relative "playtesting"
 require_relative "game_index"
 require_relative "moderation"
 require_relative "play_copies"
+require_relative "sheet_repair"
 
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 DEVELOPMENT = ENV['DEVELOPMENT'] == '1'
@@ -291,6 +292,8 @@ class Main < Sinatra::Base
             setup = SetupDatabase.new()
             setup.setup(self)
             Main.start_game_index
+            # in the background: the studio is there at once
+            Thread.new { Main.repair_spritesheets }
         end
         @@playtesting = Playtesting::Store.new(PLAYTESTING_PATH)
         if ["thin", "rackup"].include?(File.basename($0))
@@ -725,7 +728,8 @@ class Main < Sinatra::Base
     # sheets themselves are shared: /gen/spritesheets/<sha>.png)
     def self.render_spritesheet_for_tag(tag, games_dir: "/gen/games", info_dir: "/gen/spritesheets")
         path = "#{info_dir}/#{tag}.json"
-        return if File.exist?(path)
+        # done already – unless a sheet it names is gone or no picture (sheet_repair.rb)
+        return if SheetRepair.info_ok?(path, "/gen/spritesheets")
         # debug "Rendering spritesheet for #{tag}!"
         FileUtils.mkpath(File.dirname(path))
         game = JSON.parse(File.read("#{games_dir}/#{tag}.json"))
@@ -809,13 +813,15 @@ class Main < Sinatra::Base
         }
         sheets.each.with_index do |sheet, i|
             sheet_sha1 = Digest::SHA1.hexdigest(sheet_contents[i].to_json)[0, 16]
-            path = "/gen/spritesheets/#{sheet_sha1}.png"
-            unless File.exist?(path)
-                sheet.save(path + 's', :fast_rgba)
-                im = Vips::Image.new_from_file path + 's'
+            # its own name: `path` is where the info goes (below)
+            sheet_path = "/gen/spritesheets/#{sheet_sha1}.png"
+            # a sheet that is no picture (sheet_repair.rb) is made again
+            unless File.exist?(sheet_path) && SheetRepair.png?(sheet_path)
+                sheet.save(sheet_path + 's', :fast_rgba)
+                im = Vips::Image.new_from_file sheet_path + 's'
                 im = im.resize(4, :kernel => :nearest)
-                im.pngsave(path)
-                FileUtils.rm_f(path + 's')
+                im.pngsave(sheet_path)
+                FileUtils.rm_f(sheet_path + 's')
             end
             info[:spritesheets] << "#{sheet_sha1}.png"
         end
@@ -833,9 +839,26 @@ class Main < Sinatra::Base
         info[:tiles] = tiles
         info[:width] = MAX_SPRITESHEET_WIDTH * SPRITESHEET_FACTOR
         info[:height] = MAX_SPRITESHEET_HEIGHT * SPRITESHEET_FACTOR
-        File.open(path, "w") do |f|
-            f.write(info.to_json)
+        # written next to it and renamed: nobody reads half an info
+        File.write(path + ".tmp", info.to_json)
+        File.rename(path + ".tmp", path)
+    end
+
+    # Once when the server starts (sheet_repair.rb): sheets that are no
+    # picture, infos that name a missing sheet, and recent games and play
+    # copies without an info are rendered again.
+    def self.repair_spritesheets
+        report = SheetRepair.repair("/gen/spritesheets", [
+            { games_dir: "/gen/games", info_dir: "/gen/spritesheets", since: Time.now - 14 * 24 * 3600 },
+            { games_dir: PlayCopies.games_dir(PLAY_COPIES_PATH), info_dir: PlayCopies.sheets_dir(PLAY_COPIES_PATH), since: nil },
+        ]) { |tag, games_dir, info_dir| Main.render_spritesheet_for_tag(tag, games_dir: games_dir, info_dir: info_dir) }
+        if report.values.any?(&:any?)
+            STDERR.puts "Sprite sheets repaired: #{report[:broken_sheets].size} broken sheet(s) removed, " +
+                "#{report[:rendered].size} game(s) rendered again, #{report[:failed].size} failed"
+            report[:failed].first(20).each { |line| STDERR.puts "  #{line}" }
         end
+    rescue => e
+        STDERR.puts "Sprite sheet repair: #{e}"
     end
 
     def icon_for_tag(tag)
