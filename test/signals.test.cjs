@@ -1328,3 +1328,27 @@ test('Verbinden: a switch and an exit – the exit opens on the switch; an exit 
         [code2, ['die Spielfigur am Ausgang »Fahne« steht'], ['liest die Spielfigur »Schild« vor']],
     ]);
 });
+
+test('"sendet, wenn die Spielfigur … hat": a level setting per item that stays', () => {
+    const { signal_rules, signal_partners, describe_signal_partners, signal_codes_in_level, free_signal_code, level_item_signals } = signals;
+    const traits = { g: { door: { lockable: true } }, k: { pickup: { keep: true } } };
+    const level = {
+        properties: { item_signals: [{ sprite_id: 'k', signal_code: 4 }, { sprite_id: 'k', signal_code: null }] },
+        layers: [{ type: 'sprites', properties: {}, sprites: [['g', 0, 0, { door: { signal_code: 4, door_reaction: 'open' } }]] }],
+    };
+    assert.deepEqual(level_item_signals(level).map(item => item.signal_code), [4, null]);
+    assert.deepEqual(level_item_signals({ properties: {} }), []);
+    const cards = signal_rules(level, ref => traits[ref], ref => ref === 'k' ? 'Goldschlüssel' : 'Tor');
+    assert.equal(cards.length, 1);
+    assert.deepEqual(cards[0].senders.map(line => line.text), ['die Spielfigur »Goldschlüssel« hat']);
+    assert.deepEqual(cards[0].senders[0].objects, [{ kind: 'level', setting: 'item_signals', index: 0 }]);
+    assert.equal(cards[0].problem, null);
+    // its Code is taken, and the editor names it
+    assert.ok(signal_codes_in_level(level).has(4));
+    assert.equal(free_signal_code(level), 1);
+    const partners = signal_partners(level, 4, ref => traits[ref]);
+    assert.equal(partners.items, 1);
+    assert.match(describe_signal_partners(4, partners), /sendet: Spielfigur hat etwas · reagiert: 1 Tür/);
+    // a level without it: the same as before (no key in the partners)
+    assert.equal('items' in signal_partners({ properties: {}, layers: [] }, 4, () => ({})), false);
+});

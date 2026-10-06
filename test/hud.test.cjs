@@ -9,11 +9,11 @@ const game = (sprites, props = {}, placed = []) => ({ sprites, properties: { liv
 test('the HUD shows only what the game uses', () => {
     // a figure and ground only: one life, nothing hurts, nothing to collect
     let plan = hud.hud_plan(game([sprite({ actor: {} }), sprite({ block_above: {} })], { lives_at_begin: 1 }));
-    assert.deepEqual(plan, { lives: { show: false, sprite: null }, energy: { show: false }, coins: { show: false, sprite: null } });
+    assert.deepEqual(plan, { lives: { show: false, sprite: null }, energy: { show: false }, coins: { show: false, sprite: null }, items: { show: false } });
     // more lives, spikes, coins and a gem: the coin is placed more often, so its picture is the counter's
     plan = hud.hud_plan(game([sprite({ actor: {} }), sprite({ trap: { damage: 10 } }), sprite({ pickup: { points: 100 } }),
         sprite({ pickup: { points: 10 } }), sprite({ pickup: { lives: 1 } })], {}, [3, 3, 3, 2, 4]));
-    assert.deepEqual(plan, { lives: { show: true, sprite: 4 }, energy: { show: true }, coins: { show: true, sprite: 3 } });
+    assert.deepEqual(plan, { lives: { show: true, sprite: 4 }, energy: { show: true }, coins: { show: true, sprite: 3 }, items: { show: false } });
     // "Energie anzeigen" off: no bar
     plan = hud.hud_plan(game([sprite({ baddie: {} })], { show_energy: false }));
     assert.equal(plan.energy.show, false);
@@ -21,6 +21,9 @@ test('the HUD shows only what the game uses', () => {
     // something that gives energy is reason enough for the bar
     assert.equal(hud.hud_plan(game([sprite({ pickup: { energy: 20 } })])).energy.show, true);
     assert.equal(hud.hud_plan({}).coins.show, false);
+    // something that "bleibt fürs ganze Spiel": the row of items (inventory.js)
+    assert.equal(hud.hud_plan(game([sprite({ pickup: { keep: true } })])).items.show, true);
+    assert.equal(hud.hud_plan(game([sprite({ pickup: { points: 10 } })])).items.show, false);
 });
 
 test('the HUD pixel is a whole number of screen pixels, readable on every screen', () => {

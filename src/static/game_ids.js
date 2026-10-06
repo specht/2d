@@ -96,6 +96,7 @@ function assign_new_game_id(data, key, item, random = random_game_id) {
 // - attack visuals: hit_sprite_id, attack_sprite_id, projectile_sprite_id
 // - enemy drops: traits.baddie.drop.sprite_id
 // - need_sprite level conditions: properties.sprite_id
+// - "sendet, wenn die Spielfigur … hat": level.properties.item_signals[].sprite_id
 //
 // Old games store array indices instead (slot 0 of a placed sprite, and the
 // *_sprite_index / sprite_index fields). convert_sprite_references_to_ids()
@@ -152,6 +153,17 @@ function for_each_keyed_sprite_reference(data, visit) {
             visit(properties, 'sprite_index', 'sprite_id', () => {
                 delete properties.sprite_index;
                 delete properties.sprite_id;
+            });
+        }
+        // a level setting per item (inventory.js): without its sprite it goes
+        const items = level?.properties?.item_signals;
+        if (!Array.isArray(items)) continue;
+        for (const item of [...items]) {
+            if (!item || typeof item !== 'object') continue;
+            visit(item, 'sprite_index', 'sprite_id', () => {
+                const i = items.indexOf(item);
+                if (i >= 0) items.splice(i, 1);
+                if (!items.length) delete level.properties.item_signals;
             });
         }
     }

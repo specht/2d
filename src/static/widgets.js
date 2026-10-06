@@ -1240,9 +1240,12 @@ class SpriteSelectWidget {
                 this.button.trigger('focus');
             });
         };
-        add('none', null, this.data.none_label ?? 'Kein Treffereffekt');
-        this.data.sprites().forEach((sprite, index) =>
-            add(String(index), SpriteSelectWidget.preview(sprite), sprite_label(sprite, index)));
+        // without_none: a choice is required; filter(sprite, index): only these sprites
+        if (!this.data.without_none) add('none', null, this.data.none_label ?? 'Kein Treffereffekt');
+        this.data.sprites().forEach((sprite, index) => {
+            if (this.data.filter && !this.data.filter(sprite, index)) return;
+            add(String(index), SpriteSelectWidget.preview(sprite), sprite_label(sprite, index));
+        });
     }
 }
 

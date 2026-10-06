@@ -1152,6 +1152,56 @@ sprites:
     label: Feder (springt höher)
     traits: { pickup: { speed_boost_duration: 6, speed_boost_vrun: 1.0, speed_boost_vjump: 1.4 } }
     states: [{ strip: extra/feder, fps: 4 }]
+  # Things that stay for the whole game (src/static/inventory.js): "bleibt fürs
+  # ganze Spiel" (pickup.keep). With an attack a thing is a weapon: whoever holds
+  # it attacks with it (J or K); several of a kind: the number keys choose.
+  zauberschluessel:
+    label: Zauberschlüssel (für das ganze Spiel)
+    traits: { pickup: { keep: true } }
+    states: [{ strip: extra/zauberschluessel, fps: 4 }]
+  schwert:
+    label: Schwert (Waffe)
+    traits:
+      pickup: { keep: true }
+      melee_attack:
+        attack:
+          id: melee
+          slot: nah
+          label: Schwert
+          delivery: { kind: swing, range_px: 24 }
+          effect: { kind: damage, amount: 20 }
+          timing: { cooldown_s: 0.45 }
+          visual: { kind: swoosh, sweep: down, hit_sprite_index: { sprite: treffer_funke } }
+    states: [{ strip: extra/schwert, fps: 5 }]
+  bogen:
+    label: Bogen (Waffe)
+    traits:
+      pickup: { keep: true }
+      ranged_attack:
+        attack:
+          id: ranged
+          slot: fern
+          label: Pfeil
+          delivery: { kind: projectile, range_px: 220, speed_px_s: 260 }
+          effect: { kind: damage, amount: 15 }
+          timing: { cooldown_s: 0.6 }
+          visual: { projectile_sprite_index: { sprite: pfeil }, hit_sprite_index: { sprite: treffer_funke } }
+    states: [{ strip: extra/bogen, fps: 5 }]
+  # a stone thrown at 45° with gravity: it flies an arc (like Pip's bow in "Pfeil und Bogen")
+  schleuder:
+    label: Steinschleuder (Waffe)
+    traits:
+      pickup: { keep: true }
+      ranged_attack:
+        attack:
+          id: ranged
+          slot: fern
+          label: Stein
+          delivery: { kind: projectile, range_px: 260, speed_px_s: 240, gravity_px_s2: 380, aim_angle_deg: 45 }
+          effect: { kind: damage, amount: 25 }
+          timing: { cooldown_s: 0.6 }
+          visual: { projectile_sprite_index: { sprite: stein }, hit_sprite_index: { sprite: treffer_funke } }
+    states: [{ strip: extra/schleuder, fps: 5 }]
   krone:
     label: Krone (100 Punkte)
     traits: { pickup: { points: 100 } }
@@ -1284,7 +1334,8 @@ sammlung:
   - Spielfiguren: [pip, pip_einfach, pip_schwert, pip_bogen, pip_bogen_schraeg, pip_wurf, pip_bombe, pip_taucher, astronaut, fisch, u_boot]
   - Gegner: [glibber, schnecke, spuckpilz, kaefer, keiler, frosch, fledermaus, klotz, klotz_einmal, maus, waschbaer, katze, geist, strohpuppe, qualle, hai]
   - Begleiter: [hund, kaetzchen, vogel, eule, roboter]
-  - Zum Einsammeln: [muenze, edelstein, herz, trank, schutzschild, feder, krone, geldsack, perle, stern, schluessel]
+  - Zum Einsammeln: [muenze, edelstein, herz, trank, schutzschild, feder, krone, geldsack, perle, stern, schluessel, zauberschluessel]
+  - Waffen zum Einsammeln: [schwert, bogen, schleuder]
   - Essen: [apfel, kirschen, erdbeere, banane, karotte, kuchen, eiswaffel]
   - Fallen und Gefahren: [stacheln, lava, broeckel, broeckel_klein, saege, lagerfeuer, dornen]
   - Boden und Blöcke: [boden, erde, boden_schnee, boden_tot, wurzeln, mauer, mauer_fenster, dach, kiste, eis, strohballen, block_rot, block_gruen]

@@ -12,6 +12,10 @@
 // - the level when no enemy is left (properties.signal_all_defeated): an
 // - the level when it starts (properties.signal_level_start): an – with a
 //   Verzögerung a simple timer
+// - the level when the figure has something that stays for the whole game
+//   (properties.item_signals: [{ sprite_id, signal_code }], inventory.js): an
+//   when the level starts and the figure has it already, or the moment it
+//   collects it – so an item from another level can open a door here
 //
 // Receivers with the same Code react, each in its own way:
 // - a door: placed property door_reaction (default: unlock, exactly what a
@@ -525,7 +529,8 @@ function signal_partners(level, code, traits_of) {
         level.properties.signal_level_complete === wanted;
     const level_start = Number.isInteger(level?.properties?.signal_level_start) &&
         level.properties.signal_level_start === wanted;
-    return { counts, layers, areas, all_defeated, level_complete, level_start };
+    const items = level_item_signals(level).filter(item => item.signal_code === wanted).length;
+    return { counts, layers, areas, all_defeated, level_complete, level_start, ...(items ? { items } : {}) };
 }
 
 // "Code 7 in diesem Level – sendet: 1 Schalter · reagiert: 2 Türen, Ebene »Brücke«"
@@ -538,7 +543,8 @@ function describe_signal_partners(code, partners, name = '') {
             return `${count} ${count === 1 ? role.one : role.many}`;
         });
     const senders = [...list(true), ...(partners.areas ?? []).map(name => `Signalbereich »${name}«`),
-        ...(partners.all_defeated ? ['alle Gegner besiegt'] : []), ...(partners.level_start ? ['Levelstart'] : [])];
+        ...(partners.all_defeated ? ['alle Gegner besiegt'] : []), ...(partners.level_start ? ['Levelstart'] : []),
+        ...(partners.items ? [partners.items === 1 ? 'Spielfigur hat etwas' : `Spielfigur hat etwas (${partners.items}×)`] : [])];
     const receivers = [...list(false), ...partners.layers.map(name => `Ebene »${name}«`),
         ...(partners.level_complete ? ['Level geschafft'] : [])];
     const parts = [];
@@ -879,6 +885,11 @@ function signal_rules(level, traits_of, name_of) {
     if (Number.isInteger(start))
         add(card(start).senders, 'das Level startet' + delay_text(level.properties.signal_level_start_delay),
             { kind: 'level', setting: 'signal_level_start' });
+    level_item_signals(level).forEach((item, index) => {
+        if (item.signal_code === null) return;
+        add(card(item.signal_code).senders, `die Spielfigur »${name_of(item.sprite_id ?? item.sprite_index) || 'Sprite'}« hat`,
+            { kind: 'level', setting: 'item_signals', index });
+    });
     const complete = level?.properties?.signal_level_complete;
     if (Number.isInteger(complete))
         add(card(complete).receivers, 'ist das Level geschafft', { kind: 'level', setting: 'signal_level_complete' });
@@ -959,6 +970,16 @@ function carry_signal_names(level, items, names) {
     return changed;
 }
 
+// "sendet, wenn die Spielfigur … hat" (level.properties.item_signals; absent =
+// none): every entry with its sprite (an id in the studio, an index in the
+// game) and its Code (stored_signal_code: absent = 0, null = "kein Signal").
+function level_item_signals(level) {
+    const list = level?.properties?.item_signals;
+    if (!Array.isArray(list)) return [];
+    return list.filter(item => item && typeof item === 'object')
+        .map(item => ({ sprite_id: item.sprite_id, sprite_index: item.sprite_index, signal_code: stored_signal_code(item.signal_code) }));
+}
+
 // ---------------------------------------------------------- older games
 // Every Code the level uses, so a new one can be found (a free Code).
 function signal_codes_in_level(level) {
@@ -981,6 +1002,7 @@ function signal_codes_in_level(level) {
     add(level?.properties?.signal_all_defeated);
     add(level?.properties?.signal_level_complete);
     add(level?.properties?.signal_level_start);
+    for (const item of level_item_signals(level)) add(item.signal_code);
     // a named Code stays taken even when nothing uses it right now, so a new
     // Schalter never turns up with somebody else's old name
     for (const key of Object.keys(signal_names_of(level) ?? {}))
@@ -1076,6 +1098,6 @@ if (typeof module !== 'undefined' && module.exports) {
         signal_objects, signal_links, same_signal_object, pick_signal_object, connect_signal_objects, stored_signal_code,
         promote_legacy_signals, signal_rules,
         SIGNAL_NAME_MAX_LENGTH, clean_signal_name, signal_name, signal_code_named, set_signal_name, signal_code_text, unique_signal_name,
-        placed_signal_fields, signal_names_for_placed, carry_signal_names,
+        placed_signal_fields, signal_names_for_placed, carry_signal_names, level_item_signals,
     };
 }

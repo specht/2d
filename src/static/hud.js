@@ -10,7 +10,13 @@
 //            in the game that hurts (a trap, an enemy) or gives energy
 //   coins    top right – the picture of the sprite that gives points and
 //            the number; only if something gives points
+//   items    under them, what stays for the whole game (inventory.js) – each
+//            thing's picture, "× n" when there are several; a weapon with its
+//            number key in front and a frame while it is chosen; only if
+//            something "bleibt fürs ganze Spiel"
 //   level    the level's name for a moment when it starts (if it has one)
+// Prices in a shop are drawn above what is for sale (price_tag), in the same
+// pixels: the coin's picture and the number.
 // Changes are animated: a lost heart shakes and empties, damage leaves a
 // white piece on the energy bar that drains away, coins count up and their
 // picture hops.
@@ -30,6 +36,9 @@ const HUD = {
     NAME_SECONDS: 2.4,  // how long the level's name stays
     NAME_DELAY: 0.25,
     STRIP: 44,          // how tall the HUD's part of the screen is
+    STRIP_ITEMS: 62,    // … with a row of items
+    ITEM_GAP: 4,        // between items
+    CHOSEN: '#ffcd75',  // the frame and number of a chosen weapon
     INK: '#1a1c2c',     // outlines
     EMPTY: '#3b4260',   // a lost heart, the empty bar
     TEXT: '#f4f4f4',
@@ -48,9 +57,21 @@ const HUD_HEART = [
 ];
 const HUD_HEART_COLORS = { '#': '#e04e5e', '%': '#ffb0a0' };
 
+// A coin for price tags in games where nothing gives points (6 × 6).
+const HUD_COIN = [
+    '.####.',
+    '#%%###',
+    '#%####',
+    '######',
+    '######',
+    '.####.',
+];
+const HUD_COIN_COLORS = { '#': '#ffcd75', '%': '#fff5c0' };
+
 // ------------------------------------------------------------ what to show
 // data: the game as the engine holds it (placed sprites refer to sprite
-// indices). Returns { lives: { show, sprite }, energy: { show }, coins: { show, sprite } }.
+// indices). Returns { lives: { show, sprite }, energy: { show }, coins: { show, sprite },
+// items: { show } }.
 function hud_plan(data) {
     const sprites = data?.sprites ?? [];
     const props = data?.properties ?? {};
@@ -77,6 +98,8 @@ function hud_plan(data) {
         lives: { show: (Number(props.lives_at_begin) || 0) > 1 || life_sprite !== null, sprite: life_sprite },
         energy: { show: props.show_energy !== false && hurts },
         coins: { show: coin_sprite !== null, sprite: coin_sprite },
+        // "bleibt fürs ganze Spiel" (inventory.js): the row of items
+        items: { show: sprites.some(s => s?.traits?.pickup?.keep === true) },
     };
 }
 
@@ -163,12 +186,12 @@ function hud_icon_pixels(rgba, width, height, fill = null) {
     return { rgba: out, width: W, height: H };
 }
 
-// The built-in heart as RGBA pixels.
-function hud_heart_rgba() {
-    const h = HUD_HEART.length, w = HUD_HEART[0].length;
+// The built-in heart (or coin) as RGBA pixels.
+function hud_heart_rgba(rows = HUD_HEART, colors = HUD_HEART_COLORS) {
+    const h = rows.length, w = rows[0].length;
     const rgba = new Uint8ClampedArray(w * h * 4);
-    HUD_HEART.forEach((row, y) => [...row].forEach((ch, x) => {
-        const color = HUD_HEART_COLORS[ch];
+    rows.forEach((row, y) => [...row].forEach((ch, x) => {
+        const color = colors[ch];
         if (!color) return;
         const o = 4 * (y * w + x);
         [rgba[o], rgba[o + 1], rgba[o + 2]] = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16));
@@ -204,7 +227,41 @@ class HudPainter {
         this.heart_empty = icon(heart, HUD.EMPTY);
         this.heart_flash = icon(heart, HUD.TEXT);
         this.coin = plan.coins.sprite !== null ? icon(sprite_rgba(plan.coins.sprite)) : null;
+        // items and price tags: pictures made when first needed
+        this.icon = icon;
+        this.sprite_rgba = sprite_rgba;
+        this.item_icons = new Map();
+        this.tags = new Map();
+        // how tall the HUD's part of the screen is (in HUD pixels)
+        this.strip = plan.items?.show ? HUD.STRIP_ITEMS : HUD.STRIP;
         this.reset();
+    }
+
+    // the picture of a kept item (its first frame, outlined like the coin)
+    item_icon(si) {
+        if (!this.item_icons.has(si)) this.item_icons.set(si, this.icon(this.sprite_rgba(si)));
+        return this.item_icons.get(si);
+    }
+
+    // A price in a shop: the coin's picture and the number, k screen pixels per
+    // HUD pixel. Returns { canvas, width, height } in screen pixels.
+    price_tag(price, k) {
+        const key = `${k}|${price}`;
+        if (!this.tags.has(key)) {
+            if (this.tags.size > 100) this.tags.clear();
+            this.k = k;
+            const coin = this.coin ?? (this.builtin_coin ??= this.icon(hud_heart_rgba(HUD_COIN, HUD_COIN_COLORS)));
+            const label = this.text(String(price));
+            const width = (coin.width + label.width) * k, height = Math.max(coin.height, label.height) * k;
+            const canvas = this.make_canvas(Math.ceil(width), Math.ceil(height));
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+            ctx.setTransform(k, 0, 0, k, 0, 0);
+            ctx.drawImage(coin, 0, Math.round((height / k - coin.height) / 2));
+            this.draw_text(ctx, label, coin.width, Math.round((height / k - label.height) / 2));
+            this.tags.set(key, { canvas, width: canvas.width, height: canvas.height });
+        }
+        return this.tags.get(key);
     }
 
     // a new level: the name comes again; the numbers stay where they are
@@ -229,15 +286,17 @@ class HudPainter {
         ctx.drawImage(label.canvas, x, y, label.width, label.height);
     }
 
-    // values: { lives, lives_at_begin, energy, max_energy, points }, t: the
+    // values: { lives, lives_at_begin, energy, max_energy, points, items }, t: the
     // level's clock; the canvas is width × height screen pixels, k of them
     // per HUD pixel. Returns a key that changes whenever the picture changes
-    // (the caller uploads the canvas only then).
+    // (the caller uploads the canvas only then). items: [{ sprite_index, count,
+    // key (a weapon's number or null), chosen }] (inventory.js).
     paint(ctx, width_px, height_px, k, values, t) {
         this.k = k;
         const width = width_px / k;
         const last = this.last ?? { t, lives: values.lives, energy: values.energy, drain: values.energy, points: values.points,
-            shown_points: values.points, lost_at: -10, lost_index: -1, coin_at: -10, hurt_at: -10 };
+            shown_points: values.points, lost_at: -10, lost_index: -1, coin_at: -10, hurt_at: -10,
+            item_counts: new Map((values.items ?? []).map(item => [item.sprite_index, item.count])), item_at: new Map() };
         const dt = Math.max(0, Math.min(0.25, t - last.t));
         if (values.lives < last.lives) { last.lost_at = t; last.lost_index = Math.max(0, Math.round(values.lives)); }
         if (values.energy < last.energy) last.hurt_at = t;
@@ -245,6 +304,11 @@ class HudPainter {
         if (values.energy >= last.drain) last.drain = values.energy;
         else if (t - last.hurt_at > 0.35) last.drain = Math.max(values.energy, last.drain - dt * Math.max(20, (values.max_energy || 100) * 0.6));
         if (values.points > last.points) last.coin_at = t;
+        // a new item (or one more of it) hops like the coin
+        for (const item of values.items ?? []) {
+            if (item.count > (last.item_counts.get(item.sprite_index) ?? 0)) last.item_at.set(item.sprite_index, t);
+            last.item_counts.set(item.sprite_index, item.count);
+        }
         last.shown_points = hud_count_towards(last.shown_points, values.points, dt);
         Object.assign(last, { t, lives: values.lives, energy: values.energy, points: values.points });
         this.last = last;
@@ -299,6 +363,38 @@ class HudPainter {
             ctx.fillStyle = 'rgba(26, 28, 44, 0.45)';
             for (let i = 1; i < 5; i++) ctx.fillRect(M + 1 + Math.round(W * i / 5), y + 1, 1, H);
             parts.push('E', fill, drain, flash);
+            y += H + 2 + 3;
+        }
+        // items: picture, "× n"; a weapon with its number in front, framed while chosen
+        if (this.plan.items?.show && values.items?.length) {
+            let x = M;
+            for (const item of values.items) {
+                const icon = this.item_icon(item.sprite_index);
+                if (!icon) continue;
+                const at = last.item_at.get(item.sprite_index) ?? -10;
+                const hop = t - at < 0.25 ? -Math.round(Math.sin((t - at) / 0.25 * Math.PI) * 3) : 0;
+                if (item.key !== null && item.key !== undefined) {
+                    const label = this.text(String(item.key), item.chosen ? HUD.CHOSEN : HUD.TEXT);
+                    this.draw_text(ctx, label, x, y + Math.round((icon.height - label.height) / 2));
+                    x += label.width;
+                }
+                if (item.chosen) {
+                    ctx.fillStyle = HUD.CHOSEN;
+                    ctx.fillRect(x - 1, y - 1 + hop, icon.width + 2, 1);
+                    ctx.fillRect(x - 1, y + icon.height + hop, icon.width + 2, 1);
+                    ctx.fillRect(x - 1, y + hop, 1, icon.height);
+                    ctx.fillRect(x + icon.width, y + hop, 1, icon.height);
+                }
+                ctx.drawImage(icon, x, y + hop);
+                x += icon.width;
+                if (item.count > 1) {
+                    const label = this.text(`× ${item.count}`);
+                    this.draw_text(ctx, label, x, y + Math.round((icon.height - label.height) / 2));
+                    x += label.width;
+                }
+                x += HUD.ITEM_GAP;
+                parts.push('I', item.sprite_index, item.count, item.key, item.chosen, hop);
+            }
         }
         // coins
         if (this.plan.coins.show && this.coin) {
@@ -329,6 +425,6 @@ class HudPainter {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { HUD, HUD_HEART, hud_plan, hud_scale, hud_heart_slots, hud_energy_color, hud_count_towards,
+    module.exports = { HUD, HUD_HEART, HUD_COIN, hud_plan, hud_scale, hud_heart_slots, hud_energy_color, hud_count_towards,
         hud_opaque_box, hud_icon_pixels, hud_heart_rgba, HudPainter };
 }

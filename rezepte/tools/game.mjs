@@ -318,6 +318,11 @@ export async function build_game(catalog, recipe, repo) {
     };
     for (const map of maps) for (const line of map) for (const ch of line) if (ch !== '.' && ch !== ' ') use(lookup(ch).sprite);
     for (const id of scene.zusaetzlich ?? []) use(id);
+    // inventar: [ids] – the figure starts with these (brought along from another
+    // level, inventory.js); wenn_hat: [{ sprite, code }] – the level's "sendet,
+    // wenn die Spielfigur … hat"
+    for (const id of scene.inventar ?? []) use(id);
+    for (const item of scene.wenn_hat ?? []) use(item.sprite);
     const index_of = id => {
         const i = used.indexOf(id);
         if (i < 0) throw new Error(`${recipe.id}: Sprite "${id}" wird nicht benutzt`);
@@ -558,7 +563,10 @@ export async function build_game(catalog, recipe, repo) {
             // geschafft_bei: 7 – Code 7 completes the level, like the exit
             ...(scene.geschafft_bei !== undefined ? { signal_level_complete: code_of(scene.geschafft_bei, `${recipe.id}: geschafft_bei`) } : {}),
             // signale: { 3: Tor auf } – names of the level's Codes (what the Code fields and the overview show)
-            ...signal_names_of(scene.signale, `${recipe.id}: signale`) },
+            ...signal_names_of(scene.signale, `${recipe.id}: signale`),
+            // wenn_hat: [{ sprite: zauberschluessel, code: 4 }] – sends Code 4 while the figure has it
+            ...(scene.wenn_hat ? { item_signals: scene.wenn_hat.map(item => ({ sprite_index: index_of(item.sprite),
+                signal_code: code_of(item.code, `${recipe.id}: wenn_hat`) })) } : {}) },
         layers: [
             ...movement_regions,
             ...regions,
@@ -600,7 +608,9 @@ export async function build_game(catalog, recipe, repo) {
     const tag = 'rz' + crypto.createHash('sha1').update(JSON.stringify(data)).digest('hex').slice(0, 5);
     const pngs = new Map(frames_by_key.flat().map(f => [f.tag, f.png]));
     // used: the catalogue id of every sprite, in the game's order
-    return { tag, data, sheet, pngs, view: view_out, screen_pixel_height, rows, cols, camera_lift: follow ? lift : 0, used };
+    // start_items: sprite indices the figure has from the start (szene.inventar)
+    const start_items = (scene.inventar ?? []).map(index_of);
+    return { tag, data, sheet, pngs, view: view_out, screen_pixel_height, rows, cols, camera_lift: follow ? lift : 0, used, start_items };
 }
 
 // The recipe's scene as a game the studio can open (Hilfe → "Im Studio

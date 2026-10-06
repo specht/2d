@@ -27,11 +27,11 @@ Only what is open. Remove an entry when it is done. The test for anything new: d
 
 ## Inventory and currency
 
-1. Shop: a sprite bought with F for points, sending a Code; a speech bubble when points are missing.
-2. Items that stay for the whole game, shown in the HUD, with a sender "wenn du … hast" (keys "für das ganze Spiel").
-3. Maybe rename "gibt Punkte" once points are mainly coins.
+- "Level testen" with chosen items and points (a shop level starts with 0 coins).
+- Choosing a weapon on a tablet (tapping its picture in the HUD); the start screen lists weapons for keyboards only.
+- Maybe rename "gibt Punkte" once points are mainly coins.
 
-Not planned: equipping and using items, ammunition.
+Not planned: using items later (a potion stored to drink), ammunition.
 
 ## Signale
 
@@ -52,7 +52,7 @@ Not planned: equipping and using items, ammunition.
 - Trampolines, spawning, shields, time limits; gliding; directional gravity only for concrete games.
 - Combat (always for player and enemies through the same path, recipe once verified): an instant ray, area attacks (stomp, pulse), a cooldown display.
 - Companions that stop following or climb ladders; conversations between two speakers; simple tasks only when games ask for them.
-- HUD: timer, cooldown, items, choosing the corners; high scores and progression (decide where the data lives first).
+- HUD: timer, cooldown, choosing the corners; high scores and progression (decide where the data lives first).
 
 ## Help and recipes
 
@@ -71,4 +71,4 @@ Touch is missing for Strg + drag shapes, arrow-key nudging, multi-selecting fram
 
 ## Large or experimental
 
-Multiplayer and a full inventory – only for a concrete project; they would dominate the architecture.
+Multiplayer and a full inventory (equipment slots, items to use) – only for a concrete project; they would dominate the architecture.

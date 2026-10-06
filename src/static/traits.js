@@ -633,8 +633,8 @@ var SPRITE_TRAITS = {
                 hint: 'In dieser Farbe spricht das Sprite. Gib jeder Figur ihre eigene Farbe – dann sieht man sofort, wer redet.',
                 type: 'color',
                 default: typeof SPEECH_SELF_COLOR !== 'undefined' ? SPEECH_SELF_COLOR : '#73eff7',
-                // only when the sprite speaks itself (the level editor rebuilds the panel)
-                visible: (traits, traits_of, props) => props?.speaker === 'self',
+                // only when the sprite speaks itself – or as a shop's Verkäufer (the level editor rebuilds the panel)
+                visible: (traits, traits_of, props) => props?.speaker === 'self' || props?.shop_keeper === true,
             },
             // Signale (signals.js): absent = only with the action key, as always
             speaks_on_signal: {
@@ -652,6 +652,23 @@ var SPRITE_TRAITS = {
                 min: 0,
                 max: 1000,
                 visible: (traits, traits_of, props) => props?.speaks_on_signal === true,
+            },
+            // Laden (app.js shop_action): absent = no, the figure says why it cannot buy
+            shop_keeper: {
+                label: 'spricht im Laden',
+                hint: 'Ist das an, ist dieses Sprite der Verkäufer: Wenn die Spielfigur in diesem Level etwas mit einem Preis kaufen will, sagt er, was los ist – zum Beispiel, wie viele Münzen noch fehlen – und bedankt sich nach dem Kaufen. Er spricht selbst, in seiner Textfarbe, und zeigt dabei „spricht gerade“, wenn du das gezeichnet hast. Sein Text oben wird wie immer mit F vorgelesen – gut für eine Begrüßung. Gibt es mehrere Verkäufer, spricht der, der am nächsten steht.',
+                type: 'bool',
+                default: false,
+                entry_key: 'shop_keeper',
+                rebuilds_panel: true,   // "sagt beim Kaufen" appears or goes
+            },
+            shop_thanks: {
+                label: 'sagt beim Kaufen',
+                hint: 'Das sagt der Verkäufer, wenn die Spielfigur etwas gekauft hat. Leer: Er sagt nichts. Mit | teilst du es in mehrere Sprechblasen.',
+                type: 'string',
+                default: 'Danke!',
+                entry_key: 'shop_thanks',
+                visible: (traits, traits_of, props) => props?.shop_keeper === true,
             },
         },
     },
@@ -832,7 +849,29 @@ var SPRITE_TRAITS = {
             signal_delay: { ...signal_delay_placed_property('Das Sprite sendet seinen Code erst so viele Sekunden nach dem Einsammeln.'),
                 entry_key: 'pickup_signal_delay',
                 visible: (traits, traits_of, props) => props?.signal_on_collect === true },
+            // Laden (inventory.js, app.js buy_item): absent or 0 = free, collected on touch, as always
+            price: {
+                label: 'Preis',
+                hint: 'Kostet das Sprite etwas, ist es zu kaufen: Die Spielfigur stellt sich davor und drückt die Aktionstaste (F). Hat sie genug Punkte (Münzen), werden sie abgezogen, und sie bekommt das Sprite mit allem, was es gibt. Über dem Sprite steht der Preis. 0: Es ist umsonst und wird wie immer beim Berühren eingesammelt. So baust du einen Laden – am besten in einem Nebenlevel.',
+                type: 'int',
+                default: 0,
+                min: 0,
+                max: 9999,
+                entry_key: 'shop_price',
+                rebuilds_panel: true,   // "kann man öfter kaufen" appears or goes
+            },
+            buy_again: {
+                label: 'kann man öfter kaufen',
+                hint: 'Ist das an, bleibt das Sprite nach dem Kaufen im Laden liegen, und man kann es noch einmal kaufen – zum Beispiel einen Heiltrank. Sonst ist es weg, wie alles, was man einsammelt.',
+                type: 'bool',
+                default: false,
+                entry_key: 'shop_again',
+                visible: (traits, traits_of, props) => Number(props?.price) > 0,
+            },
         },
+        // Also on the drawing, with their own controls (game.js add_pickup_keep_controls),
+        // absent = as always: keep (true: "bleibt fürs ganze Spiel", inventory.js) and
+        // weapon_key (1…9: the number key of a weapon; absent = the next free one).
         properties: {
             duration: {
                 label: 'Ausblenden',

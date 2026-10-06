@@ -309,7 +309,52 @@ void main() {
         this.hit_flash_materials = null;
     }
 
-	has_trait_at(trait_or_traits, dx0, dx1, dy0, dy1) {
+	// Collects a pickup (an entry as has_trait_at gives it): it goes, its Code is
+	// sent, the figure gets what it gives, and what "bleibt fürs ganze Spiel" goes
+	// into the inventory (inventory.js). stays: bought in a shop that has more of
+	// it ("kann man öfter kaufen") – it stays where it is.
+	collect_pickup(entry, t, stays = false) {
+		let sprite = this.game.data.sprites[entry.sprite_index];
+		if (!stays) {
+			let x = entry.mesh.position.x;
+			let y = entry.mesh.position.y;
+			let x0 = x - sprite.width / 2;
+			let x1 = x + sprite.width / 2;
+			let y0 = y;
+			let y1 = y + sprite.height;
+			this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
+			this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
+			this.game.transitioning_sprites['pickup'] ??= {};
+			this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
+			this.game.remember_collected?.(this.game.active_level_sprites[entry.entry_index]);
+		}
+		// "sendet, wenn eingesammelt" (signals.js; absent = sends nothing)
+		if (entry.pickup_signal_on === true) {
+			this.game.signals?.send(stored_signal_code(entry.pickup_signal_code), true, t, { delay: entry.pickup_signal_delay });
+			this.game.remember_send?.(stored_signal_code(entry.pickup_signal_code), true);
+		}
+		this.game.points += sprite.traits.pickup.points ?? 0;
+		this.game.lives += sprite.traits.pickup.lives ?? 0;
+		if (this.game.lives > this.game.data.properties.max_lives)
+			this.game.lives = this.game.data.properties.max_lives;
+		this.game.energy += sprite.traits.pickup.energy ?? 0;
+		if (this.game.energy > this.game.data.properties.max_energy)
+			this.game.energy = this.game.data.properties.max_energy;
+		if ((sprite.traits.pickup.invincible ?? 0) > 0.0) {
+			this.invincible_until = t + sprite.traits.pickup.invincible;
+		}
+		if ((sprite.traits.pickup.speed_boost_duration ?? 0) > 0.0) {
+			this.accelerated_until = t + sprite.traits.pickup.speed_boost_duration;
+			this.speed_boost_vrun = sprite.traits.pickup.speed_boost_vrun;
+			this.speed_boost_vjump = sprite.traits.pickup.speed_boost_vjump;
+		}
+		// "bleibt fürs ganze Spiel" (absent = gone, as always)
+		if (sprite.traits.pickup.keep === true) this.game.keep_item?.(entry.sprite_index, t);
+		this.game.update_stats();
+	}
+
+	// accept(entry): optional, only entries it says yes to (a shop item is no free pickup)
+	has_trait_at(trait_or_traits, dx0, dx1, dy0, dy1, accept = null) {
 		if (typeof (trait_or_traits) === 'string')
 			trait_or_traits = [trait_or_traits];
 		let x0 = this.mesh.position.x + dx0;
@@ -353,6 +398,7 @@ void main() {
 						}
 					}
 
+					if (ok && accept && !accept(entry)) ok = false;
 					if (ok) {
 						let r = { ...entry };
 						r.entry_index = entry_index;
@@ -1548,45 +1594,15 @@ void main() {
 		this.update_state_and_direction(state, direction);
 
 		if (this.character_trait === 'actor') {
+			// a shop item (placed pickup.price > 0) is bought with F, not collected on touch
 			entry = this.has_trait_at(['pickup'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
-				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
+				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1,
+				(e) => !(e.shop_price > 0));
 			if (entry) {
 				let sprite = this.game.data.sprites[entry.sprite_index];
 				let entry_lives = sprite.traits.pickup.lives;
-				if (!(entry_lives > 0 && this.game.lives >= this.game.data.properties.max_lives)) {
-					let x = entry.mesh.position.x;
-					let y = entry.mesh.position.y;
-					let x0 = x - sprite.width / 2;
-					let x1 = x + sprite.width / 2;
-					let y0 = y;
-					let y1 = y + sprite.height;
-					this.game.interval_tree_x.remove([x0, x1], entry.entry_index);
-					this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
-					this.game.transitioning_sprites['pickup'] ??= {};
-					this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
-					this.game.remember_collected?.(this.game.active_level_sprites[entry.entry_index]);
-					// "sendet, wenn eingesammelt" (signals.js; absent = sends nothing)
-					if (entry.pickup_signal_on === true) {
-						this.game.signals?.send(stored_signal_code(entry.pickup_signal_code), true, t, { delay: entry.pickup_signal_delay });
-						this.game.remember_send?.(stored_signal_code(entry.pickup_signal_code), true);
-					}
-					this.game.points += sprite.traits.pickup.points ?? 0;
-					this.game.lives += sprite.traits.pickup.lives ?? 0;
-					if (this.game.lives > this.game.data.properties.max_lives)
-						this.game.lives = this.game.data.properties.max_lives;
-					this.game.energy += sprite.traits.pickup.energy ?? 0;
-					if (this.game.energy > this.game.data.properties.max_energy)
-						this.game.energy = this.game.data.properties.max_energy;
-					if ((sprite.traits.pickup.invincible ?? 0) > 0.0) {
-						this.invincible_until = t + sprite.traits.pickup.invincible;
-					}
-					if ((sprite.traits.pickup.speed_boost_duration ?? 0) > 0.0) {
-						this.accelerated_until = t + sprite.traits.pickup.speed_boost_duration;
-						this.speed_boost_vrun = sprite.traits.pickup.speed_boost_vrun;
-						this.speed_boost_vjump = sprite.traits.pickup.speed_boost_vjump;
-					}
-					this.game.update_stats();
-				}
+				if (!(entry_lives > 0 && this.game.lives >= this.game.data.properties.max_lives))
+					this.collect_pickup(entry, t);
 			}
 
 			entry = this.has_trait_at(['key'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
@@ -1671,6 +1687,19 @@ void main() {
 				this.game.action_key_targets.text.push(entry.entry_index);
 			}
 
+			// Laden: standing at something with a Preis – the F hint, bought on a fresh press (below)
+			entry = this.has_trait_at(['pickup'],
+				-this.traits.ex_left * this.sprite.width * 0.5 - 4,
+				this.traits.ex_right * this.sprite.width * 0.5 + 4,
+				-4,
+				this.traits.ex_top * this.sprite.height + 4,
+				(e) => e.shop_price > 0 && !e.collected);
+			if (entry) {
+				const overlay = this.game.active_level_sprites[entry.entry_index].overlay_mesh;
+				if (overlay) overlay.visible = true;
+				this.game.action_key_targets.shop = [entry.entry_index];
+			}
+
 			entry = this.has_trait_at(['checkpoint'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
 				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1);
 			if (entry) {
@@ -1742,8 +1771,10 @@ void main() {
 			if (switch_flipped(action_pressed, this.action_was_pressed)) {
 				for (let entry_index of (this.game.action_key_targets.switch ?? []))
 					this.game.flip_switch(entry_index, t);
-				// a sign: read it out – or, while somebody speaks, the next sentence
-				this.game.speech_action?.(t);
+				// a shop: buy what the figure stands at (or say why not); else a sign:
+				// read it out – or, while somebody speaks, the next sentence
+				if (!this.game.shop_action?.(this, t))
+					this.game.speech_action?.(t);
 				// an exit "nur mit Aktionstaste" – not with F still held from the level before
 				const exit_index = (this.game.action_key_targets.exit ?? [])[0];
 				if (exit_index !== undefined && this.game.exit_key_ready && !this.game.reached_flag) {
@@ -1998,6 +2029,10 @@ class Game {
 		this.lives = 5;
 		this.energy = 100;
 		this.found_keys = {};
+		// what stays for the whole game, and the weapons chosen (inventory.js):
+		// only a new game (or game over) empties it, not a lost life
+		this.inventory = [];
+		this.weapon_choice = { nah: null, fern: null };
 		console.log('RESET', this.next_level_index);
 		this.handle_resize();
 		this.stop();
@@ -2278,6 +2313,164 @@ class Game {
 	update_stats() {
 	}
 
+	// ------------------------------------------------- Inventar and weapons
+	// inventory.js: what "bleibt fürs ganze Spiel" stays in game.inventory; a
+	// weapon among it can be chosen with the number keys.
+
+	// A kept sprite was collected (or bought): one more in the inventory. A new
+	// weapon is chosen at once; the level's "sendet, wenn die Spielfigur … hat"
+	// sends the first time the figure has it.
+	keep_item(si, t) {
+		const count = inventory_add(this.inventory, si);
+		const sprite = this.data.sprites[si];
+		if (is_weapon(sprite)) {
+			this.weapon_choice = choose_weapon(this.weapon_choice, this.data.sprites, si);
+			this.apply_weapons();
+		}
+		if (count === 1)
+			for (const item of this.item_signals ?? [])
+				if (item.sprite_index === si) this.signals?.send(item.signal_code, true, t);
+	}
+
+	// The figure's attacks: its own, with the chosen weapons in front (the game
+	// uses the first attack of a kind). Without weapons: exactly its own.
+	apply_weapons() {
+		const pc = this.player_character;
+		if (!pc) return;
+		pc.own_traits ??= pc.traits;
+		if (!this.inventory?.some(item => is_weapon(this.data.sprites[item.sprite_index]))) {
+			pc.traits = pc.own_traits;
+		} else {
+			const attacks = attacks_with_weapons(pc.own_traits.attacks, this.data.sprites, this.weapon_choice);
+			pc.traits = { ...pc.own_traits, attacks };
+		}
+		this.update_touch_buttons();
+	}
+
+	// A number key: the weapon with that number, if the figure has one.
+	choose_weapon_key(n) {
+		const si = weapon_for_key(this.inventory, this.data.sprites, n);
+		if (si === null) return false;
+		this.weapon_choice = choose_weapon(this.weapon_choice, this.data.sprites, si);
+		this.apply_weapons();
+		return true;
+	}
+
+	// What the HUD shows of the inventory: [{ sprite_index, count, key, chosen }]
+	hud_items() {
+		if (!this.inventory?.length) return [];
+		const keys = new Map(weapon_keys(this.inventory, this.data.sprites).map(w => [w.sprite_index, w.key]));
+		return this.inventory.map(item => ({
+			sprite_index: item.sprite_index, count: item.count,
+			key: keys.has(item.sprite_index) ? keys.get(item.sprite_index) : null,
+			chosen: keys.has(item.sprite_index) &&
+				(this.weapon_choice?.nah === item.sprite_index || this.weapon_choice?.fern === item.sprite_index),
+		}));
+	}
+
+	// ------------------------------------------------------------ Laden
+	// A fresh press of the action key at something with a Preis: buy it, or the
+	// figure says why not. True if the press went to the shop.
+	shop_action(pc, t) {
+		if (this.speech?.active) return false;
+		const entry_index = (this.action_key_targets.shop ?? [])[0];
+		const entry = entry_index === undefined ? null : this.active_level_sprites[entry_index];
+		if (!entry || entry.collected || !pc) return false;
+		const sprite = this.data.sprites[entry.sprite_index];
+		const price = Math.max(0, Math.round(Number(entry.shop_price) || 0));
+		const refusal = shop_refusal({ price, points: this.points, sprite,
+			held: inventory_count(this.inventory, entry.sprite_index),
+			lives: this.lives, max_lives: this.data.properties.max_lives });
+		// a Verkäufer (text.shop_keeper) speaks for the shop, else the figure says it
+		const keeper = this.shop_keeper_near(entry);
+		const settings = speech_settings(this.data.properties);
+		const say = (parts) => parts.length && this.speech.start({ parts, source: 'shop', speed: settings.speed,
+			...(keeper === null ? { speaker: 'player', color: settings.color } :
+				{ speaker: keeper, color: speech_color(this.active_level_sprites[keeper].color, SPEECH_SELF_COLOR) }) }, t);
+		if (refusal) {
+			say([refusal]);
+			return true;
+		}
+		this.points -= price;
+		pc.collect_pickup({ ...entry, entry_index }, t, entry.shop_again === true);
+		if (keeper !== null) say(speech_parts(this.active_level_sprites[keeper].shop_thanks ?? ''));
+		return true;
+	}
+
+	// The Verkäufer nearest to what is for sale (an entry index), or null.
+	shop_keeper_near(item) {
+		let best = null, best_d = Infinity;
+		this.active_level_sprites.forEach((entry, index) => {
+			if (entry.shop_keeper !== true || entry.signal_hidden || entry.layer_index === null) return;
+			const d = Math.hypot(entry.mesh.position.x - item.mesh.position.x, entry.mesh.position.y - item.mesh.position.y);
+			if (d < best_d) { best = index; best_d = d; }
+		});
+		return best;
+	}
+
+	// The prices above what is for sale, in screen pixels like the HUD (k
+	// per HUD pixel), drawn after the scene: crisp at every level size.
+	draw_price_tags() {
+		if (!this.price_tags?.length || !this.hud || typeof document === 'undefined' || !this.renderer || !this.camera) return;
+		const font = SPEECH_FONTS[speech_settings(this.data.properties).font] ?? SPEECH_FONTS[SPEECH_DEFAULT_FONT];
+		const k = hud_scale(this.height, this.screen_pixel_height, font.cap);
+		if (!this.tag_scene) {
+			this.tag_scene = new THREE.Scene();
+			this.tag_camera = new THREE.OrthographicCamera(0, 1, 1, 0, -10, 10);
+		}
+		const cam = this.camera;
+		const used = new Set();
+		for (const entry of this.price_tags) {
+			const visible = !entry.collected && entry.mesh.visible && !entry.signal_hidden &&
+				this.layers[entry.layer_index]?.visible !== false;
+			if (entry.tag_mesh) entry.tag_mesh.visible = visible;
+			if (!visible) continue;
+			const price = Math.max(0, Math.round(Number(entry.shop_price) || 0));
+			const tag = this.hud.price_tag(price, k);
+			if (!entry.tag_mesh || entry.tag_key !== tag) {
+				const texture = new THREE.CanvasTexture(tag.canvas);
+				texture.magFilter = THREE.NearestFilter;
+				texture.minFilter = THREE.NearestFilter;
+				texture.generateMipmaps = false;
+				if (entry.tag_mesh) {
+					entry.tag_mesh.material.map?.dispose();
+					entry.tag_mesh.material.map = texture;
+					entry.tag_mesh.material.needsUpdate = true;
+				} else {
+					entry.tag_mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+						new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false }));
+					this.tag_scene.add(entry.tag_mesh);
+				}
+				entry.tag_key = tag;
+			}
+			// world → screen pixels (y up): centred above the sprite
+			const sprite = this.data.sprites[entry.sprite_index];
+			const p = new THREE.Vector3();
+			entry.mesh.getWorldPosition(p);
+			const sx = (p.x - cam.left) / (cam.right - cam.left) * this.width;
+			const sy = (p.y + sprite.height - cam.bottom) / (cam.top - cam.bottom) * this.height;
+			const left = Math.round(sx - tag.width / 2), bottom = Math.round(sy + k);
+			// what the figure says goes first: a tag under the bubble waits
+			const r = this.speech_rect;
+			if (r && left < r.right && left + tag.width > r.left && bottom < r.top && bottom + tag.height > r.bottom) {
+				entry.tag_mesh.visible = false;
+				continue;
+			}
+			entry.tag_mesh.scale.set(tag.width, tag.height, 1);
+			entry.tag_mesh.position.set(left + tag.width / 2, bottom + tag.height / 2, 0);
+			used.add(entry.tag_mesh);
+		}
+		if (!used.size) return;
+		this.tag_camera.right = this.width;
+		this.tag_camera.top = this.height;
+		this.tag_camera.updateProjectionMatrix();
+		const auto_clear = this.renderer.autoClear;
+		this.renderer.autoClear = false;
+		this.renderer.setRenderTarget(null);
+		this.renderer.render(this.tag_scene, this.tag_camera);
+		this.renderer.autoClear = auto_clear;
+	}
+
 	// ------------------------------------------------------------ HUD (hud.js)
 	// Made for every level (setup): what the game shows (hud_plan) and its
 	// pictures, taken from the sprite sheet at their real size.
@@ -2316,7 +2509,7 @@ class Game {
 		if (!this.hud || this.hud_off || typeof document === 'undefined' || !this.renderer) return;
 		const font = SPEECH_FONTS[speech_settings(this.data.properties).font] ?? SPEECH_FONTS[SPEECH_DEFAULT_FONT];
 		const k = hud_scale(this.height, this.screen_pixel_height, font.cap);
-		const w = Math.max(1, Math.round(this.width)), h = Math.min(Math.max(1, Math.round(this.height)), HUD.STRIP * k);
+		const w = Math.max(1, Math.round(this.width)), h = Math.min(Math.max(1, Math.round(this.height)), (this.hud.strip ?? HUD.STRIP) * k);
 		if (!this.hud_canvas) {
 			this.hud_canvas = document.createElement('canvas');
 			this.hud_scene = new THREE.Scene();
@@ -2345,6 +2538,7 @@ class Game {
 		const key = this.hud.paint(this.hud_canvas.getContext('2d'), w, h, k, {
 			lives: this.lives, lives_at_begin: this.data.properties.lives_at_begin,
 			energy: this.energy, max_energy: this.data.properties.max_energy, points: this.points,
+			items: this.hud_items(),
 		}, this.clock.getElapsedTime());
 		if (key !== this.hud_key) {
 			this.hud_texture.needsUpdate = true;
@@ -2606,8 +2800,10 @@ class Game {
 							}
 						}
 						// an exit "nur mit Aktionstaste" shows the F hint like a door
+						// …and so does something with a Preis (a shop: placed pickup.price)
 						if (active_entry !== null && ('door' in sprite.traits || 'text' in sprite.traits || 'switch' in sprite.traits ||
-							('level_complete' in sprite.traits && active_entry.exit_action_key === true))) {
+							('level_complete' in sprite.traits && active_entry.exit_action_key === true) ||
+							('pickup' in sprite.traits && active_entry.shop_price > 0))) {
 							active_entry.door_state = 'idle';
 							let overlay_mesh = this.overlay_mesh_catalogue['f_key'].clone();
 							overlay_mesh.geometry = overlay_mesh.geometry.clone();
@@ -2700,10 +2896,21 @@ class Game {
 		// exit "nur mit Aktionstaste" waits until the key is let go (exit_key_ready)
 		this.exit_armed = false;
 		this.exit_key_ready = !this.action_key_held();
+		// the weapons the figure holds (inventory.js; nothing to do without any)
+		this.apply_weapons();
 		// touch buttons for this level's figure (melee / ranged only if it has them)
 		this.update_touch_buttons();
 		// the HUD: what this game shows, and the level's name for a moment
 		this.setup_hud();
+		// prices in a shop, drawn above what is for sale (draw_price_tags); the
+		// tags of the level before go
+		for (const mesh of [...(this.tag_scene?.children ?? [])]) {
+			mesh.material.map?.dispose();
+			mesh.material.dispose();
+			mesh.geometry.dispose();
+			this.tag_scene.remove(mesh);
+		}
+		this.price_tags = this.active_level_sprites.filter(entry => entry.layer_index !== null && entry.shop_price > 0);
 		// Bewegungsbereiche: swimming, floating, other gravity, currents (player and walking enemies)
 		this.movement_regions = typeof MovementRegions !== 'undefined' ? MovementRegions.resolve(level) : null;
 		// Bewegte Plattformen und Aufzüge (platforms.js; old games have none)
@@ -2945,6 +3152,11 @@ class Game {
 		this.signals.immediate = true;
 		this.update_signal_areas(0);
 		if (Number.isInteger(start) && start_delay === 0) this.signals.send(start, true, 0);
+		// "sendet, wenn die Spielfigur … hat": what it brought along counts from the start
+		this.item_signals = (typeof level_item_signals === 'function' ? level_item_signals(level) : [])
+			.filter(item => Number.isInteger(item.sprite_index) && item.signal_code !== null);
+		for (const item of this.item_signals)
+			if (inventory_count(this.inventory, item.sprite_index) > 0) this.signals.send(item.signal_code, true, 0);
 		this.signals.immediate = false;
 		if (Number.isInteger(start) && start_delay > 0) this.signals.send(start, true, 0, { delay: start_delay, from: 'level_start' });
 		// entered again: what the remembered senders sent arrives once more, at once
@@ -3197,6 +3409,8 @@ class Game {
 	// The last render pass: the sentence being said, in screen pixels, on top
 	// of everything (also of the CRT effect), so it is crisp and readable.
 	draw_speech() {
+		// where the bubble was (draw_price_tags keeps out of its way)
+		this.speech_rect = null;
 		if (!this.speech?.active || typeof document === 'undefined') return;
 		this.speech.update(this.clock.getElapsedTime());
 		const anchor = this.speech.active ? this.speech_anchor() : null;
@@ -3247,6 +3461,7 @@ class Game {
 		this.speech_camera.updateProjectionMatrix();
 		this.speech_mesh.scale.set(w, h, 1);
 		this.speech_mesh.position.set(left + w / 2, bottom + h / 2, 0);
+		this.speech_rect = { left, bottom, right: left + w, top: bottom + h };
 		const auto_clear = this.renderer.autoClear;
 		this.renderer.autoClear = false;
 		this.renderer.setRenderTarget(null);
@@ -3599,6 +3814,7 @@ class Game {
 			this.renderer.render(this.screen_scene, this.screen_camera);
 		}
 		// the HUD (hud.js), and what somebody says on top of everything
+		this.draw_price_tags();
 		this.draw_hud();
 		this.draw_speech();
 		if (this.running)
@@ -3761,20 +3977,30 @@ class Game {
 				resolved_character_attacks(t, 'actor') : t.actor?.attacks;
 			return Array.isArray(attacks) && attacks.some(a => a?.slot === slot && a.delivery?.kind === kind);
 		});
+		// weapons (inventory.js): placed ones, and what a shop sells
+		const weapon = (slot) => sprites.some(sp => weapon_slots(sp).includes(slot));
+		let shop = false;
+		for (const level of this.data.levels ?? [])
+			for (const layer of level.layers ?? [])
+				if (layer.type === 'sprites') for (const p of layer.sprites ?? [])
+					if (Number(p[3]?.pickup?.price) > 0 && 'pickup' in (this.data.sprites[p[0]]?.traits ?? {})) shop = true;
 		const uses = {
 			left: true, right: true, jump: true,
 			up: has(t => 'ladder' in t), down: has(t => 'ladder' in t),
-			action: manual_door || has(t => 'text' in t || 'switch' in t),
+			action: manual_door || shop || has(t => 'text' in t || 'switch' in t),
 			switch: has(t => 'switch' in t),
-			melee: actor_attack('nah', 'swing'),
-			ranged: actor_attack('fern', 'projectile'),
+			shop,
+			melee: actor_attack('nah', 'swing') || weapon('nah'),
+			ranged: actor_attack('fern', 'projectile') || weapon('fern'),
+			weapons: sprites.filter(sp => is_weapon(sp)).length > 1,
 		};
+		const action_label = ['Tür', ...(uses.switch ? ['Schalter'] : []), 'Text', ...(uses.shop ? ['Kaufen'] : [])].join(', ');
 		const touch = this.touch_seen || window.matchMedia?.('(pointer: coarse)')?.matches;
 		const rows = touch ? [
 			['Laufen', ['linker Kreis']],
 			...(uses.up ? [['Leiter', ['linker Kreis hoch / runter']]] : []),
 			['Springen', ['⤒']],
-			...(uses.action ? [[uses.switch ? 'Tür, Schalter, Text' : 'Tür, Text', ['auf das F tippen']]] : []),
+			...(uses.action ? [[action_label, ['auf das F tippen']]] : []),
 			...(uses.melee ? [['Nahkampf', ['⚔']]] : []),
 			...(uses.ranged ? [['Fernkampf', ['➶']]] : []),
 		] : (() => {
@@ -3786,9 +4012,11 @@ class Game {
 				['Laufen', ...k('left', 'right')],
 				...(uses.up ? [['Leiter', ...k('up', 'down')]] : []),
 				['Springen', ...k('jump')],
-				...(uses.action ? [[uses.switch ? 'Tür, Schalter, Text' : 'Tür, Text', ...k('action')]] : []),
+				...(uses.action ? [[action_label, ...k('action')]] : []),
 				...(uses.melee ? [['Nahkampf', ...k('melee')]] : []),
 				...(uses.ranged ? [['Fernkampf', ...k('ranged')]] : []),
+				// several weapons: the number keys choose (the number stands beside each in the HUD)
+				...(uses.weapons ? [['Waffe wählen', ['1 … 9']]] : []),
 			];
 		})();
 		for (const [label, keys, alternative] of rows) {
@@ -3900,6 +4128,9 @@ class Game {
 				continue;
 			this.pressed_keys[ACTION_KEYS[action]] = true;
 		}
+		// 1 … 9: choose a weapon (inventory.js) – unless the game uses that key itself
+		const weapon_number = this.running && !this.key_actions.has(key) ? weapon_key_number(key) : null;
+		if (weapon_number !== null) this.choose_weapon_key(weapon_number);
 		if (this.development) {
 			if (key === 'Comma') {
 				this.clock.delta(-0.1);

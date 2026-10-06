@@ -483,6 +483,8 @@ class LevelEditor {
                 // Signale: "alle Gegner besiegt" (absent = the level sends nothing)
                 self.add_all_defeated_controls($('<div>').appendTo($('#menu_level_properties')));
                 self.add_level_start_controls($('<div>').appendTo($('#menu_level_properties')));
+                // only in games with something that "bleibt fürs ganze Spiel" (inventory.js)
+                self.add_item_signal_controls($('<div>').appendTo($('#menu_level_properties')));
                 self.add_level_complete_controls($('<div>').appendTo($('#menu_level_properties')));
 
                 // Bewegung im ganzen Level (movement_regions.js): absent = as always
@@ -1690,6 +1692,13 @@ class LevelEditor {
     // back to the drawing's). False if nothing changed (or the layer is locked).
     clear_signal_object(level, object) {
         if (!level || !object) return false;
+        if (object.kind === 'level' && object.setting === 'item_signals') {
+            const list = level.properties?.item_signals;
+            if (!Array.isArray(list) || !list[object.index]) return false;
+            list.splice(object.index, 1);
+            if (!list.length) delete level.properties.item_signals;
+            return true;
+        }
         if (object.kind === 'level') {
             if (!(object.setting in (level.properties ?? {}))) return false;
             delete level.properties[object.setting];
@@ -2300,6 +2309,99 @@ class LevelEditor {
             update();
         });
         update();
+    }
+
+    // Level setting "sendet, wenn die Spielfigur … hat" (signals.js
+    // level_item_signals, app.js keep_item): a Code for each item that stays for
+    // the whole game – sent when the level starts and the figure has it already,
+    // or the moment it collects it. Stored as level.properties.item_signals
+    // [{ sprite_id, signal_code }]; absent = none. Shown only in games where
+    // something "bleibt fürs ganze Spiel" (or where the level has one already).
+    add_item_signal_controls(box) {
+        const level = this.game.data.levels[this.level_index];
+        const sprites = () => this.game.data.sprites;
+        const kept = (sprite) => sprite?.traits?.pickup?.keep === true;
+        const list = () => Array.isArray(level.properties.item_signals) ? level.properties.item_signals : [];
+        const changed = () => {
+            this.build_signal_links();
+            this.refresh_signal_overview?.();
+            this.render();
+        };
+        const render = () => {
+            box.empty();
+            const first = sprites().findIndex(kept);
+            if (first < 0 && !list().length) return;
+            list().forEach((item, index) => {
+                const row = $('<div class="item-signal">').appendTo(box);
+                const links = $('<div class="signal-links">');
+                const update = () => {
+                    const code = stored_signal_code(item.signal_code);
+                    links.text(code === null ? '' : describe_signal_partners(code, signal_partners(level, code,
+                        ref => sprites()[this.game.sprite_index_for_ref(ref)]?.traits), signal_name(level, code)));
+                };
+                new SpriteSelectWidget({
+                    container: row, label: 'sendet, wenn die Spielfigur … hat:',
+                    hint: 'Hat die Spielfigur dieses Sprite in ihrem Inventar, sendet das Level den Code mit „an“ – gleich am Anfang, wenn sie es aus einem anderen Level mitbringt, sonst in dem Moment, in dem sie es hier einsammelt. So öffnet ein Schlüssel für das ganze Spiel jede Tür mit diesem Code. Zur Auswahl stehen Sprites mit „bleibt fürs ganze Spiel“.',
+                    without_none: true,
+                    filter: (sprite) => kept(sprite),
+                    sprites,
+                    get: () => {
+                        const index = sprites().findIndex(sprite => sprite.id === item.sprite_id);
+                        return index >= 0 ? String(index) : 'none';
+                    },
+                    set: (choice) => {
+                        const sprite = sprites()[Number(choice)];
+                        if (!sprite) return;
+                        item.sprite_id = sprite.id;
+                        delete item.sprite_index;
+                        changed();
+                    },
+                });
+                const code_widget = new SignalCodeWidget({
+                    editor: this,
+                    container: row,
+                    label: 'Code',
+                    hint: 'Diesen Code sendet das Level, wenn die Spielfigur das Sprite hat. Ohne Code („Kein Signal“) fällt diese Zeile weg.',
+                    clear: () => {
+                        this.clear_signal_object(level, { kind: 'level', setting: 'item_signals', index });
+                        render();
+                        changed();
+                    },
+                    get: () => item.signal_code ?? 0,
+                    set: (value) => {
+                        item.signal_code = Math.round(value);
+                        update();
+                        changed();
+                    },
+                });
+                $('<button type="button" class="btn item-signal-remove">').append($('<i class="fa fa-trash">'))
+                    .attr('title', 'Diese Zeile entfernen: Das Level sendet für dieses Sprite nichts mehr.')
+                    .on('click', () => {
+                        this.clear_signal_object(level, { kind: 'level', setting: 'item_signals', index });
+                        render();
+                        changed();
+                    }).appendTo(code_widget.row);
+                links.appendTo(row);
+                update();
+            });
+            if (first < 0) return;
+            $('<button type="button" class="btn item-signal-add">')
+                .append($('<i class="fa fa-plus">')).append(document.createTextNode(' sendet, wenn die Spielfigur … hat'))
+                .attr('title', 'Das Level sendet einen Code, sobald die Spielfigur etwas hat, das „bleibt fürs ganze Spiel“ – zum Beispiel einen Schlüssel aus einem anderen Level. Danach wählst du das Sprite und den Code.')
+                .on('click', () => {
+                    if (window.collaboration?.can_edit_current?.() === false) {
+                        this.show_level_notice('Gerade bearbeitet jemand anderes dieses Level.');
+                        return;
+                    }
+                    const entry = { sprite_id: sprites()[first].id, signal_code: free_signal_code(level) };
+                    level.properties.item_signals = [...list(), entry];
+                    render();
+                    changed();
+                }).appendTo(box);
+        };
+        // the overview can take a line away: then the box shows it at once
+        box.addClass('level-signal-controls').data('refresh', render);
+        render();
     }
 
     // Level setting: a Signal completes the level, like the exit (signals.js,
@@ -5187,6 +5289,10 @@ class LevelEditor {
                     }
                 }
                 this.add_signal_links(sprite, entry_index);
+                // a Preis in a game where nothing gives points: nobody could buy it
+                if ('pickup' in sprite.traits && Number(props_of('pickup').price) > 0 &&
+                    !this.game.data.sprites.some(other => (Number(other?.traits?.pickup?.points) || 0) > 0))
+                    $('<p class="trait-warning">').text('In deinem Spiel gibt noch nichts Punkte – dann kann man das hier nicht kaufen. Gib zum Beispiel einer Münze „gibt Punkte“.').appendTo(div);
             }
         }
         /*

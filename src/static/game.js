@@ -1174,7 +1174,38 @@ class Game {
         if (trait === 'actor' || trait === 'baddie') this.add_hit_feedback_controls(div, si, trait);
         if (trait === 'baddie') this.add_drop_controls?.(div, si);
         if (trait === 'door') this.add_door_state_help(div, si);
+        if (trait === 'pickup') this.add_pickup_keep_controls(div, si);
         div.insertAfter(element);
+    }
+
+    // "bleibt fürs ganze Spiel" and, for a weapon, its number key (inventory.js).
+    // Stored only when switched on: absent = collected and gone, as always.
+    add_pickup_keep_controls(div, si) {
+        const pickup = () => this.data.sprites[si].traits.pickup;
+        new CheckboxWidget({
+            container: div, label: 'bleibt fürs ganze Spiel',
+            hint: 'Ist das an, kommt das Sprite beim Einsammeln in dein Inventar: Es bleibt da, auch im nächsten Level und wenn die Spielfigur ein Leben verliert, und oben links siehst du es. So baust du einen Schlüssel für das ganze Spiel („sendet, wenn die Spielfigur … hat“ in den Level-Einstellungen) – oder eine Waffe: Gib dem Sprite dazu „Nahkampfangriff“ oder „Fernkampfangriff“, dann greift die Spielfigur damit an, sobald sie es hat.',
+            get: () => pickup()?.keep === true,
+            set: (value) => {
+                if (value) pickup().keep = true;
+                else { delete pickup().keep; delete pickup().weapon_key; }
+                setTimeout(() => this.build_sprite_traits_menu(), 0);
+            },
+        });
+        if (pickup()?.keep !== true || !is_weapon(this.data.sprites[si])) return;
+        const options = { auto: 'die nächste freie' };
+        for (let n = 1; n <= WEAPON_KEYS_MAX; n++) options[String(n)] = String(n);
+        new SelectWidget({
+            container: div, label: 'Taste',
+            hint: 'Mit dieser Zahlentaste wählt man im Spiel die Waffe aus, wenn die Spielfigur mehrere hat. Die Zahl steht im Spiel oben links neben der Waffe. „die nächste freie“: Die erste Waffe, die man einsammelt, bekommt 1, die nächste 2 und so weiter. Eine neue Waffe ist sofort ausgewählt. Nahkampfwaffen greifen mit J an, Fernkampfwaffen mit K – ein Schwert und ein Bogen gehen also gleichzeitig.',
+            options,
+            get: () => Number.isInteger(pickup()?.weapon_key) ? String(pickup().weapon_key) : 'auto',
+            set: (value) => {
+                const n = Number(value);
+                if (Number.isInteger(n) && n >= 1 && n <= WEAPON_KEYS_MAX) pickup().weapon_key = n;
+                else delete pickup().weapon_key;
+            },
+        });
     }
 
     // Begleiter (companion_ai.js): what it does, in one sentence – the
@@ -1317,9 +1348,7 @@ class Game {
         const sprite_traits = this.data.sprites[si].traits;
         const attack = melee_attack_for_editor(sprite_traits);
         if (!attack) return;
-        if (!sprite_traits.actor && !sprite_traits.baddie) {
-            $('<p>').text('Füge auch die Eigenschaft „Spielfigur“ oder „Gegner“ hinzu.').appendTo(div);
-        }
+        this.add_attack_owner_hint(div, sprite_traits);
         this.add_trait_help(div, 'Hinweise zum Nahkampfangriff',
             'Zum Ausprobieren brauchst du nur deine Figurenbilder. J: Nahkampfangriff der Spielfigur; Gegner greifen automatisch in Reichweite an. Berührungsschaden ist eine eigene Einstellung.');
         const section = (label) => $('<h5>').addClass('trait-section-title').text(label).appendTo(div);
@@ -1446,8 +1475,7 @@ class Game {
         const traits = this.data.sprites[si].traits;
         const attack = traits.ranged_attack?.attack;
         if (!attack) return;
-        if (!traits.actor && !traits.baddie)
-            $('<p>').text('Füge auch die Eigenschaft „Spielfigur“ oder „Gegner“ hinzu.').appendTo(div);
+        this.add_attack_owner_hint(div, traits);
         this.add_trait_help(div, 'Hinweise zum Fernkampfangriff',
             'K schießt. Bei Maus-Zielen geht auch ein Linksklick ins Spielfeld.');
         const section = label => $('<h5>').addClass('trait-section-title').text(label).appendTo(div);
@@ -1627,6 +1655,18 @@ class Game {
 
     // Long trait explanations share a compact, keyboard-accessible disclosure.
     // Detailed field-specific help stays in the existing ? dialogs.
+    // A Nahkampf- or Fernkampfangriff on a sprite that is no figure: a hint how
+    // it becomes one – or a weapon (inventory.js).
+    add_attack_owner_hint(div, traits) {
+        if (traits.actor || traits.baddie) return;
+        if (traits.pickup?.keep === true)
+            $('<p>').text('Das ist eine Waffe: Hat die Spielfigur sie eingesammelt, greift sie damit an.').appendTo(div);
+        else if (traits.pickup)
+            $('<p>').text('Füge auch „Spielfigur“ oder „Gegner“ hinzu – oder mach eine Waffe daraus: Stell bei „man kann es einsammeln“ „bleibt fürs ganze Spiel“ an.').appendTo(div);
+        else
+            $('<p>').text('Füge auch die Eigenschaft „Spielfigur“ oder „Gegner“ hinzu – oder „man kann es einsammeln“, dann wird eine Waffe daraus.').appendTo(div);
+    }
+
     add_trait_help(div, label, explanation = null) {
         let help = $('<details>').addClass('trait-help').appendTo(div);
         $('<summary>').text(label).appendTo(help);

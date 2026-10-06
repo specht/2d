@@ -40,6 +40,7 @@ German everywhere; keep gaming terms (Hitbox, Knockback, Cooldown, Coyote Time).
 **Gameplay**
 - Combat is one path for player and enemies; damage only through `take_damage` / `apply_hit` (they honour `invincible`). Rules never come from pixels, frame counts or colours.
 - Companions never act on the level (collect, press, send, hold doors), are never enemies, and use `companion_random`, never `Math.random`. The level may act on them.
+- What "bleibt fürs ganze Spiel" lives in `game.inventory`, emptied only by `reset()`. A weapon changes the figure's attacks at runtime only (`apply_weapons`), never its JSON; a shop item (placed `pickup.price`) is never collected on touch.
 - Moving platforms carry, never push or squash. Exit targets are level ids (`level_flow.js`). A level entered again restores what `level_memory` remembers. Gravity and camera changes are opt-in.
 - Speech, HUD and the curtain screens are pixel text drawn into the canvas, never HTML made from names.
 - Intentional fixes (old games may differ): a figure without left/right roles faces right; the figure is drawn in front of its layer, F hints just behind it; doors wait instead of closing onto somebody; a game starts at the first level in use; lives are set only by `reset()`.
@@ -67,7 +68,7 @@ German everywhere; keep gaming terms (Hitbox, Knockback, Cooldown, Coyote Time).
 
 - `game.js` – the studio's game data, `fix_game_data`. `traits.js` – traits and state roles.
 - `app.js` – the game runtime (`Character`, collisions, camera, doors). `platforms.js`, `movement_regions.js`, `level_flow.js`, `signals.js`, `layer_fade.js`, `speech.js`, `hud.js`, `screens.js`, `backdrops.js` – its parts.
-- `combat*.js` – attacks, projectiles, bombs. `baddie_ai.js` – enemies. `companion_ai.js` – Begleiter.
+- `combat*.js` – attacks, projectiles, bombs. `baddie_ai.js` – enemies. `companion_ai.js` – Begleiter. `inventory.js` – what stays for the whole game, weapons (1–9), the shop's rules.
 - `studio.js` – panes, layout (`handleResize`), dialogs. `menu.js` – tools, keys, status bar. `widgets.js` – lists, fields, menus. `modaldialogs.js` – dialogs.
 - `canvas.js`, `pixel_tools.js`, `sprite_actions.js`, `sprite_preview.js`, `who_shows_what.js` – the sprite editor.
 - `level_editor.js`, `level_selection.js`, `level_rects.js`, `level_minimap.js`, `level_map.js` – the level editor.

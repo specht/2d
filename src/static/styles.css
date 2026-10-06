@@ -6853,3 +6853,25 @@ body {
 #status-bar .status-bar-item, #status-bar > #collaboration-control {
     flex: none;
 }
+
+/* a Preis in a game where nothing gives points (level_editor.js) */
+#menu_placed_properties .trait-warning {
+    margin: 4px 5px 8px;
+    color: #ffcd75;
+    font-size: 0.9em;
+}
+
+/* "sendet, wenn die Spielfigur … hat" (level_editor.js add_item_signal_controls) */
+#menu_level_properties .item-signal {
+    margin: 4px 0 6px;
+    padding-top: 2px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#menu_level_properties .item-signal-remove {
+    margin-left: 6px;
+}
+
+#menu_level_properties .item-signal-add {
+    margin: 2px 5px 8px;
+}

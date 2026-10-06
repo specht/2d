@@ -89,12 +89,14 @@ export async function record(browser, repo, game, recipe) {
     });
     await page.goto('http://rezepte.local/standalone');
     await page.waitForFunction(() => window.game && typeof shaders !== 'undefined' && shaders?.shaders?.['texture.fs']);
-    await page.evaluate(async ({ tag, lift }) => {
+    await page.evaluate(async ({ tag, lift, start_items, hud }) => {
         window.requestAnimationFrame = () => 0;      // we call render() ourselves
         const g = window.game;
         await g.load(tag);
         g.level_index = 0;
         g.reset();
+        // szene.inventar: what the figure brings along from another level (inventory.js)
+        for (const si of start_items) g.keep_item(si, 0);
         g.setup();
         // the game's speech font, before the first frame (speech.js)
         await g.speech_fonts_ready?.();
@@ -104,12 +106,13 @@ export async function record(browser, repo, game, recipe) {
         g.frame = 0;
         g.running = true;
         $('#overlay').hide(); $('#screen').show();
-        // no HUD (hud.js) in recordings: they show a part of the level, not the screen
-        g.hud_off = true;
+        // no HUD (hud.js) in recordings: they show a part of the level, not the screen –
+        // unless the recipe is about it (hud: true, with kamera: the whole screen)
+        g.hud_off = !hud;
         // bild_hoch with kamera: the engine centres the camera on the level's
         // bounds (when they fit on the screen) – lift them, and the camera with them
         if (lift) { g.miny += lift; g.maxy += lift; }
-    }, { tag: game.tag, lift: game.camera_lift ?? 0 });
+    }, { tag: game.tag, lift: game.camera_lift ?? 0, start_items: game.start_items ?? [], hud: recipe.hud === true });
 
     const events = key_events(recipe.ablauf);
     const duration = Number(recipe.dauer ?? 4);
@@ -194,6 +197,11 @@ export async function record(browser, repo, game, recipe) {
         return {
             player: pc ? { x: pc.mesh.position.x, y: pc.mesh.position.y, dead: pc.dead() } : null,
             energy: g.energy, points: g.points, lives: g.lives,
+            // the inventory (inventory.js): { Titel: count }, and the chosen weapons' Titel
+            inventory: Object.fromEntries((g.inventory ?? []).map(item =>
+                [g.data.sprites[item.sprite_index]?.properties?.name ?? `Sprite ${item.sprite_index + 1}`, item.count])),
+            weapons: [...new Set([g.weapon_choice?.nah, g.weapon_choice?.fern].filter(si => Number.isInteger(si)))]
+                .map(si => g.data.sprites[si]?.properties?.name ?? `Sprite ${si + 1}`),
             found_keys: Object.keys(g.found_keys ?? {}).map(Number),
             // every signal of the level in order (signals.js), e.g. '7 an'
             signals: (g.signals?.sent ?? []).map(([code, on]) => `${code} ${on ? 'an' : 'aus'}`),
@@ -413,6 +421,14 @@ export function check(expect, state) {
     if (e.energie_gleich !== undefined && state.energy !== e.energie_gleich)
         fail.push(`energie: ${state.energy} statt ${e.energie_gleich}`);
     if (e.punkte !== undefined && state.points < e.punkte) fail.push(`punkte: ${state.points} statt ${e.punkte}`);
+    if (e.punkte_gleich !== undefined && state.points !== e.punkte_gleich) fail.push(`punkte: ${state.points} statt genau ${e.punkte_gleich}`);
+    // inventar: { Titel: Anzahl } – what stays for the whole game (a Titel by its beginning);
+    // waffe: Titel – the weapon chosen at the end
+    const held = (name) => Object.entries(state.inventory ?? {}).find(([title]) => title.startsWith(name))?.[1] ?? 0;
+    for (const [name, count] of Object.entries(e.inventar ?? {}))
+        if (held(name) !== count) fail.push(`inventar: ${held(name)}× „${name}“ statt ${count}× (${JSON.stringify(state.inventory)})`);
+    if (e.waffe !== undefined && !(state.weapons ?? []).some(title => title.startsWith(e.waffe)))
+        fail.push(`waffe: [${(state.weapons ?? []).join(', ')}] statt „${e.waffe}“`);
     if (e.energie_unter !== undefined && !(state.energy < e.energie_unter))
         fail.push(`energie: ${state.energy}, erwartet weniger als ${e.energie_unter}`);
     if (e.lebt !== undefined && state.player && state.player.dead === e.lebt) fail.push(`Figur lebt: ${!state.player.dead}`);

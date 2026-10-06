@@ -249,3 +249,17 @@ test('setting a Titel stores properties.name; clearing it leaves no trace', () =
     // nothing to do for something that is not a sprite
     assert.doesNotThrow(() => set_sprite_title(null, 'x'));
 });
+
+test('item signals refer to their sprite by id, and go with the sprite', () => {
+    const data = { sprites: [{ id: 'a' }, { id: 'b' }],
+        levels: [{ properties: { item_signals: [{ sprite_index: 1, signal_code: 3 }, { sprite_id: 'a', signal_code: 4 }] } }] };
+    ids.convert_sprite_references_to_ids(data);
+    assert.deepEqual(data.levels[0].properties.item_signals, [{ sprite_id: 'b', signal_code: 3 }, { sprite_id: 'a', signal_code: 4 }]);
+    const engine = JSON.parse(JSON.stringify(data));
+    ids.resolve_sprite_references_to_indices(engine);
+    assert.deepEqual(engine.levels[0].properties.item_signals, [{ sprite_index: 1, signal_code: 3 }, { sprite_index: 0, signal_code: 4 }]);
+    ids.remove_sprite_references(data, 'b');
+    assert.deepEqual(data.levels[0].properties.item_signals, [{ sprite_id: 'a', signal_code: 4 }]);
+    ids.remove_sprite_references(data, 'a');
+    assert.equal('item_signals' in data.levels[0].properties, false, 'nothing left: the setting goes');
+});
