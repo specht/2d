@@ -68,7 +68,6 @@ class Character {
 		this.initial_position = [mesh.position.x, mesh.position.y];
 		this.simulate_this = true;
 		this.falling_sprite_indices = {};
-		console.log(this.initial_position);
 
 		if ('actor' in this.sprite.traits) {
 			this.character_trait = 'actor';
@@ -128,7 +127,6 @@ class Character {
 			this.sti_for_state[sp] ??= {};
 		}
 
-		console.log(this.sprite.states);
 		for (let spi = 0; spi < state_prefixes.length; spi++) {
 			let sp = state_prefixes[spi];
 			let remaining_sp = state_prefixes.slice(spi + 1);
@@ -213,7 +211,6 @@ class Character {
 				break;
 			}
 		}
-		console.log(this.sti_for_state);
 
 
 		this.vy = 0;
@@ -1275,7 +1272,6 @@ void main() {
 				(x1 >= c.left && x1 <= c.right && y0 >= c.bottom && y0 <= c.top) ||
 				(x0 >= c.left && x0 <= c.right && y1 >= c.bottom && y1 <= c.top) ||
 				(x1 >= c.left && x1 <= c.right && y1 >= c.bottom && y1 <= c.top)) {
-				console.log('starting simulation');
 				this.simulate_this = true;
 			}
 		}
@@ -1619,8 +1615,6 @@ void main() {
 				this.game.interval_tree_y.remove([y0, y1], entry.entry_index);
 				this.game.transitioning_sprites['pickup'] ??= {};
 				this.game.transitioning_sprites['pickup'][entry.entry_index] = { t0: t, y0: entry.mesh.position.y };
-				console.log('picking up key!');
-				console.log(this.game.active_level_sprites[entry.entry_index]);
 				// a key with "kein Signal" opens nothing
 				if (entry.signal_code !== null) this.game.found_keys[entry.signal_code] = true;
 				this.game.remember_collected?.(this.game.active_level_sprites[entry.entry_index]);
@@ -1888,7 +1882,6 @@ class Game {
 		let self = this;
 		this.data = null;
 		this.curtain = new Curtain(this);
-		console.log(window.location);
 		this.development = window.location.search.substring(0, 4) === '?dev';
 		this.spritesheet_info = null;
 		this.spritesheets = null;
@@ -2033,7 +2026,6 @@ class Game {
 		// only a new game (or game over) empties it, not a lost life
 		this.inventory = [];
 		this.weapon_choice = { nah: null, fern: null };
-		console.log('RESET', this.next_level_index);
 		this.handle_resize();
 		this.stop();
 		this.just_started = true;
@@ -2155,7 +2147,6 @@ class Game {
 		this.spritesheet_info = await (await fetch(urls.sheets)).json();
 		this.spritesheets = [];
 		for (let i = 0; i < this.spritesheet_info.spritesheets.length; i++) {
-			console.log(this.spritesheet_info.spritesheets[i]);
 			let blob = await (await fetch(`/gen/spritesheets/${this.spritesheet_info.spritesheets[i]}`)).blob();
 			let texture = new THREE.Texture();
 			texture.image = await createImageBitmap(blob);
@@ -2798,10 +2789,8 @@ class Game {
 								let value = (stored === null && key === 'signal_code') ? null : (stored ?? data.default);
 								// Old games may store placed checkboxes as 0/1 instead of true/false.
 								if (data.type === 'bool') value = Boolean(value);
-								console.log(`setting placed prop: ${trait} / ${key}: ${value}`);
 								// entry_key: a field of its own on the entry (a pickup's Code must not overwrite a key's)
 								if (active_entry !== null) active_entry[data.entry_key ?? key] = value;
-								console.log('look', active_entry);
 							}
 						}
 						// an exit "nur mit Aktionstaste" shows the F hint like a door
@@ -2936,7 +2925,6 @@ class Game {
 			this.render_target = new THREE.WebGLRenderTarget(this.width, this.height, { magFilter: THREE.NearestFilter, stencilBuffer: true });
 			this.screen_scene = new THREE.Scene();
 			let geometry = new THREE.PlaneGeometry(this.width, this.height);
-			console.log('size', this.width, this.height, this.data.properties.screen_pixel_height);
 			let material = new THREE.ShaderMaterial({
 				uniforms: {
 					texture1: { value: this.render_target.texture },
@@ -3827,7 +3815,6 @@ class Game {
 	}
 
 	resume_game() {
-		console.log("RESUME_GAME");
 		if (this.lives > 0) {
 			this.ts_zoom_actor = -1;
 			this.player_character.mesh.position.x = this.player_character.initial_position[0];
@@ -4379,7 +4366,6 @@ class Game {
 		let ok = false;
 		if (door_setting(entry.lockable, sprite.traits.door.lockable) && !options.force) {
 			// check if we have correct key
-			console.log(`Checking door key: ${entry.signal_code}, have: `, this.found_keys)
 			if (this.found_keys[entry.signal_code] === true) {
 				ok = true;
 			}
@@ -4387,8 +4373,6 @@ class Game {
 			ok = true;
 		}
 		if (ok) {
-			console.log("Now opening door!");
-			console.log("sprite", sprite);
 			let open_state_index = sprite.states.findIndex((s) => s.traits.door.open);
 			let closed_state_index = sprite.states.findIndex((s) => s.traits.door.closed);
 			let transition_state_index = sprite.states.findIndex((s) => s.traits.door.transition);
@@ -4429,8 +4413,6 @@ class Game {
 		if (entry.door_state === 'closing' || entry.door_closed === true)
 			return;
 		if (sprite.traits.door.closable || options.force) {
-			console.log("Now closing door!");
-			console.log("sprite", sprite);
 			let open_state_index = sprite.states.findIndex((s) => s.traits.door.open);
 			let closed_state_index = sprite.states.findIndex((s) => s.traits.door.closed);
 			let transition_state_index = sprite.states.findIndex((s) => s.traits.door.transition);
@@ -4620,7 +4602,6 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 	window.game.reset();
 
 	let tag = window.location.hash.substring(1);
-	console.log(tag);
 	if (tag.length === 7) window.game.load(tag);
 
 	$('#mi_start').click(function (e) {

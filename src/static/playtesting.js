@@ -235,7 +235,7 @@ class Playtesting {
             this.answers.broken = true;
             this.to_survey();
         }).appendTo(bar);
-        const frame = $('<iframe class="pt-frame" allow="fullscreen" allowfullscreen>').attr('src', `/standalone#${a.tag}`).appendTo(run);
+        const frame = $('<iframe class="pt-frame" allow="fullscreen">').attr('src', `/standalone#${a.tag}`).appendTo(run);
         frame.on('load', () => { try { frame[0].focus(); frame[0].contentWindow.focus(); } catch (e) { } });
         $('<p class="pt-hint">').text('Klick ins Spiel, damit es deine Tasten bekommt.').appendTo(run);
         const tick = () => {

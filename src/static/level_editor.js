@@ -24,7 +24,6 @@ class LayerStruct {
     apply_layer(layer) {
         this.reset();
         this.layer = layer;
-        console.log(`apply_layer`, layer, this.layer_index);
         if (layer.type !== 'sprites') return;
         const game = this.level_editor.game;
         for (let i = 0; i < layer.sprites.length; i++) {
@@ -2595,9 +2594,7 @@ class LevelEditor {
                     // p = this.snap(x0, y0); x0 = p[0]; y0 = p[1];
                     // p = this.snap(x1, y1); x1 = p[0]; y1 = p[1];
                     let rect = { left: x0, bottom: y0, width: x1 - x0, height: y1 - y0 };
-                    console.log(JSON.stringify(self.game.data.levels[self.level_index].layers[self.layer_index].rects));
                     self.game.data.levels[self.level_index].layers[self.layer_index].rects.push(rect);
-                    console.log(JSON.stringify(self.game.data.levels[self.level_index].layers[self.layer_index].rects));
                     self.game.fix_game_data();
                     self.refresh();
                     return rect;
@@ -4613,9 +4610,8 @@ class LevelEditor {
                 } catch {
                 }
             }
-            let center = aabb.getCenter();
-            let size = aabb.getSize();
-            console.log('auto adjusting camera!', size);
+            let center = aabb.getCenter(new THREE.Vector3());
+            let size = aabb.getSize(new THREE.Vector3());
             this.camera_x = center.x;
             this.camera_y = center.y;
             if (isFinite(size.x) && isFinite(size.y) && size.x > 0 && size.y > 0) {

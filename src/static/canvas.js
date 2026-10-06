@@ -37,6 +37,10 @@ class Canvas {
         this.overlay_bitmap_outline = document.createElement('canvas');
         this.selection_bitmap = document.createElement('canvas');
         this.selection_bitmap_outline = document.createElement('canvas');
+        // their outline is read back on every pointer move (update_outline): the
+        // first getContext decides, so the browser keeps them where reading is fast
+        this.overlay_bitmap.getContext('2d', { willReadFrequently: true });
+        this.selection_bitmap.getContext('2d', { willReadFrequently: true });
         this.stamp_bitmap = document.createElement('canvas');
         this.overlay_grid = document.createElement('canvas');
         // Onion Skinning: the frame before (and after) shines through (update_onion_skin)
@@ -1754,15 +1758,12 @@ class Canvas {
                 e.originalEvent.dataTransfer.effectAllowed = 'copy';
             });
             image.click(function (e) {
-                console.log('restore from undo stack');
                 if (entry.width === self.game.data.sprites[self.sprite_index].width &&
                     entry.height === self.game.data.sprites[self.sprite_index].height) {
                     let src = $(e.target).attr('src');
                     self.loadFromUrl(src, false, function() {
                         self.append_to_undo_stack();
                     });
-                } else {
-                    console.log('nope');
                 }
             });
             div.append(image);

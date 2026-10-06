@@ -389,10 +389,6 @@ function show_modal(id) {
 }
 
 function close_modal() {
-    console.log('huhu')
-    for (let x of $('.modal-container .modal')) {
-        console.log(x);
-    }
     $('.modal-container .modal').hide();
     $('.modal-container').hide();
     // $('.modal-container').fadeOut({complete: () => {
@@ -1352,7 +1348,6 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         game.data.sprites[old_sprite_index].height = new_height;
                         for (let state_index = 0; state_index < game.data.sprites[old_sprite_index].states.length; state_index++) {
                             for (let frame_index = 0; frame_index < game.data.sprites[old_sprite_index].states[state_index].frames.length; frame_index++) {
-                                console.log(`Resizing sprite ${old_sprite_index} / state ${state_index} / frame ${frame_index} to ${new_width}x${new_height}`);
                                 let image = await load_img_from_src(game.data.sprites[old_sprite_index].states[state_index].frames[frame_index].src);
                                 let c = document.createElement('canvas');
                                 c.width = new_width;

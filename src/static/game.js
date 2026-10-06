@@ -18,12 +18,10 @@ class Game {
     }
 
     load(tag) {
-        console.log(`Loading game: ${tag}`);
         let self = this;
 
         api_call('/api/load_game', { tag: tag }, function (data) {
             if (data.success) {
-                console.log(data);
                 self.data = data.game;
                 self.data.parent = tag;
                 self._load();
