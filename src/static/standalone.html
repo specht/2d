@@ -100,6 +100,30 @@
       #overlay .menu .item {
         margin-top: 1.2em;
       }
+      /* the big button on a phone or tablet: full screen and go */
+      #overlay .menu #mi_fullscreen {
+        width: 12em;
+        padding: 0.25em 0;
+        color: #1a1c2c;
+        background-color: #73eff7;
+        border-radius: 0.25em;
+        box-shadow: 0 0 0.6em 0.1em rgba(115, 239, 247, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4em;
+        animation: fullscreen-invite 2.4s ease-in-out infinite;
+      }
+      #overlay .menu #mi_fullscreen svg {
+        width: 1em;
+        height: 1em;
+      }
+      #overlay .menu #mi_fullscreen:active {
+        transform: scale(0.96);
+      }
+      @keyframes fullscreen-invite {
+        50% { box-shadow: 0 0 1.1em 0.3em rgba(115, 239, 247, 0.65); }
+      }
       #start_controls {
         margin-top: 1.2em;
         display: grid;
@@ -308,6 +332,11 @@
             <div id='game_author' style="font-size: 60%;"></div>
           </div>
           <div class="menu">
+            <!-- on a phone or tablet: full screen, sideways, and go (app.js update_start_hint) -->
+            <div class='item' id="mi_fullscreen" style="display: none;" title="Startet das Spiel im Vollbild – auf dem Handy quer, so ist alles schön groß">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 3h7v2.5H5.5V10H3zm11 0h7v7h-2.5V5.5H14zM3 14h2.5v4.5H10V21H3zm15.5 0H21v7h-7v-2.5h4.5z"/></svg>
+              Im Vollbild spielen
+            </div>
             <div class='item' id="mi_start">Start</div>
           </div>
           <!-- the game's own controls (filled in by app.js: render_start_screen) -->

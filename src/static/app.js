@@ -2218,6 +2218,8 @@ class Game {
 			// the start screen now explains the touch controls
 			if (first) this.render_start_screen();
 		});
+		// turned sideways, full screen on or off: the start screen's hint follows
+		window.addEventListener('resize', () => { if (this.data) this.update_start_hint(); });
 		window.addEventListener('mousemove', (e) => {
 			this.pointer_client = { x: e.clientX, y: e.clientY };
 			this.update_pointer_world(e.clientX, e.clientY);
@@ -4550,9 +4552,21 @@ class Game {
 			}
 			panel.append(cell);
 		}
-		const fullscreen = typeof window.toggle_game_fullscreen === 'function';
+		this.update_start_hint();
+	}
+
+	// Under the controls: how to play full screen. On a phone or tablet a big
+	// button "Im Vollbild spielen" instead (full screen, sideways, and go:
+	// fullscreen.js) – while the game is not full screen yet. Without full
+	// screen (an iPhone) held upright: turn it sideways.
+	update_start_hint() {
+		const touch = this.touch_seen || window.matchMedia?.('(pointer: coarse)')?.matches;
+		const fullscreen = window.game_fullscreen;
+		const offer = Boolean(touch && fullscreen?.supported?.() && !fullscreen.is_fullscreen());
+		$('#mi_fullscreen').css('display', offer ? '' : 'none');
+		const upright = window.matchMedia?.('(orientation: portrait)')?.matches;
 		$('#start_hint').text(touch ?
-			(fullscreen ? 'Vollbild: Tipp unten rechts auf ⛶' : '') :
+			(!offer && upright && !fullscreen?.is_fullscreen?.() ? 'Dreh dein Gerät quer – dann wird das Spiel größer.' : '') :
 			'Vollbild: Alt + Enter oder ⛶ unten rechts · Esc beendet das Spiel');
 	}
 
@@ -5129,6 +5143,14 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 
 	let tag = window.location.hash.substring(1);
 	if (tag.length === 7) window.game.load(tag);
+
+	// a phone or tablet: full screen first (while the tap still counts as the
+	// player's own), then the game starts as with "Start"
+	$('#mi_fullscreen').click(function (e) {
+		e.stopPropagation();
+		window.game_fullscreen?.enter();
+		$('#mi_start').trigger('click');
+	});
 
 	$('#mi_start').click(function (e) {
 		window.game.playtest = null;

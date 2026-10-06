@@ -25,20 +25,36 @@
         return fullscreen_element(doc) === el;
     }
 
-    function toggle() {
+    // Full screen – on a phone or tablet also turned sideways: the browser
+    // keeps the screen in landscape while the game fills it (where it can:
+    // Android; an iPhone has no full screen for pages at all).
+    function enter() {
         const { doc, el } = host();
+        if (fullscreen_element(doc)) return;
         try {
-            if (fullscreen_element(doc)) {
-                (doc.exitFullscreen ?? doc.webkitExitFullscreen).call(doc);
-            } else {
-                const request = el.requestFullscreen ?? el.webkitRequestFullscreen;
-                const result = request?.call(el, { navigationUI: 'hide' });
-                result?.catch?.(() => { });
-            }
+            const request = el.requestFullscreen ?? el.webkitRequestFullscreen;
+            const result = request?.call(el, { navigationUI: 'hide' });
+            const landscape = () => {
+                const orientation = doc.defaultView?.screen?.orientation ?? window.screen?.orientation;
+                orientation?.lock?.('landscape')?.catch?.(() => { });
+            };
+            if (result?.then) result.then(landscape, () => { });
+            else landscape();
+        } catch (e) { /* the browser refused (e.g. no user action) */ }
+        window.focus();
+    }
+
+    function toggle() {
+        const { doc } = host();
+        try {
+            if (fullscreen_element(doc)) (doc.exitFullscreen ?? doc.webkitExitFullscreen).call(doc);
+            else return enter();
         } catch (e) { /* the browser refused (e.g. no user action) */ }
         window.focus();
     }
     window.toggle_game_fullscreen = toggle;
+    // for the start screen's "Im Vollbild spielen" (app.js update_start_hint)
+    window.game_fullscreen = { supported, is_fullscreen, enter };
 
     // Alt+Enter (Option+Enter on a Mac), as in many PC games. Capture phase: the
     // game must not also see Enter.
