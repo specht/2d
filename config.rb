@@ -128,6 +128,8 @@ env = []
 env << 'DEVELOPMENT=1' if DEVELOPMENT
 # Live collaboration is on unless env.rb sets COLLABORATION = false.
 env << 'COLLABORATION=0' if defined?(COLLABORATION) && !COLLABORATION
+# the address of the site, for links printed in the terminal (moderate.rb web)
+env << "WEB_ROOT=#{WEB_ROOT}" if defined?(WEB_ROOT)
 docker_compose[:services][:ruby] = {
     :build => './docker/ruby',
     :volumes => ['./src/ruby:/app:ro',
@@ -193,6 +195,8 @@ FileUtils::mkpath(File::join(RAW_FILES_PATH, 'collaboration'))
 FileUtils::mkpath(File::join(RAW_FILES_PATH, 'client-errors'))
 # Playtesting in the classroom (src/ruby/playtesting.rb, playtest.rb)
 FileUtils::mkpath(File::join(RAW_FILES_PATH, 'playtesting'))
+# Moderation: the log of deleted games and the open moderation page (src/ruby/moderation.rb, moderate.rb)
+FileUtils::mkpath(File::join(RAW_FILES_PATH, 'moderation'))
 FileUtils::mkpath(GEN_FILES_PATH)
 FileUtils::mkpath(File.join(GEN_FILES_PATH, 'png'))
 FileUtils::mkpath(File.join(GEN_FILES_PATH, 'games'))

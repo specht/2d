@@ -96,7 +96,7 @@ function palette_progress_modal() {
         max_width: '90vw',
         body: `<div class="collab-dialog"><p id="palette_progress_text" class="collab-lead"></p></div>`,
         footer: [
-            { type: 'button', label: 'Rückgängig machen', callback: (modal) => { undo_game_palette(); modal.dismiss(); } },
+            { type: 'button', label: 'Rückgängig machen', enter: false, callback: (modal) => { undo_game_palette(); modal.dismiss(); } },
             { type: 'button', label: 'Fertig', color: 'green', callback: (modal) => modal.dismiss() },
         ],
     });

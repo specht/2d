@@ -1,4 +1,4 @@
-# Colours for the teacher's terminal scripts (errors.rb, playtest.rb), only
+# Colours for the teacher's terminal scripts (errors.rb, playtest.rb, moderate.rb), only
 # where they are seen: a file (errors.rb game > spiel.json) or a pipe stays
 # plain. NO_COLOR switches them off, FORCE_COLOR on (https://no-color.org),
 # e.g. for "… | less -R".

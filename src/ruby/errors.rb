@@ -166,6 +166,7 @@ when "game"
         tag = tags.last
         warn ce("#{g['id']} hat #{tags.size} Spiele, hier das neueste. Die anderen: #{(tags - [tag]).join(' ')}", :dim) if tags.size > 1
     end
+    fail_with "Das Spiel #{tag} gibt es nicht mehr (gelöscht: ./moderate.rb log)." unless File.exist?(File.join(GEN, "games", "#{tag}.json"))
     json = ClientErrors.game_json(tag, GEN, pictures: pictures)
     hint = g ? ["./errors.rb resolve #{g['id']}", "repariert? Dann ist die Gruppe erledigt"] : nil
     if out

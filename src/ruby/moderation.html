@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Moderation – 2D Game Studio</title>
+<!--
+    The temporary moderation page (./moderate.rb web, main.rb /moderation/:token,
+    rules in moderation.rb). Not in src/static: nginx never serves it, only the
+    server with an open session. Everything a game holds is shown as text
+    (textContent), never as HTML.
+-->
+<style>
+    :root {
+        --bg: #f4f5f7; --card: #fff; --text: #1d2330; --muted: #69707d; --line: #dde0e6;
+        --accent: #2a6fdb; --danger: #c62828; --danger-bg: #fdecec; --ok: #2e7d32; --mark: #ffe082;
+        --check-a: #e9ebef; --check-b: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg: #15181e; --card: #1f232b; --text: #e6e8ec; --muted: #9aa1ad; --line: #333945;
+            --accent: #6ea3ff; --danger: #ff6b6b; --danger-bg: #3a1f22; --ok: #7bd389; --mark: #8a6d00;
+            --check-a: #2a2f38; --check-b: #343a45;
+        }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    header { position: sticky; top: 0; z-index: 5; background: var(--card); border-bottom: 1px solid var(--line); padding: 12px 20px; }
+    .bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 18px; margin: 0; }
+    #clock { color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+    form { display: flex; gap: 8px; flex: 1 1 360px; }
+    input[type=search], input[type=text] { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; }
+    button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+    button.danger.light { background: transparent; color: var(--danger); }
+    button:disabled { opacity: .5; cursor: default; }
+    label { color: var(--muted); user-select: none; cursor: pointer; }
+    main { max-width: 1200px; margin: 0 auto; padding: 16px 20px 60px; }
+    #status { color: var(--muted); margin: 4px 0 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+    .card.gone { opacity: .55; }
+    .head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+    .tag { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 600; color: var(--accent); }
+    .name { font-weight: 600; }
+    .meta { color: var(--muted); font-size: 13px; }
+    .badge { font-size: 12px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); }
+    .badge.saved { color: var(--ok); border-color: currentColor; }
+    .actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    .actions a { color: var(--accent); text-decoration: none; font-size: 14px; }
+    .frames { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .frames button { width: 64px; height: 64px; padding: 3px; display: grid; place-items: center; border-radius: 6px;
+        background: repeating-conic-gradient(var(--check-a) 0 25%, var(--check-b) 0 50%) 0 0 / 12px 12px; }
+    .frames img { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+    .texts { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+    .texts span { font-size: 13px; padding: 1px 7px; border-radius: 5px; background: var(--bg); border: 1px solid var(--line); max-width: 100%; overflow-wrap: anywhere; }
+    .hits { margin: 8px 0 0; padding: 0; list-style: none; font-size: 14px; }
+    .hits li { padding: 2px 0; overflow-wrap: anywhere; }
+    .hits .where { color: var(--muted); }
+    mark { background: var(--mark); color: inherit; border-radius: 2px; }
+    .none { color: var(--muted); font-size: 13px; margin-top: 8px; }
+    .confirm { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: var(--danger-bg); display: grid; gap: 8px; }
+    .confirm .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .confirm label { color: var(--text); }
+    .result { margin-top: 8px; color: var(--ok); }
+    .error { color: var(--danger); }
+    #more { display: block; margin: 16px auto; }
+    #closed { position: fixed; inset: 0; background: rgba(0, 0, 0, .6); display: none; place-items: center; z-index: 20; }
+    #closed div { background: var(--card); padding: 24px 28px; border-radius: 12px; max-width: 420px; }
+    #zoom { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: none; place-items: center; z-index: 10; cursor: zoom-out; }
+    #zoom figure { margin: 0; text-align: center; color: #fff; }
+    #zoom img { width: min(70vmin, 640px); height: min(70vmin, 640px); object-fit: contain; image-rendering: pixelated;
+        background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 24px 24px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<header>
+    <div class="bar">
+        <h1>Moderation</h1>
+        <form id="search">
+            <input type="search" id="query" placeholder="Wörter suchen, z. B. wort1, wort2 oder &quot;zwei Wörter&quot;" autocomplete="off">
+            <button type="submit">Suchen</button>
+            <button type="button" id="list">Alle Versionen</button>
+        </form>
+        <span id="clock"></span>
+    </div>
+    <div class="bar" style="margin-top: 8px">
+        <label><input type="checkbox" id="only_new" checked> nur Neues (Bilder und Texte, die die Version davor nicht hatte)</label>
+        <label><input type="checkbox" id="only_saved"> nur gespeicherte Versionen</label>
+    </div>
+</header>
+<main>
+    <div id="status"></div>
+    <div id="games"></div>
+    <button id="more" hidden>Weitere zeigen</button>
+</main>
+<div id="zoom"><figure><img alt=""><figcaption></figcaption></figure></div>
+<div id="closed"><div><h2 style="margin-top: 0">Die Seite ist geschlossen</h2>
+    <p>Die Zeit ist um oder die Moderation wurde im Terminal beendet. <code>./moderate.rb web</code> öffnet eine neue Seite mit einem neuen Link.</p></div></div>
+<script>
+'use strict';
+const TOKEN = location.pathname.split('/')[2] || '';
+const PAGE = 30;
+const state = { mode: 'list', offset: 0, query: '', deleted: new Set(), expires: 0, offset_now: 0 };
+const $ = (id) => document.getElementById(id);
+
+// Builds an element; strings become text (never HTML).
+function el(tag, attrs = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs)) {
+        if (value === null || value === undefined || value === false) continue;
+        if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+        else if (key === 'class') node.className = value;
+        else node.setAttribute(key, value === true ? '' : value);
+    }
+    for (const child of children.flat()) {
+        if (child === null || child === undefined || child === false) continue;
+        node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+    }
+    return node;
+}
+
+async function api(path, data = {}) {
+    const response = await fetch(`/api/moderation/${path}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, token: TOKEN }),
+    });
+    if (response.status === 403) { closed(); throw new Error('closed'); }
+    if (!response.ok) throw new Error(`Der Server antwortet mit ${response.status}.`);
+    return response.json();
+}
+
+function closed() {
+    $('closed').style.display = 'grid';
+}
+
+function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
+function date(seconds) {
+    return new Date(seconds * 1000).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// The same as Moderation.normalize: lower case, without accents, ß as ss.
+function normalize(text) {
+    return String(text).normalize('NFKD').replace(/\p{Mn}/gu, '').toLowerCase().replaceAll('ß', 'ss').replace(/\s+/g, ' ');
+}
+
+// The text with the found word marked (where it can be found as it is).
+function marked(text, term) {
+    const plain = String(text);
+    const i = normalize(plain).indexOf(term);
+    if (i < 0 || normalize(plain.slice(0, i)).length !== i) return [el('mark', {}, plain)];
+    return [plain.slice(0, i), el('mark', {}, plain.slice(i, i + term.length)), plain.slice(i + term.length)];
+}
+
+function tick() {
+    const left = Math.max(0, state.expires - (Date.now() / 1000 + state.offset_now));
+    if (state.expires && left <= 0) closed();
+    const until = new Date(state.expires * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    $('clock').textContent = state.expires ? `offen bis ${until} (noch ${Math.ceil(left / 60)} min)` : '';
+}
+
+async function status() {
+    try {
+        const data = await api('status');
+        state.expires = data.expires_at;
+        state.offset_now = data.now - Date.now() / 1000;
+        tick();
+    } catch (e) { /* closed() shows it */ }
+}
+
+function show_status(...parts) {
+    $('status').replaceChildren(...parts);
+}
+
+// Waits while the server reads all games (the first time after opening).
+async function load(path, data) {
+    for (;;) {
+        const result = await api(path, data);
+        if (!result.loading) return result;
+        const [done, total] = result.loading;
+        show_status(total ? `Die Spiele werden gelesen … ${done} von ${total}` : 'Die Spiele werden gelesen …');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+}
+
+function zoom(frame) {
+    const box = $('zoom');
+    box.querySelector('img').src = `/gen/png/${frame}.png`;
+    box.querySelector('figcaption').textContent = `Bild ${frame} – Klick oder Esc schließt`;
+    box.style.display = 'grid';
+}
+$('zoom').addEventListener('click', () => { $('zoom').style.display = 'none'; });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('zoom').style.display = 'none'; });
+
+function delete_report(report) {
+    const r = report;
+    return `Gelöscht: ${plural(r.tags.length, 'Version', 'Versionen')} – ${plural(r.frames, 'Bild', 'Bilder')}, ` +
+        `${plural(r.sheets, 'Spritesheet', 'Spritesheets')}, ${plural(r.gifs, 'Gif', 'Gifs')}, ` +
+        `${plural(r.files, 'Datei', 'Dateien')} insgesamt; ${r.in_database} aus der Datenbank` +
+        (r.playtesting.length ? `; Playtesting angepasst (${r.playtesting.join(', ')})` : '') + '.';
+}
+
+function mark_deleted(tags) {
+    for (const tag of tags) state.deleted.add(tag);
+    for (const card of document.querySelectorAll('.card[data-tag]')) {
+        if (state.deleted.has(card.dataset.tag) && !card.classList.contains('gone')) {
+            card.classList.add('gone');
+            card.querySelector('.actions')?.replaceChildren(el('span', { class: 'error' }, 'gelöscht'));
+            card.querySelector('.confirm')?.remove();
+        }
+    }
+}
+
+// The question before deleting, in the card (or above a search result).
+function confirm_box(where, tags, later_count, done) {
+    where.querySelector('.confirm')?.remove();
+    const later = el('input', { type: 'checkbox' });
+    const reason = el('input', { type: 'text', placeholder: 'Grund (für das Protokoll, freiwillig)', maxlength: 200 });
+    const go = el('button', { class: 'danger', type: 'button' }, 'Endgültig löschen');
+    const message = el('div');
+    const box = el('div', { class: 'confirm' },
+        el('div', {}, tags.length === 1
+            ? `Die Version ${tags[0]} wird mit allem, was nur sie braucht (Bilder, Spritesheets, Gifs, Datenbank), endgültig gelöscht.`
+            : `${tags.length} Versionen werden mit allem, was nur sie brauchen, endgültig gelöscht.`),
+        later_count > 0 ? el('label', {}, later, ` auch ${later_count === 1 ? 'die spätere Version' : `alle ${later_count} späteren Versionen`} (aus ${tags.length === 1 ? 'ihr' : 'ihnen'} gemacht) löschen`) : null,
+        el('div', { class: 'row' }, reason, go, el('button', { type: 'button', onclick: () => box.remove() }, 'Abbrechen')),
+        message);
+    go.addEventListener('click', async () => {
+        go.disabled = true;
+        message.replaceChildren('Wird gelöscht …');
+        try {
+            const result = await load('delete', { tags, later: later.checked, reason: reason.value });
+            if (result.error) throw new Error('Keine Version zum Löschen gefunden.');
+            box.remove();
+            mark_deleted(result.report.tags);
+            done(result.report);
+        } catch (e) {
+            go.disabled = false;
+            message.replaceChildren(el('span', { class: 'error' }, e.message === 'closed' ? '' : e.message));
+        }
+    });
+    where.append(box);
+    reason.focus();
+}
+
+function card(game, terms = []) {
+    const gone = state.deleted.has(game.tag);
+    const title = game.title?.trim() ? `»${game.title}«` : '(ohne Titel)';
+    const author = game.author?.trim() ? ` von ${game.author}` : '';
+    const node = el('div', { class: `card${gone ? ' gone' : ''}`, 'data-tag': game.tag });
+    const del = el('button', { class: 'danger light', type: 'button' }, 'Löschen …');
+    del.addEventListener('click', () => confirm_box(node, [game.tag], game.later.filter(t => !state.deleted.has(t)).length, (report) => {
+        node.append(el('div', { class: 'result' }, delete_report(report)));
+    }));
+    node.append(el('div', { class: 'head' },
+        el('span', { class: 'tag' }, game.tag),
+        el('span', { class: 'name' }, title, author),
+        el('span', { class: 'meta' }, date(game.time)),
+        game.saved === true ? el('span', { class: 'badge saved' }, 'gespeichert') : game.saved === false ? el('span', { class: 'badge' }, 'nur gespielt') : null,
+        game.parent ? el('span', { class: 'meta' }, `aus ${game.parent}`) : null,
+        game.later.length ? el('span', { class: 'meta' }, plural(game.later.length, 'spätere Version', 'spätere Versionen')) : null,
+        el('span', { class: 'actions' },
+            el('a', { href: `/play/${game.tag}`, target: '_blank', rel: 'noreferrer noopener' }, 'Spielen ↗'),
+            gone ? el('span', { class: 'error' }, 'gelöscht') : del)));
+    if (game.hits?.length) {
+        node.append(el('ul', { class: 'hits' }, game.hits.map(hit =>
+            el('li', {}, el('span', { class: 'where' }, `${hit.where}: `), marked(hit.text, hit.term)))));
+    }
+    const only_new = $('only_new').checked && state.mode === 'list' && game.parent;
+    if (game.frames.length) {
+        node.append(el('div', { class: 'frames' }, game.frames.map(frame =>
+            el('button', { type: 'button', title: frame, onclick: () => zoom(frame) },
+                el('img', { src: `/gen/png/${frame}.png`, alt: '', loading: 'lazy' })))));
+    } else {
+        node.append(el('div', { class: 'none' }, only_new ? 'keine neuen Bilder' : 'keine Bilder'));
+    }
+    if (game.texts.length) {
+        node.append(el('div', { class: 'texts', title: only_new ? 'neue Texte' : 'alle Texte' },
+            game.texts.map(text => el('span', {}, terms.length ? marked_any(text, terms) : text))));
+    } else if (only_new) {
+        node.append(el('div', { class: 'none' }, 'keine neuen Texte'));
+    }
+    return node;
+}
+
+function marked_any(text, terms) {
+    const term = terms.find(t => normalize(text).includes(t));
+    return term ? marked(text, term) : text;
+}
+
+async function show_list(more = false) {
+    state.mode = 'list';
+    if (!more) {
+        state.offset = 0;
+        $('games').replaceChildren();
+    }
+    $('more').hidden = true;
+    try {
+        const data = await load('games', { offset: state.offset, limit: PAGE, only_new: $('only_new').checked, only_saved: $('only_saved').checked });
+        state.offset += data.games.length;
+        show_status(`${data.total} von ${data.all} Versionen, die neuesten zuerst` +
+            ($('only_new').checked ? ' (Versionen ohne neue Bilder oder Texte sind ausgelassen)' : '') + '.');
+        $('games').append(...data.games.map(game => card(game)));
+        $('more').hidden = state.offset >= data.total;
+    } catch (e) {
+        if (e.message !== 'closed') show_status(el('span', { class: 'error' }, e.message));
+    }
+}
+
+async function search(query) {
+    state.mode = 'search';
+    state.query = query;
+    $('games').replaceChildren();
+    $('more').hidden = true;
+    show_status('Wird gesucht …');
+    try {
+        const data = await load('search', { query });
+        if (!data.terms.length) return show_list();
+        const words = data.terms.map(t => `»${t}«`).join(' oder ');
+        if (!data.total) {
+            show_status(`Kein Spiel enthält ${words} (${data.all} Spiele durchsucht).`);
+            return;
+        }
+        // the ones not deleted yet, when it is clicked
+        const left = () => data.games.map(g => g.tag).filter(t => !state.deleted.has(t));
+        const tags = left();
+        const all = el('button', { class: 'danger light', type: 'button' }, `Alle ${tags.length} löschen …`);
+        const box = el('div', { style: 'flex-basis: 100%' });
+        all.addEventListener('click', () => {
+            const now = left();
+            if (!now.length) return;
+            const later = new Set(data.games.filter(g => now.includes(g.tag)).flatMap(g => g.later)
+                .filter(t => !now.includes(t) && !state.deleted.has(t))).size;
+            confirm_box(box, now, later, (report) => {
+                box.append(el('div', { class: 'result' }, delete_report(report)));
+                all.remove();
+            });
+        });
+        show_status(`${plural(data.total, 'Spiel enthält', 'Spiele enthalten')} ${words}` +
+            (data.total > data.games.length ? ` (die neuesten ${data.games.length} sind gezeigt)` : '') + '.',
+            tags.length ? all : null, box);
+        $('games').append(...data.games.map(game => card(game, data.terms)));
+    } catch (e) {
+        if (e.message !== 'closed') show_status(el('span', { class: 'error' }, e.message));
+    }
+}
+
+$('search').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const query = $('query').value.trim();
+    if (query) search(query); else show_list();
+});
+$('list').addEventListener('click', () => { $('query').value = ''; show_list(); });
+$('more').addEventListener('click', () => show_list(true));
+for (const id of ['only_new', 'only_saved']) $(id).addEventListener('change', () => { if (state.mode === 'list') show_list(); });
+
+status();
+setInterval(status, 30000);
+setInterval(tick, 5000);
+show_list();
+</script>
+</body>
+</html>

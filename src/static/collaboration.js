@@ -1910,6 +1910,8 @@ function setup_collaboration_ui() {
                 type: 'button',
                 label: 'Sitzung verlassen',
                 color: 'collab-leave',
+                // not what Enter does here: it closes (modaldialogs.js)
+                enter: false,
                 callback: () => window.collaboration.confirm_leave('leave'),
             },
             {

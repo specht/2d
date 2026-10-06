@@ -5512,7 +5512,8 @@ class LevelEditor {
     // step, with Shift one pixel), Esc. By the printed letter, like Strg+Z.
     window.addEventListener('keydown', (e) => {
         const level_editor = editor();
-        if (!level_editor || e.altKey || is_field(e.target)) return;
+        // a dialog in front has the keys (Esc closes it: modaldialogs.js)
+        if (!level_editor || e.altKey || is_field(e.target) || $('.modal-dialogs:visible > .modal:visible').length) return;
         const ctrl = e.ctrlKey || e.metaKey;
         const key = (e.key ?? '').toLowerCase();
         const selecting = menus.level.active_key === 'tool/select' && level_editor.selection.length > 0;

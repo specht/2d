@@ -14,6 +14,7 @@ require_relative "collaboration"
 require_relative "client_errors"
 require_relative "playtesting"
 require_relative "game_index"
+require_relative "moderation"
 
 DASHBOARD_SERVICE = ENV["DASHBOARD_SERVICE"]
 DEVELOPMENT = ENV['DEVELOPMENT'] == '1'
@@ -29,6 +30,11 @@ CLIENT_ERRORS_PATH = "/raw/client-errors"
 # Playtesting in the classroom (playtesting.rb, switched on and off with
 # playtest.rb in the terminal). Private like the sessions: /raw is not served.
 PLAYTESTING_PATH = "/raw/playtesting"
+
+# Moderation (moderation.rb, moderate.rb in the terminal): the log of deleted
+# games and the session of the temporary moderation page. Private: /raw is not
+# served.
+MODERATION_PATH = "/raw/moderation"
 
 # The saved games in memory (game_index.rb), read again from Neo4j this often
 # (seconds). Saves of this process update it at once; the refresh only picks up
@@ -209,6 +215,13 @@ class Main < Sinatra::Base
     @@game_index = GameIndex.new
     @@game_list_cache = nil
     @@game_list_cache_mutex = Mutex.new
+    # how far the log of deleted games has been read (moderation.rb): what was
+    # deleted before this start is not in the database any more anyway
+    @@moderation_log_offset = File.size?(Moderation.log_path(MODERATION_PATH)) || 0
+    @@moderation_log_mutex = Mutex.new
+    # all game files, read while the moderation page is open
+    @@moderation_catalog = nil
+    @@moderation_catalog_mutex = Mutex.new
 
     def self.refresh_game_index
         t0 = Time.now
@@ -1021,6 +1034,7 @@ class Main < Sinatra::Base
         state_count = 0
         frame_count = 0
         unique_frames = Set.new()
+        pictures = {}
         game["sprites"].map! do |sprite|
             sprite_count += 1
             sprite["states"].map! do |state|
@@ -1032,6 +1046,7 @@ class Main < Sinatra::Base
                     frame_sha1 = Digest::SHA1.hexdigest(png).to_i(16).to_s(36)[0, 7]
                     unique_frames << frame_sha1
                     path = "/gen/png/#{frame_sha1}.png"
+                    pictures[path] = png
                     unless File.exist?(path)
                         File.open(path, "w") do |f|
                             f.write png
@@ -1057,6 +1072,9 @@ class Main < Sinatra::Base
                 f.write game_json
             end
         end
+        # a picture deleted by moderation in the moment between (moderation.rb
+        # counts this game only once its file is there) is written again
+        pictures.each_pair { |picture_path, png| File.binwrite(picture_path, png) unless File.exist?(picture_path) }
         Main.render_spritesheet_for_tag(tag)
         if add_to_database
             ts = Time.now.to_i
@@ -1386,6 +1404,125 @@ class Main < Sinatra::Base
             tags << File.basename(path, '.gif')
         end
         respond(:tags => tags)
+    end
+
+    # ------------------------------------------------ Moderation
+    # (moderation.rb; ./moderate.rb in the terminal, which also opens the
+    # temporary page moderation.html with a secret link)
+
+    # Games deleted in the terminal leave the game list at once: before the
+    # lists are answered, new lines of the log are read. While no moderation
+    # page is open, the files read for it are forgotten.
+    def self.follow_moderation_log
+        tags = @@moderation_log_mutex.synchronize do
+            found, @@moderation_log_offset = Moderation.deleted_since(MODERATION_PATH, @@moderation_log_offset)
+            found
+        end
+        @@game_index.remove(tags) unless tags.empty?
+        @@moderation_catalog_mutex.synchronize do
+            @@moderation_catalog = nil if @@moderation_catalog && !Moderation::Session.current(MODERATION_PATH)
+        end
+    end
+
+    before %r{/api/(get_games|search_game|game_info|family|get_versions_for_game)(/.*)?} do
+        Main.follow_moderation_log
+    end
+
+    # The page's requests: { "token": …, … } with the token of the open page.
+    def moderation_request
+        data = (JSON.parse(request.body.read(64 * 1024).to_s) rescue nil)
+        data = {} unless data.is_a?(Hash)
+        unless Moderation::Session.valid?(MODERATION_PATH, data["token"])
+            respond(:error => "closed")
+            halt 403
+        end
+        headers "Cache-Control" => "no-store"
+        data
+    end
+
+    # All game files, read once in the background (they never change; later
+    # ones are added on every request). nil while being read.
+    def moderation_catalog
+        state = @@moderation_catalog_mutex.synchronize do
+            unless @@moderation_catalog
+                catalog = Moderation::Catalog.new("/gen")
+                fresh = { :catalog => catalog, :ready => false }
+                @@moderation_catalog = fresh
+                Thread.new do
+                    begin
+                        catalog.refresh
+                        fresh[:ready] = true
+                    rescue => e
+                        debug_error "Moderation: could not read the games: #{e}"
+                        @@moderation_catalog_mutex.synchronize { @@moderation_catalog = nil if @@moderation_catalog.equal?(fresh) }
+                    end
+                end
+            end
+            @@moderation_catalog
+        end
+        return nil unless state[:ready]
+        state[:catalog].refresh
+    end
+
+    def moderation_loading
+        progress = @@moderation_catalog_mutex.synchronize { @@moderation_catalog && @@moderation_catalog[:catalog].progress }
+        { :loading => progress || [0, 0] }
+    end
+
+    # tag → saved (in the database), as far as the index knows yet
+    def moderation_saved
+        @@game_index.ready? ? ->(tag) { !@@game_index.node(tag).nil? } : nil
+    end
+
+    get "/moderation/:token" do
+        headers "Cache-Control" => "no-store", "X-Robots-Tag" => "noindex, nofollow", "Referrer-Policy" => "no-referrer"
+        content_type "text/html; charset=utf-8"
+        unless Moderation::Session.valid?(MODERATION_PATH, params[:token])
+            status 404
+            return "<!DOCTYPE html><html lang='de'><meta charset='utf-8'><title>Moderation</title>" \
+                   "<p style='font-family: sans-serif; margin: 3em'>Diese Moderationsseite ist nicht (mehr) offen. " \
+                   "Im Terminal öffnet <code>./moderate.rb web</code> eine neue.</p></html>"
+        end
+        File.read(File.join(__dir__, "moderation.html"))
+    end
+
+    post "/api/moderation/status" do
+        session = Moderation::Session.current(MODERATION_PATH)
+        moderation_request
+        catalog = moderation_catalog
+        respond({ :expires_at => session["expires_at"], :now => Time.now.to_i }.merge(catalog ? { :games => catalog.size } : moderation_loading))
+    end
+
+    post "/api/moderation/games" do
+        data = moderation_request
+        catalog = moderation_catalog
+        return respond(moderation_loading) unless catalog
+        respond(Moderation.page_games(catalog, offset: data["offset"].to_i, limit: data["limit"].to_i,
+                                      only_new: data["only_new"] == true, only_saved: data["only_saved"] == true,
+                                      saved: moderation_saved))
+    end
+
+    post "/api/moderation/search" do
+        data = moderation_request
+        catalog = moderation_catalog
+        return respond(moderation_loading) unless catalog
+        respond(Moderation.page_search(catalog, data["query"], saved: moderation_saved))
+    end
+
+    # { tags: [...], later: true|false, reason: "…" }
+    post "/api/moderation/delete" do
+        data = moderation_request
+        catalog = moderation_catalog
+        return respond(moderation_loading) unless catalog
+        tags = (data["tags"].is_a?(Array) ? data["tags"] : []).map(&:to_s).select { |t| t =~ Moderation::TAG }.uniq.first(1000)
+        tags = catalog.with_later_versions(tags) if data["later"] == true
+        return respond(:error => "no_games") if tags.empty?
+        report = Moderation.delete(tags, catalog: catalog, raw: MODERATION_PATH, database: self, playtesting: @@playtesting,
+                                   by: "Moderationsseite", reason: data["reason"].to_s[0, 200])
+        @@game_index.remove(report["tags"])
+        Main.follow_moderation_log
+        debug "Moderation: deleted #{report['tags'].join(' ')}"
+        respond(:report => report)
     end
 
     after "*" do

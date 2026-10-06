@@ -100,6 +100,8 @@ The runtime combines the level geometry with the traits of the sprites placed in
 - **Overviews:** the Signale-Übersicht (S) lists every rule of the level, the Levelübersicht (L) every level of the game and where its exits lead.
 - **Testing:** Level testen (T) plays the level straight away, with the figure where the mouse is; R starts again, Esc returns to the editor exactly as it was. Nothing is saved or changed by a test run.
 
+Dialogs close with Esc (like Abbrechen or Schließen) and confirm with Enter when they have one button that confirms (Ja, Übernehmen, Größe ändern …); with two real choices (Zuerst speichern / Trotzdem öffnen) Enter does nothing, and the question about unsaved work found in the browser must be answered.
+
 ### On a tablet (touch, no mouse, no keyboard)
 
 Landscape from about 1024 × 768 works with fingers only (`widgets.js` long press, `canvas.js`, `level_editor.js`):
@@ -333,7 +335,7 @@ The backend lives mainly in:
 src/ruby/main.rb
 ```
 
-It provides the HTTP API, stores and loads game JSON, generates assets and maintains game/version metadata in Neo4j.
+It provides the HTTP API, stores and loads game JSON, generates assets and maintains game/version metadata in Neo4j. The teacher's terminal scripts live next to it (`errors.rb`, `playtest.rb`, `moderate.rb`).
 
 ## Architecture
 
@@ -531,7 +533,7 @@ They cover systems such as:
 - stable IDs, sprite copying between games and level undo/selection
 - the collaboration client and session store
 
-Run them with `node --test test/*.cjs` (and `ruby test/collaboration_store_test.rb`, `ruby test/client_errors_test.rb` and `ruby test/game_index_test.rb` for the backend store, the Fehlerberichte and the index of saved games).
+Run them with `node --test test/*.cjs` (and `ruby test/collaboration_store_test.rb`, `ruby test/client_errors_test.rb`, `ruby test/game_index_test.rb` and `ruby test/moderation_test.rb` for the backend store, the Fehlerberichte, the index of saved games and moderation).
 
 These tests are useful for protecting engine contracts, but they are not a substitute for actually trying changes in the Studio and playing affected games in a browser.
 
@@ -641,3 +643,22 @@ While it is on, the studio shows a **Playtesting** tab (within half a minute: th
 `pdf` writes `data/raw/playtesting/rueckmeldungen-<date>.pdf`: one handout per game (sorted by author) with the player character, every category as five stars with its word ("gut", "super"), what was liked most and where most is left, the quick choices as boxes with their counts (the most chosen with a tick and a thick frame), every comment as a speech bubble with its tester's name (marked when it was about an older version) and a "Mein Plan" box for three next steps; it says "ihr" and "euer" to games with several authors ("Lea und Max"). It is made for printing in black and white: nothing is told by colour alone, and there are no large dark areas. A game tested once fits on one page. The last page is an overview for the teacher. `pdf archive/<file>.json` prints an earlier round. The PDF needs the `prawn` gem: rebuild the Ruby container once (`./config.rb build ruby`).
 
 There are no accounts: a browser is recognised by a random id in its localStorage, which keeps a child from testing their own game or one game twice. Everything is in `data/raw/playtesting/state.json` (not served by nginx).
+
+### Moderation: removing a game for good
+
+When a game holds something that needs no discussion (an insult, a picture that must not be there), it can be removed for good: the game file, its pictures, spritesheets and gifs (where no other game uses them), its entry in the database, its playtesting submission, and the "Spiel laden" list – the server picks a deletion up at once. In the Ruby container, like `errors.rb`:
+
+```bash
+./moderate.rb search wort1 "zwei Wörter"   # every game with one of the words, and where in it
+./moderate.rb show 3fa2b1c                 # one version: its texts (new ones marked), pictures, later versions
+./moderate.rb delete 3fa2b1c               # delete it (asks first; --ja does not; --grund="…" for the log)
+./moderate.rb delete 3fa2b1c --mit-spaeteren   # … with every version made from it later on
+./moderate.rb web 60                       # a moderation page for 60 minutes (Strg+C closes it earlier)
+./moderate.rb log                          # what was deleted, when and why
+```
+
+`search` finds the words in every text of every game file – saved versions and copies that were only played (Spielen, play links) –, whatever the case or accents ("blod" finds "Blöd"), and says where: "Level 2 »Wald« › Ebene 1 › Einstellungen › 3 › Text". It then asks which of the games to delete (numbers, `alle`, with `+` also their later versions) and asks once more before deleting.
+
+Pictures cannot be checked in a terminal, so `web` opens a page for a while and prints its secret link (the address comes from `WEB_ROOT` in `env.rb`; after updating, `./config.rb build` once passes it to the container). The page shows every version, newest first, with its pictures and texts – by default only what is new compared with the version it was made from, so each change is seen once –, a word search with the same results as the terminal, a bigger view of a picture on click, and a delete button per game (or for all results) that asks first and can take the later versions along. The link works until the time is up or the script ends; anybody with it can delete games, so it is not shared. Deletions made on the page appear in the terminal.
+
+Versions made from a deleted one stay and become the first version of their own family. Every deletion is logged in `data/raw/moderation/geloescht.jsonl` (versions, title, author, reason, by terminal or page). A browser that has the game open keeps it until it reloads – saving it from there makes it a new version again, which `search` or the page find like any other – and pictures may come from a browser's cache for about a minute.

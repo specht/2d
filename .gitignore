@@ -12,3 +12,4 @@ src/ruby/credentials.rb
 src/ruby/hidden-root-tags.txt
 /src/static/rezepte/
 /src/static/anleitungen/
+sync-from-server.sh

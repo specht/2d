@@ -106,4 +106,25 @@ class GameIndexTest < Minitest::Test
         assert_nil index.node("a")[:title]
         assert_equal [], index.tips(["a"]).first[:family_titles]
     end
+
+    def test_remove_makes_later_versions_roots
+        version = @index.version
+        @index.remove(["bbbbbbb", "nope"])
+        assert_operator @index.version, :>, version
+        assert_nil @index.node("bbbbbbb")
+        # c and d were made from b: each is now the first of its own family
+        assert_equal %w(aaaaaaa ccccccc ddddddd xxxxxxx yyyyyyy), @index.root_tags.sort
+        assert_equal ["aaaaaaa"], @index.family("aaaaaaa").map { |n| n[:tag] }
+        assert_equal ["ccccccc"], @index.ancestors("ccccccc").map { |n| n[:tag] }
+        assert_equal [], @index.search("pip springt").flat_map { |n| n[:family_titles] } - ["Pip springt"]
+    end
+
+    def test_remove_during_a_refresh_stays_removed
+        @index.begin_load
+        rows = %w(aaaaaaa bbbbbbb).map { |t| row(t, t == "bbbbbbb" ? "aaaaaaa" : nil, t == "aaaaaaa" ? 10 : 20) }
+        @index.remove(["bbbbbbb"])
+        @index.load(rows)
+        assert_nil @index.node("bbbbbbb")
+        assert_equal 1, @index.size
+    end
 end

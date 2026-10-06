@@ -213,8 +213,10 @@ class StudioRescue {
             width: '480px',
             max_width: '90vw',
             body: `<div class="collab-dialog"><p class="collab-lead"></p><p></p></div>`,
+            // to be answered: Esc does not close it, Enter restores
+            escape: false,
             footer: [
-                { type: 'button', label: 'Verwerfen', callback: (self) => choose(self, false) },
+                { type: 'button', label: 'Verwerfen', enter: false, callback: (self) => choose(self, false) },
                 { type: 'button', label: 'Wiederherstellen', color: 'green', callback: (self) => choose(self, true) },
             ],
         });
@@ -250,7 +252,7 @@ async function studio_reload_keeping_work() {
             max_width: '90vw',
             body: `<div class="collab-dialog"><p class="collab-lead">Dieser Browser kann deine Arbeit nicht zwischenspeichern. Speichere dein Spiel, bevor du die Seite neu lädst – sonst ist weg, was du seit dem letzten Speichern gemacht hast.</p></div>`,
             footer: [
-                { type: 'button', label: 'Trotzdem neu laden', callback: (self) => { self.dismiss(); studio_reload_now(); } },
+                { type: 'button', label: 'Trotzdem neu laden', enter: false, callback: (self) => { self.dismiss(); studio_reload_now(); } },
                 { type: 'button', label: 'Speichern', color: 'green', callback: (self) => { self.dismiss(); game.save(); } },
             ],
         });

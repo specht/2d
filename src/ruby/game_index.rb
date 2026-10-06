@@ -25,7 +25,7 @@ class GameIndex
         @mutex = Mutex.new
         @nodes = {}      # tag => { tag:, parent:, title:, author:, ts_created: … }
         @children = {}   # tag => [child tags]
-        @journal = nil   # saves during a load (begin_load … load)
+        @journal = nil   # saves and deletions during a load (begin_load … load)
         @ready = false
         @version = 0     # +1 with every change (caches compare it)
     end
@@ -40,7 +40,8 @@ class GameIndex
 
     # Call before reading all games from the database: saves that arrive
     # while the rows are read are remembered and applied again by load, so
-    # a refresh never loses a version saved in the meantime.
+    # a refresh never loses a version saved in the meantime (nor brings back
+    # one deleted in the meantime).
     def begin_load
         @mutex.synchronize { @journal = [] }
         self
@@ -59,7 +60,7 @@ class GameIndex
             @nodes = nodes
             @children = build_children(nodes)
             journal, @journal = @journal, nil
-            (journal || []).each { |row| add_unlocked(row) }
+            (journal || []).each { |kind, value| kind == :remove ? remove_unlocked(value) : add_unlocked(value) }
             @ready = true
             @version += 1
         end
@@ -73,10 +74,23 @@ class GameIndex
     def add(row)
         return if row[:tag].to_s.empty?
         @mutex.synchronize do
-            @journal << row if @journal
+            @journal << [:add, row] if @journal
             add_unlocked(row)
             @version += 1
         end
+    end
+
+    # Versions deleted for good (moderation.rb): gone from every list; a
+    # version made from one of them is the first of its family from now on,
+    # like after the database lost the PARENT edge.
+    def remove(tags)
+        tags = tags.map(&:to_s)
+        @mutex.synchronize do
+            @journal << [:remove, tags] if @journal
+            remove_unlocked(tags)
+            @version += 1
+        end
+        self
     end
 
     def node(tag)
@@ -165,6 +179,15 @@ class GameIndex
             (@children[parent] ||= []) << tag if ok
         end
         @nodes[tag] = node
+    end
+
+    def remove_unlocked(tags)
+        tags.each do |tag|
+            node = @nodes.delete(tag)
+            next unless node
+            (@children[node[:parent]] || []).delete(tag) if node[:parent]
+            (@children.delete(tag) || []).each { |child| @nodes[child][:parent] = nil if @nodes[child] }
+        end
     end
 
     def clean(row)

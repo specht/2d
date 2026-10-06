@@ -1252,7 +1252,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                     else if (load_games.list.visible.length === 1)
                         load_game_and_close(load_games.list.visible[0].tag);
                 }
-                e.stopPropagation();
+                // Esc closes the dialog (modaldialogs.js); other keys stay here
+                if (e.key !== 'Escape') e.stopPropagation();
             });
         },
         onshow: () => {
@@ -1265,6 +1266,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 type: 'button',
                 label: 'Neues Spiel …',
                 icon: 'fa-file-o',
+                // another way out, not what Enter confirms (modaldialogs.js)
+                enter: false,
                 callback: (self) => { self.dismiss(); if (typeof show_new_game_dialog === 'function') show_new_game_dialog(); },
             },
             {
