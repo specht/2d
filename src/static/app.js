@@ -3409,10 +3409,19 @@ class Game {
 		this.running = true;
 
 		$('#screen').fadeIn();
-		requestAnimationFrame((t) => this.render());
+		// one frame loop only: a frame of an earlier run still queued goes
+		cancelAnimationFrame(this.render_frame);
+		this.render_frame = requestAnimationFrame((t) => this.render());
 	}
 
 	stop() {
+		// The frame queued last would still be drawn – and a browser holds it
+		// back while the game frame is hidden (the studio's Level pane), then
+		// draws it when the frame is shown again: after the next load() had
+		// reset the level, with the old run's layers (70dad2, October 2026).
+		// Also when the run had ended already (restart_playtest).
+		cancelAnimationFrame(this.render_frame);
+		this.render_frame = null;
 		if (!this.running) return;
 		this.running = false;
 		this.curtain.hide();
@@ -4402,7 +4411,7 @@ class Game {
 		this.draw_hud();
 		this.draw_speech();
 		if (this.running)
-			requestAnimationFrame((t) => this.render());
+			this.render_frame = requestAnimationFrame((t) => this.render());
 	}
 
 	resume_game() {

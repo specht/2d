@@ -632,7 +632,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         $('#menu_level_sprites .button').removeClass('active');
         // the chosen sprite is marked while the pen places it (not while it erases: X)
         if (this.active_key === 'tool/pen' && !game.level_editor?.pen_erasing)
-            $('#menu_level_sprites .button').eq(game.level_editor.sprite_index).addClass('active');
+            $('#menu_level_sprites .button').eq(game.level_editor?.sprite_index ?? -1).addClass('active');
         if (this.active_key !== 'tool/pen') game?.level_editor?.set_pen_erasing?.(false);
         if (this.active_key !== 'tool/select') {
             game?.level_editor?.clear_selection();

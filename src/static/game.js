@@ -479,6 +479,12 @@ class Game {
         }
         if (typeof handleResize === 'function') handleResize();
 
+        // The editor of the game before is done: while the new one is built
+        // (its tool menu calls game.level_editor), the old one – its selection,
+        // level and layer from that game – must not draw this one (57b98a,
+        // October 2026: a sprite selected, then Spiel laden).
+        if (this.level_editor) this.level_editor.selection = [];
+        this.level_editor = null;
         this.level_editor = new LevelEditor($('#level'), this);
         this.refresh_sprite_titles();
 
