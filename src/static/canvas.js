@@ -10,7 +10,10 @@ const PERFORM_ON_MOUSE_DOWN_TOOLS = ['tool/pen', 'tool/picker', 'tool/spray', 't
 const PERFORM_ON_MOUSE_MOVE_TOOLS = ['tool/pen', 'tool/picker', 'tool/move', 'tool/gradient'];
 const MAX_UNDO_STACK_SIZE = 64;
 const MAX_DIMENSION = 512;
-const MIN_ZOOM = 2;
+// Zooming out stops where the whole sprite just fills the drawing area
+// (fit_scale): "weiter weg, bis es nicht mehr geht" is always the best fit,
+// never a small sprite in a big empty area. MAX_ZOOM limits zooming in;
+// a sprite so small that it fits only beyond it may still fill the area.
 const MAX_ZOOM = 64;
 var last_spriteskip_timestamp = 0;
 var last_stateskip_timestamp = 0;
@@ -1442,14 +1445,21 @@ class Canvas {
         this.write_frame_to_game_data();
     }
 
+    // the scale at which the whole sprite just fills the drawing area
+    fit_scale() {
+        return this.size / Math.max(1, this.bitmap.width, this.bitmap.height);
+    }
+
     fix_scale() {
+        const min_scale = this.fit_scale();
+        const max_scale = Math.max(MAX_ZOOM, min_scale);
         this.scale = this.size / this.visible_pixels;
-        if (this.scale < MIN_ZOOM) {
-            this.scale = MIN_ZOOM;
+        if (this.scale < min_scale) {
+            this.scale = min_scale;
             this.visible_pixels = this.size / this.scale;
         }
-        if (this.scale > MAX_ZOOM) {
-            this.scale = MAX_ZOOM;
+        if (this.scale > max_scale) {
+            this.scale = max_scale;
             this.visible_pixels = this.size / this.scale;
         }
     }
