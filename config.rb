@@ -128,8 +128,10 @@ env = []
 env << 'DEVELOPMENT=1' if DEVELOPMENT
 # Live collaboration is on unless env.rb sets COLLABORATION = false.
 env << 'COLLABORATION=0' if defined?(COLLABORATION) && !COLLABORATION
-# the address of the site, for links printed in the terminal (moderate.rb web)
-env << "WEB_ROOT=#{WEB_ROOT}" if defined?(WEB_ROOT)
+# the address of the site, for links printed in the terminal (moderate.rb web);
+# an env.rb from before WEB_ROOT: the live site's host
+SITE_ROOT = defined?(WEB_ROOT) ? WEB_ROOT : (!DEVELOPMENT && defined?(WEBSITE_HOST) ? "https://#{WEBSITE_HOST}" : nil)
+env << "WEB_ROOT=#{SITE_ROOT}" if SITE_ROOT
 docker_compose[:services][:ruby] = {
     :build => './docker/ruby',
     :volumes => ['./src/ruby:/app:ro',
@@ -198,7 +200,7 @@ FileUtils::mkpath(File::join(RAW_FILES_PATH, 'playtesting'))
 # Moderation: the log of deleted games and the open moderation page (src/ruby/moderation.rb, moderate.rb),
 # and the site's address for the link moderate.rb prints – written on every run, so it follows env.rb
 FileUtils::mkpath(File::join(RAW_FILES_PATH, 'moderation'))
-File.write(File::join(RAW_FILES_PATH, 'moderation', 'adresse.txt'), "#{WEB_ROOT}\n") if defined?(WEB_ROOT)
+File.write(File::join(RAW_FILES_PATH, 'moderation', 'adresse.txt'), "#{SITE_ROOT}\n") if SITE_ROOT
 FileUtils::mkpath(GEN_FILES_PATH)
 FileUtils::mkpath(File.join(GEN_FILES_PATH, 'png'))
 FileUtils::mkpath(File.join(GEN_FILES_PATH, 'games'))

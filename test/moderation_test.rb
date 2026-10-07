@@ -202,6 +202,13 @@ class ModerationTest < Minitest::Test
         assert_equal "https://2d.hackschule.de", Moderation.web_root(@raw, { "WEB_ROOT" => "https://env.example" })
         File.write(File.join(@raw, "adresse.txt"), "")
         assert_equal "", Moderation.web_root(@raw, {})
+        # nothing configured: where the server was reached
+        assert_equal true, Moderation.remember_root(@raw, "https://2d.hackschule.de/")
+        assert_equal false, Moderation.remember_root(@raw, "https://2d.hackschule.de")
+        assert_equal false, Moderation.remember_root(@raw, "not an address")
+        assert_equal "https://2d.hackschule.de", Moderation.web_root(@raw, {})
+        # configured wins
+        assert_equal "https://env.example", Moderation.web_root(@raw, { "WEB_ROOT" => "https://env.example" })
     end
 
     def test_delete_removes_what_no_other_game_needs

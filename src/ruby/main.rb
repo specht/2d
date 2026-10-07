@@ -415,7 +415,20 @@ class Main < Sinatra::Base
     # server_watch.js asks every few seconds: is the server there, and which
     # version of the studio does it serve?
     post "/api/ping" do
+        Main.remember_web_root(request.base_url)
         respond(:pong => "yay", :version => @@cache_buster, :playtest => @@playtesting.enabled?)
+    end
+
+    # Where the studio is reached (scheme and host as the browser sees them;
+    # Rack reads X-Forwarded-Proto of the proxy in front): the host of the link
+    # ./moderate.rb web prints when env.rb names none (moderation.rb web_root).
+    @@seen_web_root = nil
+    def self.remember_web_root(root)
+        return if @@seen_web_root == root
+        @@seen_web_root = root
+        Moderation.remember_root(MODERATION_PATH, root)
+    rescue StandardError
+        nil
     end
 
     # A Fehlerbericht from the studio (crash_report.js): appended to the day's

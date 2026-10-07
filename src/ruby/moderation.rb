@@ -46,11 +46,28 @@ module Moderation
 
     # The studio's address for printed links: WEB_ROOT of env.rb, which
     # config.rb writes to /raw/moderation/adresse.txt every time it runs (so a
-    # changed env.rb counts without rebuilding), else the container's WEB_ROOT.
+    # changed env.rb counts without rebuilding), else the container's
+    # WEB_ROOT, else the address the server was last reached at
+    # (remember_root) – so the link always comes with its host.
     def self.web_root(dir, env = ENV)
         root = (File.read(File.join(dir, "adresse.txt")) rescue "").strip
         root = env["WEB_ROOT"].to_s.strip if root.empty?
+        root = (File.read(seen_root_path(dir)) rescue "").strip if root.empty?
         root.sub(%r{/+\z}, "")
+    end
+
+    def self.seen_root_path(dir) = File.join(dir, "adresse-gesehen.txt")
+
+    # The server notes where the studio is reached ("https://2d.hackschule.de",
+    # main.rb /api/ping): written only when it changes. true when written.
+    def self.remember_root(dir, root)
+        root = root.to_s.strip.sub(%r{/+\z}, "")
+        return false unless root =~ %r{\Ahttps?://[^/\s]+\z}
+        path = seen_root_path(dir)
+        return false if (File.read(path).strip rescue nil) == root
+        FileUtils.mkpath(dir)
+        File.write(path, "#{root}\n")
+        true
     end
 
     # Lower case, without accents, ß as ss, spaces collapsed: "Ärger" finds
