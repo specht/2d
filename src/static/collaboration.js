@@ -480,13 +480,15 @@ class CollaborationClient {
     }
 
     handle_welcome(message) {
+        // joining (not coming back after a dropped connection): another game
+        const joining = !this.has_connected_once;
         this.connected = true;
         this.has_connected_once = true;
         this.reconnect_delay = 1000;
         this.participant_id = message.participant_id;
         this.reconnect_token = message.reconnect_token ?? this.reconnect_token;
         this.remember_participant();
-        this.apply_snapshot(message);
+        this.apply_snapshot(message, { joining });
         this.start_heartbeat();
         this.start_resource_loop();
         this.install_save_guard();
@@ -503,7 +505,7 @@ class CollaborationClient {
 
     // Replaces the whole local game with the session state. Used when joining
     // and whenever the client lost track of the order of operations.
-    apply_snapshot(message) {
+    apply_snapshot(message, { joining = false } = {}) {
         if (!message.state || !window.game) return;
         const restore = this.current_resource() ?? this.focused_resource;
         this.reset_sync_state();
@@ -514,7 +516,14 @@ class CollaborationClient {
         this.resource_revisions = { ...(message.resource_revisions ?? {}) };
 
         window.game.data = message.state;
-        window.game._load();
+        // the same game again (a reconnect, a missed message): a game running
+        // in Spielen goes on (studio.js); joining brings another one
+        this.reloading_same_game = !joining;
+        try {
+            window.game._load();
+        } finally {
+            this.reloading_same_game = false;
+        }
         this.remember_all_server_values();
         this.show_game_code(this.source_tag);
         this.restore_resource_selection(restore);

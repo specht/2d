@@ -665,6 +665,9 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     $('.main_div').hide();
     $('#main_div_sprites').show();
 
+    // the game Spielen was started with (another one in the studio: start it)
+    let play_pane_data = null;
+
     function show_pane(key) {
         let changed = key !== current_pane;
         $('.main-nav-item').removeClass('active');
@@ -691,6 +694,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         game?.level_editor?.stop_signal_watch?.();
         window.play_check?.stop?.();
         if (current_pane === 'play') {
+            play_pane_data = game?.data ?? null;
             // "Level testen" (level editor): straight into that level
             const playtest = window.studio_pending_playtest ?? null;
             window.studio_pending_playtest = null;
@@ -783,6 +787,20 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         if (show_pane(key)) studio_history_push({ pane: key });
     })
     window.studio_show_pane = show_pane;
+    // Another game while Spielen is shown (Spiel laden, Neues Spiel, a recipe,
+    // the rescued copy, joining a session): Spielen plays that one at once –
+    // before, the old game went on in the frame. Rebuilding the lists of the
+    // same game (somebody in the session added a sprite) changes nothing
+    // here, nor does the session's copy after a reconnect (collaboration.js).
+    const load_into_editor = Game.prototype._load;
+    Game.prototype._load = function (...args) {
+        const result = load_into_editor.apply(this, args);
+        if (current_pane !== 'play' || this.data === play_pane_data) return result;
+        play_pane_data = this.data;
+        if (window.collaboration?.reloading_same_game) return result;
+        setTimeout(() => { if (current_pane === 'play') show_pane('play'); }, 0);
+        return result;
+    };
     // Test runs from the level editor: into the Spielen pane, and back with
     // Esc to the level editor as it was (its camera and layer never changed).
     window.studio_start_playtest = function (options) {
