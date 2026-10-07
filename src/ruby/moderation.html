@@ -237,7 +237,8 @@ async function status() {
 }
 
 function show_status(...parts) {
-    $('status').replaceChildren(...parts);
+    // replaceChildren writes null as the text "null": leave the empty ones out
+    $('status').replaceChildren(...parts.filter(part => part !== null && part !== undefined && part !== false));
 }
 
 // Waits while the server reads all games (the first time after opening).
@@ -615,7 +616,7 @@ function show_errors(data) {
     // an open "Einzelheiten" and the open list of recovered ones stay open
     const open = new Set([...box.querySelectorAll('.err')].filter(e => !e.querySelector('pre').hidden).map(e => e.dataset.id));
     const recovered_open = box.querySelector('details.recovered')?.open ?? false;
-    box.replaceChildren(
+    box.replaceChildren(...[
         el('h2', {}, 'Fehler heute', el('span', { class: 'count' }, crashes.length ? `${crashes.length}` : ''),
             el('span', { class: 'tools' }, crashes.length ? copy_all : null)),
         el('div', { class: 'hint' }, crashes.length
@@ -625,7 +626,8 @@ function show_errors(data) {
         recovered.length ? el('details', { class: 'recovered', open: recovered_open },
             el('summary', {}, `Von selbst erholt: ${plural(recovered_reports, 'Mal', 'Mal')} in ${plural(recovered.length, 'Gruppe', 'Gruppen')}`),
             el('div', { class: 'hint' }, 'Das Studio hat sich selbst geholfen (z. B. die Grafik kam zurück) – niemand musste neu laden. Häufen sie sich, lohnt ein Blick.'),
-            ...recovered_items) : null);
+            ...recovered_items) : null,
+    ].filter(Boolean));
     for (const node of box.querySelectorAll('.err')) {
         if (!open.has(node.dataset.id)) continue;
         node.querySelector('pre').hidden = false;

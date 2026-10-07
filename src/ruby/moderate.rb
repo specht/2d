@@ -9,11 +9,15 @@
 #   ./moderate.rb show 3fa2b1c      one game: its texts, pictures, versions
 #   ./moderate.rb delete 3fa2b1c …  delete versions (asks; --ja does not;
 #                                   --mit-spaeteren: also every later version)
-#   ./moderate.rb web [480]         a moderation page for 8 hours: live, every
-#                                   new picture and text as it is saved (each
-#                                   only once) beside today's Fehlerberichte,
-#                                   with the word search and deleting;
-#                                   prints its secret link (Strg+C closes it)
+#   ./moderate.rb start [480]       opens the moderation page for 8 hours and
+#                                   ends: live, every new picture and text as
+#                                   it is saved (each only once) beside today's
+#                                   Fehlerberichte, with the word search and
+#                                   deleting. Prints its secret link (again,
+#                                   when it is open already)
+#   ./moderate.rb stop              closes the page at once
+#   ./moderate.rb web [480]         the same page while the script runs: shows
+#                                   what is deleted there, Strg+C closes it
 #   ./moderate.rb log               what was deleted, when and why
 #
 # Words are found in every text of a game (title, author, names of sprites,
@@ -207,23 +211,59 @@ def search(words)
     delete_tags(tags.uniq, reason: "Suche: #{terms.join(', ')}")
 end
 
+# The page's secret link, until when it is open, and what to know about it.
+def print_session(session, closing_hint)
+    root = Moderation.web_root(RAW)
+    link = "#{root}/moderation/#{session['token']}"
+    expires = Time.at(session["expires_at"]).localtime
+    until_time = expires.strftime(expires.to_date == Date.today ? "%H:%M" : "%d.%m. %H:%M")
+    minutes = ((session["expires_at"] - Time.now.to_i) / 60.0).ceil
+    left = "noch " + (minutes >= 60 && minutes % 60 == 0 ? plural(minutes / 60, "Stunde", "Stunden") : "#{minutes} Minuten")
+    puts "Die Moderationsseite ist bis #{c(until_time, :bold)} offen (#{left}):"
+    puts
+    puts "  #{c(link, :cyan, :bold)}"
+    puts
+    puts c("Vor den Link gehört noch die Adresse des Studios (WEB_ROOT in env.rb; ./config.rb schreibt sie bei jedem Aufruf nach #{RAW}).", :yellow) if root.empty?
+    puts c("Der Link ist geheim: wer ihn hat, kann Spiele löschen. #{closing_hint}", :dim)
+end
+
+# Opens the page and ends; the page stays open until its time is up or
+# ./moderate.rb stop. Already open: the same link again (a new one only
+# after stop – the old one would stop working on the screens that show it).
+def start(minutes)
+    if (session = Moderation::Session.current(RAW))
+        print_session(session, "Sie war schon offen – das ist derselbe Link.")
+        next_steps(["./moderate.rb stop", "die Seite schließen (danach gibt start einen neuen Link)"])
+        return
+    end
+    # the page needs every game: read here first (with the progress), the
+    # server then takes them from the cache in a few seconds
+    catalog
+    session = Moderation::Session.start(RAW, minutes)
+    print_session(session, "Sie bleibt offen, auch wenn dieses Fenster zu ist.")
+    next_steps(["./moderate.rb stop", "die Seite sofort schließen"],
+               ["./moderate.rb start", "den Link noch einmal zeigen"])
+end
+
+def stop
+    session = Moderation::Session.current(RAW)
+    unless session
+        puts c("Es ist keine Moderationsseite offen.", :dim)
+        next_steps(["./moderate.rb start", "eine öffnen"])
+        return
+    end
+    Moderation::Session.stop(RAW, session["token"])
+    puts "#{c('Die Moderationsseite ist geschlossen', :green)}: der Link funktioniert nicht mehr, offene Seiten zeigen das an."
+    next_steps(["./moderate.rb start", "eine neue öffnen (mit neuem Link)"])
+end
+
 def web(minutes)
     $stdout.sync = true
     # the page needs every game: read here first (with the progress), the
     # server then takes them from the cache in a few seconds
     catalog
     session = Moderation::Session.start(RAW, minutes)
-    root = Moderation.web_root(RAW)
-    link = "#{root}/moderation/#{session['token']}"
-    expires = Time.at(session["expires_at"]).localtime
-    until_time = expires.strftime(expires.to_date == Date.today ? "%H:%M" : "%d.%m. %H:%M")
-    duration = minutes % 60 == 0 ? plural(minutes / 60, "Stunde", "Stunden") : "#{minutes} Minuten"
-    puts "Die Moderationsseite ist bis #{c(until_time, :bold)} offen (#{duration}):"
-    puts
-    puts "  #{c(link, :cyan, :bold)}"
-    puts
-    puts c("Vor den Link gehört noch die Adresse des Studios (WEB_ROOT in env.rb; ./config.rb schreibt sie bei jedem Aufruf nach #{RAW}).", :yellow) if root.empty?
-    puts c("Der Link ist geheim: wer ihn hat, kann Spiele löschen. Strg+C schließt die Seite sofort.", :dim)
+    print_session(session, "Strg+C schließt die Seite sofort.")
     stop = -> { Moderation::Session.stop(RAW, session["token"]) }
     %w(INT TERM HUP).each { |signal| trap(signal) { stop.call; puts; puts "Die Moderationsseite ist geschlossen."; exit } }
     offset = File.size?(Moderation.log_path(RAW)) || 0
@@ -271,10 +311,12 @@ when "delete"
     tags = catalog.with_later_versions(tags) if ARGV.include?("--mit-spaeteren")
     reason = ARGV.find { |a| a.start_with?("--grund=") }&.sub("--grund=", "")
     delete_tags(tags, reason: reason, yes: ARGV.include?("--ja"))
-when "web"
+when "web", "start"
     minutes = (args.first || DEFAULT_MINUTES).to_i
     fail_with "Bitte eine Zahl von Minuten angeben (1 bis #{MAX_MINUTES})." unless minutes.between?(1, MAX_MINUTES)
-    web(minutes)
+    command == "start" ? start(minutes) : web(minutes)
+when "stop"
+    stop
 when "log"
     log
 else

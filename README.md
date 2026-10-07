@@ -73,7 +73,8 @@ Run inside the Ruby container (`./config.rb exec ruby sh`), or from outside as `
 ./moderate.rb search wort1 "zwei Wörter"   # games with one of the words, and where; asks what to delete
 ./moderate.rb show 3fa2b1c                 # one version: texts, new pictures, later versions
 ./moderate.rb delete 3fa2b1c [--mit-spaeteren] [--ja] [--grund="…"]
-./moderate.rb web                          # a secret page for 8 hours: live – new pictures and texts as they are saved, beside today's Fehlerberichte to copy; search, delete
+./moderate.rb start                        # a secret page for 8 hours (the script ends, the page stays): live – new pictures and texts as they are saved, beside today's Fehlerberichte to copy; search, delete
+./moderate.rb stop                         # close it at once (./moderate.rb web: the same page while the script runs, Strg+C closes it)
 ./moderate.rb log                          # what was deleted, when and why
 ```
 
