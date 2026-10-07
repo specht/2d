@@ -785,7 +785,9 @@ void main() {
 				dy = this.intersect_y_with_trait(dy, ['block_above'], -0.5, 0.5, dy, 0.0);
 			} else {
 				dy = this.intersect_y_with_trait(dy, ['block_above', 'ladder'], -0.5, 0.5, dy, 0.0);
-				if (this.character_trait === 'baddie' && old_dy != dy) {
+				// a landing enemy shakes the camera by its distance to the figure –
+				// a level may have no Spielfigur (a test run there: 9d4c7e, October 2026)
+				if (this.character_trait === 'baddie' && old_dy != dy && this.game.player_character) {
 					this.game.ts_camera_shake = this.game.clock.getElapsedTime();
 					const [wx, wy] = this.world_xy();
 					let dx = wx - this.game.player_character.mesh.position.x;
