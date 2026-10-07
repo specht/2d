@@ -130,6 +130,19 @@ module ClientErrors
         end
     end
 
+    # A problem the studio got over by itself (details.recovered – the
+    # graphics came back, webgl_recovery.js): the child had to do nothing, so
+    # it is no crash and is shown apart. WebGL reports from before carry
+    # only their outcome.
+    RECOVERED_OUTCOMES = %w(restored new_renderer new_frame).freeze
+
+    def self.recovered?(report)
+        details = report["details"]
+        return false unless details.is_a?(Hash)
+        details["recovered"] == true || details["recovered"] == "true" ||
+            (report["kind"] == "webgl_context_lost" && RECOVERED_OUTCOMES.include?(details["outcome"]))
+    end
+
     # A short, stable name for a group, to type on the command line.
     def self.group_id(key)
         Digest::SHA1.hexdigest(key)[0, 6]
@@ -159,7 +172,8 @@ module ClientErrors
             again = fixed_at && list.any? { |report| report["time"].to_s > fixed_at }
             next nil if fixed_at && !again
             { "id" => id, "key" => key, "reports" => list, "first" => list.first["time"], "last" => list.last["time"],
-              "resolved" => fixed_at, "again" => !!again, "legacy_ids" => legacy_ids }
+              "resolved" => fixed_at, "again" => !!again, "legacy_ids" => legacy_ids,
+              "recovered" => list.all? { |report| recovered?(report) } }
         end.compact
         related = related_groups(result)
         result.each { |group| group["related"] = related[group["id"]] || [] }
@@ -212,6 +226,8 @@ module ClientErrors
     def self.places(group, paint = PLAIN)
         group["reports"].map do |report|
             frame = app_frames(report["stack"]).first
+            # a reported problem (WebGL context lost …) has no place in the code
+            next "–" if !frame && script_name(report["source"]).empty? && report["line"].nil?
             frame ? "#{frame[:file]}:#{frame[:line]}" : "#{script_name(report['source'])}:#{report['line']}"
         end.tally.sort_by { |_, n| -n }.map { |where, n| "#{paint.call(where, :bold)} #{paint.call("(#{n}×)", :dim)}" }
     end
@@ -250,6 +266,7 @@ module ClientErrors
         context = latest["context"] || {}
         kinds = g["reports"].map { |r| r["kind"] || "error" }.tally.map { |k, n| "#{k} #{n}×" }.join(", ")
         flag = g["again"] ? "  #{paint.call('WIEDER AUFGETRETEN', :red, :bold)}" : ""
+        flag += "  #{paint.call('von selbst erholt', :green)}" if g["recovered"]
         lines = []
         lines << "#{paint.call(g['id'], :yellow, :bold)}: #{paint.call("#{g['reports'].size}×", :bold)} #{paint.call("(#{kinds})", :cyan)} #{paint.call(latest['message'], :red, :bold)}#{flag}"
         lines << "#{label.call('Orte:')}#{places(g, paint).join(', ')}"
@@ -288,7 +305,7 @@ module ClientErrors
                 "id" => g["id"], "count" => g["reports"].size, "message" => latest["message"].to_s[0, 300],
                 "first" => g["first"], "last" => g["last"], "again" => g["again"], "related" => g["related"],
                 "pane" => context["pane"], "in_game" => !!(latest["details"].is_a?(Hash) && latest["details"]["im_spiel"]),
-                "in_session" => !!context["in_session"], "text" => show_lines(g).join("\n"),
+                "in_session" => !!context["in_session"], "recovered" => g["recovered"], "text" => show_lines(g).join("\n"),
             }
         end
     end
@@ -352,6 +369,19 @@ module ClientErrors
     def self.write_resolved(dir, resolved)
         FileUtils.mkpath(dir)
         File.write(File.join(dir, "resolved.json"), JSON.pretty_generate(resolved))
+    end
+
+    # Marks a group as fixed (./errors.rb resolve, Erledigt on the moderation
+    # page): hidden until one of its errors happens again. Locked, as the
+    # terminal and the page may both write.
+    def self.resolve(dir, id, time = Time.now)
+        FileUtils.mkpath(dir)
+        File.open(File.join(dir, "resolved.lock"), File::RDWR | File::CREAT, 0o644) do |lock|
+            lock.flock(File::LOCK_EX)
+            resolved = read_resolved(dir)
+            resolved[id] = time.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+            write_resolved(dir, resolved)
+        end
     end
 
     # The day files (YYYY-MM-DD.jsonl) of the last `days` days, or all.

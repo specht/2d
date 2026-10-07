@@ -76,6 +76,7 @@ when "list"
         versions = g["reports"].map { |r| r["studio_version"] }.uniq.size
         kinds = g["reports"].map { |r| r["kind"] || "error" }.uniq.join("/")
         flag = g["again"] ? "  #{c('WIEDER AUFGETRETEN', :red, :bold)}" : ""
+        flag += "  #{c('von selbst erholt', :green)}" if g["recovered"]
         puts "#{c(g['id'], :yellow, :bold)}  #{c("#{g['reports'].size.to_s.rjust(4)}×", :bold)}  #{c("[#{kinds}]", :cyan)} #{latest['message'].to_s[0, 100]}#{flag}"
         puts c("        zuletzt #{g['last']}, zuerst #{g['first']}, #{versions} Version(en)", :dim)
         puts "        #{c('zusammen mit', :dim)} #{ids(g['related'])}" unless g["related"].empty?
@@ -137,9 +138,7 @@ when "watch"
     end
 when "resolve"
     g = find_group(ARGV[1])
-    resolved = ClientErrors.read_resolved(DIR)
-    resolved[g["id"]] = Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-    ClientErrors.write_resolved(DIR, resolved)
+    ClientErrors.resolve(DIR, g["id"])
     puts "#{c(g['id'], :yellow, :bold)} #{c('ist erledigt', :green)}: es erscheint erst wieder, wenn es noch einmal passiert."
     next_steps(["./errors.rb list", "was noch offen ist"])
 when "prune"

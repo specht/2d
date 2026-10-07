@@ -1597,6 +1597,18 @@ class Main < Sinatra::Base
         respond(:groups => ClientErrors.dashboard(CLIENT_ERRORS_PATH), :now => Time.now.to_i)
     end
 
+    # Erledigt: { id: "3f2a1c" } – like ./errors.rb resolve; only a group that
+    # is open now. Answers the list as it is afterwards.
+    post "/api/moderation/resolve" do
+        data = moderation_request
+        id = data["id"].to_s
+        open_ids = ClientErrors.dashboard(CLIENT_ERRORS_PATH).map { |g| g["id"] }
+        return respond(:error => "unknown_group") unless id =~ /\A\h{6}\z/ && open_ids.include?(id)
+        ClientErrors.resolve(CLIENT_ERRORS_PATH, id)
+        debug "Moderation: Fehlergruppe #{id} erledigt"
+        respond(:groups => ClientErrors.dashboard(CLIENT_ERRORS_PATH), :now => Time.now.to_i)
+    end
+
     post "/api/moderation/search" do
         data = moderation_request
         catalog = moderation_catalog

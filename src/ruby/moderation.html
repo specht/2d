@@ -110,9 +110,15 @@
     .err .msg { color: var(--danger); overflow-wrap: anywhere; margin: 2px 0; }
     .err .badge.again { color: var(--danger); border-color: currentColor; font-weight: 600; }
     .err .row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+    .err .row .done { margin-left: auto; color: var(--ok); }
+    .err .row .done:hover { border-color: var(--ok); }
     .err pre { margin: 6px 0 0; padding: 8px; background: var(--bg); border-radius: 6px; font-size: 12px; white-space: pre-wrap;
         overflow-wrap: anywhere; max-height: 360px; overflow-y: auto; }
     .err.fresh { animation: fresh 6s ease-out; border-radius: 6px; }
+    details.recovered { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+    details.recovered > summary { cursor: pointer; color: var(--ok); font-size: 14px; }
+    details.recovered .err .msg { color: var(--muted); }
+    details.recovered .err .n { font-weight: 600; }
     #newer { position: fixed; top: 112px; left: 50%; transform: translateX(-50%); z-index: 6; background: var(--accent); color: #fff;
         border: none; border-radius: 18px; padding: 6px 16px; box-shadow: 0 2px 10px rgba(0, 0, 0, .25); }
     #closed { position: fixed; inset: 0; background: rgba(0, 0, 0, .6); display: none; place-items: center; z-index: 20; }
@@ -132,6 +138,7 @@
             <button type="submit">Suchen</button>
             <button type="button" id="list">Alle Versionen</button>
             <button type="button" id="live" class="live" title="Neue Bilder und Texte zeigen, sobald ein Spiel gespeichert wird"><span class="dot"></span>Live</button>
+            <button type="button" id="fullscreen" title="Die Seite im Vollbild (F11 geht auch)">⤢ Vollbild</button>
         </form>
         <span id="clock"></span>
     </div>
@@ -537,11 +544,15 @@ async function copy_text(text, button) {
 function error_item(group, fresh) {
     const where = { sprites: 'Sprites', level: 'Level', play: 'Spielen', settings: 'Einstellungen', help: 'Hilfe' }[group.pane] ?? group.pane;
     const details = el('pre', { hidden: true }, group.text);
-    const show = el('button', { type: 'button', onclick: () => {
+    const show = el('button', { type: 'button', class: 'details-toggle', onclick: () => {
         details.hidden = !details.hidden;
         show.textContent = details.hidden ? 'Einzelheiten' : 'Zuklappen';
     } }, 'Einzelheiten');
     const copy = el('button', { type: 'button', onclick: () => copy_text(group.text, copy) }, 'Kopieren');
+    // repariert: like ./errors.rb resolve – back only when it happens again
+    const done = el('button', { type: 'button', class: 'done',
+        title: 'Repariert? Dann verschwindet die Gruppe – und kommt nur wieder, wenn der Fehler noch einmal passiert (wie ./errors.rb resolve).',
+        onclick: () => resolve_error(group.id, done) }, 'Erledigt ✓');
     const time = new Date(group.last).toLocaleTimeString('de-DE');
     return el('div', { class: `err${fresh ? ' fresh' : ''}`, 'data-id': group.id },
         el('div', { class: 'top' },
@@ -552,45 +563,89 @@ function error_item(group, fresh) {
         el('div', { class: 'msg' }, group.message),
         el('div', { class: 'meta' }, [where, group.in_game ? 'im Spiel' : null, group.in_session ? 'in einer Sitzung' : null,
             group.related.length ? `zusammen mit ${group.related.join(', ')}` : null].filter(Boolean).join(' · ')),
-        el('div', { class: 'row' }, copy, show),
+        el('div', { class: 'row' }, copy, show, done),
         details);
+}
+
+async function resolve_error(id, button) {
+    button.disabled = true;
+    try {
+        const data = await api('resolve', { id });
+        if (data.error) throw new Error('Diese Gruppe ist nicht mehr offen.');
+        // what is gone now must not count as new once it comes back
+        live.errors.delete(id);
+        show_errors(data);
+    } catch (e) {
+        button.disabled = false;
+        if (e.message !== 'closed') button.textContent = 'Nicht geklappt';
+    }
 }
 
 async function poll_errors() {
     let data;
     try { data = await api('errors'); } catch (e) { return; }
+    show_errors(data);
+}
+
+function show_errors(data) {
     if (state.mode !== 'live') return;
     // the first answer is what was there already: nothing is marked new
     const first = !live.errors_seen;
     live.errors_seen = true;
     let changed = 0;
-    const items = data.groups.map(group => {
+    const item = (group) => {
         const before = live.errors.get(group.id);
         const fresh = !first && before !== group.count;
-        if (fresh) changed += 1;
+        // what the studio got over by itself is no reason to look up
+        if (fresh && !group.recovered) changed += 1;
         return error_item(group, fresh);
-    });
+    };
+    // crashes: what a child noticed; recovered: the studio helped itself
+    // (the graphics came back …) – apart, quieter (client_errors.rb recovered?)
+    const crashes = data.groups.filter(g => !g.recovered);
+    const recovered = data.groups.filter(g => g.recovered);
+    const crash_items = crashes.map(item);
+    const recovered_items = recovered.map(item);
     live.errors = new Map(data.groups.map(g => [g.id, g.count]));
-    const all = data.groups.map(g => g.text).join('\n\n');
+    const all = crashes.map(g => g.text).join('\n\n');
     const copy_all = el('button', { type: 'button', onclick: () => copy_text(all, copy_all) }, 'Alle kopieren');
-    const reports = data.groups.reduce((n, g) => n + g.count, 0);
+    const reports = crashes.reduce((n, g) => n + g.count, 0);
+    const recovered_reports = recovered.reduce((n, g) => n + g.count, 0);
     const box = $('errors');
-    // an open "Einzelheiten" stays open
+    // an open "Einzelheiten" and the open list of recovered ones stay open
     const open = new Set([...box.querySelectorAll('.err')].filter(e => !e.querySelector('pre').hidden).map(e => e.dataset.id));
+    const recovered_open = box.querySelector('details.recovered')?.open ?? false;
     box.replaceChildren(
-        el('h2', {}, 'Fehler heute', el('span', { class: 'count' }, data.groups.length ? `${data.groups.length}` : ''),
-            el('span', { class: 'tools' }, data.groups.length ? copy_all : null)),
-        el('div', { class: 'hint' }, data.groups.length
-            ? `${plural(reports, 'Bericht', 'Berichte')} in ${plural(data.groups.length, 'Gruppe', 'Gruppen')}, offen (./errors.rb resolve blendet erledigte aus). Kopieren gibt den Text von ./errors.rb show.`
-            : 'Keine offenen Fehlerberichte heute. Kommt einer, steht er hier.'),
-        ...items);
-    for (const item of box.querySelectorAll('.err')) {
-        if (!open.has(item.dataset.id)) continue;
-        item.querySelector('pre').hidden = false;
-        item.querySelector('.row button:last-child').textContent = 'Zuklappen';
+        el('h2', {}, 'Fehler heute', el('span', { class: 'count' }, crashes.length ? `${crashes.length}` : ''),
+            el('span', { class: 'tools' }, crashes.length ? copy_all : null)),
+        el('div', { class: 'hint' }, crashes.length
+            ? `${plural(reports, 'Bericht', 'Berichte')} in ${plural(crashes.length, 'Gruppe', 'Gruppen')}, offen. Kopieren gibt den Text von ./errors.rb show; Erledigt blendet eine reparierte Gruppe aus, bis sie wieder auftritt.`
+            : 'Keine offenen Fehler heute. Kommt einer, steht er hier.'),
+        ...crash_items,
+        recovered.length ? el('details', { class: 'recovered', open: recovered_open },
+            el('summary', {}, `Von selbst erholt: ${plural(recovered_reports, 'Mal', 'Mal')} in ${plural(recovered.length, 'Gruppe', 'Gruppen')}`),
+            el('div', { class: 'hint' }, 'Das Studio hat sich selbst geholfen (z. B. die Grafik kam zurück) – niemand musste neu laden. Häufen sie sich, lohnt ein Blick.'),
+            ...recovered_items) : null);
+    for (const node of box.querySelectorAll('.err')) {
+        if (!open.has(node.dataset.id)) continue;
+        node.querySelector('pre').hidden = false;
+        node.querySelector('.details-toggle').textContent = 'Zuklappen';
     }
     count_unseen(changed);
 }
+
+// ---------------------------------------------------------------- Vollbild
+// the dashboard on a screen of its own (F11 does the same)
+function toggle_fullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else document.documentElement.requestFullscreen?.().catch(() => null);
+}
+function show_fullscreen_state() {
+    $('fullscreen').textContent = document.fullscreenElement ? '⤡ Vollbild beenden' : '⤢ Vollbild';
+}
+$('fullscreen').addEventListener('click', toggle_fullscreen);
+document.addEventListener('fullscreenchange', show_fullscreen_state);
+if (!document.fullscreenEnabled) $('fullscreen').hidden = true;
 
 $('live').addEventListener('click', () => show_live());
 $('newer').addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); });

@@ -212,9 +212,36 @@ class ClientErrorsTest < Minitest::Test
             assert_includes list.first["text"], "Spiele zum Nachstellen: /?abcdefg"
             assert_includes list.first["text"], "  · 1.0s sprites click canvas"
             refute_includes list.first["text"], "\e["
-            # resolved ones stay away
-            ClientErrors.write_resolved(dir, { list.last["id"] => Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ") })
+            # resolved ones stay away (Erledigt on the page, ./errors.rb resolve)
+            ClientErrors.resolve(dir, list.last["id"])
             assert_equal [list.first["id"]], ClientErrors.dashboard(dir).map { |g| g["id"] }
+            # …until it happens again
+            again = Time.now.utc + 5
+            ClientErrors.append(dir, ClientErrors.entry(later, again), again)
+            back = ClientErrors.dashboard(dir).find { |g| g["id"] == list.last["id"] }
+            assert_equal true, back["again"]
+        end
+    end
+
+    def test_problems_the_studio_got_over_are_no_crashes
+        Dir.mktmpdir do |dir|
+            now = Time.now.utc
+            back = { "kind" => "webgl_context_lost", "message" => "WebGL context lost: level, new_renderer",
+                     "details" => { "where" => "level", "outcome" => "new_renderer", "recovered" => true } }
+            older = { "kind" => "webgl_context_lost", "message" => "WebGL context lost: play, restored",
+                      "details" => { "where" => "play", "outcome" => "restored" } }
+            reload = { "kind" => "webgl_context_lost", "message" => "WebGL context lost: level, reload",
+                       "details" => { "where" => "level", "outcome" => "reload", "recovered" => false } }
+            crash = { "message" => "Uncaught TypeError: x", "stack" => "TypeError: x\n    at f (https://2d.hackschule.de/game.js?v:1:2)" }
+            [back, older, reload, crash].each { |r| ClientErrors.append(dir, ClientErrors.entry(r, now), now) }
+            by_message = ClientErrors.dashboard(dir).to_h { |g| [g["message"], g["recovered"]] }
+            assert_equal true, by_message["WebGL context lost: level, new_renderer"]
+            assert_equal true, by_message["WebGL context lost: play, restored"], "a report from before: by its outcome"
+            assert_equal false, by_message["WebGL context lost: level, reload"], "a reload is felt"
+            assert_equal false, by_message["Uncaught TypeError: x"]
+            text = ClientErrors.dashboard(dir).find { |g| g["recovered"] }["text"]
+            assert_includes text.lines.first, "von selbst erholt"
+            assert_includes text, "Orte:      – (1×)"
         end
     end
 

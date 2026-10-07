@@ -10,15 +10,36 @@
 //      and the same game or test run starts afresh;
 //   3. that fails too, or it keeps happening (the browser has blocked WebGL
 //      for the page): the work is kept (rescue.js) and the studio reloads.
-// Every incident is reported (crash_report.js report_problem
-// 'webgl_context_lost': where and what helped), so it shows on the
-// moderation page's Fehler column. Editor-only: the engine (app.js) and the
-// recipes are untouched.
+// Every incident is reported ('webgl_context_lost': where and what helped,
+// details.recovered when the studio got over it by itself – the moderation
+// page shows those apart from the crashes). Editor-only: the engine (app.js)
+// and the recipes are untouched.
+//
+// While a game runs (Spielen, Level testen) the level editor gives its
+// context back on purpose (release_level_editor) and gets a new one when the
+// Level tab is shown again: two contexts that each hold every sprite sheet
+// were too much for school computers with big games (two losses within a
+// minute right after T, 80 sprites, October 2026).
 
 const WEBGL_RESTORE_WAIT_MS = 3000;
 // this many new renderers within WEBGL_RENEW_WINDOW_MS: reload instead
 const WEBGL_MAX_RENEWALS = 3;
 const WEBGL_RENEW_WINDOW_MS = 10 * 60 * 1000;
+
+// A renderer that draws nothing: while the level editor's context is given
+// back, everything that still calls it (pressing T draws the level once
+// more, a session update …) does no harm. three.js only learns of the loss
+// a moment later and would compile shaders on the lost context meanwhile.
+function renderer_asleep(renderer) {
+    return new Proxy(renderer, {
+        get(target, key) {
+            const value = target[key];
+            if (typeof value !== 'function' || key === 'getContext') return typeof value === 'function' ? value.bind(target) : value;
+            return () => undefined;
+        },
+        set(target, key, value) { target[key] = value; return true; },
+    });
+}
 
 // Calls on_restored when the browser gives the context back in time, else
 // on_given_up. Returns a function that stops watching.
@@ -56,11 +77,12 @@ class WebGLRecovery {
         this.reloading = false;
     }
 
-    // one report per place and outcome (the reporter sends each message once a page)
+    // one report per place and outcome (the reporter sends each message once a
+    // page); recovered: the child had to do nothing (only 'reload' is felt)
     report(where, outcome) {
         try {
             window.crash_reporter?.report?.({ kind: 'webgl_context_lost', message: `WebGL context lost: ${where}, ${outcome}`,
-                details: { where, outcome } }, false);
+                details: { where, outcome, recovered: outcome !== 'reload' } }, false);
         } catch (e) { }
     }
 
@@ -87,6 +109,7 @@ class WebGLRecovery {
 
     // ------------------------------------------------ the level editor
     watch_level_editor(editor) {
+        this.level_editor = editor;
         this.stop_level_editor?.();
         this.stop_level_editor = watch_webgl_canvas(editor.renderer.domElement, {
             on_restored: () => {
@@ -101,13 +124,20 @@ class WebGLRecovery {
         const now = Date.now();
         if (!webgl_may_renew(this.renewals, now)) return this.reload('level');
         this.renewals.push(now);
+        if (this.replace_level_editor_renderer(editor)) this.report('level', 'new_renderer');
+    }
+
+    // A new renderer in the old one's place; false (and a reload) when the
+    // browser gives no context any more.
+    replace_level_editor_renderer(editor) {
         let fresh;
         try {
             fresh = new THREE.WebGLRenderer({ antialias: true });
             if (fresh.getContext().isContextLost()) throw new Error('lost at once');
         } catch (e) {
             try { fresh?.dispose(); } catch (_) { }
-            return this.reload('level');
+            this.reload('level');
+            return false;
         }
         const old = editor.renderer;
         fresh.setClearColor('#000');
@@ -116,8 +146,41 @@ class WebGLRecovery {
         editor.renderer = fresh;
         try { old.dispose(); } catch (e) { }
         this.watch_level_editor(editor);
-        this.report('level', 'new_renderer');
-        try { editor.render(); } catch (e) { return this.reload('level'); }
+        try { editor.render(); } catch (e) { this.reload('level'); return false; }
+        return true;
+    }
+
+    // While a game runs, the hidden level editor gives its context – and with
+    // it every sprite sheet on the graphics card – back; three.js draws
+    // nothing on a lost context, so what still calls render() meanwhile
+    // does no harm. Planned: not reported, not counted as a renewal.
+    release_level_editor() {
+        const editor = this.level_editor;
+        if (!editor || this.level_editor_released) return;
+        this.stop_level_editor?.();
+        this.stop_level_editor = null;
+        this.level_editor_released = true;
+        this.asleep = editor.renderer;
+        editor.renderer = renderer_asleep(this.asleep);
+        try { this.asleep.forceContextLoss(); } catch (e) { }
+    }
+
+    // the Level tab again: a new context, the level drawn as before
+    restore_level_editor() {
+        const editor = this.level_editor;
+        if (!editor || !this.level_editor_released) return;
+        this.level_editor_released = false;
+        const asleep = this.asleep;
+        this.asleep = null;
+        this.replace_level_editor_renderer(editor);
+        try { asleep?.dispose(); } catch (e) { }
+    }
+
+    // studio.js show_pane: Spielen gives the level editor's context back,
+    // the Level tab takes a new one
+    pane_shown(key) {
+        if (key === 'play') this.release_level_editor();
+        else if (key === 'level') this.restore_level_editor();
     }
 
     // ------------------------------------------------ the game frame
@@ -183,5 +246,5 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { watch_webgl_canvas, webgl_may_renew, WEBGL_RESTORE_WAIT_MS, WEBGL_MAX_RENEWALS };
+    module.exports = { watch_webgl_canvas, webgl_may_renew, renderer_asleep, WEBGL_RESTORE_WAIT_MS, WEBGL_MAX_RENEWALS };
 }

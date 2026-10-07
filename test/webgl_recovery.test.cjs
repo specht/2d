@@ -2,7 +2,7 @@
 // renderer, and when that keeps happening a reload that keeps the work.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { watch_webgl_canvas, webgl_may_renew, WEBGL_RESTORE_WAIT_MS, WEBGL_MAX_RENEWALS } = require('../src/static/webgl_recovery.js');
+const { watch_webgl_canvas, webgl_may_renew, renderer_asleep, WEBGL_RESTORE_WAIT_MS, WEBGL_MAX_RENEWALS } = require('../src/static/webgl_recovery.js');
 
 function fake_canvas() {
     const listeners = {};
@@ -63,4 +63,21 @@ test('a few new renderers, then a reload (the browser blocks WebGL for the page)
     assert.equal(webgl_may_renew([...recent, now], now), false);
     // long ago does not count
     assert.equal(webgl_may_renew(Array(10).fill(now - 60 * 60 * 1000), now), true);
+});
+
+test('while a game runs, the level editor draws nothing on its given-back context', () => {
+    // pressing T draws the level once more before three.js learns of the loss:
+    // it compiled shaders on the lost context (null.trim)
+    const calls = [];
+    const canvas = {};
+    const real = { domElement: canvas, sortObjects: true, render: () => calls.push('render'), setSize: () => calls.push('size'),
+        getContext() { return 'gl'; } };
+    const asleep = renderer_asleep(real);
+    asleep.render({}, {});
+    asleep.setSize(10, 10);
+    asleep.sortObjects = false;
+    assert.deepEqual(calls, []);
+    assert.equal(asleep.domElement, canvas);
+    assert.equal(asleep.getContext(), 'gl');
+    assert.equal(real.sortObjects, false);
 });

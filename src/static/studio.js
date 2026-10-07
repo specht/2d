@@ -674,6 +674,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
         $('.main_div').hide();
         $(`#main_div_${key}`).show();
         current_pane = key;
+        // while a game runs, the level editor's graphics memory is free (webgl_recovery.js)
+        window.webgl_recovery?.pane_shown?.(key);
         if (key in menus)
             menus[key].refresh_status_bar();
         // the animation preview runs only while the sprite editor is shown
