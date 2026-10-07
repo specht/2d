@@ -7,7 +7,11 @@
 #   ./playtest.rb               how the round stands: every game's tests, who
 #                               is testing what right now, the testers
 #   ./playtest.rb watch         the same, kept up to date (Strg+C ends)
-#   ./playtest.rb on [3]        switch on (a test runs 3 minutes)
+#   ./playtest.rb on [3]        switch on (a test runs 3 minutes): the children
+#                               see the tab and submit their games
+#   ./playtest.rb start         start the testing (only who has a game in the
+#                               round gets one to test)
+#   ./playtest.rb stop          end the testing (tests under way are finished)
 #   ./playtest.rb off           switch off (surveys being filled in still arrive)
 #   ./playtest.rb minutes 4     how long a test runs
 #   ./playtest.rb games         the submitted games with their tests
@@ -16,7 +20,9 @@
 #   ./playtest.rb pdf           the Rückmeldungen as a PDF to print
 #   ./playtest.rb reset         a new round (the old one is kept in archive/)
 #
-# The studio notices on/off within half a minute (its ping). The PDF is
+# The moderation page (./moderate.rb web, Playtesting) has the same switches.
+# The studio notices on/off and start/stop within half a minute (its ping);
+# an open Playtesting tab looks every few seconds. The PDF is
 # written to /raw/playtesting, which is data/raw/playtesting on the server;
 # `pdf archive/<datei>.json` prints an earlier round. In a terminal the output
 # is coloured; NO_COLOR=1 switches that off.
@@ -73,7 +79,9 @@ end
 def overview_lines(o)
     lines = []
     active = o["games"].reject { |g| g["withdrawn"] }
-    state_word = o["enabled"] ? c("AN", :green, :bold) : c("aus", :red, :bold)
+    state_word = !o["enabled"] ? c("aus", :red, :bold) :
+                 o["testing"] ? c("AN – das Testen läuft", :green, :bold) :
+                 o["finished"] > 0 ? c("AN – das Testen ist beendet", :yellow, :bold) : c("AN – die Spiele werden eingereicht", :yellow, :bold)
     round = Time.parse(o["round"]).localtime.strftime("%d.%m.%Y %H:%M") rescue o["round"]
     lines << "#{c('Playtesting', :bold)} ist #{state_word} #{c('·', :dim)} ein Test dauert #{c("#{o['minutes']} Minuten", :bold)} #{c("· Runde seit #{round}", :dim)}"
     summary = ["#{c(active.size, :bold)} Spiele", "#{c(o['finished'], :bold, :green)} Tests fertig",
@@ -142,8 +150,12 @@ def overview_lines(o)
 end
 
 def status_hints(o)
-    if o["enabled"]
-        next_steps(["./playtest.rb watch", "diese Übersicht, laufend aktualisiert"],
+    if o["enabled"] && !o["testing"]
+        next_steps(["./playtest.rb start", "das Testen starten (wer ein Spiel eingereicht hat, testet)"],
+                   ["./playtest.rb watch", "diese Übersicht, laufend aktualisiert"])
+    elsif o["enabled"]
+        next_steps(["./playtest.rb stop", "das Testen beenden"],
+                   ["./playtest.rb watch", "diese Übersicht, laufend aktualisiert"],
                    ["./playtest.rb games", "die Spiele mit ihren Tests"],
                    ["./playtest.rb off", "ausschalten"])
     elsif o["finished"] > 0
@@ -182,7 +194,13 @@ when "on"
     STORE.transaction { |state| state["enabled"] = true; state["minutes"] = minutes if minutes }
     status
 when "off"
-    STORE.transaction { |state| state["enabled"] = false }
+    STORE.transaction { |state| Playtesting.control(state, "off") }
+    status
+when "start"
+    STORE.transaction { |state| Playtesting.control(state, "start") }
+    status
+when "stop"
+    STORE.transaction { |state| Playtesting.control(state, "stop") }
     status
 when "minutes"
     minutes = minutes_arg(ARGV[1])

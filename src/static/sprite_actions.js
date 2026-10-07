@@ -79,13 +79,57 @@ function sprite_context_menu(si) {
         { label: 'Umbenennen', icon: 'fa-pencil', hint: 'Der Titel steht oben bei „Sprite“.', callback: () => rename_sprite(si) },
         { label: 'Duplizieren', icon: 'fa-clone', callback: () => duplicate_sprite(si),
             hint: 'Eine Kopie mit allen Zuständen, Frames und Eigenschaften – gleich dahinter in der Liste.' },
+        show_in_level_item(si),
         '-',
         { label: 'Sprites holen (Katalog oder anderes Spiel) …', icon: 'fa-shopping-basket', callback: () => { if (typeof show_sprite_basket === 'function') show_sprite_basket(); } },
         '-',
         { label: 'Löschen', icon: 'fa-trash', disabled: !can_delete,
             hint: can_delete ? 'Auch aus allen Levels. Gleich danach kannst du es mit „Rückgängig“ zurückholen. Mehrere auf einmal: mit Shift oder Strg anklicken.' : 'Das letzte Sprite bleibt.',
             callback: () => game.sprites_widget?.delete_index?.(si) },
+        select_unused_item(),
     ];
+}
+
+// ------------------------------------------------------------ tidying up
+// "Im Level zeigen": the level editor marks every copy (level_editor.js
+// find_sprite) – in the level shown if it is there, else in the first level
+// that has it.
+function show_in_level_item(si) {
+    const sprite = game.data.sprites[si];
+    const entry = typeof sprite_usage === 'function' ? sprite_usage(game.data).get(sprite?.id) : null;
+    const placed = entry?.placed ?? 0;
+    return { label: placed ? `Im Level zeigen (${placed}×)` : 'Im Level zeigen', icon: 'fa-crosshairs', disabled: !placed,
+        hint: placed ? `In ${entry.levels.size === 1 ? '1 Level' : `${entry.levels.size} Leveln`} – der Level-Editor markiert jedes Exemplar.` :
+            entry?.needed ? 'In keinem Level gesetzt – aber ein anderes Sprite braucht es (Angriffsbild, Beute …).' : 'In keinem Level gesetzt.',
+        callback: () => {
+            const editor = game.level_editor;
+            if (window.studio_show_pane?.('level')) studio_history_push?.({ pane: 'level' });
+            if (!editor) return;
+            const here = entry.levels.has(editor.level_index) ? editor.level_index : Math.min(...entry.levels.keys());
+            if (here !== editor.level_index) editor.levels_widget?.select_index(here);
+            editor.find_sprite(si);
+        } };
+}
+
+// "Unbenutzte zeigen und auswählen": the list shows only what no level has
+// and nothing else needs (sprite_filter.js), all of it selected – a right
+// click deletes them at once (with one Rückgängig).
+function select_unused_item() {
+    const unused = typeof unused_sprite_ids === 'function' ? unused_sprite_ids(game.data) : new Set();
+    if (!unused.size) return null;
+    return { label: `Unbenutzte zeigen und auswählen (${unused.size})`, icon: 'fa-filter',
+        hint: 'Alle Sprites, die in keinem Level vorkommen und die kein anderes Sprite braucht. Danach: Rechtsklick → löschen. Gelöschtes holt „Rückgängig“ zurück.',
+        callback: () => select_unused_sprites() };
+}
+
+function select_unused_sprites() {
+    const unused = unused_sprite_ids(game.data);
+    const indices = game.data.sprites.map((s, i) => unused.has(s.id) ? i : -1).filter(i => i >= 0);
+    if (!indices.length) return;
+    game.sprite_list_filter?.set_kind?.('unused');
+    // the sprite shown always belongs to the selection: one of them is shown
+    if (!indices.includes(canvas.sprite_index)) game.sprites_widget?.select_index?.(indices[0]);
+    set_sprite_selection(indices);
 }
 
 // ------------------------------------------------------------ several sprites

@@ -7,6 +7,10 @@
 //   - submit their own game (it needs a title and an author; it is saved
 //     first, and every later save is what gets tested from then on), and see
 //     how often it has been tested and how much fun the testers had;
+//   - wait: first everybody submits, then the teacher starts the testing
+//     (moderation page, playtest.rb start) – only who has a game in the round
+//     (alone or as a team) tests; the tab shows how many games are in and
+//     looks again every few seconds;
 //   - test the games of the others: the server hands out the next game (the
 //     one tested least so far – nobody chooses), it runs for a few minutes
 //     (after half the time "Fertig" goes to the survey early), then a short
@@ -81,25 +85,46 @@ class Playtesting {
         });
     }
 
+    // With the studio's ping (server_watch.js), every 30 seconds: this browser,
+    // the names it knows, the live session – so the teacher's moderation page
+    // lists every child, also one who has not opened this tab, and a child
+    // who joins a team's session late becomes one of that team.
+    ping_info() {
+        const props = typeof game !== 'undefined' ? game?.data?.properties ?? {} : {};
+        const playtest = { browser: this.browser,
+            who: { tester: this.name, session: window.collaboration?.name ?? '', author: String(props.author ?? '') } };
+        if (window.collaboration?.code) playtest.session = window.collaboration.code;
+        return { playtest };
+    }
+
     async refresh() {
         const status = await this.api('status', {});
         if (!status.success) return;
+        const before = this.status_key;
         this.status = status;
-        this.set_enabled(status.enabled);
+        this.status_key = JSON.stringify([status.enabled, status.testing, status.has_game, status.games, status.tested,
+            status.class_tests, (status.submissions ?? []).map(s => [s.id, s.tests, s.fun]), status.open_game?.id]);
+        this.set_enabled(status.enabled, status.testing);
         if (status.running && !this.assignment) {
             // a test that was running before a reload goes on
             this.start(status.running);
             return;
         }
-        // a running test or a half-filled survey is never redrawn underneath the child
-        if (current_pane === 'playtesting' && (this.view === 'home' || this.view === 'thanks')) this.render();
+        // a running test or a half-filled survey is never redrawn underneath the child;
+        // nor what somebody is typing in (it is drawn again at the next look)
+        if (current_pane !== 'playtesting' || !(this.view === 'home' || this.view === 'thanks')) return;
+        if (this.status_key === before && this.root().children().length) return;
+        if (this.root().find('input:focus, textarea:focus').length) { this.status_key = null; return; }
+        this.render();
     }
 
-    // the server's ping says whether it is on (server_watch.js)
-    set_enabled(enabled) {
+    // the server's ping says whether it is on and whether the testing runs (server_watch.js)
+    set_enabled(enabled, testing = this.testing) {
         enabled = !!enabled;
-        const changed = enabled !== this.enabled;
+        testing = !!testing;
+        const changed = enabled !== this.enabled || testing !== this.testing;
         this.enabled = enabled;
+        this.testing = testing;
         $('#mi_playtesting').toggle(enabled || this.view === 'run' || this.view === 'survey');
         if (changed && current_pane === 'playtesting') this.refresh();
     }
@@ -107,6 +132,10 @@ class Playtesting {
     show() {
         this.refresh();
         if (this.view === 'home' || this.view === 'thanks' || !this.root().children().length) this.render();
+        // while the tab is shown: how many games are in, and when the testing starts
+        this.poll ??= setInterval(() => {
+            if (current_pane === 'playtesting' && this.enabled && (this.view === 'home' || this.view === 'thanks')) this.refresh();
+        }, 5000);
     }
 
     root() {
@@ -126,10 +155,27 @@ class Playtesting {
             $('<p class="pt-muted">').text('Playtesting ist gerade ausgeschaltet. Deine Lehrkraft schaltet es ein, wenn es losgeht.').appendTo(root);
             return;
         }
-        $('<p class="pt-class">').html(`Eure Klasse hat schon <b>${status.class_tests}</b> ${status.class_tests === 1 ? 'Test' : 'Tests'} gemacht – <b>${status.games}</b> ${status.games === 1 ? 'Spiel ist' : 'Spiele sind'} dabei.`).appendTo(root);
+        $('<p class="pt-class">').html(status.testing || status.class_tests
+            ? `Eure Klasse hat schon <b>${status.class_tests}</b> ${status.class_tests === 1 ? 'Test' : 'Tests'} gemacht – <b>${status.games}</b> ${status.games === 1 ? 'Spiel ist' : 'Spiele sind'} dabei.`
+            : `<b>${status.games}</b> ${status.games === 1 ? 'Spiel ist' : 'Spiele sind'} schon eingereicht.`).appendTo(root);
         if (this.view === 'thanks') this.render_thanks(root);
+        if (!status.testing) {
+            // first everybody submits; the testing starts when the teacher says so
+            this.render_mine_card(root);
+            this.render_waiting_card(root);
+            return;
+        }
         this.render_test_card(root);
         this.render_mine_card(root);
+    }
+
+    render_waiting_card(root) {
+        const card = $('<section class="pt-card pt-test pt-waiting">').appendTo(root);
+        $('<h3>').text(this.status.class_tests ? 'Das Testen ist beendet' : 'Gleich geht das Testen los').appendTo(card);
+        $('<div class="pt-count">').append($('<b>').text(this.status.games), $('<span>').text(this.status.games === 1 ? ' Spiel eingereicht' : ' Spiele eingereicht')).appendTo(card);
+        $('<p class="pt-note">').text(this.status.has_game
+            ? (this.status.class_tests ? 'Danke fürs Testen! Deine Rückmeldungen sind angekommen.' : 'Dein Spiel ist dabei. Sobald deine Lehrkraft das Testen startet, geht es hier los – du musst nichts neu laden.')
+            : 'Reiche zuerst dein Spiel ein – oder ihr euer Team-Spiel. Testen darf, wer selbst ein Spiel dabei hat.').appendTo(card);
     }
 
     // ------------------------------------------------ one's own game
@@ -191,7 +237,13 @@ class Playtesting {
             return;
         }
         message.text('Wird gespeichert …');
-        game.send_save(async (tag) => {
+        // In a live session the team's game is the session's: it is saved for
+        // everybody, and that version is submitted – so the others (also one
+        // who joins later) are the team, and every shared save is tested.
+        const save = (on_saved, on_failed) => window.collaboration?.code && window.collaboration.shared_save_then
+            ? window.collaboration.shared_save_then(on_saved, on_failed)
+            : game.send_save(on_saved, on_failed);
+        save(async (tag) => {
             const result = await this.api('submit', { tag });
             if (!result.success || result.error) {
                 message.text({
@@ -213,6 +265,10 @@ class Playtesting {
         $('<h3>').text('Spiele der anderen testen').appendTo(card);
         $('<p class="pt-note">').text(`Du bekommst ein Spiel und spielst es ${this.status.minutes === 1 ? 'eine Minute' : `${this.status.minutes} Minuten`} lang. Danach erzählst du in einer kurzen Umfrage, wie es war – das hilft den anderen, ihr Spiel besser zu machen.`).appendTo(card);
         if (this.status.tested) $('<p class="pt-tested">').text(`Du hast schon ${this.status.tested} ${this.status.tested === 1 ? 'Spiel' : 'Spiele'} getestet.`).appendTo(card);
+        if (!this.status.has_game) {
+            $('<p class="pt-message">').text('Reiche zuerst dein Spiel ein (unten) – oder ihr euer Team-Spiel. Testen darf, wer selbst ein Spiel dabei hat.').appendTo(card);
+            return;
+        }
         const box = $('<label class="pt-field pt-name">').appendTo(card);
         $('<span>').text('Dein Vorname').appendTo(box);
         const input = $('<input type="text" maxlength="30" placeholder="so steht es bei deiner Rückmeldung">').val(this.name).appendTo(box);
@@ -224,6 +280,15 @@ class Playtesting {
             try { localStorage.setItem('2d_tester_name', name); } catch (e) { }
             const result = await this.api('next', { name });
             if (!result.success) { message.text('Das hat nicht geklappt. Versuch es gleich noch einmal.'); return; }
+            if (result.error) {
+                message.text({
+                    not_started: 'Das Testen hat noch nicht begonnen – deine Lehrkraft startet es.',
+                    submit_first: 'Reiche zuerst dein Spiel ein – testen darf, wer selbst ein Spiel dabei hat.',
+                    playtesting_off: 'Playtesting ist gerade ausgeschaltet.',
+                }[result.error] ?? 'Das hat nicht geklappt. Versuch es gleich noch einmal.');
+                this.refresh();
+                return;
+            }
             if (!result.assignment) {
                 message.text('Gerade gibt es kein Spiel, das du noch nicht getestet hast. Schau gleich noch einmal – vielleicht kommen neue dazu!');
                 return;

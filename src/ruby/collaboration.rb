@@ -301,6 +301,19 @@ module Collaboration
             @mutex.synchronize { @sessions[code]&.dig(:source_tag) }
         end
 
+        # The live sessions for the moderation page (playtesting.rb
+        # class_view): the game each works on and who is in it. key: the
+        # code, used on the server only (the page never sees a code).
+        def summaries
+            @mutex.synchronize do
+                @sessions.map do |code, session|
+                    title = session[:state].is_a?(Hash) ? session[:state].dig("properties", "title").to_s : ""
+                    { key: code, source_tag: session[:source_tag], title: title,
+                      names: participants_locked(session).map { |participant| participant[:name] } }
+                end
+            end
+        end
+
         def participants(code:)
             @mutex.synchronize do
                 session = @sessions[code]

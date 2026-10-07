@@ -461,7 +461,39 @@ class Main < Sinatra::Base
     # version of the studio does it serve?
     post "/api/ping" do
         Main.remember_web_root(request.base_url)
-        respond(:pong => "yay", :version => @@cache_buster, :playtest => @@playtesting.enabled?)
+        playtest = @@playtesting.read
+        enabled = playtest["enabled"] == true
+        playtest_seen_ping if enabled
+        # the Playtesting tab follows (playtesting.js set_enabled): on, and testing or still submitting
+        respond(:pong => "yay", :version => @@cache_buster, :playtest => enabled, :playtest_testing => playtest["testing"] == true)
+    end
+
+    # Playtesting: who has the studio open (the moderation page's class list).
+    # The ping brings { playtest: { browser, who: { tester, session, author },
+    # session } }: when it was seen and in which session is kept here (lost on
+    # a restart, back within a ping); the names go to the file
+    # (playtesting.rb remember_browser), only when they change. A child in the
+    # session of a submitted game becomes one of its team – also one who joins
+    # late and never opens the Playtesting tab.
+    @@playtest_seen = {}
+    @@playtest_seen_mutex = Mutex.new
+
+    def playtest_seen_ping
+        body = (JSON.parse(request.body.read(8 * 1024).to_s) rescue nil)
+        info = body.is_a?(Hash) ? body["playtest"] : nil
+        return unless info.is_a?(Hash)
+        browser = info["browser"]
+        return unless browser.is_a?(String) && browser =~ /\A[a-z0-9]{8,40}\z/
+        session = info["session"].is_a?(String) && info["session"] =~ /\A[A-Z0-9]{4,12}\z/ ? info["session"] : nil
+        now = Time.now
+        @@playtest_seen_mutex.synchronize do
+            @@playtest_seen.delete_if { |_, seen| now - seen[:at] > 3600 }
+            @@playtest_seen[browser] = { :at => now, :session => session }
+        end
+        @@playtesting.remember_browser(browser, info["who"])
+        playtest_join_team({ :browser => browser, :session => session }) if session
+    rescue StandardError => e
+        debug_error "Playtesting ping: #{e}"
     end
 
     # Where the studio is reached (scheme and host as the browser sees them;
@@ -1027,13 +1059,18 @@ class Main < Sinatra::Base
     post "/api/playtest/next" do
         data = playtest_request(:name)
         team_tag = playtest_session_tag(data)
-        result = @@playtesting.transaction do |state|
+        result, error = @@playtesting.transaction do |state|
             # never the own team's game
             Playtesting.join_team(state, data[:browser], team_tag) if team_tag
-            assignment = Playtesting.next_assignment(state, data[:browser], data[:name].to_s)
-            assignment ? Playtesting.assignment_for_client(state, assignment) : nil
+            # a test under way goes on (after a reload, also once the testing ended);
+            # a new one only while the testing runs, and only with a game in the round
+            running = Playtesting.running_for(state, data[:browser])
+            refused = running ? nil : Playtesting.may_test(state, data[:browser])
+            next [nil, refused] if refused
+            assignment = running || Playtesting.next_assignment(state, data[:browser], data[:name].to_s)
+            [assignment ? Playtesting.assignment_for_client(state, assignment) : nil, nil]
         end
-        respond(:assignment => result)
+        respond(error ? { :assignment => nil, :error => error } : { :assignment => result })
     end
 
     post "/api/playtest/feedback" do
@@ -1701,7 +1738,31 @@ class Main < Sinatra::Base
         session = Moderation::Session.current(MODERATION_PATH)
         moderation_request
         catalog = moderation_catalog
-        respond({ :expires_at => session["expires_at"], :now => Time.now.to_i }.merge(catalog ? { :games => catalog.size } : moderation_loading))
+        respond({ :expires_at => session["expires_at"], :now => Time.now.to_i, :playtest => @@playtesting.enabled? }
+            .merge(catalog ? { :games => catalog.size } : moderation_loading))
+    end
+
+    # Playtesting for the class (playtesting.rb class_view): the games in the
+    # round with their teams, every child of the class (who has submitted,
+    # how far they are), the live sessions, and every survey sent
+    # The teacher's switches (playtesting.rb control): { action: "on" | "off" |
+    # "start" | "stop" | "minutes", minutes } – answers the view as it is now
+    post "/api/moderation/playtest_control" do
+        data = moderation_request
+        error = @@playtesting.transaction { |state| Playtesting.control(state, data["action"].to_s, data["minutes"]) }
+        return respond(:error => error) if error
+        debug "Moderation: Playtesting #{data['action']}#{data['minutes'] ? " #{data['minutes']}" : ''}"
+        sessions = COLLABORATION_ENABLED ? @@collaboration_store.summaries : []
+        seen = @@playtest_seen_mutex.synchronize { @@playtest_seen.transform_values(&:dup) }
+        respond(Playtesting.class_view(@@playtesting.read, sessions: sessions, seen: seen).merge(:now => Time.now.utc.iso8601))
+    end
+
+    post "/api/moderation/playtest" do
+        moderation_request
+        sessions = COLLABORATION_ENABLED ? @@collaboration_store.summaries : []
+        seen = @@playtest_seen_mutex.synchronize { @@playtest_seen.transform_values(&:dup) }
+        view = Playtesting.class_view(@@playtesting.read, sessions: sessions, seen: seen)
+        respond(view.merge(:now => Time.now.utc.iso8601))
     end
 
     post "/api/moderation/games" do

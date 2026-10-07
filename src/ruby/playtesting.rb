@@ -14,6 +14,11 @@
 #   one's own and never one tested before, ties broken at random.
 # - A test runs for `minutes`; the survey comes after it. Testers give their
 #   first name, which is printed with their feedback.
+# - Two phases: first everybody submits (the class sees how many games are
+#   in); then the teacher starts the testing (moderation page or playtest.rb
+#   start) and ends it again. Only who has a game in the round – alone or as
+#   a team – gets one to test. A test that runs when the testing ends is
+#   finished, survey and all.
 #
 # Teams: several children make one game together in a live session
 # (collaboration.rb). It is submitted once, by whoever clicks first; the
@@ -76,8 +81,54 @@ module Playtesting
     ]
 
     def self.fresh_state(enabled = false, minutes = DEFAULT_MINUTES)
-        { "enabled" => enabled, "minutes" => minutes, "round" => Time.now.utc.iso8601,
+        { "enabled" => enabled, "minutes" => minutes, "round" => Time.now.utc.iso8601, "testing" => false,
           "submissions" => {}, "assignments" => {} }
+    end
+
+    MINUTES_RANGE = (1..30)
+
+    # The teacher's switches (moderation page, playtest.rb): "on" / "off" (the
+    # Playtesting tab), "start" / "stop" (the testing), "minutes" (n). Returns
+    # nil or an error.
+    def self.control(state, action, minutes = nil, now = Time.now)
+        case action
+        when "on" then state["enabled"] = true
+        when "off"
+            state["enabled"] = false
+            state["testing"] = false
+        when "start"
+            state["enabled"] = true
+            state["testing"] = true
+            state["testing_since"] = now.utc.iso8601
+        when "stop" then state["testing"] = false
+        when "minutes"
+            n = minutes.to_i
+            return "bad_minutes" unless MINUTES_RANGE.include?(n)
+            state["minutes"] = n
+        else
+            return "unknown_action"
+        end
+        nil
+    end
+
+    # Has this browser a game in the round (its own or its team's)?
+    def self.has_game?(state, browser)
+        state["submissions"].values.any? { |s| !s["withdrawn"] && team?(s, browser) }
+    end
+
+    # nil when this browser may get a game to test now, else why not:
+    # playtesting_off, not_started (still submitting), submit_first
+    def self.may_test(state, browser)
+        return "playtesting_off" unless state["enabled"]
+        return "not_started" unless state["testing"]
+        return "submit_first" unless has_game?(state, browser)
+        nil
+    end
+
+    # The test this browser is in the middle of (also after the testing ended).
+    def self.running_for(state, browser, now = Time.now)
+        minutes = state["minutes"].to_i
+        state["assignments"].values.find { |a| a["browser"] == browser && running?(a, minutes, now) && state["submissions"][a["submission"]] }
     end
 
     def self.clean_text(value, max = MAX_TEXT)
@@ -242,6 +293,8 @@ module Playtesting
         running = mine.find { |a| running?(a, minutes, now) && state["submissions"][a["submission"]] }
         {
             "enabled" => !!state["enabled"],
+            "testing" => !!state["testing"],
+            "has_game" => has_game?(state, browser),
             "minutes" => minutes,
             "questions" => QUESTIONS,
             "scale_labels" => SCALE_LABELS,
@@ -305,11 +358,130 @@ module Playtesting
               "left" => active.count { |s| available.call(browser, s) } }
         end.sort_by { |t| [-t["done"], t["name"].downcase] }
         {
-            "enabled" => !!state["enabled"], "minutes" => minutes, "round" => state["round"],
+            "enabled" => !!state["enabled"], "testing" => !!state["testing"], "testing_since" => state["testing_since"],
+            "minutes" => minutes, "round" => state["round"],
             "games" => games, "running" => running, "testers" => testers,
             "finished" => assignments.count { |a| a["finished_at"] },
             "abandoned" => assignments.count { |a| !a["finished_at"] && !running?(a, minutes, now) },
         }
+    end
+
+    # ------------------------------------------------ the class (moderation page)
+    # Every browser with the studio open while playtesting is on is a child
+    # of the class (main.rb: the studio's ping). The names it knows go here,
+    # so the teacher sees who has not submitted anything yet: the first name
+    # given for testing, the name in a live session, the author of the game
+    # open. Written only when they change.
+    def self.remember_browser(state, browser, who)
+        who = {} unless who.is_a?(Hash)
+        names = {}
+        %w(tester session author).each do |key|
+            name = clean_text(who[key], MAX_NAME)
+            names[key] = name unless name.empty?
+        end
+        browsers = (state["browsers"] ||= {})
+        known = browsers[browser]
+        merged = (known || {}).merge(names)
+        return false if known && merged == known
+        browsers[browser] = merged
+        true
+    end
+
+    # The name a child goes by: the one given for testing, else the one in
+    # the session, else the author of the game it had open; nil if none.
+    def self.name_of(state, browser)
+        tested = state["assignments"].values.select { |a| a["browser"] == browser }
+                                    .sort_by { |a| a["started_at"].to_s }.map { |a| a["name"].to_s }.reject(&:empty?).last
+        known = (state["browsers"] || {})[browser] || {}
+        [tested, known["tester"], known["session"], known["author"]].find { |n| n.is_a?(String) && !n.empty? }
+    end
+
+    # Everything the moderation page shows while the class tests:
+    #   sessions: the live sessions (collaboration.rb summaries) – title,
+    #             participants (names, connected), their key for `seen`
+    #   seen:     browser → { at: Time, session: key } from the studio's ping
+    # Returns the overview (games, running, testers …) plus
+    #   kids:     per browser: name, online, game (submitted alone or as a
+    #             team, or the team's game in a session not submitted yet),
+    #             done / running / left
+    #   games[]:  + team: the names of everybody in it (from the submission
+    #             and from live sessions on that game)
+    #   sessions: title, names, the submission's title or nil
+    #   feedback: every survey sent, the newest first
+    def self.class_view(state, sessions: [], seen: {}, now: Time.now, online_within: 90, feedback_limit: 300)
+        view = overview(state, now)
+        minutes = state["minutes"].to_i
+        assignments = state["assignments"].values
+        active = state["submissions"].values.reject { |s| s["withdrawn"] }
+        submission_of_session = ->(x) { submission_with_tag(state, x[:source_tag]) }
+        sessions_by_key = sessions.to_h { |x| [x[:key], x] }
+
+        browsers = (state["browsers"] || {}).keys | assignments.map { |a| a["browser"] } |
+                   active.flat_map { |s| [s["owner"], *(s["members"] || [])] }.compact | seen.keys
+        # the games that are a browser's own: its team's, and the game of the
+        # session it is in (it joins that team at its next ping, main.rb)
+        own_ids = browsers.to_h do |browser|
+            ids = active.select { |s| team?(s, browser) }.map { |s| s["id"] }
+            session = seen[browser] && sessions_by_key[seen[browser][:session]]
+            ids << submission_of_session.call(session)["id"] if session && submission_of_session.call(session)
+            [browser, ids.uniq]
+        end
+        kids = browsers.map do |browser|
+            mine = active.find { |s| s["owner"] == browser } || active.find { |s| team?(s, browser) }
+            seen_now = seen[browser]
+            session = seen_now && sessions_by_key[seen_now[:session]]
+            session_submission = session && submission_of_session.call(session)
+            game = if mine
+                       # a team: more than one browser, or a live session on it
+                       team = !(mine["members"] || []).empty? || sessions.any? { |x| submission_of_session.call(x)&.dig("id") == mine["id"] }
+                       { "title" => mine["title"], "author" => mine["author"], "team" => team, "submitted" => true }
+                   elsif session_submission
+                       # in the session of a submitted game, not asked yet: one of the team
+                       { "title" => session_submission["title"], "author" => session_submission["author"], "team" => true, "submitted" => true }
+                   elsif session
+                       { "title" => session[:title], "team" => true, "submitted" => false, "names" => session[:names] }
+                   end
+            list = assignments.select { |a| a["browser"] == browser }
+            running = list.find { |a| running?(a, minutes, now) && state["submissions"][a["submission"]] }
+            running_info = running && begin
+                left = ((Time.parse(running["started_at"]) + minutes * 60) - now).round
+                { "title" => state["submissions"][running["submission"]]["title"],
+                  "phase" => left > 0 ? "play" : "survey", "seconds_left" => [left, 0].max }
+            end
+            { "name" => name_of(state, browser), "online" => !!(seen_now && now - seen_now[:at] <= online_within),
+              "game" => game, "done" => list.count { |a| a["finished_at"] }, "running" => running_info,
+              # games this child could still get – nil: it cannot test (nothing of its own in the round)
+              "left" => own_ids[browser].empty? ? nil : active.count { |s| !own_ids[browser].include?(s["id"]) && list.none? { |a| a["submission"] == s["id"] } } }
+        end
+        # who has nothing in the round first, then by name
+        kids.sort_by! { |k| [k["game"] && k["game"]["submitted"] ? 1 : 0, k["name"].to_s.downcase, k["name"] ? 0 : 1] }
+
+        # who could still get each game: everybody with a game in the round
+        # (testers or not yet), never its team, never twice
+        testers_now = browsers.reject { |b| own_ids[b].empty? }
+        view["games"].each do |g|
+            s = state["submissions"][g["id"]]
+            g["left"] = s["withdrawn"] ? 0 : testers_now.count { |b| !own_ids[b].include?(s["id"]) && assignments.none? { |a| a["browser"] == b && a["submission"] == s["id"] } }
+            names = [s["owner"], *(s["members"] || [])].compact.filter_map { |b| name_of(state, b) }
+            live = sessions.select { |x| submission_of_session.call(x)&.dig("id") == s["id"] }
+            g["team"] = (names + live.flat_map { |x| x[:names] }).uniq
+            g["in_session"] = !live.empty?
+        end
+        view["sessions"] = sessions.map do |x|
+            submission = submission_of_session.call(x)
+            { "title" => x[:title], "names" => x[:names], "submitted" => submission && submission["title"] }
+        end
+        view["kids"] = kids
+        view["feedback"] = assignments.select { |a| a["finished_at"] && a["answers"] }
+                                      .sort_by { |a| a["finished_at"].to_s }.reverse.first(feedback_limit).map do |a|
+            submission = state["submissions"][a["submission"]] || {}
+            { "at" => a["finished_at"], "name" => a["name"].to_s, "game" => a["submission"],
+              "title" => submission["title"], "author" => submission["author"],
+              "answers" => a["answers"] }
+        end
+        view["questions"] = QUESTIONS
+        view["scale_labels"] = SCALE_LABELS
+        view
     end
 
     def self.assignment_for_client(state, assignment, now = Time.now)
@@ -356,6 +528,16 @@ module Playtesting
 
         def enabled?
             read["enabled"] == true
+        end
+
+        # The names a browser goes by (Playtesting.remember_browser): the
+        # file is written only when they are new.
+        def remember_browser(browser, who)
+            state = read
+            return false unless state["enabled"]
+            probe = JSON.parse(JSON.generate(state["browsers"] || {}))
+            return false unless Playtesting.remember_browser({ "browsers" => probe }, browser, who)
+            transaction { |fresh| Playtesting.remember_browser(fresh, browser, who) }
         end
 
         # Every save of the studio comes here (also while playtesting is off,

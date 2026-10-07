@@ -209,4 +209,112 @@ class PlaytestingTest < Minitest::Test
         assert_equal({ "Max" => [1, 0, 0], "Ida" => [0, 1, 0], "Lea" => [0, 1, 0] }, testers)
         assert_equal "Max", o["testers"].first["name"]
     end
+
+    def test_the_class_view_shows_every_child_their_game_teams_progress_and_the_surveys
+        state = on_state
+        t0 = Time.utc(2026, 10, 7, 9, 0)
+        # Lea submits alone; Max and Ida make "Höhle" together (Ida joined in the session)
+        lea, = Playtesting.submit(state, "leaaaaa", game("Lea Welt", "Lea"), "b_lea", t0)
+        cave, = Playtesting.submit(state, "cavaaaa", game("Höhle", "Max und Ida"), "b_max", t0)
+        Playtesting.join_team(state, "b_ida", "cavaaaa")
+        # names as the studio's ping brings them; Tom has not submitted anything
+        assert Playtesting.remember_browser(state, "b_lea", { "author" => "Lea" })
+        refute Playtesting.remember_browser(state, "b_lea", { "author" => "Lea" })   # nothing new: not written
+        Playtesting.remember_browser(state, "b_max", { "session" => "Max" })
+        Playtesting.remember_browser(state, "b_ida", { "session" => "Ida", "tester" => "Ida K." })
+        Playtesting.remember_browser(state, "b_tom", { "author" => "Tom" })
+        Playtesting.remember_browser(state, "b_eva", { "session" => "Eva" })
+        # Lea tests Höhle and sends the survey; Tom is testing Lea's game right now
+        a = Playtesting.next_assignment(state, "b_lea", "Lea", t0 + 60)
+        assert_equal cave["id"], a["submission"]
+        Playtesting.give_feedback(state, a["id"], "b_lea", answers, t0 + 300)
+        b = Playtesting.next_assignment(state, "b_tom", "Tom", t0 + 400)
+        assert_equal lea["id"], b["submission"]
+        # live: Max and Eva in a session on Höhle (Eva joined late and never opened Playtesting),
+        # Paul and Ben in a session on a game nobody submitted
+        sessions = [{ key: "K1", source_tag: "cavaaaa", title: "Höhle", names: ["Max", "Eva"] },
+                    { key: "K2", source_tag: "zzzaaaa", title: "Rennen", names: ["Paul", "Ben"] }]
+        seen = { "b_max" => { at: t0 + 410, session: "K1" }, "b_eva" => { at: t0 + 410, session: "K1" },
+                 "b_tom" => { at: t0 + 300, session: nil }, "b_ben" => { at: t0 + 405, session: "K2" } }
+        view = Playtesting.class_view(state, sessions: sessions, seen: seen, now: t0 + 420)
+
+        kids = view["kids"].to_h { |k| [k["name"] || "?", k] }
+        assert_equal ["Ida K.", "Lea", "Max", "Eva", "Tom", "?"].sort, kids.keys.sort
+        assert_equal ["Lea Welt", false, true], kids["Lea"]["game"].values_at("title", "team", "submitted")
+        assert_equal ["Höhle", true], kids["Ida K."]["game"].values_at("title", "team")
+        assert_equal "Höhle", kids["Eva"]["game"]["title"]           # through her session
+        assert_nil kids["Tom"]["game"]                                 # nothing in the round
+        assert_nil kids["Tom"]["left"]                                 # so he does not test
+        assert kids["Max"]["game"]["team"]                             # submitted it, with Ida: a team
+        assert_equal [false, ["Paul", "Ben"]], kids["?"]["game"].values_at("submitted", "names")   # Ben: no name yet
+        assert_equal "Lea Welt", kids["Tom"]["running"]["title"]
+        assert kids["Max"]["online"]
+        refute kids["Tom"]["online"]                                   # 2 minutes since the last ping
+        assert_equal 1, kids["Lea"]["done"]
+        assert_equal 0, kids["Lea"]["left"]                            # never her own, never twice
+        # those without anything in the round come first
+        assert_equal [false, false, true, true, true, true], view["kids"].map { |k| !!k["game"]&.dig("submitted") }
+
+        games = view["games"].to_h { |g| [g["title"], g] }
+        assert_equal ["Max", "Ida K.", "Eva"], games["Höhle"]["team"]
+        assert games["Höhle"]["in_session"]
+        assert_equal 1, games["Höhle"]["done"]
+        assert_equal [["Höhle", "Höhle"], ["Rennen", nil]], view["sessions"].map { |x| x.values_at("title", "submitted") }
+
+        assert_equal 1, view["feedback"].size
+        assert_equal ["Lea", "Höhle", "Die Musik!"], view["feedback"][0].values_at("name", "title").push(view["feedback"][0]["answers"]["good"])
+    end
+
+    def test_the_store_writes_names_only_when_they_change_and_only_while_on
+        Dir.mktmpdir do |dir|
+            store = Playtesting::Store.new(File.join(dir, "playtesting"))
+            refute store.remember_browser("b_lea", { "author" => "Lea" })      # off: nothing
+            store.transaction { |state| state["enabled"] = true }
+            assert store.remember_browser("b_lea", { "author" => "Lea" })
+            mtime = File.mtime(store.path)
+            refute store.remember_browser("b_lea", { "author" => "Lea", "tester" => "" })
+            assert_equal mtime, File.mtime(store.path)
+            assert store.remember_browser("b_lea", { "tester" => "Lea M." })
+            assert_equal({ "author" => "Lea", "tester" => "Lea M." }, store.read["browsers"]["b_lea"])
+            store.reset   # a new round: a new class list
+            assert_nil store.read["browsers"]
+        end
+    end
+
+    def test_first_everybody_submits_then_the_teacher_starts_and_ends_the_testing
+        state = Playtesting.fresh_state(false)
+        assert_equal "playtesting_off", Playtesting.may_test(state, "b_lea")
+        assert_nil Playtesting.control(state, "on")
+        refute state["testing"]
+        Playtesting.submit(state, "leaaaaa", game("Lea Welt", "Lea"), "b_lea")
+        cave, = Playtesting.submit(state, "cavaaaa", game("Höhle", "Max"), "b_max")
+        Playtesting.join_team(state, "b_ida", "cavaaaa")
+        # still submitting: nobody tests yet
+        assert_equal "not_started", Playtesting.may_test(state, "b_lea")
+        now = Time.utc(2026, 10, 7, 9, 0)
+        assert_nil Playtesting.control(state, "start", nil, now)
+        assert_equal "2026-10-07T09:00:00Z", state["testing_since"]
+        # who has a game in the round tests – alone or as a team; Tom has none
+        assert_nil Playtesting.may_test(state, "b_lea")
+        assert_nil Playtesting.may_test(state, "b_ida")
+        assert_equal "submit_first", Playtesting.may_test(state, "b_tom")
+        a = Playtesting.next_assignment(state, "b_lea", "Lea", now)
+        assert_equal cave["id"], a["submission"]
+        # the teacher ends it: no new tests, the one under way goes on
+        Playtesting.control(state, "stop")
+        assert_equal "not_started", Playtesting.may_test(state, "b_lea")
+        assert_equal a["id"], Playtesting.running_for(state, "b_lea", now + 60)["id"]
+        assert_nil Playtesting.give_feedback(state, a["id"], "b_lea", answers, now + 200)[1]
+        assert_nil Playtesting.running_for(state, "b_lea", now + 210)
+        # the status tells the studio which phase and whether one has a game
+        status = Playtesting.status(state, "b_tom")
+        assert_equal [false, false], status.values_at("testing", "has_game")
+        assert Playtesting.status(state, "b_ida")["has_game"]
+        assert_equal "bad_minutes", Playtesting.control(state, "minutes", 0)
+        assert_nil Playtesting.control(state, "minutes", 5)
+        assert_equal 5, state["minutes"]
+        assert_equal "unknown_action", Playtesting.control(state, "explode")
+        Playtesting.control(state, "off")
+        refute state["enabled"]
+    end
 end

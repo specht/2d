@@ -82,15 +82,19 @@ class ServerWatch {
         const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
         const timeout = setTimeout(() => controller?.abort(), SERVER_PING_TIMEOUT_MS);
         try {
+            // Playtesting: who has the studio open (playtesting.js ping_info;
+            // the server keeps it only while playtesting is on)
+            let body = '{}';
+            try { body = JSON.stringify(window.playtesting?.ping_info?.() ?? {}); } catch (e) { }
             const response = await fetch('/api/ping', {
-                method: 'POST', body: '{}', cache: 'no-store',
+                method: 'POST', body, cache: 'no-store',
                 headers: { 'Content-Type': 'application/json' }, signal: controller?.signal,
             });
             if (response.ok) {
                 const data = await response.json();
                 if (data?.pong) result = { type: 'up', version: data.version ?? null };
                 // the teacher switches playtesting on and off in the terminal
-                if (data?.playtest !== undefined) window.playtesting?.set_enabled?.(data.playtest);
+                if (data?.playtest !== undefined) window.playtesting?.set_enabled?.(data.playtest, data.playtest_testing);
             } else if (server_unavailable_status(response.status)) {
                 result = { type: 'down' };
             } else {

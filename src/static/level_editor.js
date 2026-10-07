@@ -417,6 +417,7 @@ class LevelEditor {
                 // edits of the level shown so far become an undo step first
                 self.history_observe();
                 self.clear_selection();
+                if (index !== self.level_index) self.end_sprite_finder();
                 self.level_index = index;
                 self.layer_index = 0;
                 self.update_level_settings_head();
@@ -1965,10 +1966,104 @@ class LevelEditor {
             { label: count ? `Alle ${count} in dieser Ebene auswählen` : 'Alle in dieser Ebene auswählen', icon: 'fa-object-group',
                 disabled: !count, hint: count ? null : 'In dieser Ebene liegt keins davon.',
                 callback: () => this.select_all_of_sprite(sprite.id) },
+            this.find_sprite_menu_item(si),
             '-',
             { label: 'Duplizieren', icon: 'fa-clone', callback: () => { if (typeof duplicate_sprite === 'function') duplicate_sprite(si); },
                 hint: 'Ein neues Sprite als Kopie – zum Beispiel, um eine zweite Farbe davon zu malen.' },
         ];
+    }
+
+    // ------------------------------------------- Wo kommt es vor?
+    // Every placed copy of a sprite in this level, marked – in every layer,
+    // each where its layer is drawn (Parallaxe) – the view around them, and a
+    // label: how many here, and in which other levels. Ends with Esc, its ×,
+    // another level or another sprite to find.
+    find_sprite_menu_item(si) {
+        const sprite = this.game.data.sprites[si];
+        const entry = typeof sprite_usage === 'function' ? sprite_usage(this.game.data).get(sprite?.id) : null;
+        const here = entry?.levels.get(this.level_index) ?? 0;
+        return { label: here ? `Wo kommt es vor? (${here}× hier)` : 'Wo kommt es vor?', icon: 'fa-crosshairs',
+            hint: here ? 'Markiert jedes Exemplar in diesem Level, in allen Ebenen.' :
+                entry?.placed ? 'In diesem Level nicht – die Markierung sagt, in welchen Leveln.' : 'In keinem Level gesetzt.',
+            callback: () => this.find_sprite(si) };
+    }
+
+    find_sprite(si) {
+        const sprite = this.game.data.sprites[si];
+        const level = this.game.data.levels[this.level_index];
+        if (!sprite || !level) return;
+        const places = [];
+        (level.layers ?? []).forEach((layer, li) => {
+            if (layer?.type !== 'sprites' || !Array.isArray(layer.sprites)) return;
+            layer.sprites.forEach((placed, pi) => {
+                if (!Array.isArray(placed) || this.game.sprite_index_for_ref(placed[0]) !== si) return;
+                places.push({ layer_index: li, placed_index: pi, rect: placed_signal_rect(placed, sprite) });
+            });
+        });
+        this.end_sprite_finder();
+        this.sprite_finder = { id: sprite.id, si, level_index: this.level_index, places, groups: new Map() };
+        // one group per layer: it moves with its layer (render)
+        const fill = new THREE.MeshBasicMaterial({ color: 0xff4fd8, transparent: true, opacity: 0.28, depthTest: false });
+        const line = new THREE.LineBasicMaterial({ color: 0xff4fd8, depthTest: false });
+        for (const { layer_index, rect } of places) {
+            let group = this.sprite_finder.groups.get(layer_index);
+            if (!group) this.sprite_finder.groups.set(layer_index, group = new THREE.Group());
+            const pad = 1.5;
+            const [x0, y0, x1, y1] = [rect.x0 - pad, rect.y0 - pad, rect.x1 + pad, rect.y1 + pad];
+            const area = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, y1 - y0), fill);
+            area.position.set((x0 + x1) / 2, (y0 + y1) / 2, 2);
+            group.add(area);
+            const points = [[x0, y0], [x0, y1], [x1, y1], [x1, y0]].map(([x, y]) => new THREE.Vector3(x, y, 2));
+            group.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), line));
+        }
+        this.show_sprite_finder_label();
+        if (places.length) this.view_signal_rects(places.map(p => ({ rect: p.rect, layer_index: p.layer_index })));
+        this.render();
+    }
+
+    // "»Münze« · 12× in diesem Level (Welt 10, Deko 2) · auch in Level 2 (3×) ×"
+    show_sprite_finder_label() {
+        const finder = this.sprite_finder;
+        $(this.element).find('.sprite-finder-label').remove();
+        if (!finder) return;
+        const levels = this.game.data.levels;
+        const sprite = this.game.data.sprites[finder.si];
+        const usage = sprite_usage(this.game.data).get(finder.id);
+        const per_layer = new Map();
+        for (const p of finder.places) per_layer.set(p.layer_index, (per_layer.get(p.layer_index) ?? 0) + 1);
+        const layer_name = (li) => levels[this.level_index].layers[li]?.properties?.name || `Ebene ${li + 1}`;
+        const elsewhere = [...(usage?.levels ?? [])].filter(([li]) => li !== this.level_index)
+            .map(([li, n]) => `${level_display_name(levels, li)} (${n}×)`);
+        let text = `»${sprite_label(sprite, finder.si)}«: `;
+        if (finder.places.length) {
+            text += `${finder.places.length}× in diesem Level`;
+            if (per_layer.size > 1) text += ` (${[...per_layer].map(([li, n]) => `${layer_name(li)} ${n}`).join(', ')})`;
+            else text += ` (Ebene ${layer_name([...per_layer.keys()][0])})`;
+            if (elsewhere.length) text += ` · auch in ${elsewhere.join(', ')}`;
+        } else if (elsewhere.length) {
+            text += `nicht in diesem Level – aber in ${elsewhere.join(', ')}`;
+        } else {
+            text += usage?.needed ? 'in keinem Level gesetzt (ein anderes Sprite braucht es, z. B. als Angriffsbild oder Beute)'
+                : 'in keinem Level gesetzt – es wird nirgends benutzt';
+        }
+        const label = $('<div class="sprite-finder-label">').appendTo(this.element);
+        // the level view must not paint or pan through the label
+        label.on('mousedown touchstart dblclick wheel contextmenu', (e) => e.stopPropagation());
+        $('<i class="fa fa-crosshairs">').appendTo(label);
+        $('<span>').text(text).appendTo(label);
+        $('<button type="button" class="sprite-finder-close" title="Markierung beenden (Esc)">').append($('<i class="fa fa-times">'))
+            .on('click', () => { this.end_sprite_finder(); this.render(); }).appendTo(label);
+    }
+
+    end_sprite_finder() {
+        const finder = this.sprite_finder;
+        if (!finder) return false;
+        this.sprite_finder = null;
+        for (const group of finder.groups.values()) {
+            for (const child of group.children) child.geometry?.dispose?.();
+        }
+        $(this.element).find('.sprite-finder-label').remove();
+        return true;
     }
 
     duplicate_level(index) {
@@ -5014,6 +5109,14 @@ class LevelEditor {
             this.scene.add(this.grid_group);
         this.scene.add(this.selection_group);
         this.scene.add(this.rect_group);
+        // Wo kommt es vor?: the marks of this level, each with its layer's Parallaxe
+        if (this.sprite_finder?.level_index === this.level_index) {
+            for (const [li, group] of this.sprite_finder.groups) {
+                const parallax = this.game.data.levels[this.level_index].layers[li]?.properties?.parallax ?? 0;
+                group.position.set(this.camera_x * parallax, this.camera_y * parallax, 0);
+                this.scene.add(group);
+            }
+        }
 
         this.backdrop_index = null;
         if (['backdrop', 'signal_area', 'movement_region'].includes(this.game.data.levels[this.level_index].layers[this.layer_index].type))
@@ -5589,6 +5692,7 @@ class LevelEditor {
                 }),
             });
         }
+        const usage = typeof sprite_usage === 'function' ? sprite_usage(this.game.data) : null;
         for (let si = 0; si < this.game.data.sprites.length; si++) {
             this.game.update_material_for_sprite(si);
             let fi = Math.floor(this.game.data.sprites[si].states[0].frames.length / 2 - 0.5);
@@ -5598,7 +5702,11 @@ class LevelEditor {
             sprite_button.css('background-size', 'contain');
             sprite_button.css('image-rendering', 'pixelated');
             sprite_button.data('sprite_index', si);
-            sprite_button.attr('title', sprite_label(this.game.data.sprites[si], si));
+            // how much it is used (sprite_filter.js): "12× in 2 Leveln", "unbenutzt"
+            const use = usage?.get(this.game.data.sprites[si].id);
+            const used_text = !use ? '' : use.placed ? ` · ${use.placed}× in ${use.levels.size === 1 ? '1 Level' : `${use.levels.size} Leveln`}` :
+                use.needed ? ' · nicht gesetzt, aber gebraucht (Angriffsbild, Beute …)' : ' · unbenutzt';
+            sprite_button.attr('title', sprite_label(this.game.data.sprites[si], si) + used_text);
             sprite_button.on('contextmenu', (e) => {
                 show_context_menu(e.clientX, e.clientY, this.sprite_button_context_menu($(e.currentTarget).data('sprite_index')));
                 return false;
@@ -5713,7 +5821,8 @@ class LevelEditor {
             const [dx, dy] = e.shiftKey ? [ax, ay] : grid_step_delta(level_editor.current_sprite_layer()?.sprites ?? [],
                 level_editor.selection, ax, ay, level_editor.selection_grid());
             level_editor.nudge_selection(dx, dy);
-        } else if (!ctrl && selecting && e.key === 'Escape') level_editor.clear_selection();
+        } else if (!ctrl && e.key === 'Escape' && level_editor.end_sprite_finder()) level_editor.render();
+        else if (!ctrl && selecting && e.key === 'Escape') level_editor.clear_selection();
         else handled = false;
         if (!handled) return;
         e.preventDefault();

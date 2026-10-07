@@ -784,3 +784,28 @@ test('only a copy of oneself (the same name) can be removed', () => {
     assert.equal(collaboration_same_person('', ''), false);
     assert.equal(collaboration_same_person(null, 'Mia'), false);
 });
+
+// Playtesting: Einreichen in a session saves the session's game and needs
+// the version it made (playtesting.js submit)
+test('a shared save reports the version it made, or that it did not happen', () => {
+    const h = harness();
+    try {
+        const got = [];
+        h.client.shared_save_then((tag) => got.push(['saved', tag]), () => got.push(['failed']));
+        assert.deepEqual(h.sent.map(m => m.type), ['save']);
+        // a second one while it runs: refused, the first one goes on
+        h.client.shared_save_then((tag) => got.push(['second', tag]), () => got.push(['second failed']));
+        // somebody else's save is not ours
+        h.client.handle_message({ type: 'saved', tag: 'other12', saved_by_id: 'other', revision: 1 });
+        h.client.handle_message({ type: 'saved', tag: 'mine123', saved_by_id: 'me', revision: 2 });
+        assert.deepEqual(got, [['second failed'], ['saved', 'mine123']]);
+        // an error ends it
+        h.client.shared_save_then((tag) => got.push(['third', tag]), () => got.push(['third failed']));
+        h.client.handle_message({ type: 'save_error', error: 'save_failed' });
+        assert.deepEqual(got.at(-1), ['third failed']);
+        // without a connection: at once
+        h.client.connected = false;
+        h.client.shared_save_then(() => got.push(['fourth']), () => got.push(['fourth failed']));
+        assert.deepEqual(got.at(-1), ['fourth failed']);
+    } finally { h.restore(); }
+});

@@ -425,6 +425,7 @@ class CollaborationClient {
             this.save_after_sync = false;
             this.save_pending = false;
             if (window.game) window.game.currently_saving = false;
+            this.settle_save_waiter(null);
             this.stop_heartbeat();
             if (event.code === 4010) {
                 // The same participant joined again from another tab or window.
@@ -1278,6 +1279,25 @@ class CollaborationClient {
         };
     }
 
+    // A save for somebody who needs the version it makes (Playtesting:
+    // Einreichen – the team's game is the session's, playtesting.rb): the
+    // shared save, then on_saved(tag); on_failed() when it does not happen
+    // (no connection, a save under way, an error, the state loaded anew).
+    shared_save_then(on_saved, on_failed = null) {
+        if (this.save_waiter || this.save_pending || this.save_after_sync) { on_failed?.(); return; }
+        this.save_waiter = { on_saved, on_failed };
+        this.request_shared_save();
+        // refused at once (it said why)
+        if (!this.save_after_sync && !this.save_pending) this.settle_save_waiter(null);
+    }
+
+    settle_save_waiter(tag) {
+        const waiter = this.save_waiter;
+        this.save_waiter = null;
+        if (!waiter) return;
+        if (tag) waiter.on_saved?.(tag); else waiter.on_failed?.();
+    }
+
     request_shared_save() {
         if (!this.code) return this.original_game_save?.();
         if (!this.connected || this.socket?.readyState !== WebSocket.OPEN) {
@@ -1325,6 +1345,7 @@ class CollaborationClient {
         this.save_pending = false;
         if (window.game) window.game.currently_saving = false;
         if (message) this.show_temporary_notice(message, 5000);
+        this.settle_save_waiter(null);
     }
 
     handle_saved(message) {
@@ -1346,6 +1367,7 @@ class CollaborationClient {
             this.save_after_sync = false;
             this.save_pending = false;
             if (window.game) window.game.currently_saving = false;
+            this.settle_save_waiter(message.tag);
         }
         if (message.icon) {
             $('#save_notification img').attr('src', `noto/${message.icon}.png`);
@@ -1398,6 +1420,7 @@ class CollaborationClient {
         this.save_after_sync = false;
         this.save_pending = false;
         if (window.game) window.game.currently_saving = false;
+        this.settle_save_waiter(null);
         if (this.code) {
             sessionStorage.removeItem(this.participant_storage_key(this.code));
             sessionStorage.removeItem(this.name_storage_key(this.code));

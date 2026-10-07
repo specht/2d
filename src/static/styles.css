@@ -339,9 +339,40 @@ body {
 #menu_sprites ._dnd_item.sprite-selected>div,
 #menu_frames ._dnd_item.frame-selected>div {
     background-color: rgba(255, 205, 117, 0.35);
-    box-shadow: inset 0 -4px 0 #ffcd75;
 }
-
+/* The mark lies on top of the picture: a sprite without transparency covered
+   the tint and the bar underneath it. A frame and a tick in the corner. */
+#menu_sprites ._dnd_item.sprite-selected>div::after,
+#menu_frames ._dnd_item.frame-selected>div::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border: 3px solid #ffcd75;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px rgba(26, 28, 44, 0.9), 0 0 0 1px rgba(26, 28, 44, 0.9);
+    pointer-events: none;
+}
+#menu_sprites ._dnd_item.sprite-selected>div::before,
+#menu_frames ._dnd_item.frame-selected>div::before {
+    /* the tick of the icon font (fa-check): the studio's font has no ✓ */
+    content: '\f00c';
+    font-family: ForkAwesome;
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    z-index: 3;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ffcd75;
+    color: #1a1c2c;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+    box-shadow: 0 0 0 1px rgba(26, 28, 44, 0.9);
+    pointer-events: none;
+}
 /* sprite_preview.js: the animation, in the corner of the drawing area */
 .sprite-preview {
     position: absolute;
@@ -4185,6 +4216,50 @@ details.trait-advanced[open] > summary {
     color: #fff;
 }
 
+/* Wo kommt es vor? (level_editor.js find_sprite): what is marked, on top of
+   the level view, in the colour of the marks */
+.sprite-finder-label {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100% - 24px);
+    padding: 5px 6px 5px 12px;
+    border-radius: 16px;
+    border: 1px solid #ff4fd8;
+    background: rgba(18, 20, 32, 0.92);
+    color: #fff;
+    font-size: 13px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+.sprite-finder-label > .fa-crosshairs {
+    color: #ff4fd8;
+}
+.sprite-finder-close {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+}
+.sprite-finder-close:hover {
+    border: none;
+    background: rgba(255, 79, 216, 0.35);
+    color: #fff;
+}
+/* the chip that finds the sprites to tidy up */
+.sprite-filter-chip.sprite-filter-unused:not(.active) {
+    border-style: dashed;
+}
+
 /* A delayed connection: "⏱ 1,5 s" at the middle of its line (level_editor.js
    place_signal_link_labels) */
 .signal-link-labels {
@@ -5494,6 +5569,16 @@ button.pt-quiet {
     color: rgba(255, 255, 255, 0.6);
 }
 
+/* before the testing starts: how many games are in (playtesting.js render_waiting_card) */
+.pt-count {
+    margin: 4px 0 10px;
+    font-size: 18px;
+}
+.pt-count b {
+    font-size: 42px;
+    line-height: 1;
+    color: #ffcd75;
+}
 .pt-tested {
     margin: 0 0 12px 0;
     color: #a7f070;

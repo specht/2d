@@ -37,12 +37,67 @@ function sprite_filter_normalize(text) {
     return String(text ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 }
 
+// ------------------------------------------------ which sprites the game uses
+// After a lesson of importing, a game has dozens of sprites nobody placed.
+// usage: id → { placed (how often, all levels), levels (level index → count),
+// needed (another sprite or a level setting needs it: an attack picture, a
+// Beute, a level condition, "sendet, wenn die Spielfigur … hat") }. The
+// references are the ones game_ids.js knows (for_each_sprite_reference_in_sprite);
+// a sprite that only refers to itself is not needed by that.
+function sprite_usage(data) {
+    const sprites = Array.isArray(data?.sprites) ? data.sprites : [];
+    const usage = new Map(sprites.map(s => [s?.id, { placed: 0, levels: new Map(), needed: false }]));
+    const id_of = (ref, key_id = null) => {
+        if (typeof key_id === 'string') return key_id;
+        if (typeof ref === 'string') return ref;
+        return Number.isInteger(ref) ? sprites[ref]?.id ?? null : null;
+    };
+    (Array.isArray(data?.levels) ? data.levels : []).forEach((level, li) => {
+        for (const layer of Array.isArray(level?.layers) ? level.layers : []) {
+            if (layer?.type !== 'sprites' || !Array.isArray(layer.sprites)) continue;
+            for (const placed of layer.sprites) {
+                const entry = usage.get(id_of(Array.isArray(placed) ? placed[0] : null));
+                if (!entry) continue;
+                entry.placed += 1;
+                entry.levels.set(li, (entry.levels.get(li) ?? 0) + 1);
+            }
+        }
+        for (const condition of Array.isArray(level?.conditions) ? level.conditions : []) {
+            const props = condition?.properties;
+            const entry = props && usage.get(id_of(props.sprite_index, props.sprite_id));
+            if (entry) entry.needed = true;
+        }
+        for (const item of Array.isArray(level?.properties?.item_signals) ? level.properties.item_signals : []) {
+            const entry = item && usage.get(id_of(item.sprite_index, item.sprite_id));
+            if (entry) entry.needed = true;
+        }
+    });
+    if (typeof for_each_sprite_reference_in_sprite === 'function') {
+        for (const sprite of sprites) {
+            for_each_sprite_reference_in_sprite(sprite, (container, index_key, id_key) => {
+                const id = id_of(container[index_key], container[id_key]);
+                if (id && id !== sprite?.id && usage.has(id)) usage.get(id).needed = true;
+            });
+        }
+    }
+    return usage;
+}
+
+// The ids of the sprites the game does not use anywhere (placed nowhere,
+// needed by nothing): what can go when tidying up.
+function unused_sprite_ids(data) {
+    const result = new Set();
+    for (const [id, entry] of sprite_usage(data)) if (id && !entry.placed && !entry.needed) result.add(id);
+    return result;
+}
+
 // Does sprite (at index) pass the filter { query, kind, ids }?
 //   query: words that must all occur in its label (Titel or "Sprite N") or the name of its kind
-//   kind:  a SPRITE_KINDS id, or null for all; 'used' keeps only the sprites whose id is in ids
+//   kind:  a SPRITE_KINDS id, or null for all; 'used' ("Im Level") and
+//          'unused' ("Unbenutzt") keep only the sprites whose id is in ids
 function sprite_filter_matches(sprite, index, filter = {}) {
     const kinds = sprite_kinds(sprite);
-    if (filter.kind === 'used') {
+    if (filter.kind === 'used' || filter.kind === 'unused') {
         if (!filter.ids?.has?.(sprite?.id)) return false;
     } else if (filter.kind && !kinds.includes(filter.kind)) return false;
     const words = sprite_filter_normalize(filter.query).split(/\s+/).filter(Boolean);
@@ -57,15 +112,19 @@ function sprite_filter_matches(sprite, index, filter = {}) {
 //   container:  where the controls go
 //   sprites:    () => the game's sprites
 //   used_ids:   optional () => Set of sprite ids "in diesem Level" (offers that chip)
+//   unused_ids: () => Set of the sprites used nowhere ("Unbenutzt"); by
+//               default those of the studio's game – both lists show it
 //   on_change:  (filter) => hide / show the buttons
 // Shown only when there is something to find: from MIN_SPRITES sprites on.
 class SpriteFilter {
     static MIN_SPRITES = 13;
 
-    constructor({ container, sprites, used_ids = null, on_change }) {
+    constructor({ container, sprites, used_ids = null, on_change,
+        unused_ids = () => (typeof game !== 'undefined' && game?.data ? unused_sprite_ids(game.data) : new Set()) }) {
         this.container = $(container);
         this.sprites = sprites;
         this.used_ids = used_ids;
+        this.unused_ids = unused_ids;
         this.on_change = on_change;
         this.query = '';
         this.kind = null;
@@ -88,8 +147,15 @@ class SpriteFilter {
         this.refresh();
     }
 
+    // a chip chosen from elsewhere (the sprite list's menu: "Unbenutzte zeigen")
+    set_kind(kind) {
+        this.kind = kind;
+        this.refresh();
+    }
+
     filter() {
-        return { query: this.query, kind: this.kind, ids: this.kind === 'used' ? this.used_ids?.() : null };
+        const ids = this.kind === 'used' ? this.used_ids?.() : this.kind === 'unused' ? this.unused_ids?.() : null;
+        return { query: this.query, kind: this.kind, ids };
     }
 
     active() {
@@ -102,13 +168,18 @@ class SpriteFilter {
         const shown = sprites.length >= SpriteFilter.MIN_SPRITES || this.active();
         this.container.toggle(shown);
         const kinds = sprite_filter_kinds_in(sprites);
-        if (this.kind && this.kind !== 'used' && !kinds.some(k => k.id === this.kind)) this.kind = null;
+        const unused = this.unused_ids?.()?.size ?? 0;
+        if (this.kind === 'unused' && !unused) this.kind = null;
+        if (this.kind && this.kind !== 'used' && this.kind !== 'unused' && !kinds.some(k => k.id === this.kind)) this.kind = null;
         this.chips.empty();
         const chip = (id, label, title) => $('<button type="button" class="sprite-filter-chip">').text(label).attr('title', title)
             .toggleClass('active', this.kind === id).appendTo(this.chips)
             .on('click', () => { this.kind = this.kind === id ? null : id; this.refresh(); });
         chip(null, 'Alle', 'Alle Sprites zeigen');
         if (this.used_ids) chip('used', 'Im Level', 'Nur die Sprites, die in diesem Level schon vorkommen');
+        // tidying up: what no level has and nothing else needs
+        if (unused) chip('unused', `Unbenutzt (${unused})`, 'Nur die Sprites, die in keinem Level vorkommen und die auch kein anderes Sprite braucht (als Angriffsbild, Beute …). Zum Aufräumen: im Tab „Sprites“ mit Shift anklicken und löschen.')
+            .addClass('sprite-filter-unused');
         // one kind only is no filter
         if (kinds.length > 1)
             for (const kind of kinds) chip(kind.id, kind.label, `${kind.label}: ${kind.count}`);
@@ -132,5 +203,6 @@ class SpriteFilter {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { SPRITE_KINDS, sprite_kinds, sprite_filter_kinds_in, sprite_filter_matches, sprite_filter_normalize };
+    module.exports = { SPRITE_KINDS, sprite_kinds, sprite_filter_kinds_in, sprite_filter_matches, sprite_filter_normalize,
+        sprite_usage, unused_sprite_ids };
 }

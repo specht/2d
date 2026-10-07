@@ -158,6 +158,16 @@ class CollaborationStoreTest < Minitest::Test
         assert_nil @store.source_tag(code: "nothere")
     end
 
+    # the moderation page's playtesting view: which game, who is in it
+    def test_summaries_name_the_game_and_who_is_connected
+        @store.create(state: @state, source_tag: "abc1234")
+        mia = @store.join(code: "session", name: "Mia")
+        @store.join(code: "session", name: "Ben")
+        @store.leave(code: "session", participant_id: mia[:participant_id], connection_id: mia[:connection_id])
+        summary = @store.summaries.first
+        assert_equal ["session", "abc1234", "Gemeinsam", ["Ben"]], summary.values_at(:key, :source_tag, :title, :names)
+    end
+
     def test_reconnect_tokens_are_never_shown_to_others
         @store.create(state: @state)
         mia = @store.join(code: "session", name: "Mia")

@@ -12,8 +12,11 @@
     server with an open session. It opens Live: every few seconds the versions
     saved since bring their new pictures and texts on top (page_stream), and
     beside them today's open Fehlerberichte with the text of ./errors.rb show
-    to copy (client_errors.rb dashboard) – a workshop at a glance. Everything a game holds is shown as text
-    (textContent), never as HTML.
+    to copy (client_errors.rb dashboard) – a workshop at a glance. Playtesting
+    shows the round as the class plays it (playtesting.rb class_view): every
+    child and whether their game (or their team's) is in the pot, the games
+    with their teams and tests, the live sessions, and every survey as it
+    arrives. Everything a game holds is shown as text (textContent), never as HTML.
 -->
 <style>
     :root {
@@ -121,6 +124,48 @@
     details.recovered .err .n { font-weight: 600; }
     #newer { position: fixed; top: 112px; left: 50%; transform: translateX(-50%); z-index: 6; background: var(--accent); color: #fff;
         border: none; border-radius: 18px; padding: 6px 16px; box-shadow: 0 2px 10px rgba(0, 0, 0, .25); }
+    /* Playtesting (show_playtest) */
+    button.pt-mode { display: inline-flex; align-items: center; gap: 6px; }
+    button.pt-mode.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+    button.pt-mode .dot.on { background: var(--ok); }
+    main.dashboard > #feedback { grid-column: 2; grid-row: 2 / span 2; position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow-y: auto;
+        background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    @media (max-width: 1000px) { main.dashboard > #feedback { grid-column: 1; grid-row: auto; position: static; max-height: none; } }
+    .pt-section { margin-bottom: 18px; }
+    .pt-section h2, #feedback h2 { font-size: 16px; margin: 0 0 8px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+    .pt-section h2 .sum { font-weight: 400; color: var(--muted); font-size: 14px; }
+    table.pt { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 14px; }
+    table.pt th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; padding: 7px 10px; border-bottom: 1px solid var(--line); background: var(--bg); }
+    table.pt td { padding: 6px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+    table.pt tr:first-child td { border-top: none; }
+    table.pt td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    table.pt tr.missing td { background: var(--danger-bg); }
+    table.pt tr.clickable { cursor: pointer; }
+    table.pt tr.clickable:hover td { background: var(--bg); }
+    table.pt tr.chosen td { background: color-mix(in srgb, var(--accent) 14%, var(--card)); }
+    .ok { color: var(--ok); font-weight: 600; }
+    .no { color: var(--danger); font-weight: 600; }
+    .online { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--line); margin-right: 6px; vertical-align: 1px; }
+    .online.on { background: var(--ok); }
+    .team { color: var(--muted); font-size: 13px; }
+    .phase { font-size: 12px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); white-space: nowrap; }
+    .phase.survey { color: var(--accent); border-color: currentColor; }
+    .fb { border-top: 1px solid var(--line); padding: 9px 0; }
+    .fb:first-of-type { border-top: none; }
+    .fb .top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+    .fb .who { font-weight: 600; }
+    .fb .scores { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    .fb .text { margin: 4px 0 0; padding: 6px 9px; border-radius: 6px; background: var(--bg); overflow-wrap: anywhere; white-space: pre-wrap; font-size: 14px; }
+    .fb .text b { font-weight: 600; }
+    .fb.fresh { animation: fresh 6s ease-out; border-radius: 6px; }
+    .fb .badge.broken { color: var(--danger); border-color: currentColor; }
+    #feedback .filter { color: var(--muted); font-size: 13px; margin: -2px 0 6px; }
+    .pt-controls { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    .pt-controls .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .pt-controls label { color: var(--text); }
+    .pt-controls select { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    .pt-section .hint { color: var(--muted); font-size: 13px; margin: 6px 2px 0; }
     #closed { position: fixed; inset: 0; background: rgba(0, 0, 0, .6); display: none; place-items: center; z-index: 20; }
     #closed div { background: var(--card); padding: 24px 28px; border-radius: 12px; max-width: 420px; }
     #zoom { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: none; place-items: center; z-index: 10; cursor: zoom-out; }
@@ -138,6 +183,7 @@
             <button type="submit">Suchen</button>
             <button type="button" id="list">Alle Versionen</button>
             <button type="button" id="live" class="live" title="Neue Bilder und Texte zeigen, sobald ein Spiel gespeichert wird"><span class="dot"></span>Live</button>
+            <button type="button" id="playtest" class="pt-mode" title="Playtesting: wer hat sein Spiel eingereicht, wie weit ist jedes Kind und jedes Spiel, alle Rückmeldungen"><span class="dot"></span>Playtesting</button>
             <button type="button" id="fullscreen" title="Die Seite im Vollbild (F11 geht auch)">⤢ Vollbild</button>
         </form>
         <span id="clock"></span>
@@ -153,6 +199,8 @@
     <button id="more" hidden>Weitere zeigen</button>
     <!-- Live: the Fehlerberichte beside the new pictures and texts -->
     <aside id="errors" hidden></aside>
+    <!-- Playtesting: the surveys beside the class and the games -->
+    <aside id="feedback" hidden></aside>
 </main>
 <button id="newer" type="button" hidden></button>
 <div id="zoom"><figure><img alt=""><figcaption></figcaption></figure></div>
@@ -230,6 +278,9 @@ function tick() {
 async function status() {
     try {
         const data = await api('status');
+        $('playtest').querySelector('.dot').classList.toggle('on', !!data.playtest);
+        $('playtest').title = data.playtest ? 'Playtesting läuft: wer hat eingereicht, wie weit ist jedes Kind und jedes Spiel, alle Rückmeldungen'
+            : 'Playtesting ist gerade aus (./playtest.rb on) – hier steht, was die letzte Runde ergeben hat';
         state.expires = data.expires_at;
         state.offset_now = data.now - Date.now() / 1000;
         tick();
@@ -428,6 +479,7 @@ async function search(query) {
 function stop_live() {
     clearTimeout(live.timer);
     live.timer = null;
+    stop_playtest();
     $('live').classList.remove('on');
     $('filters').hidden = false;
     $('errors').hidden = true;
@@ -636,6 +688,212 @@ function show_errors(data) {
     count_unseen(changed);
 }
 
+// ---------------------------------------------------------------- Playtesting
+// The round as the class plays it (playtesting.rb class_view), every few
+// seconds: every child (who has nothing in the pot comes first), the games
+// with their teams, the live sessions, and every survey as it arrives.
+const PLAYTEST_EVERY_MS = 4000;
+const pt = { timer: null, busy: false, seen_feedback: null, game: null, data: null };
+
+function stop_playtest() {
+    clearTimeout(pt.timer);
+    pt.timer = null;
+    $('playtest').classList.remove('on');
+    $('feedback').hidden = true;
+}
+
+function show_playtest() {
+    stop_live();
+    state.mode = 'playtest';
+    pt.seen_feedback = null;
+    pt.game = null;
+    $('games').replaceChildren();
+    $('more').hidden = true;
+    $('filters').hidden = true;
+    document.querySelector('main').classList.add('dashboard');
+    document.body.classList.add('dashboard');
+    $('feedback').hidden = false;
+    $('feedback').replaceChildren(el('h2', {}, 'Rückmeldungen'), el('div', { class: 'hint' }, 'Werden gelesen …'));
+    $('playtest').classList.add('on');
+    show_status('Playtesting wird gelesen …');
+    poll_playtest();
+}
+
+async function poll_playtest() {
+    if (state.mode !== 'playtest' || pt.busy || state.closed) return;
+    pt.busy = true;
+    try {
+        const data = await api('playtest');
+        if (state.mode === 'playtest') show_playtest_data(data);
+    } catch (e) {
+        if (e.message !== 'closed') show_status(el('span', { class: 'error' }, `Playtesting: ${e.message} Es wird gleich noch einmal versucht.`));
+    } finally {
+        pt.busy = false;
+        if (state.mode === 'playtest' && !state.closed) pt.timer = setTimeout(poll_playtest, PLAYTEST_EVERY_MS);
+    }
+}
+
+function clock_text(seconds) {
+    const s = Math.max(0, Math.round(seconds));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+function time_of(iso) {
+    return iso ? new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+}
+function stars(value) {
+    if (value === null || value === undefined) return '–';
+    const full = Math.round(value);
+    return `${'★'.repeat(full)}${'☆'.repeat(5 - full)} ${String(value).replace('.', ',')}`;
+}
+
+function show_playtest_data(data) {
+    pt.data = data;
+    const kids = data.kids ?? [];
+    const in_pot = kids.filter(k => k.game?.submitted).length;
+    const running = data.running ?? [];
+    show_status(el('span', { class: `dot ${data.enabled ? 'on' : 'paused'}` }),
+        !data.enabled ? 'Playtesting ist aus – die Kinder sehen den Tab nicht.' :
+            data.testing ? `Das Testen läuft seit ${time_of(data.testing_since)}.` :
+            data.finished ? 'Das Testen ist beendet – wer noch ein Spiel einreicht, wartet auf den nächsten Start.' : 'Die Kinder reichen ihre Spiele ein – das Testen hat noch nicht begonnen.',
+        ` Runde seit ${time_of(data.round)} · ${plural(data.finished ?? 0, 'Rückmeldung', 'Rückmeldungen')} · ${running.length} ${running.length === 1 ? 'testet' : 'testen'} gerade` +
+        (data.abandoned ? ` · ${data.abandoned} abgebrochen` : ''));
+
+    // the class: every child, who has nothing in the pot first
+    const kid_row = (k) => {
+        let game;
+        if (k.game?.submitted) game = el('span', {}, el('span', { class: 'ok' }, '✓ '), `»${k.game.title}«`,
+            el('span', { class: 'team' }, k.game.team ? ' – im Team' : ' – allein'));
+        else if (k.game) game = el('span', {}, el('span', { class: 'no' }, '✗ '), `Sitzung »${k.game.title || 'ohne Titel'}« – nicht eingereicht`,
+            el('span', { class: 'team' }, k.game.names?.length ? ` (${k.game.names.join(', ')})` : ''));
+        else game = el('span', { class: 'no' }, '✗ noch nichts eingereicht');
+        const now = k.running ? el('span', {}, `»${k.running.title}« `, el('span', { class: `phase ${k.running.phase}` },
+            k.running.phase === 'play' ? `spielt noch ${clock_text(k.running.seconds_left)}` : 'füllt die Umfrage aus')) : '';
+        return el('tr', { class: k.game?.submitted ? '' : 'missing' },
+            el('td', {}, el('span', { class: `online${k.online ? ' on' : ''}`, title: k.online ? 'Studio gerade offen' : 'seit über einer Minute nicht gesehen' }),
+                k.name ?? el('span', { class: 'team' }, '(noch ohne Namen)')),
+            el('td', {}, game),
+            el('td', { class: 'num' }, `${k.done}`),
+            el('td', {}, now),
+            el('td', { class: 'num', title: k.left === null ? 'testet nicht mit – hat kein Spiel im Topf' : null }, k.left === null ? '–' : `${k.left}`));
+    };
+    const class_section = el('section', { class: 'pt-section' },
+        el('h2', {}, 'Klasse', el('span', { class: 'sum' }, kids.length
+            ? `${in_pot} von ${kids.length} haben ihr Spiel oder ihr Team-Spiel im Topf` : 'noch niemand – sobald jemand das Studio offen hat, steht er hier')),
+        kids.length ? el('table', { class: 'pt' },
+            el('tr', {}, el('th', {}, 'Name'), el('th', {}, 'Spiel'), el('th', { class: 'num' }, 'getestet'), el('th', {}, 'gerade'), el('th', { class: 'num' }, 'noch offen')),
+            ...kids.map(kid_row)) : null,
+        el('div', { class: 'hint' }, 'Namen: der Vorname vom Testen, sonst der Name in der gemeinsamen Sitzung, sonst der Autor des offenen Spiels. Wer das Studio auf zwei Rechnern offen hat, steht zweimal da.'));
+
+    // the games in the pot
+    const games = (data.games ?? []).filter(g => !g.withdrawn);
+    const game_row = (g) => el('tr', { class: `clickable${pt.game === g.id ? ' chosen' : ''}`, title: 'Klick: nur die Rückmeldungen zu diesem Spiel',
+        onclick: () => { pt.game = pt.game === g.id ? null : g.id; show_playtest_data(pt.data); } },
+        el('td', {}, el('div', { class: 'name' }, `»${g.title}«`), el('div', { class: 'team' },
+            g.team?.length ? g.team.join(', ') : g.author, g.in_session ? ' · gerade in einer Sitzung' : '')),
+        el('td', { class: 'num' }, `${g.done}`),
+        el('td', { class: 'num' }, g.running ? `${g.running}` : ''),
+        el('td', { class: 'num' }, `${g.left}`),
+        el('td', { class: 'num' }, stars(g.fun)),
+        el('td', { class: 'num' }, g.broken ? el('span', { class: 'no' }, `${g.broken}`) : ''),
+        el('td', {}, el('a', { href: `/play/${g.tag}`, target: '_blank', rel: 'noopener', onclick: (e) => e.stopPropagation() }, 'spielen')));
+    const games_section = el('section', { class: 'pt-section' },
+        el('h2', {}, 'Spiele im Topf', el('span', { class: 'sum' }, plural(games.length, 'Spiel', 'Spiele'))),
+        games.length ? el('table', { class: 'pt' },
+            el('tr', {}, el('th', {}, 'Spiel und Team'), el('th', { class: 'num' }, 'getestet'), el('th', { class: 'num' }, 'läuft'),
+                el('th', { class: 'num' }, 'noch möglich'), el('th', { class: 'num' }, 'Spaß'), el('th', { class: 'num' }, 'geht nicht'), el('th', {}, '')),
+            ...games.map(game_row)) : el('div', { class: 'none' }, 'Noch kein Spiel eingereicht.'));
+
+    // live sessions: a team that has not submitted shows up here
+    const sessions = data.sessions ?? [];
+    const sessions_section = sessions.length ? el('section', { class: 'pt-section' },
+        el('h2', {}, 'Gemeinsame Sitzungen', el('span', { class: 'sum' }, plural(sessions.length, 'Sitzung', 'Sitzungen'))),
+        el('table', { class: 'pt' },
+            el('tr', {}, el('th', {}, 'Spiel'), el('th', {}, 'wer gerade drin ist'), el('th', {}, 'im Topf?')),
+            ...sessions.map(x => el('tr', { class: x.submitted ? '' : 'missing' },
+                el('td', {}, `»${x.title || 'ohne Titel'}«`), el('td', {}, x.names.join(', ') || '–'),
+                el('td', {}, x.submitted ? el('span', { class: 'ok' }, '✓ eingereicht') : el('span', { class: 'no' }, '✗ nicht eingereicht')))))) : null;
+    $('games').replaceChildren(...[playtest_controls(data, in_pot, kids.length), class_section, games_section, sessions_section].filter(Boolean));
+    show_feedback(data);
+}
+
+// The teacher's switches (playtesting.rb control): the tab on or off, the
+// testing started or ended, how long a test runs. First everybody submits;
+// only who has a game in the round gets one to test.
+function playtest_controls(data, in_pot, kids) {
+    const act = async (action, extra = {}, button = null) => {
+        if (button) button.disabled = true;
+        try {
+            const result = await api('playtest_control', { action, ...extra });
+            if (result.error) throw new Error('Das ging nicht.');
+            show_playtest_data(result);
+        } catch (e) {
+            if (e.message !== 'closed') show_status(el('span', { class: 'error' }, `Playtesting: ${e.message}`));
+            if (button) button.disabled = false;
+        }
+    };
+    const minutes = el('select', { title: 'So lange spielt jedes Kind ein Spiel, dann kommt die Umfrage',
+        onchange: (e) => act('minutes', { minutes: Number(e.target.value) }) },
+        ...[1, 2, 3, 4, 5, 6, 8, 10, 15].map(n => { const o = el('option', { value: n }, `${n} min`); if (n === data.minutes) o.selected = true; return o; }));
+    let main_button;
+    if (!data.enabled) {
+        main_button = el('button', { type: 'button', class: 'primary', onclick: (e) => act('on', {}, e.currentTarget) }, 'Playtesting einschalten');
+    } else if (!data.testing) {
+        main_button = el('button', { type: 'button', class: 'primary', title: 'Ab jetzt bekommt jedes Kind mit einem Spiel im Topf Spiele zum Testen',
+            onclick: (e) => act('start', {}, e.currentTarget) }, `▶ Testen starten (${plural(data.games.filter(g => !g.withdrawn).length, 'Spiel', 'Spiele')} im Topf)`);
+    } else {
+        main_button = el('button', { type: 'button', class: 'danger', title: 'Niemand bekommt mehr ein neues Spiel; wer gerade testet, spielt zu Ende und schickt die Umfrage ab',
+            onclick: (e) => act('stop', {}, e.currentTarget) }, '■ Testen beenden');
+    }
+    const off = data.enabled ? el('button', { type: 'button', title: 'Den Tab Playtesting ausblenden (die Runde bleibt, wie sie ist)',
+        onclick: (e) => act('off', {}, e.currentTarget) }, 'Playtesting ausschalten') : null;
+    const step = !data.enabled ? 'Schalte Playtesting ein: Die Kinder sehen den Tab und reichen ihre Spiele ein.' :
+        !data.testing ? `Die Kinder reichen ein (${in_pot} von ${kids} haben ein Spiel im Topf). Wenn alle dabei sind: Testen starten.` :
+        'Jedes Kind mit einem Spiel im Topf bekommt Spiele zum Testen – nie das eigene, keins zweimal.';
+    return el('section', { class: 'pt-section pt-controls' },
+        el('div', { class: 'row' }, main_button, el('label', {}, 'Ein Test dauert ', minutes), off),
+        el('div', { class: 'hint' }, step, ' Eine neue Runde und die Rückmeldungen zum Drucken: ./playtest.rb reset und ./playtest.rb pdf.'));
+}
+
+// every survey, the newest first; new ones light up
+function show_feedback(data) {
+    const questions = new Map((data.questions ?? []).map(q => [q.id, q]));
+    const all = data.feedback ?? [];
+    const first = pt.seen_feedback === null;
+    const seen = pt.seen_feedback ?? new Set();
+    const chosen = pt.game ? (data.games ?? []).find(g => g.id === pt.game) : null;
+    const list = chosen ? all.filter(f => f.game === chosen.id) : all;
+    const faces = ['😖', '🙁', '😐', '🙂', '😄'];
+    const choice = (id, value) => questions.get(id)?.options?.find(o => o[0] === value)?.[1] ?? value;
+    let fresh_count = 0;
+    const item = (f) => {
+        const key = `${f.at}|${f.name}|${f.title}`;
+        const fresh = !first && !seen.has(key);
+        if (fresh) fresh_count += 1;
+        const a = f.answers ?? {};
+        const scores = ['fun', 'looks', 'animation', 'controls', 'fair', 'story', 'mood']
+            .filter(id => a[id]).map(id => `${questions.get(id)?.short ?? id} ${faces[a[id] - 1]}`);
+        const choices = ['difficulty', 'reached', 'bugs'].filter(id => a[id]).map(id => choice(id, a[id]));
+        const text = (label, value) => value ? el('div', { class: 'text' }, el('b', {}, label), ' ', value) : null;
+        return el('div', { class: `fb${fresh ? ' fresh' : ''}` },
+            el('div', { class: 'top' }, el('span', { class: 'who' }, f.name || '(ohne Namen)'), '→', el('span', {}, `»${f.title}«`),
+                el('span', { class: 'meta' }, time_of(f.at)), a.broken ? el('span', { class: 'badge broken' }, 'Spiel lief nicht') : null),
+            scores.length || choices.length ? el('div', { class: 'scores' }, [...scores, ...choices].join(' · ')) : null,
+            text('👍', a.good), text('💡', a.better), text('🐞', a.bug_text));
+    };
+    const items = list.map(item);
+    pt.seen_feedback = new Set(all.map(f => `${f.at}|${f.name}|${f.title}`));
+    const box = $('feedback');
+    const scroll = box.scrollTop;
+    box.replaceChildren(
+        el('h2', {}, 'Rückmeldungen', el('span', { class: 'sum' }, `${list.length}`)),
+        chosen ? el('div', { class: 'filter' }, `nur zu »${chosen.title}« – `,
+            el('a', { href: '#', onclick: (e) => { e.preventDefault(); pt.game = null; show_playtest_data(pt.data); } }, 'alle zeigen')) :
+            el('div', { class: 'filter' }, 'Klick auf ein Spiel links: nur seine Rückmeldungen.'),
+        ...(items.length ? items : [el('div', { class: 'none' }, 'Noch keine Rückmeldung. Sobald jemand eine Umfrage abschickt, steht sie hier.')]));
+    box.scrollTop = scroll;
+    count_unseen(fresh_count);
+}
+
 // ---------------------------------------------------------------- Vollbild
 // the dashboard on a screen of its own (F11 does the same)
 function toggle_fullscreen() {
@@ -650,6 +908,7 @@ document.addEventListener('fullscreenchange', show_fullscreen_state);
 if (!document.fullscreenEnabled) $('fullscreen').hidden = true;
 
 $('live').addEventListener('click', () => show_live());
+$('playtest').addEventListener('click', () => show_playtest());
 $('newer').addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); });
 window.addEventListener('scroll', () => {
     if (window.scrollY <= 80 && !$('newer').hidden) { $('newer').hidden = true; live.newer = 0; }
