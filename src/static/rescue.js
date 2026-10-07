@@ -240,6 +240,8 @@ class StudioRescue {
 // after which the studio brings the work back by itself. Used by the update
 // banner (server_watch.js) and the robot (crash_report.js).
 async function studio_reload_keeping_work() {
+    // the studio never started (a script did not arrive): nothing here to keep
+    if (typeof game === 'undefined' || !game) return studio_reload_now();
     const rescue = window.studio_rescue;
     const safe = rescue ? await rescue.save_now() : false;
     let unsaved = true;
@@ -253,7 +255,7 @@ async function studio_reload_keeping_work() {
             body: `<div class="collab-dialog"><p class="collab-lead">Dieser Browser kann deine Arbeit nicht zwischenspeichern. Speichere dein Spiel, bevor du die Seite neu lädst – sonst ist weg, was du seit dem letzten Speichern gemacht hast.</p></div>`,
             footer: [
                 { type: 'button', label: 'Trotzdem neu laden', enter: false, callback: (self) => { self.dismiss(); studio_reload_now(); } },
-                { type: 'button', label: 'Speichern', color: 'green', callback: (self) => { self.dismiss(); game.save(); } },
+                { type: 'button', label: 'Speichern', color: 'green', callback: (self) => { self.dismiss(); window.game?.save?.(); } },
             ],
         });
         dialog.show();

@@ -469,7 +469,8 @@ function clear_frame_selection() {
 }
 
 function mark_frame_selection() {
-    if (typeof $ === 'undefined') return;
+    // (a page whose studio.js never arrived has neither: studio.html reloads it)
+    if (typeof $ === 'undefined' || typeof game === 'undefined' || typeof canvas === 'undefined') return;
     const chosen = new Set(selected_frames().length > 1 ? selected_frames() : []);
     $('#menu_frames > ._dnd_item').each((i, el) => $(el).toggleClass('frame-selected', chosen.has(i)));
 }

@@ -17,6 +17,38 @@
         window.DEVELOPMENT = '#{DEVELOPMENT ? '1' : '0'}' === '1';
         window.COLLABORATION = '#{COLLABORATION_ENABLED ? '1' : '0'}' === '1';
     </script>
+    <script>
+        // A script that did not arrive (the server restarting while the page
+        // loads, a dropped connection): the studio cannot start, and the curtain
+        // would stay forever. The page loads again by itself – once a minute at
+        // most; if that does not help, the curtain says so and has a button.
+        (function () {
+            var KEY = '2d-script-retry';
+            var failed = false;
+            function show() {
+                var laden = document.querySelector('#curtain .laden');
+                if (!laden) return document.addEventListener('DOMContentLoaded', show);
+                laden.textContent = 'Das Studio konnte nicht ganz geladen werden. ';
+                var button = document.createElement('button');
+                button.textContent = 'Neu laden';
+                button.style.cssText = 'margin-left: 0.5em; font: inherit; cursor: pointer;';
+                button.onclick = function () { location.reload(); };
+                laden.appendChild(button);
+            }
+            window.addEventListener('error', function (e) {
+                var t = e.target;
+                if (failed || !t || t.tagName !== 'SCRIPT' || !t.src) return;
+                // only while the studio has not started: later, nothing is lost by waiting
+                if (window.game) return;
+                failed = true;
+                var last = 0;
+                try { last = Number(sessionStorage.getItem(KEY)) || 0; } catch (x) { return show(); }
+                if (Date.now() - last < 60 * 1000) return show();
+                try { sessionStorage.setItem(KEY, String(Date.now())); } catch (x) { return show(); }
+                setTimeout(function () { window.studio_reloading = true; location.reload(); }, 1500);
+            }, true);
+        })();
+    </script>
     <!-- defer: the page (and its "wird geladen" curtain) shows at once; the
          scripts still run in this order, before DOMContentLoaded -->
     <script defer src="jquery-3.6.0.min.js"></script>

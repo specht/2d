@@ -80,7 +80,7 @@ class Playtesting {
         const extra = {};
         const session = window.collaboration?.code;
         if (session) extra.session = session;
-        const open_tag = game?.data?.parent;
+        const open_tag = window.game?.data?.parent;
         if (typeof open_tag === 'string' && /^[a-z0-9]{7}$/.test(open_tag)) extra.open_tag = open_tag;
         return new Promise((resolve) => {
             api_call(`/api/playtest/${path}`, { browser: this.browser, ...extra, ...data }, (result) => resolve(result));
@@ -476,7 +476,8 @@ class Playtesting {
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     window.playtesting = new Playtesting();
-    document.addEventListener('DOMContentLoaded', () => setTimeout(() => window.playtesting.refresh(), 500));
+    // (not on a page whose studio never started: studio.html loads it again)
+    document.addEventListener('DOMContentLoaded', () => setTimeout(() => { if (window.game) window.playtesting.refresh(); }, 500));
 }
 
 if (typeof module !== 'undefined' && module.exports) {
