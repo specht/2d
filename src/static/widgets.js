@@ -1115,9 +1115,9 @@ class CheckboxWidget {
         if (data.key) label.append(' ').append($('<span>').addClass('key widget-key').text(data.key));
         div.append(label);
         this.input = $(`<button class='btn-checkbox' data-state='${this.data.get()}'>`);
-        // label.click(function(e) {
-        //     self.input.click();
-        // });
+        // like a real checkbox: a click or a tap on its words toggles it, too
+        // (through the box itself, so a disabled one stays as it is)
+        label.addClass('checkbox-label').on('click', () => this.input[0].click());
         this.input.click(function(e) {
             let flag = self.input.attr('data-state') === 'true';
             flag = !flag;

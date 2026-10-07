@@ -1480,6 +1480,13 @@ button.btn-checkbox {
     background-size: 14px 14px;
 }
 
+/* the words of a CheckboxWidget toggle it, too (widgets.js) */
+.checkbox-label {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
 button.btn-checkbox:hover {
     border-color: rgba(255, 255, 255, 0.9);
 }
@@ -5567,6 +5574,22 @@ button.pt-big:active {
 button.pt-quiet {
     background: transparent;
     color: rgba(255, 255, 255, 0.6);
+}
+
+/* the class code (playtesting.js render_code_card) */
+.pt-code-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 8px;
+}
+.pt-code-input {
+    width: 7em;
+    padding: 8px 12px;
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
 }
 
 /* before the testing starts: how many games are in (playtesting.js render_waiting_card) */

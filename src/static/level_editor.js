@@ -4813,6 +4813,10 @@ class LevelEditor {
         this.camera.top = this.camera_y + this.height * 0.5 / this.scale;
         this.camera.bottom = this.camera_y - this.height * 0.5 / this.scale;
         this.camera.updateProjectionMatrix();
+        // a tablet or a retina screen: drawn in as many pixels as it shows
+        // (here, not at the start: a new renderer, a window moved to another screen)
+        const pixel_ratio = screen_pixel_ratio();
+        if (this.renderer.getPixelRatio() !== pixel_ratio) this.renderer.setPixelRatio(pixel_ratio);
         this.renderer.setSize(this.width, this.height);
         this.renderer.sortObjects = false;
         this.renderer.render(this.scene, this.camera);
@@ -5692,7 +5696,6 @@ class LevelEditor {
                 }),
             });
         }
-        const usage = typeof sprite_usage === 'function' ? sprite_usage(this.game.data) : null;
         for (let si = 0; si < this.game.data.sprites.length; si++) {
             this.game.update_material_for_sprite(si);
             let fi = Math.floor(this.game.data.sprites[si].states[0].frames.length / 2 - 0.5);
@@ -5702,11 +5705,9 @@ class LevelEditor {
             sprite_button.css('background-size', 'contain');
             sprite_button.css('image-rendering', 'pixelated');
             sprite_button.data('sprite_index', si);
-            // how much it is used (sprite_filter.js): "12× in 2 Leveln", "unbenutzt"
-            const use = usage?.get(this.game.data.sprites[si].id);
-            const used_text = !use ? '' : use.placed ? ` · ${use.placed}× in ${use.levels.size === 1 ? '1 Level' : `${use.levels.size} Leveln`}` :
-                use.needed ? ' · nicht gesetzt, aber gebraucht (Angriffsbild, Beute …)' : ' · unbenutzt';
-            sprite_button.attr('title', sprite_label(this.game.data.sprites[si], si) + used_text);
+            // just the name: the guides find a sprite by it (rezepte/anleitungen);
+            // how often it is used is in its menu (Wo kommt es vor?)
+            sprite_button.attr('title', sprite_label(this.game.data.sprites[si], si));
             sprite_button.on('contextmenu', (e) => {
                 show_context_menu(e.clientX, e.clientY, this.sprite_button_context_menu($(e.currentTarget).data('sprite_index')));
                 return false;

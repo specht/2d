@@ -20,6 +20,25 @@ var last_stateskip_timestamp = 0;
 var last_frameskip_timestamp = 0;
 const SKIP_MIN_DELAY = 125;
 
+// How many screen pixels make one CSS pixel (2 on most tablets and retina
+// screens), at most max: the level editor's WebGL stays fast on a phone.
+function screen_pixel_ratio(max = 2) {
+    return Math.min(Math.max(window.devicePixelRatio || 1, 1), max);
+}
+
+// A canvas of lines over the zoomed sprite (grid, outlines) with as many pixels
+// as the screen shows, drawn in CSS pixels: the lines stay thin and sharp on a
+// tablet instead of being blown up by the browser.
+function size_canvas_for_screen(canvas, width, height) {
+    const ratio = screen_pixel_ratio(3);
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    // a new size resets the context: the scale is set again every time
+    canvas.getContext('2d').setTransform(ratio, 0, 0, ratio, 0, 0);
+}
+
 function createDataUrlForImageSize(width, height) {
     let canvas = document.createElement('canvas');
     canvas.width = width;
@@ -1495,12 +1514,10 @@ class Canvas {
         this.backdrop_color.height = Math.min(this.bitmap.height * this.scale, this.size + 32);
         this.backdrop.width = Math.min(this.bitmap.width * this.scale, this.size + 32);
         this.backdrop.height = Math.min(this.bitmap.height * this.scale, this.size + 32);
-        this.overlay_grid.width = Math.min(this.bitmap.width * this.scale, this.size + 2 * this.scale) + 1;
-        this.overlay_grid.height = Math.min(this.bitmap.height * this.scale, this.size + 2 * this.scale) + 1;
-        this.overlay_bitmap_outline.width = Math.min(this.bitmap.width * this.scale, this.size + 2 * this.scale) + 1;
-        this.overlay_bitmap_outline.height = Math.min(this.bitmap.height * this.scale, this.size + 2 * this.scale) + 1;
-        this.selection_bitmap_outline.width = Math.min(this.bitmap.width * this.scale, this.size + 2 * this.scale) + 1;
-        this.selection_bitmap_outline.height = Math.min(this.bitmap.height * this.scale, this.size + 2 * this.scale) + 1;
+        const lines_width = Math.min(this.bitmap.width * this.scale, this.size + 2 * this.scale) + 1;
+        const lines_height = Math.min(this.bitmap.height * this.scale, this.size + 2 * this.scale) + 1;
+        for (const lines of [this.overlay_grid, this.overlay_bitmap_outline, this.selection_bitmap_outline])
+            size_canvas_for_screen(lines, lines_width, lines_height);
         let context = this.overlay_grid.getContext('2d');
 
         // render grid lines (white)

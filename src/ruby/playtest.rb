@@ -11,6 +11,8 @@
 #                               see the tab and submit their games
 #   ./playtest.rb start         start the testing (only who has a game in the
 #                               round gets one to test)
+#   ./playtest.rb code [neu]    the class code for the board (neu: a new one;
+#                               who has entered the old one stays in)
 #   ./playtest.rb stop          end the testing (tests under way are finished)
 #   ./playtest.rb off           switch off (surveys being filled in still arrive)
 #   ./playtest.rb minutes 4     how long a test runs
@@ -84,6 +86,7 @@ def overview_lines(o)
                  o["finished"] > 0 ? c("AN – das Testen ist beendet", :yellow, :bold) : c("AN – die Spiele werden eingereicht", :yellow, :bold)
     round = Time.parse(o["round"]).localtime.strftime("%d.%m.%Y %H:%M") rescue o["round"]
     lines << "#{c('Playtesting', :bold)} ist #{state_word} #{c('·', :dim)} ein Test dauert #{c("#{o['minutes']} Minuten", :bold)} #{c("· Runde seit #{round}", :dim)}"
+    lines << "Klassencode: #{c(o['code'], :bold, :yellow)} #{c('(an die Tafel – nur wer ihn eingibt, macht mit)', :dim)}" if o["code"]
     summary = ["#{c(active.size, :bold)} Spiele", "#{c(o['finished'], :bold, :green)} Tests fertig",
                "#{c(o['running'].size, :bold, :yellow)} laufen", "#{c(o['testers'].size, :bold)} Tester:innen"]
     summary << c("#{o['abandoned']} abgebrochen", :dim) if o["abandoned"] > 0
@@ -199,6 +202,13 @@ when "off"
 when "start"
     STORE.transaction { |state| Playtesting.control(state, "start") }
     status
+when "code"
+    code = STORE.transaction do |state|
+        ARGV[1].to_s.start_with?("neu") || ARGV[1] == "new" ? Playtesting.control(state, "new_code") : Playtesting.ensure_code(state)
+        state["code"]
+    end
+    puts "Klassencode: #{c(code, :bold, :yellow)}"
+    puts c("Nur wer ihn im Tab Playtesting eingibt, macht mit (wer im Team eines eingereichten Spiels ist, braucht keinen).", :dim)
 when "stop"
     STORE.transaction { |state| Playtesting.control(state, "stop") }
     status

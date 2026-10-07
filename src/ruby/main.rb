@@ -1015,7 +1015,7 @@ class Main < Sinatra::Base
     def playtest_request(*keys)
         data = parse_request_data(:required_keys => [:browser], :optional_keys => keys + [:session, :open_tag],
                                   :types => { :answers => Hash }, :max_body_length => 16 * 1024,
-                                  :max_value_lengths => { :name => 80, :tag => 16, :assignment => 32, :session => 16, :open_tag => 16 })
+                                  :max_value_lengths => { :name => 80, :tag => 16, :assignment => 32, :session => 16, :open_tag => 16, :code => 16 })
         assert(data[:browser].is_a?(String) && data[:browser] =~ /\A[a-z0-9]{8,40}\z/, "bad_browser")
         data
     end
@@ -1044,13 +1044,30 @@ class Main < Sinatra::Base
         respond(Playtesting.status(@@playtesting.read, data[:browser], open_tag: data[:open_tag]))
     end
 
+    # The class code (playtesting.rb): { code } – wrong guesses are counted per
+    # address (a whole school may share one, so it is generous)
+    @@playtest_code_attempts = Collaboration::AttemptLimiter.new(max_failures: 40, window: 10 * 60)
+
+    post "/api/playtest/join" do
+        data = playtest_request(:code)
+        client = request.env["HTTP_X_CLIENT_IP"] || request.ip || "unknown"
+        return respond(:error => "too_many_attempts") if @@playtest_code_attempts.blocked?(client)
+        error = @@playtesting.transaction { |state| Playtesting.join_class(state, data[:browser], data[:code]) }
+        @@playtest_code_attempts.failure!(client) if error
+        respond(error ? { :error => error } : Playtesting.status(@@playtesting.read, data[:browser]))
+    end
+
     # The game with this tag (just saved by the studio) is submitted.
     post "/api/playtest/submit" do
         data = playtest_request(:tag)
         tag = data[:tag].to_s
         assert(tag =~ /\A[a-z0-9]{7}\z/ && File.exist?("/gen/games/#{tag}.json"), "unknown_game")
         game = JSON.parse(File.read("/gen/games/#{tag}.json"))
-        submission, error, already = @@playtesting.transaction { |state| Playtesting.submit(state, tag, game, data[:browser]) }
+        # a team member in its session is in the class by that (join_team)
+        playtest_join_team(data)
+        submission, error, already = @@playtesting.transaction do |state|
+            Playtesting.in_class?(state, data[:browser]) ? Playtesting.submit(state, tag, game, data[:browser]) : [nil, "code_needed"]
+        end
         playtest_join_team(data) unless error
         # already: somebody of the team submitted it before – no second entry
         respond(error ? { :error => error } : { :submission => submission.slice("id", "title", "tag", "author"), :already => already })
@@ -1065,7 +1082,7 @@ class Main < Sinatra::Base
             # a test under way goes on (after a reload, also once the testing ended);
             # a new one only while the testing runs, and only with a game in the round
             running = Playtesting.running_for(state, data[:browser])
-            refused = running ? nil : Playtesting.may_test(state, data[:browser])
+            refused = running ? nil : (Playtesting.in_class?(state, data[:browser]) ? Playtesting.may_test(state, data[:browser]) : "code_needed")
             next [nil, refused] if refused
             assignment = running || Playtesting.next_assignment(state, data[:browser], data[:name].to_s)
             [assignment ? Playtesting.assignment_for_client(state, assignment) : nil, nil]
@@ -1761,7 +1778,13 @@ class Main < Sinatra::Base
         moderation_request
         sessions = COLLABORATION_ENABLED ? @@collaboration_store.summaries : []
         seen = @@playtest_seen_mutex.synchronize { @@playtest_seen.transform_values(&:dup) }
-        view = Playtesting.class_view(@@playtesting.read, sessions: sessions, seen: seen)
+        state = @@playtesting.read
+        # a round switched on before there were class codes gets its code now
+        if state["enabled"] && !state["code"]
+            @@playtesting.transaction { |s| Playtesting.ensure_code(s) }
+            state = @@playtesting.read
+        end
+        view = Playtesting.class_view(state, sessions: sessions, seen: seen)
         respond(view.merge(:now => Time.now.utc.iso8601))
     end
 

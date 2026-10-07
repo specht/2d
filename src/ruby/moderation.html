@@ -162,6 +162,11 @@
     #feedback .filter { color: var(--muted); font-size: 13px; margin: -2px 0 6px; }
     .pt-controls { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
     .pt-controls .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .pt-code { display: inline-flex; align-items: center; gap: 10px; padding: 4px 6px 4px 12px; border: 2px solid var(--accent); border-radius: 10px; margin-right: 6px; }
+    .pt-code .label { color: var(--muted); font-size: 13px; }
+    .pt-code .value { font: 700 28px/1.1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.12em; color: var(--accent); }
+    .pt-code button { font-size: 13px; padding: 3px 9px; }
+    .hint.without-code { color: var(--text); }
     .pt-controls label { color: var(--text); }
     .pt-controls select { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
     button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
@@ -782,7 +787,12 @@ function show_playtest_data(data) {
         kids.length ? el('table', { class: 'pt' },
             el('tr', {}, el('th', {}, 'Name'), el('th', {}, 'Spiel'), el('th', { class: 'num' }, 'getestet'), el('th', {}, 'gerade'), el('th', { class: 'num' }, 'noch offen')),
             ...kids.map(kid_row)) : null,
-        el('div', { class: 'hint' }, 'Namen: der Vorname vom Testen, sonst der Name in der gemeinsamen Sitzung, sonst der Autor des offenen Spiels. Wer das Studio auf zwei Rechnern offen hat, steht zweimal da.'));
+        (data.without_code ?? []).length ? el('div', { class: 'hint without-code' },
+            el('b', {}, `Ohne Klassencode (Studio offen): `),
+            (() => { const named = data.without_code.filter(Boolean); const rest = data.without_code.length - named.length;
+                return [...named, ...(rest ? [`${rest} ohne Namen`] : [])].join(', '); })(),
+            ' – wer zur Klasse gehört, gibt den Code im Tab Playtesting ein.') : null,
+        el('div', { class: 'hint' }, 'In der Liste steht, wer den Klassencode eingegeben hat oder im Team eines eingereichten Spiels ist. Namen: der Vorname vom Testen, sonst der Name in der gemeinsamen Sitzung, sonst der Autor des offenen Spiels. Wer das Studio auf zwei Rechnern offen hat, steht zweimal da.'));
 
     // the games in the pot
     const games = (data.games ?? []).filter(g => !g.withdrawn);
@@ -849,8 +859,13 @@ function playtest_controls(data, in_pot, kids) {
     const step = !data.enabled ? 'Schalte Playtesting ein: Die Kinder sehen den Tab und reichen ihre Spiele ein.' :
         !data.testing ? `Die Kinder reichen ein (${in_pot} von ${kids} haben ein Spiel im Topf). Wenn alle dabei sind: Testen starten.` :
         'Jedes Kind mit einem Spiel im Topf bekommt Spiele zum Testen – nie das eigene, keins zweimal.';
+    // the class code: for the board (only who has entered it takes part)
+    const code = data.code ? el('div', { class: 'pt-code', title: 'Den Code an die Tafel schreiben: Nur wer ihn im Tab Playtesting eingibt, macht mit. Wer in der Sitzung eines eingereichten Team-Spiels ist, braucht keinen.' },
+        el('span', { class: 'label' }, 'Klassencode'), el('span', { class: 'value' }, data.code),
+        el('button', { type: 'button', title: 'Ein neuer Code – wer schon dabei ist, bleibt dabei',
+            onclick: (e) => act('new_code', {}, e.currentTarget) }, 'Neuer Code')) : null;
     return el('section', { class: 'pt-section pt-controls' },
-        el('div', { class: 'row' }, main_button, el('label', {}, 'Ein Test dauert ', minutes), off),
+        el('div', { class: 'row' }, code, main_button, el('label', {}, 'Ein Test dauert ', minutes), off),
         el('div', { class: 'hint' }, step, ' Eine neue Runde und die Rückmeldungen zum Drucken: ./playtest.rb reset und ./playtest.rb pdf.'));
 }
 

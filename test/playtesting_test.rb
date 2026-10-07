@@ -223,6 +223,7 @@ class PlaytestingTest < Minitest::Test
         Playtesting.remember_browser(state, "b_max", { "session" => "Max" })
         Playtesting.remember_browser(state, "b_ida", { "session" => "Ida", "tester" => "Ida K." })
         Playtesting.remember_browser(state, "b_tom", { "author" => "Tom" })
+        assert_nil Playtesting.join_class(state, "b_tom", state["code"].downcase)   # typed in small letters
         Playtesting.remember_browser(state, "b_eva", { "session" => "Eva" })
         # Lea tests Höhle and sends the survey; Tom is testing Lea's game right now
         a = Playtesting.next_assignment(state, "b_lea", "Lea", t0 + 60)
@@ -239,21 +240,23 @@ class PlaytestingTest < Minitest::Test
         view = Playtesting.class_view(state, sessions: sessions, seen: seen, now: t0 + 420)
 
         kids = view["kids"].to_h { |k| [k["name"] || "?", k] }
-        assert_equal ["Ida K.", "Lea", "Max", "Eva", "Tom", "?"].sort, kids.keys.sort
+        assert_equal ["Ida K.", "Lea", "Max", "Eva", "Tom"].sort, kids.keys.sort
+        # Ben has the studio open, in a session nobody submitted, without the code
+        assert_equal [nil], view["without_code"]
+        assert_equal state["code"], view["code"]
         assert_equal ["Lea Welt", false, true], kids["Lea"]["game"].values_at("title", "team", "submitted")
         assert_equal ["Höhle", true], kids["Ida K."]["game"].values_at("title", "team")
         assert_equal "Höhle", kids["Eva"]["game"]["title"]           # through her session
         assert_nil kids["Tom"]["game"]                                 # nothing in the round
         assert_nil kids["Tom"]["left"]                                 # so he does not test
         assert kids["Max"]["game"]["team"]                             # submitted it, with Ida: a team
-        assert_equal [false, ["Paul", "Ben"]], kids["?"]["game"].values_at("submitted", "names")   # Ben: no name yet
         assert_equal "Lea Welt", kids["Tom"]["running"]["title"]
         assert kids["Max"]["online"]
         refute kids["Tom"]["online"]                                   # 2 minutes since the last ping
         assert_equal 1, kids["Lea"]["done"]
         assert_equal 0, kids["Lea"]["left"]                            # never her own, never twice
         # those without anything in the round come first
-        assert_equal [false, false, true, true, true, true], view["kids"].map { |k| !!k["game"]&.dig("submitted") }
+        assert_equal [false, true, true, true, true], view["kids"].map { |k| !!k["game"]&.dig("submitted") }
 
         games = view["games"].to_h { |g| [g["title"], g] }
         assert_equal ["Max", "Ida K.", "Eva"], games["Höhle"]["team"]
@@ -316,5 +319,29 @@ class PlaytestingTest < Minitest::Test
         assert_equal "unknown_action", Playtesting.control(state, "explode")
         Playtesting.control(state, "off")
         refute state["enabled"]
+    end
+
+    def test_a_class_code_lets_children_take_part
+        state = on_state
+        code = state["code"]
+        assert_match(/\A[A-HJ-KM-NP-Z2-9]{4}\z/, code)
+        refute Playtesting.in_class?(state, "b_lea")
+        assert_equal "wrong_code", Playtesting.join_class(state, "b_lea", "ZZZZ")
+        assert_nil Playtesting.join_class(state, "b_lea", " #{code[0, 2].downcase}-#{code[2, 2]} ")
+        assert Playtesting.in_class?(state, "b_lea")
+        assert Playtesting.status(state, "b_lea")["in_class"]
+        # a team member (joined in the session of the submitted game) is in by that
+        Playtesting.submit(state, "leaaaaa", game("Lea Welt", "Lea"), "b_lea")
+        Playtesting.join_team(state, "b_max", "leaaaaa")
+        assert Playtesting.in_class?(state, "b_max")
+        # a new code: who is in stays in
+        Playtesting.control(state, "new_code")
+        refute_equal code, state["code"] if state["code"] != code
+        assert Playtesting.in_class?(state, "b_lea")
+        assert_equal "wrong_code", Playtesting.join_class(state, "b_tom", code) unless state["code"] == code
+        # an older round without a code gets one when switched on
+        old = Playtesting.fresh_state(false).tap { |s| s.delete("code") }
+        Playtesting.control(old, "on")
+        assert_equal 4, old["code"].size
     end
 end

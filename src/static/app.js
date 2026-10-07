@@ -4383,6 +4383,10 @@ class Game {
 		}
 
 		this.camera.updateProjectionMatrix();
+		// a tablet or a retina screen: the pixels of the game sharp, not blurred by
+		// the browser (at most twice as many pixels: a phone stays fast)
+		const pixel_ratio = Math.min(Math.max(globalThis.devicePixelRatio || 1, 1), 2);
+		if (this.renderer.getPixelRatio() !== pixel_ratio) this.renderer.setPixelRatio(pixel_ratio);
 		this.renderer.setSize(this.width, this.height);
 		this.renderer.sortObjects = false;
 

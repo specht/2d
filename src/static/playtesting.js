@@ -7,6 +7,8 @@
 //   - submit their own game (it needs a title and an author; it is saved
 //     first, and every later save is what gets tested from then on), and see
 //     how often it has been tested and how much fun the testers had;
+//   - enter the class code (on the board): only then a child takes part – the
+//     tab shows for everybody with the studio open, also outside the class;
 //   - wait: first everybody submits, then the teacher starts the testing
 //     (moderation page, playtest.rb start) – only who has a game in the round
 //     (alone or as a team) tests; the tab shows how many games are in and
@@ -102,7 +104,7 @@ class Playtesting {
         if (!status.success) return;
         const before = this.status_key;
         this.status = status;
-        this.status_key = JSON.stringify([status.enabled, status.testing, status.has_game, status.games, status.tested,
+        this.status_key = JSON.stringify([status.enabled, status.testing, status.in_class, status.has_game, status.games, status.tested,
             status.class_tests, (status.submissions ?? []).map(s => [s.id, s.tests, s.fun]), status.open_game?.id]);
         this.set_enabled(status.enabled, status.testing);
         if (status.running && !this.assignment) {
@@ -159,6 +161,10 @@ class Playtesting {
             ? `Eure Klasse hat schon <b>${status.class_tests}</b> ${status.class_tests === 1 ? 'Test' : 'Tests'} gemacht – <b>${status.games}</b> ${status.games === 1 ? 'Spiel ist' : 'Spiele sind'} dabei.`
             : `<b>${status.games}</b> ${status.games === 1 ? 'Spiel ist' : 'Spiele sind'} schon eingereicht.`).appendTo(root);
         if (this.view === 'thanks') this.render_thanks(root);
+        if (!status.in_class) {
+            this.render_code_card(root);
+            return;
+        }
         if (!status.testing) {
             // first everybody submits; the testing starts when the teacher says so
             this.render_mine_card(root);
@@ -167,6 +173,36 @@ class Playtesting {
         }
         this.render_test_card(root);
         this.render_mine_card(root);
+    }
+
+    // The class code from the board: who has entered it takes part.
+    render_code_card(root) {
+        const card = $('<section class="pt-card pt-mine pt-code-card">').appendTo(root);
+        $('<h3>').text('Klassencode').appendTo(card);
+        $('<p class="pt-note">').text('Gib den Code ein, den deine Lehrkraft zeigt. Danach kannst du dein Spiel einreichen und die Spiele deiner Klasse testen. Arbeitest du in einer gemeinsamen Sitzung an einem Spiel, das schon eingereicht ist, brauchst du keinen Code.').appendTo(card);
+        const row = $('<div class="pt-code-row">').appendTo(card);
+        const input = $('<input type="text" class="pt-code-input" maxlength="9" autocomplete="off" spellcheck="false" placeholder="z. B. K7M2">').appendTo(row);
+        const message = $('<p class="pt-message">').appendTo(card);
+        const send = async () => {
+            const code = input.val().trim();
+            if (!code) { input.trigger('focus'); return; }
+            const result = await this.api('join', { code });
+            if (!result.success || result.error) {
+                message.text({
+                    wrong_code: 'Dieser Code stimmt nicht – schau noch einmal genau hin.',
+                    too_many_attempts: 'Zu viele falsche Versuche – warte ein paar Minuten und frag deine Lehrkraft.',
+                }[result.error] ?? 'Das hat nicht geklappt. Versuch es gleich noch einmal.');
+                input.trigger('select');
+                return;
+            }
+            // the input keeps its focus otherwise, and refresh() does not draw over typing
+            input.trigger('blur');
+            this.status_key = null;
+            await this.refresh();
+        };
+        input.on('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') send(); });
+        $('<button class="pt-button pt-primary">').text('Mitmachen').on('click', send).appendTo(row);
+        setTimeout(() => input.trigger('focus'), 0);
     }
 
     render_waiting_card(root) {
@@ -248,6 +284,7 @@ class Playtesting {
             if (!result.success || result.error) {
                 message.text({
                     title_and_author_needed: 'Dein Spiel braucht einen Titel und deinen Namen.',
+                    code_needed: 'Gib zuerst den Klassencode ein.',
                     playtesting_off: 'Playtesting ist gerade ausgeschaltet.',
                 }[result.error] ?? 'Das hat nicht geklappt. Versuch es gleich noch einmal.');
                 return;
@@ -283,6 +320,7 @@ class Playtesting {
             if (result.error) {
                 message.text({
                     not_started: 'Das Testen hat noch nicht begonnen – deine Lehrkraft startet es.',
+                    code_needed: 'Gib zuerst den Klassencode ein.',
                     submit_first: 'Reiche zuerst dein Spiel ein – testen darf, wer selbst ein Spiel dabei hat.',
                     playtesting_off: 'Playtesting ist gerade ausgeschaltet.',
                 }[result.error] ?? 'Das hat nicht geklappt. Versuch es gleich noch einmal.');

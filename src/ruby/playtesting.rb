@@ -14,6 +14,10 @@
 #   one's own and never one tested before, ties broken at random.
 # - A test runs for `minutes`; the survey comes after it. Testers give their
 #   first name, which is printed with their feedback.
+# - A class code: while playtesting is on, the tab shows for everybody with
+#   the studio open – also outside the classroom. A child takes part once it
+#   has entered the round's code (on the board; moderation page, playtest.rb);
+#   a child in the live session of its team's submitted game is in by that.
 # - Two phases: first everybody submits (the class sees how many games are
 #   in); then the teacher starts the testing (moderation page or playtest.rb
 #   start) and ends it again. Only who has a game in the round – alone or as
@@ -82,7 +86,40 @@ module Playtesting
 
     def self.fresh_state(enabled = false, minutes = DEFAULT_MINUTES)
         { "enabled" => enabled, "minutes" => minutes, "round" => Time.now.utc.iso8601, "testing" => false,
-          "submissions" => {}, "assignments" => {} }
+          "code" => new_code, "submissions" => {}, "assignments" => {} }
+    end
+
+    # ------------------------------------------------ the class code
+    # Four signs, none that look alike (no 0/O, 1/I/L), easy to read off a board.
+    CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+    CODE_LENGTH = 4
+
+    def self.new_code(random = Random.new)
+        Array.new(CODE_LENGTH) { CODE_ALPHABET[random.rand(CODE_ALPHABET.size)] }.join
+    end
+
+    # as typed: small letters, spaces and dashes are fine
+    def self.normalize_code(text)
+        text.to_s.upcase.gsub(/[^A-Z0-9]/, "")
+    end
+
+    # an older round (before the codes) gets one
+    def self.ensure_code(state)
+        state["code"] ||= new_code
+    end
+
+    # Returns nil (now in the class) or "wrong_code".
+    def self.join_class(state, browser, code)
+        ensure_code(state)
+        return "wrong_code" unless normalize_code(code) == state["code"]
+        ((state["browsers"] ||= {})[browser] ||= {})["in_class"] = true
+        nil
+    end
+
+    # Takes part: entered the code – or has a game in the round (its team's,
+    # joined in a live session; or from a round before the codes).
+    def self.in_class?(state, browser)
+        (state["browsers"] || {}).dig(browser, "in_class") == true || has_game?(state, browser)
     end
 
     MINUTES_RANGE = (1..30)
@@ -92,7 +129,10 @@ module Playtesting
     # nil or an error.
     def self.control(state, action, minutes = nil, now = Time.now)
         case action
-        when "on" then state["enabled"] = true
+        when "on"
+            state["enabled"] = true
+            ensure_code(state)
+        when "new_code" then state["code"] = new_code
         when "off"
             state["enabled"] = false
             state["testing"] = false
@@ -294,6 +334,7 @@ module Playtesting
         {
             "enabled" => !!state["enabled"],
             "testing" => !!state["testing"],
+            "in_class" => in_class?(state, browser),
             "has_game" => has_game?(state, browser),
             "minutes" => minutes,
             "questions" => QUESTIONS,
@@ -358,7 +399,7 @@ module Playtesting
               "left" => active.count { |s| available.call(browser, s) } }
         end.sort_by { |t| [-t["done"], t["name"].downcase] }
         {
-            "enabled" => !!state["enabled"], "testing" => !!state["testing"], "testing_since" => state["testing_since"],
+            "enabled" => !!state["enabled"], "testing" => !!state["testing"], "testing_since" => state["testing_since"], "code" => state["code"],
             "minutes" => minutes, "round" => state["round"],
             "games" => games, "running" => running, "testers" => testers,
             "finished" => assignments.count { |a| a["finished_at"] },
@@ -426,6 +467,8 @@ module Playtesting
             ids << submission_of_session.call(session)["id"] if session && submission_of_session.call(session)
             [browser, ids.uniq]
         end
+        outside = browsers.reject { |b| in_class?(state, b) || own_ids[b].any? }
+        browsers -= outside
         kids = browsers.map do |browser|
             mine = active.find { |s| s["owner"] == browser } || active.find { |s| team?(s, browser) }
             seen_now = seen[browser]
@@ -472,6 +515,11 @@ module Playtesting
             { "title" => x[:title], "names" => x[:names], "submitted" => submission && submission["title"] }
         end
         view["kids"] = kids
+        view["code"] = state["code"]
+        # the studio open, the code not entered (a child who has not yet – or
+        # somebody outside the classroom): only those seen just now
+        view["without_code"] = outside.select { |b| seen[b] && now - seen[b][:at] <= online_within }
+                                      .map { |b| name_of(state, b) }.sort_by { |n| [n ? 0 : 1, n.to_s.downcase] }
         view["feedback"] = assignments.select { |a| a["finished_at"] && a["answers"] }
                                       .sort_by { |a| a["finished_at"].to_s }.reverse.first(feedback_limit).map do |a|
             submission = state["submissions"][a["submission"]] || {}
