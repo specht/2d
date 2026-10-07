@@ -257,6 +257,8 @@ class LevelEditor {
         this.updating_selection = false;
         this.old_camera_position = [0, 0];
         $(this.element).append(this.renderer.domElement);
+        // the graphics may fail: a new renderer, or a reload keeping the work (webgl_recovery.js)
+        window.webgl_recovery?.watch_level_editor(this);
         this.label_for_level = [];
         this.backdrop_index = null;
         this.backdrop_controls = [];

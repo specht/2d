@@ -691,6 +691,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             // "Level testen" (level editor): straight into that level
             const playtest = window.studio_pending_playtest ?? null;
             window.studio_pending_playtest = null;
+            // if the game frame's graphics fail, the same run starts again (webgl_recovery.js)
+            window.studio_last_playtest = playtest;
             $('#play_iframe').hide();
             // the game as it is, without saving it: a play copy (play_copies.rb),
             // no version of anything – only Speichern makes one

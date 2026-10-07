@@ -6963,3 +6963,24 @@ body {
 #menu_level_properties .item-signal-add {
     margin: 2px 5px 8px;
 }
+
+/* webgl_recovery.js: the graphics failed and came back (or the studio reloads) */
+#webgl_notice {
+    position: fixed;
+    left: 50%;
+    top: 56px;
+    transform: translate(-50%, -12px);
+    z-index: 2000;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: rgba(26, 28, 44, 0.95);
+    border: 1px solid rgba(255, 205, 117, 0.6);
+    color: #fff;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+}
+#webgl_notice.showing {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
