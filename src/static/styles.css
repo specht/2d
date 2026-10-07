@@ -7033,14 +7033,17 @@ body {
     }
 }
 
-/* Einstellungen: the buttons as dark as the rest of the studio (panels, list
-   items, switches) instead of the grey of a plain <button> */
-#main_div_settings button:not(.btn):not(.btn-checkbox):not(.controls-key) {
+/* Einstellungen (and the "Sprites holen" under the level's sprites): the
+   buttons as dark as the rest of the studio (panels, list items, switches)
+   instead of the grey of a plain <button> */
+#main_div_settings button:not(.btn):not(.btn-checkbox):not(.controls-key),
+.palette-hint button {
     background: rgba(0, 0, 0, 0.35);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #ddd;
 }
-#main_div_settings button:not(.btn):not(.btn-checkbox):not(.controls-key):hover {
+#main_div_settings button:not(.btn):not(.btn-checkbox):not(.controls-key):hover,
+.palette-hint button:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.5);
     color: #fff;
