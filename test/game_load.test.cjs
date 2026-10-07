@@ -30,7 +30,7 @@ function make_game(files) {
             constructor() { this.data = null; this.curtain = { hide() {} }; }
             handle_resize() {} stop() {} render_start_screen() {} setup() {}
             ${method('reset() {', '// Is a key that means')}
-            ${method('async load(tag', 'stop() {')}
+            ${method('load(tag', 'stop() {')}
         }
         return Game;`)(
         jq, fetch, { yt_player: null }, () => 0, () => {}, () => {}, () => {}, {}, () => ({}));
@@ -69,4 +69,20 @@ test('Spielen plays the play copy, a tag alone a saved game', async () => {
     assert.equal(game.data.properties.title, 'Neu');
     await game.load('newgame');
     assert.deepEqual(fetched.slice(2), ['/gen/games/newgame.json', '/gen/spritesheets/newgame.json']);
+});
+
+test('Start can wait for the game: loaded only once everything is there', async () => {
+    // 34bcb4 (October 2026): Start during the sprite sheets ran setup() on half a game
+    let release;
+    const gate = new Promise(r => release = r);
+    const game = make_game({ 'games/newgame.json': NEW, 'spritesheets/newgame.json': SHEETS });
+    const real_fetch_game = game.load_now.bind(game);
+    game.load_now = async (...args) => { await gate; return real_fetch_game(...args); };
+    const loading = game.load('newgame');
+    assert.equal(game.loading, loading);
+    assert.equal(game.loaded, false);
+    release();
+    await loading;
+    await Promise.resolve();
+    assert.equal(game.loaded, true);
 });

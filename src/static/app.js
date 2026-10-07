@@ -2427,7 +2427,18 @@ class Game {
 
 	// tag: a saved game (/gen/games, the play link) – or, with play_copy, the
 	// studio's game as Spielen sent it (/api/play_copy, play_copies.rb)
-	async load(tag, { play_copy = false } = {}) {
+	// The game is complete only when load() is done: this.data comes first,
+	// the sprite sheets and the overlay icons after it. Start waits for
+	// this.loading (a Start while the sheets were still on their way ran
+	// setup() on half a game: 34bcb4, October 2026).
+	load(tag, options = {}) {
+		this.loaded = false;
+		this.loading = this.load_now(tag, options);
+		this.loading.then(() => { this.loaded = true; }, () => null);
+		return this.loading;
+	}
+
+	async load_now(tag, { play_copy = false } = {}) {
 		// load game json
 		this.playtest = null;
 		$('#playtest_badge').removeClass('showing');
@@ -5200,13 +5211,25 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 		$('#mi_start').trigger('click');
 	});
 
-	$('#mi_start').click(function (e) {
+	// Start: once the game has loaded (Game.load); before any game, nothing
+	// happens, and clicking again while it loads starts it only once
+	// (a loaded game starts right in the click, as before: music and full
+	// screen may need the click itself)
+	let start_pending = false;
+	const start = () => {
 		window.game.playtest = null;
 		$('#playtest_badge').removeClass('showing');
 		// reset() starts with the first level of the order (level_flow.js)
 		window.game.reset();
 		window.game.setup();
 		window.game.prepare_run();
+	};
+	$('#mi_start').click(function (e) {
+		if (window.game.loaded) return start();
+		const loading = window.game.loading;
+		if (!loading || start_pending) return;
+		start_pending = true;
+		loading.then(() => { start_pending = false; start(); }, () => { start_pending = false; });
 	});
 });
 
