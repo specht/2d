@@ -6997,8 +6997,29 @@ body {
     margin-left: 6px;
 }
 
-#menu_level_properties .item-signal-add {
+/* "+ sendet, wenn die Spielfigur … hat": a text button, not one of the round
+   26 px icon buttons (button.btn) – squeezed into that circle, its words
+   stood one under another across the next settings. Dashed, like the "+"
+   at the end of the lists. */
+#menu_level_properties button.btn.item-signal-add {
+    display: block;
+    box-sizing: border-box;
+    width: calc(100% - 10px);
+    height: auto;
+    min-height: 28px;
     margin: 2px 5px 8px;
+    padding: 4px 10px;
+    border: 1px dashed rgba(255, 255, 255, 0.16);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.6);
+    font: inherit;
+    text-align: left;
+    white-space: normal;
+}
+#menu_level_properties button.btn.item-signal-add:hover {
+    border: 1px dashed rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.85);
 }
 
 /* webgl_recovery.js: the graphics failed and came back (or the studio reloads) */
