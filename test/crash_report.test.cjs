@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { crash_should_report, crash_describe_element, crash_report_payload, crash_wants_game_copy, CRASH_BREADCRUMBS } = require('../src/static/crash_report.js');
+const { crash_should_report, crash_describe_element, crash_report_payload, crash_wants_game_copy, crash_game_details, CRASH_BREADCRUMBS } = require('../src/static/crash_report.js');
 
 test('errors nobody in the studio can fix are not reported', () => {
     assert.equal(crash_should_report('Script error.', ''), false);
@@ -48,4 +48,13 @@ test('crashes and rejected promises come with a copy of the game, reported probl
     assert.equal(crash_wants_game_copy({ kind: 'promise', message: 'x' }, false), true);
     assert.equal(crash_wants_game_copy({ message: 'x' }, true), true);
     assert.equal(crash_wants_game_copy({ kind: 'save_failed', message: 'save_failed' }, false), false);
+});
+
+test('an error while playing comes with a copy of the game and where it happened', () => {
+    // Spielen and Level testen run in #play_iframe: its errors were not reported at all
+    const details = crash_game_details({ level_index: 2, playtest: { level_index: 2 } });
+    assert.deepEqual(details, { im_spiel: true, level: 2, test: true });
+    assert.deepEqual(crash_game_details({ level_index: 0, playtest: null }), { im_spiel: true, level: 0, test: false });
+    assert.deepEqual(crash_game_details(undefined), { im_spiel: true, test: false });
+    assert.equal(crash_wants_game_copy({ message: 'x', details }, false), true);
 });

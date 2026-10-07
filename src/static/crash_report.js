@@ -21,6 +21,15 @@
 // cross-origin "Script error.", ResizeObserver notices) are ignored; a
 // rejected promise is reported but never shows the robot (a failed request
 // while the server restarts is not a crash).
+//
+// Spielen and Level testen run the game in a frame of its own (#play_iframe,
+// standalone.html); its errors happen in that frame's window, not in the
+// studio's. watch_play_frame listens there as well: such an error is reported
+// with details.im_spiel, the level and whether it was a test run, and with a
+// copy of the game – but without the robot, because the studio and the
+// child's work are fine (Esc or another tab, and the game starts afresh).
+// The keys pressed in the game become breadcrumbs too. Nothing of this lives
+// in standalone.html or the engine (the recipes' fingerprint).
 
 const CRASH_MAX_REPORTS = 5;
 const CRASH_BREADCRUMBS = 30;
@@ -55,7 +64,17 @@ function crash_describe_element(el) {
 // Errors and rejected promises are bugs worth a copy of the game; a problem
 // reported on purpose (a failed save …) is not, and the server may be away.
 function crash_wants_game_copy(error, show_robot) {
-    return show_robot || error?.kind === 'promise';
+    return show_robot || error?.kind === 'promise' || !!error?.details?.im_spiel;
+}
+
+// What the game frame was doing ({ im_spiel, level, test }), from its game.
+function crash_game_details(frame_game) {
+    const details = { im_spiel: true };
+    try {
+        if (Number.isInteger(frame_game?.level_index)) details.level = frame_game.level_index;
+        details.test = !!frame_game?.playtest;
+    } catch (e) { }
+    return details;
 }
 
 // The report as it is sent; the server cuts it once more (client_errors.rb).
@@ -104,6 +123,42 @@ class CrashReporter {
             if (/Failed to fetch|NetworkError|Load failed|aborted/i.test(message)) return;
             this.report({ kind: 'promise', message, stack: reason?.stack }, false);
         });
+        this.watch_play_frame();
+    }
+
+    // The game frame (Spielen, Level testen): its window changes with every
+    // load of the frame, so the listeners go on again each time.
+    watch_play_frame() {
+        const iframe = document.getElementById('play_iframe');
+        if (!iframe) {
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => this.watch_play_frame(), { once: true });
+            return;
+        }
+        this.watched_frames ??= new WeakSet();
+        const watch = () => {
+            let frame = null;
+            try { frame = iframe.contentWindow; frame?.document; } catch (e) { return; }
+            if (!frame || this.watched_frames.has(frame)) return;
+            this.watched_frames.add(frame);
+            const details = () => crash_game_details(frame.game);
+            frame.addEventListener('error', (e) => {
+                if (!crash_should_report(e.message, e.filename)) return;
+                this.report({ message: e.message, source: e.filename, line: e.lineno, column: e.colno,
+                    stack: e.error?.stack, details: details() }, false);
+            });
+            frame.addEventListener('unhandledrejection', (e) => {
+                const reason = e.reason;
+                const message = reason?.message ?? String(reason);
+                if (/Failed to fetch|NetworkError|Load failed|aborted/i.test(message)) return;
+                this.report({ kind: 'promise', message, stack: reason?.stack, details: details() }, false);
+            });
+            frame.addEventListener('keydown', (e) => {
+                if (e.repeat) return;
+                this.crumb('key', `${e.key} (im Spiel)`);
+            }, true);
+        };
+        iframe.addEventListener('load', watch);
+        watch();
     }
 
     crumb(kind, what) {
@@ -213,5 +268,5 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { crash_should_report, crash_describe_element, crash_report_payload, crash_wants_game_copy, CRASH_BREADCRUMBS };
+    module.exports = { crash_should_report, crash_describe_element, crash_report_payload, crash_wants_game_copy, crash_game_details, CRASH_BREADCRUMBS };
 }
