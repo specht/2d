@@ -818,8 +818,8 @@ body {
     font-size: 15px;
 }
 
-/* status bar: the button sits at the right end; during a session it moves
-   to the left end and shows who is there */
+/* status bar: the button sits at the right end; during a session it stays
+   there and shows who is there */
 
 .collab-status {
     display: inline-flex !important;
@@ -6898,8 +6898,8 @@ body {
 
 /* The status bar (menu.js refresh_status_bar): the tool's hints take the
    room on the left and scroll by themselves when there are too many; on the
-   right what is always there (Rückgängig … Hilfe), then Zusammenarbeiten.
-   During a session collaboration.js puts its control first instead. */
+   right what is always there (Rückgängig … Hilfe), then Zusammenarbeiten –
+   during a session too, then with who is there (collaboration.js). */
 #status-bar {
     overflow: hidden;
 }

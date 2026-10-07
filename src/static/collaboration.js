@@ -1432,12 +1432,13 @@ class CollaborationClient {
             if (this.participants.length > shown.length)
                 stack.append($('<span>').addClass('collab-token collab-token-more').text(`+${this.participants.length - shown.length}`));
             control.append(stack);
-            status_bar.prepend(control);
         } else {
             control.attr('title', 'Mit anderen zusammen an diesem Spiel arbeiten');
             control.append($('<span>').text('Zusammenarbeiten'));
-            status_bar.append(control);
         }
+        // at the right end, in a session too: the button stays where the
+        // children found it, and the tool's hints keep the left
+        status_bar.append(control);
         // its width changes what is left for the tool's hints (menu.js)
         if (typeof refresh_status_bar_keys === 'function') refresh_status_bar_keys(status_bar[0]);
     }
