@@ -787,7 +787,12 @@ class CollaborationClient {
         // Somebody else's version: our undo steps of this level would undo theirs.
         window.game.level_history?.forget(target.id);
         list[index] = copied;
-        if (this.current_resource() === resource && typeof $ !== 'undefined')
+        // The level editor keeps what it shows of a level (its layers' lookup
+        // of placed sprites) even while another tab is open: it is rebuilt
+        // whenever it shows this level, not only while the Level tab is open
+        // (else the pen erased in the old level: 70cd2a, October 2026).
+        const shown = window.game.level_editor?.level_index === index;
+        if ((this.current_resource() === resource || shown) && typeof $ !== 'undefined')
             window.game.level_editor?.reload_level_keeping_view?.(index);
         return true;
     }

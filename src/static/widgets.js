@@ -399,6 +399,17 @@ class DragAndDropWidget {
         body.on('mouseup._dnd touchend._dnd', function (e) {
             let body = $('html');
             if (body.data('_dnd_moving')) {
+                // The list was built anew while the button was down (Gemeinsam
+                // bearbeiten: somebody else changed sprites or levels,
+                // collaboration.js rebuild_editor → game._load): the press
+                // belongs to items that are gone, and their positions say
+                // nothing any more (-1 chose no sprite and crashed; a drop
+                // into the trash deleted another sprite). Nothing is chosen,
+                // moved or deleted.
+                if (self.list_rebuilt_since_down()) {
+                    self._cancel_drag_and_drop();
+                    return;
+                }
                 if (!body.data('_dnd_has_moved')) {
                     self.options.onclick(self.mouse_down_element.children().eq(0)[0], self.mouse_down_element.index());
                     // a tap on the handle: no second click from the browser
@@ -407,6 +418,27 @@ class DragAndDropWidget {
                 self._uninstall_drag_and_drop_handler(e);
             }
         });
+    }
+
+    // While the button is down, the pressed item (a click) or the
+    // placeholder of the dragged one (a drag) is in this list.
+    list_rebuilt_since_down() {
+        const container = $(this.options.container)[0];
+        const held = $('html').data('_dnd_has_moved') ? this.placeholder[0] : this.mouse_down_element?.[0];
+        return !held || !container || held.parentNode !== container;
+    }
+
+    _cancel_drag_and_drop() {
+        let body = $('html');
+        this.dragging_div?.empty().detach();
+        this.placeholder.detach();
+        // the new items may have stepped aside while the mouse moved on
+        $(this.options.container).children().removeClass('drop_target');
+        $(this.options.container).find('._dnd_item > div').css(this.options.step_aside_css_reset);
+        $(this.options.trash).removeClass('showing');
+        body.data('_dnd_moving', false);
+        body.off('mousemove._dnd touchmove._dnd');
+        body.off('mouseup._dnd touchend._dnd');
     }
 
     _uninstall_drag_and_drop_handler(e) {

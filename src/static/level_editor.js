@@ -1128,6 +1128,17 @@ class LevelEditor {
         return layer?.type === 'sprites' ? layer : null;
     }
 
+    // The lookup of the current layer (LayerStruct), built from the layer as
+    // it is in the game now. A level put in from elsewhere (Gemeinsam
+    // bearbeiten) is a new object: a lookup still built from the old one
+    // would erase or place by positions of sprites that are no longer there.
+    current_layer_struct() {
+        const struct = this.layer_structs[this.layer_index];
+        const layer = this.current_sprite_layer();
+        if (struct && layer && struct.layer !== layer) struct.apply_layer(layer);
+        return struct;
+    }
+
     // Outlines around the selected sprites (dx, dy: while they are dragged).
     show_selection(dx = 0, dy = 0) {
         const group = this.selection_group;
@@ -4381,7 +4392,7 @@ class LevelEditor {
         if (this.layer_locked()) return;
         const layer = this.current_sprite_layer();
         if (!layer || !layer.properties.visible) return;
-        const struct = this.layer_structs[this.layer_index];
+        const struct = this.current_layer_struct();
         if (!(`${p[0]}/${p[1]}` in struct.placed_sprite_index_for_pos) && raw) {
             const index = this.topmost_placed_at(raw[0], raw[1]);
             if (index < 0) return;
@@ -4409,7 +4420,7 @@ class LevelEditor {
     add_sprite_to_level(p) {
         if (this.layer_locked()) return;
         if (this.game.data.levels[this.level_index].layers[this.layer_index].properties.visible) {
-            this.layer_structs[this.layer_index].add_sprite(p, this.sprite_index, null);
+            this.current_layer_struct().add_sprite(p, this.sprite_index, null);
             this.render();
         }
     }
