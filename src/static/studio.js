@@ -60,7 +60,8 @@ function sprite_pane_layout(width, height) {
     const library_min = SPRITE_LIBRARY_PADDING + (width < 1400 ? 2 : 3) * SPRITE_TILE_STEP;
     // everything but the drawing area and the list: tools, gaps, the columns
     const others = (columns) => gap + gap + left_w + gap + gap + columns * (column_w + gap);
-    const fit = (columns) => Math.max(100, Math.min(height - 218, width - others(columns) - library_min));
+    // height: the tabs above, the frame bar (58 px, styles.css) and the status bar below
+    const fit = (columns) => Math.max(100, Math.min(height - 224, width - others(columns) - library_min));
     const states_column = fit(2) >= fit(1) * 0.93;
     const size = states_column ? fit(2) : fit(1);
     const columns = states_column ? 2 : 1;

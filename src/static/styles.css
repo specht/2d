@@ -75,7 +75,12 @@ body {
 #menu_frames {
     left: 200px;
     top: 50px;
-    height: 50px;
+    /* room around the frames: the bar clips what sticks out (it scrolls), and
+       the frame around the active or a selected frame would lose its edges;
+       as wide as the drawing area above it (studio.js handleResize) */
+    box-sizing: border-box;
+    height: 58px;
+    padding: 3px;
     border-radius: 8px;
     position: absolute;
     background-color: var(--panel-bg);
