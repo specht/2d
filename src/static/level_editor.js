@@ -3534,7 +3534,8 @@ class LevelEditor {
         const level = this.game.data.levels[level_index];
         if (!this.show_signal_overview || !level) return;
         const cards = this.signal_cards(level);
-        const panel = $('<div class="signal-overview signal-watch">').appendTo('#main_div_play');
+        // in the column at the right, below the Spiel-Check (level_check.js)
+        const panel = $('<div class="signal-overview signal-watch">').appendTo(window.play_side_column?.() ?? $('#main_div_play'));
         const head = $('<div class="signal-overview-head">').appendTo(panel);
         $('<span>').text('Signale in diesem Level').appendTo(head);
         $('<button class="signal-overview-close" title="Ausblenden (im Level-Editor: S)">').append($('<i class="fa fa-times">'))
@@ -3550,7 +3551,6 @@ class LevelEditor {
         for (const card of cards) boxes.set(card.code, this.build_signal_card(body, card, false));
         // the game must keep the keys: clicks on the panel give them back
         panel.on('mouseup', () => window.focus_play_frame?.());
-        $('#main_div_play').addClass('with-signal-watch');
         const watch = this.signal_watch = { level_index, panel, boxes, bus: null, seen: 0, frame: null };
         const tick = () => {
             if (this.signal_watch !== watch) return;
@@ -3580,7 +3580,7 @@ class LevelEditor {
         this.signal_watch = null;
         cancelAnimationFrame(watch.frame);
         watch.panel.remove();
-        $('#main_div_play').removeClass('with-signal-watch');
+        window.play_side_tidy?.();
     }
 
     // A signal arrived: the card flashes and says "an" or "aus".
@@ -3730,7 +3730,11 @@ class LevelEditor {
             this.placed_properties_for = null;
             this.show_selection();
         }
-        if (found) this.view_signal_rects([{ rect: found.rect, layer_index: object.layer_index }]);
+        // a sprite that has nothing to do with Signale (the Spiel-Check shows it): its own box
+        const placed = object.kind === 'sprite' && !found ? level.layers[object.layer_index].sprites?.[object.placed_index] : null;
+        const sprite = placed ? this.game.data.sprites[this.game.sprite_index_for_ref(placed[0])] : null;
+        const rect = found?.rect ?? (sprite ? placed_signal_rect(placed, sprite) : null);
+        if (rect) this.view_signal_rects([{ rect, layer_index: object.layer_index }]);
         else { this.refresh(); this.render(); }
     }
 

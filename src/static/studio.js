@@ -686,9 +686,10 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             // deleting a sprite elsewhere tidies the levels: not an edit to undo here
             game.level_editor.history_rebase?.();
         }
-        // the Signale beside a test run belong to that run only (a start at
-        // #hilfe shows the pane before the game exists)
+        // the Signale and the Spiel-Check beside a run belong to that run only
+        // (a start at #hilfe shows the pane before the game exists)
         game?.level_editor?.stop_signal_watch?.();
+        window.play_check?.stop?.();
         if (current_pane === 'play') {
             // "Level testen" (level editor): straight into that level
             const playtest = window.studio_pending_playtest ?? null;
@@ -709,6 +710,8 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                         if (playtest) frame.game.start_playtest?.(playtest);
                         // the level's Signale beside the test run (level_editor.js)
                         if (playtest && current_pane === 'play') game.level_editor?.start_signal_watch?.(playtest.level_index);
+                        // common mistakes beside the game: in that level, or in the whole game (level_check.js)
+                        if (current_pane === 'play') window.play_check?.start?.(game, playtest ? playtest.level_index : null);
                         focus_game();
                     });
                     $('#play_iframe').fadeIn();

@@ -4212,17 +4212,35 @@ details.trait-advanced[open] > summary {
     color: var(--signal-color, #94b0c2);
 }
 
-/* The Signale beside a test run (level_editor.js start_signal_watch): the
-   overview's cards, only to read, flashing when their signal arrives */
-.signal-overview.signal-watch {
+/* The column at the right of the game (level_check.js play_side_column): the
+   Spiel-Check on top, the Signale of a test run below. Each panel scrolls on
+   its own; together they never grow past the window. */
+.play-side {
     position: fixed;
     top: 60px;
     right: 12px;
     max-height: calc(100vh - 120px);
     width: min(340px, 30vw);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 3;
 }
-#main_div_play.with-signal-watch .play_container {
+.play-side > .signal-overview {
+    position: static;
+    width: auto;
+    max-height: none;
+    min-height: 0;
+    flex: 0 1 auto;
+}
+#main_div_play.with-play-side .play_container {
     padding-right: calc(min(340px, 30vw) + 22px);
+}
+
+/* The Signale beside a test run (level_editor.js start_signal_watch): the
+   overview's cards, only to read, flashing when their signal arrives */
+.play-side > .signal-overview.signal-watch {
+    flex: 1 1 auto;
 }
 .signal-watch-hint {
     margin: 2px 4px 8px;
@@ -7002,4 +7020,88 @@ body {
 #webgl_notice.showing {
     opacity: 1;
     transform: translate(-50%, 0);
+}
+
+/* Spiel-Check (level_check.js): common mistakes beside the game – a problem
+   (it does not work as meant) in orange, a hint in blue, and what just
+   happened in the game on top, flashing when it happens again. The same
+   boxes stand above a sprite's Eigenschaften (.trait-pitfalls). */
+.play-check-group {
+    margin: 4px 4px 6px;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+}
+.play-check-item + .play-check-group {
+    margin-top: 12px;
+}
+.play-check-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border-left: 3px solid var(--play-check-color);
+    background: rgba(255, 255, 255, 0.05);
+    line-height: 1.4;
+    --play-check-color: #ef7d57;
+}
+.play-check-item > .fa {
+    flex: none;
+    margin-top: 2px;
+    color: var(--play-check-color);
+}
+.play-check-hint {
+    --play-check-color: #73eff7;
+}
+.play-check-now {
+    --play-check-color: #ffcd75;
+}
+.play-check-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.play-check-show {
+    display: block;
+    margin-top: 6px;
+    padding: 2px 8px;
+    border: none;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.85);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+.signal-overview .play-check-show:hover {
+    border: none;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    outline: 1px solid rgba(255, 255, 255, 0.45);
+}
+.play-check-count {
+    flex: none;
+    padding: 1px 7px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.12);
+    font-size: 11px;
+    font-weight: bold;
+}
+@keyframes play-check-flash {
+    from { background: rgba(255, 205, 117, 0.35); }
+    to { background: rgba(255, 255, 255, 0.05); }
+}
+.play-check-flash {
+    animation: play-check-flash 1.2s ease-out;
+}
+.trait-pitfalls {
+    margin: 8px 0;
+    color: #eee;
+    font-size: 13px;
+}
+.trait-pitfalls .play-check-item {
+    background: rgba(0, 0, 0, 0.25);
 }
