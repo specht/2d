@@ -65,3 +65,20 @@ test('several selected frames dragged together land as a block where the dragged
     r = move_frames_block(strip(), [1, 3], 1, 1);
     assert.equal(srcs(r.frames), 'abdce');
 });
+
+test('several sprites: a range takes only what the list shows', () => {
+    const { visible_range } = require('../src/static/sprite_actions.js');
+    assert.deepEqual(visible_range(1, 4, () => true), [1, 2, 3, 4]);
+    assert.deepEqual(visible_range(4, 1, i => i !== 2), [1, 3, 4]);
+});
+
+test('several sprites: one always stays, and what somebody else edits stays too', () => {
+    const { sprites_to_delete } = require('../src/static/sprite_actions.js');
+    assert.deepEqual(sprites_to_delete([2, 0, 1], 5, () => true), { indices: [0, 1, 2], kept_last: false, locked: [] });
+    // all of them: the first of the selection stays
+    assert.deepEqual(sprites_to_delete([0, 1, 2], 3, () => true), { indices: [1, 2], kept_last: true, locked: [] });
+    // in a session: one is being edited by somebody else
+    assert.deepEqual(sprites_to_delete([0, 1, 3], 4, i => i !== 1), { indices: [0, 3], kept_last: false, locked: [1] });
+    // nothing valid
+    assert.deepEqual(sprites_to_delete([7, -1], 3, () => true), { indices: [], kept_last: false, locked: [] });
+});

@@ -70,6 +70,9 @@ function show_sprite_again(si, sti, fi) {
 function sprite_context_menu(si) {
     const sprite = game.data.sprites[si];
     if (!sprite) return [];
+    // a right click on one of several selected sprites: the menu for all of them
+    const chosen = selected_sprites();
+    if (chosen.length > 1 && chosen.includes(si)) return sprite_selection_menu(chosen);
     const can_delete = game.data.sprites.length > 1 && (window.collaboration?.can_delete?.('sprite', sprite.id) ?? true);
     return [
         { header: sprite_label(sprite, si) },
@@ -80,9 +83,138 @@ function sprite_context_menu(si) {
         { label: 'Sprites holen (Katalog oder anderes Spiel) …', icon: 'fa-shopping-basket', callback: () => { if (typeof show_sprite_basket === 'function') show_sprite_basket(); } },
         '-',
         { label: 'Löschen', icon: 'fa-trash', disabled: !can_delete,
-            hint: can_delete ? 'Auch aus allen Levels. Gleich danach kannst du es mit „Rückgängig“ zurückholen.' : 'Das letzte Sprite bleibt.',
+            hint: can_delete ? 'Auch aus allen Levels. Gleich danach kannst du es mit „Rückgängig“ zurückholen. Mehrere auf einmal: mit Shift oder Strg anklicken.' : 'Das letzte Sprite bleibt.',
             callback: () => game.sprites_widget?.delete_index?.(si) },
     ];
+}
+
+// ------------------------------------------------------------ several sprites
+// In the sprite list, as in the frame list: Shift + click selects every
+// sprite from the one shown to the clicked one, Strg + click adds or removes
+// one; a plain click selects nothing but the sprite it shows. A right click on
+// a selected sprite then deletes all of them at once (with one Rückgängig).
+// The selection is kept by sprite ID, so it survives the list being sorted;
+// the sprite shown always belongs to it. Only sprites the search shows can be
+// selected: a range never takes hidden ones along. Marked: .sprite-selected.
+
+let sprite_selection = new Set();
+
+// The indices of a range, only those the list shows (pure; tests).
+function visible_range(a, b, shown) {
+    return frame_range(a, b).filter(i => shown(i));
+}
+
+// What may go: never every sprite (one stays), never one somebody else is
+// editing in a session. Returns { indices, kept_last, locked } (pure; tests).
+function sprites_to_delete(indices, count, can_delete) {
+    let chosen = valid_frame_indices(indices, count);
+    const locked = chosen.filter(i => !can_delete(i));
+    chosen = chosen.filter(i => can_delete(i));
+    let kept_last = false;
+    if (count > 0 && chosen.length >= count) {
+        chosen = chosen.slice(1);
+        kept_last = true;
+    }
+    return { indices: chosen, kept_last, locked };
+}
+
+function sprite_item_shown(i) {
+    const item = document.querySelectorAll('#menu_sprites > ._dnd_item:not(.add):not(.placeholder)')[i];
+    return !!item && item.style.display !== 'none';
+}
+
+function selected_sprites() {
+    if (!sprite_selection.size) return [];
+    const sprites = game?.data?.sprites ?? [];
+    const indices = sprites.map((s, i) => sprite_selection.has(s.id) ? i : -1).filter(i => i >= 0);
+    if (Number.isInteger(canvas?.sprite_index)) indices.push(canvas.sprite_index);
+    return valid_frame_indices(indices, sprites.length);
+}
+
+function set_sprite_selection(indices) {
+    sprite_selection = new Set(indices.map(i => game.data.sprites[i]?.id).filter(Boolean));
+    mark_sprite_selection();
+}
+
+function clear_sprite_selection() {
+    if (!sprite_selection.size) return;
+    sprite_selection = new Set();
+    mark_sprite_selection();
+}
+
+function mark_sprite_selection() {
+    if (typeof $ === 'undefined') return;
+    const chosen = new Set(selected_sprites().length > 1 ? selected_sprites() : []);
+    $('#menu_sprites > ._dnd_item').not('.add, .placeholder').each((i, el) => $(el).toggleClass('sprite-selected', chosen.has(i)));
+}
+
+function sprite_selection_menu(chosen) {
+    const plan = sprites_to_delete(chosen, game.data.sprites.length,
+        (i) => window.collaboration?.can_delete?.('sprite', game.data.sprites[i]?.id) ?? true);
+    const n = plan.indices.length;
+    const hint = plan.kept_last ? 'Ein Sprite bleibt – das erste der Auswahl wird nicht gelöscht.' :
+        plan.locked.length ? `${plan.locked.length} bearbeitet gerade jemand anderes – die bleiben.` :
+        'Auch aus allen Levels. Gleich danach kannst du sie mit „Rückgängig“ zurückholen.';
+    return [
+        { header: `${chosen.length} Sprites ausgewählt` },
+        { label: n === 1 ? '1 Sprite löschen' : `${n} Sprites löschen`, icon: 'fa-trash', disabled: n === 0, hint,
+            callback: () => delete_sprites(plan.indices) },
+        '-',
+        { label: 'Auswahl aufheben', icon: 'fa-times', callback: () => clear_sprite_selection() },
+    ];
+}
+
+// One action: the list loses them all, and one Rückgängig brings them back.
+function delete_sprites(indices) {
+    const widget = game.sprites_widget;
+    if (!widget || !indices.length) return;
+    const undo = window.trash_undo?.before?.(widget.options, indices[0]) ?? null;
+    if (undo && indices.length > 1) undo.text = `${indices.length} Sprites gelöscht.`;
+    const items = widget.options.container.children('._dnd_item').not('.add, .placeholder');
+    // from the back, so that the indices in front stay right
+    for (const i of [...indices].sort((a, b) => b - a)) {
+        items.eq(i).remove();
+        widget.options.delete_item(i);
+    }
+    clear_sprite_selection();
+    const left = widget.options.container.children('._dnd_item').not('.add, .placeholder');
+    const select = Math.max(0, Math.min(indices[0], left.length - 1));
+    if (left.length) widget.options.onclick(left.eq(select).children().eq(0)[0], select);
+    game.refresh_frames_on_screen?.();
+    if (undo) window.trash_undo.after(undo);
+}
+
+// Shift / Strg + click in the sprite list: caught before the list's own click.
+if (typeof document !== 'undefined') {
+    document.addEventListener('mousedown', (e) => {
+        const item = e.target?.closest?.('#menu_sprites > ._dnd_item');
+        if (!item || item.classList.contains('add') || e.button !== 0) return;
+        const items = [...item.parentNode.children].filter(el => el.classList.contains('_dnd_item') && !el.classList.contains('add') && !el.classList.contains('placeholder'));
+        const index = items.indexOf(item);
+        if (index < 0) return;
+        if (e.shiftKey || e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            const current = canvas.sprite_index ?? index;
+            if (e.shiftKey) set_sprite_selection(visible_range(current, index, sprite_item_shown));
+            else {
+                const known = selected_sprites();
+                const set = new Set(known.length ? known : [current]);
+                if (set.has(index) && index !== current) set.delete(index); else set.add(index);
+                set_sprite_selection([...set]);
+            }
+        } else if (!selected_sprites().includes(index)) {
+            clear_sprite_selection();
+        }
+    }, true);
+    document.addEventListener('click', (e) => {
+        if (!e.target?.closest?.('#menu_sprites > ._dnd_item:not(.add)')) return;
+        if (!(e.shiftKey || e.ctrlKey || e.metaKey)) { clear_sprite_selection(); return; }
+        e.preventDefault();
+        e.stopPropagation();
+    }, true);
+    // the list is rebuilt after many actions: the marks follow
+    document.addEventListener('mouseup', () => setTimeout(mark_sprite_selection, 0), true);
 }
 
 // Umbenennen: the sprite is shown and its Titel field gets the focus.
@@ -474,7 +606,7 @@ function show_state_notice(text) {
     show_state_notice.timer = setTimeout(() => notice.removeClass('showing'), 4000);
 }
 
-if (typeof module !== 'undefined') module.exports = {
+if (typeof module !== 'undefined') module.exports = { visible_range, sprites_to_delete,
     copy_state_without_role, copy_state_for_sprite,
     frame_range, valid_frame_indices, duplicate_frames_in, remove_frames_from, reverse_frames_in, move_frames_block,
 };
