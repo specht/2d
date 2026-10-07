@@ -277,6 +277,31 @@ class CollaborationStoreTest < Minitest::Test
         assert_equal 2, saved[:revision]
         assert_equal "new1234", snapshot[:state]["parent"]
         assert_equal "nach Save-Klick geändert", snapshot[:state]["properties"]["title"]
+        # Ben's change is not in new1234: it counts as unsaved, the next save is a real one
+        assert_equal 0, saved[:saved_revision]
+        again = @store.begin_save(code: "session", participant_id: anna[:participant_id], connection_id: anna[:connection_id])
+        refute again[:unchanged]
+    end
+
+    def test_a_save_without_changes_since_the_last_one_is_marked_unchanged
+        @store.create(state: @state, source_tag: "abc1234")
+        anna = @store.join(code: "session", name: "Anna")
+        ben = @store.join(code: "session", name: "Ben")
+        save = ->(who) { @store.begin_save(code: "session", participant_id: who[:participant_id], connection_id: who[:connection_id]) }
+        # the game the session started from may differ from the session's state: never a repeat
+        first = save.(anna)
+        refute first[:unchanged]
+        saved = @store.finish_save(code: "session", token: first[:token], tag: "new1234")
+        assert_equal saved[:revision], saved[:saved_revision]
+        # Ben presses Speichern right after Anna: nothing changed
+        second = save.(ben)
+        assert second[:unchanged]
+        assert_equal "new1234", second[:source_tag]
+        @store.finish_save(code: "session", token: second[:token], tag: "new1234")
+        # a change: a real save again
+        @store.lock(**ids(ben), resource: "settings")
+        @store.update(**ids(ben), resource: "settings", resource_revision: 0, value: { "title" => "Neu" })
+        refute save.(anna)[:unchanged]
     end
 
     def test_aborting_shared_save_releases_the_save_slot

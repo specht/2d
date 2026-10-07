@@ -79,6 +79,50 @@ class GameIndexTest < Minitest::Test
         assert_nil @index.node("hhhhhhh")[:parent]
     end
 
+    # a team saves one after another: two versions in the same second
+    def test_a_version_saved_in_the_same_second_as_its_parent_belongs_to_it
+        @index.add(row("sssssss", "ddddddd", 40))
+        @index.add(row("ttttttt", "sssssss", 40))
+        assert_equal "ddddddd", @index.node("sssssss")[:parent]
+        assert_equal "aaaaaaa", @index.root_of("ttttttt")
+        assert_equal %w(aaaaaaa xxxxxxx yyyyyyy), @index.root_tags.sort
+    end
+
+    # saved before that was allowed: the file still names the parent
+    def test_lost_parent_links_are_found_in_the_files_and_linked
+        index = GameIndex.new
+        index.load([
+            row("aaaaaaa", nil, 10), row("bbbbbbb", nil, 10), row("ccccccc", nil, 10),
+            row("ddddddd", nil, 12), row("eeeeeee", nil, 9), row("fffffff", nil, 20),
+        ])
+        files = { "bbbbbbb" => "aaaaaaa",   # same second: lost
+                  "ccccccc" => "bbbbbbb",   # and its child, too
+                  "ddddddd" => "gone000",   # parent deleted (moderation): stays a root
+                  "eeeeeee" => "aaaaaaa",   # parent newer: never
+                  "fffffff" => nil }        # a first version
+        lost = index.lost_parent_links { |tag| files[tag] }
+        assert_equal [%w(bbbbbbb aaaaaaa), %w(ccccccc bbbbbbb)], lost.sort
+        lost.each { |tag, parent| assert index.link(tag, parent) }
+        assert_equal "aaaaaaa", index.root_of("ccccccc")
+        assert_equal 3, index.tips(index.root_tags).find { |t| t[:root] == "aaaaaaa" }[:relatives_count]
+        assert_equal %w(aaaaaaa ddddddd eeeeeee fffffff), index.root_tags.sort
+        # never a loop, never twice
+        refute index.link("aaaaaaa", "ccccccc")
+        refute index.link("bbbbbbb", "aaaaaaa")
+        assert_equal [], index.lost_parent_links { |tag| files[tag] }
+        # a file that cannot be read is skipped
+        assert_equal [], index.lost_parent_links { |_| raise "unreadable" }
+    end
+
+    def test_a_link_during_a_refresh_is_kept
+        index = GameIndex.new
+        index.load([row("aaaaaaa", nil, 10), row("bbbbbbb", nil, 10)])
+        index.begin_load
+        index.link("bbbbbbb", "aaaaaaa")
+        index.load([row("aaaaaaa", nil, 10), row("bbbbbbb", nil, 10)])
+        assert_equal "aaaaaaa", index.root_of("bbbbbbb")
+    end
+
     def test_load_cuts_unknown_parents_and_loops
         index = GameIndex.new
         index.load([row("p", "q", 1), row("q", "p", 2), row("r", "missing", 3), row("s", "s", 4)])

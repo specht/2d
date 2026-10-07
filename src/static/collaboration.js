@@ -1326,7 +1326,8 @@ class CollaborationClient {
         const in_order = this.accept_revision(message);
         this.source_tag = message.tag;
         if (in_order) {
-            this.saved_revision = message.revision;
+            // a change made while the save was written is not in it (collaboration.rb finish_save)
+            this.saved_revision = Number.isInteger(message.saved_revision) ? message.saved_revision : message.revision;
             if (Array.isArray(message.participants)) this.participants = message.participants;
             if (window.game?.data) window.game.data.parent = message.tag;
         }

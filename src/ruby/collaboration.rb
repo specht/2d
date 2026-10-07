@@ -458,12 +458,17 @@ module Collaboration
                 session[:save] = {
                     token: token,
                     participant_id: participant[:id],
+                    # what the saved copy contains (finish_save)
+                    revision: session[:revision],
                 }
                 {
                     token: token,
                     state: deep_copy(session[:state]),
                     source_tag: session[:source_tag],
                     revision: session[:revision],
+                    # nothing happened since the last shared save of this
+                    # session (not the game it started from: that may differ)
+                    unchanged: session[:saved_revision] > 0 && session[:saved_revision] == session[:revision] && !session[:source_tag].nil?,
                     participant_id: participant[:id],
                     participant_name: participant[:name],
                 }
@@ -481,12 +486,16 @@ module Collaboration
                 session[:save] = nil
                 session[:source_tag] = tag
                 session[:state]["parent"] = tag
+                # a change that came in while the copy was being written is
+                # not in it: it stays unsaved (and the next save is no repeat)
+                changed_meanwhile = !save[:revision].nil? && session[:revision] != save[:revision]
                 session[:revision] += 1
-                session[:saved_revision] = session[:revision]
+                session[:saved_revision] = changed_meanwhile ? save[:revision] : session[:revision]
                 session[:last_seen] = @clock.call
                 {
                     source_tag: tag,
                     revision: session[:revision],
+                    saved_revision: session[:saved_revision],
                     participants: participants_locked(session),
                 }
             end

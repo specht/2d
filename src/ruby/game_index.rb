@@ -60,7 +60,13 @@ class GameIndex
             @nodes = nodes
             @children = build_children(nodes)
             journal, @journal = @journal, nil
-            (journal || []).each { |kind, value| kind == :remove ? remove_unlocked(value) : add_unlocked(value) }
+            (journal || []).each do |kind, value|
+                case kind
+                when :remove then remove_unlocked(value)
+                when :link then link_unlocked(*value)
+                else add_unlocked(value)
+                end
+            end
             @ready = true
             @version += 1
         end
@@ -69,8 +75,11 @@ class GameIndex
 
     # One save (main.rb save_game, after Neo4j): like the database, a tag that
     # is there already keeps its creation time and its parent; a parent is only
-    # linked when it exists and is older (a game can never become its own
-    # ancestor).
+    # linked when it exists, is not newer and is no descendant (a game can
+    # never become its own ancestor). Times are whole seconds: a version saved
+    # in the same second as its parent belongs to it, too – a team pressing
+    # Speichern one after another did that, and each such save started a
+    # family of its own in "Spiel laden" (October 2026).
     def add(row)
         return if row[:tag].to_s.empty?
         @mutex.synchronize do
@@ -95,6 +104,35 @@ class GameIndex
 
     def node(tag)
         @mutex.synchronize { @nodes[tag] && @nodes[tag].dup }
+    end
+
+    # Versions that the index shows as the first of their family although
+    # their saved file names a parent it could have linked (saved in the same
+    # second as the parent, before that was allowed): [[tag, parent], …].
+    # parent_of(tag) reads the file (nil when there is none). A parent that is
+    # gone (deleted by moderation) stays gone.
+    def lost_parent_links(&parent_of)
+        roots = root_tags
+        roots.filter_map do |tag|
+            parent = begin
+                parent_of.call(tag)
+            rescue StandardError
+                nil
+            end
+            next unless parent.is_a?(String)
+            @mutex.synchronize { linkable_unlocked?(tag, parent) } ? [tag, parent] : nil
+        end
+    end
+
+    # Links a version to its parent afterwards (lost_parent_links, once the
+    # database has the edge too); false when it cannot be linked.
+    def link(tag, parent)
+        @mutex.synchronize do
+            @journal << [:link, [tag, parent]] if @journal
+            linked = link_unlocked(tag, parent)
+            @version += 1 if linked
+            linked
+        end
     end
 
     # Tags without a (known) parent: the first version of every family.
@@ -172,13 +210,28 @@ class GameIndex
             node[:author] ||= old[:author]
         else
             parent = node[:parent]
-            ok = parent && parent != tag && @nodes[parent] &&
-                 (@nodes[parent][:ts_created] || 0) < (node[:ts_created] || 0) &&
-                 !ancestor_tags_unlocked(parent).include?(tag)
-            node[:parent] = ok ? parent : nil
-            (@children[parent] ||= []) << tag if ok
+            node[:parent] = nil
+            @nodes[tag] = node
+            link_unlocked(tag, parent)
+            return
         end
         @nodes[tag] = node
+    end
+
+    # May tag (a version without a parent) become a child of parent?
+    def linkable_unlocked?(tag, parent)
+        node = @nodes[tag]
+        above = parent && @nodes[parent]
+        !!(node && above && parent != tag && node[:parent].nil? &&
+           (above[:ts_created] || 0) <= (node[:ts_created] || 0) &&
+           !ancestor_tags_unlocked(parent).include?(tag))
+    end
+
+    def link_unlocked(tag, parent)
+        return false unless linkable_unlocked?(tag, parent)
+        @nodes[tag][:parent] = parent
+        (@children[parent] ||= []) << tag
+        true
     end
 
     def remove_unlocked(tags)

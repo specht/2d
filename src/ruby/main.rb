@@ -177,6 +177,28 @@ class GameIndexLoader
     end
 end
 
+# The PARENT edges a save could not write (game_index.rb lost_parent_links):
+# until October 2026 a version saved in the same second as its parent got no
+# edge, and every such save of a team showed up as a game of its own.
+class ParentLinkWriter
+    include Neo4jBolt
+
+    # links: [[tag, parent], …]; returns those the database took
+    def write(links)
+        links.select do |tag, parent|
+            neo4j_query(<<~END_OF_QUERY, { :tag => tag, :parent => parent }).to_a.any?
+                MATCH (g:Game {tag: $tag})
+                MATCH (p:Game {tag: $parent})
+                WHERE p.ts_created <= g.ts_created AND NOT (g)-[:PARENT]->(:Game)
+                MERGE (g)-[:PARENT]->(p)
+                RETURN g.tag AS tag;
+            END_OF_QUERY
+        end
+    ensure
+        cleanup_neo4j
+    end
+end
+
 class Main < Sinatra::Base
     include Neo4jBolt
     helpers Sinatra::Cookies
@@ -263,12 +285,35 @@ class Main < Sinatra::Base
         STDERR.puts "Sprite sheet repair: #{e}"
     end
 
+    # Once after the first read of all games: versions that lost their parent
+    # (saved in the same second, game_index.rb) are linked again, from the
+    # parent their saved file names. Changes nothing when there are none.
+    def self.repair_parent_links(games_dir = "/gen/games")
+        lost = @@game_index.lost_parent_links do |tag|
+            next nil unless tag =~ /\A[a-z0-9]+\z/
+            path = File.join(games_dir, "#{tag}.json")
+            File.exist?(path) ? JSON.parse(File.read(path))["parent"] : nil
+        end
+        return if lost.empty?
+        written = ParentLinkWriter.new.write(lost)
+        # the load dialog's list follows (its cache knows the index's version)
+        written.each { |tag, parent| @@game_index.link(tag, parent) }
+        STDERR.puts "Game versions linked to their parent again: #{written.size} of #{lost.size}"
+    rescue => e
+        STDERR.puts "Parent link repair: #{e}"
+    end
+
     def self.start_game_index
         Thread.new do
             delay = 5
+            repaired = false
             loop do
                 begin
                     refresh_game_index
+                    unless repaired
+                        repaired = true
+                        repair_parent_links
+                    end
                     delay = 5
                     sleep GAME_INDEX_REFRESH
                 rescue => e
@@ -543,6 +588,17 @@ class Main < Sinatra::Base
             value
         end
 
+        # Does the saved version keep this palette (nil: none sent)? Only then
+        # is an unchanged shared save the same version.
+        def collaboration_saved_palette?(tag, palette, games_dir = "/gen/games")
+            return false unless tag.is_a?(String) && tag =~ /\A[a-z0-9]+\z/
+            return true if palette.nil?
+            path = File.join(games_dir, "#{tag}.json")
+            File.exist?(path) && JSON.parse(File.read(path))["palette"] == palette
+        rescue
+            false
+        end
+
         def collaboration_save(socket, code, ids, palette = nil)
             prepared = @@collaboration_store.begin_save(**ids)
             unless prepared
@@ -554,12 +610,18 @@ class Main < Sinatra::Base
                 game_to_save = prepared[:state]
                 game_to_save["parent"] = prepared[:source_tag]
                 game_to_save["palette"] = palette if palette
-                tag = save_game(game_to_save, true)
-                # a submitted game: this version is tested from now on (as with /api/save_game)
-                begin
-                    @@playtesting.after_save(tag, { "properties" => game_to_save["properties"], "parent" => prepared[:source_tag] })
-                rescue => e
-                    STDERR.puts "Playtesting after shared save: #{e}"
+                if prepared[:unchanged] && collaboration_saved_palette?(prepared[:source_tag], palette)
+                    # nothing changed since the last shared save (the whole
+                    # team presses Speichern): that version again, no copy of it
+                    tag = prepared[:source_tag]
+                else
+                    tag = save_game(game_to_save, true)
+                    # a submitted game: this version is tested from now on (as with /api/save_game)
+                    begin
+                        @@playtesting.after_save(tag, { "properties" => game_to_save["properties"], "parent" => prepared[:source_tag] })
+                    rescue => e
+                        STDERR.puts "Playtesting after shared save: #{e}"
+                    end
                 end
                 saved = @@collaboration_store.finish_save(
                     :code => code,
@@ -574,6 +636,7 @@ class Main < Sinatra::Base
                     :saved_by_id => prepared[:participant_id],
                     :source_tag => saved[:source_tag],
                     :revision => saved[:revision],
+                    :saved_revision => saved[:saved_revision],
                     :participants => saved[:participants],
                 })
             rescue => e
@@ -1225,7 +1288,7 @@ class Main < Sinatra::Base
                 neo4j_query(<<~END_OF_QUERY, { :tag => tag, :parent => parent })
                     MATCH (g:Game {tag: $tag})
                     MATCH (p:Game {tag: $parent})
-                    WHERE p.ts_created < g.ts_created
+                    WHERE p.ts_created <= g.ts_created
                     MERGE (g)-[:PARENT]->(p);
                 END_OF_QUERY
             end
