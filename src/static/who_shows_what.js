@@ -256,14 +256,17 @@ function refresh_who_shows_what() {
             line.append(cell_for(cell, false));
         }
     }
+    // what "Platz für … Bilder" means is the badge's hover title, not a
+    // paragraph under the table: the Zustände column has no room for it once
+    // a figure has all its states (seven for a Spielfigur)
     if (room) $('<span class="wsw-count">').text(room === 1 ? 'Platz für 1 Bild' : `Platz für ${room} Bilder`)
-        .attr('title', 'So viele Bewegungen zeigen ein Bild, das schon da ist – hier könnten eigene Bilder hin.').appendTo(summary);
+        .attr('title', figure ?
+            'So viele Bewegungen zeigen ein Bild, das schon da ist. Das Spiel läuft auch so. Wenn du magst, mal eins dazu – leg einen Zustand an und gib ihm unten bei „Rolle zuweisen“ die Rolle.' :
+            'Das Sprite zeigt einfach weiter sein Bild. Wenn du magst, leg einen Zustand dafür an und gib ihm unten bei „Rolle zuweisen“ die Rolle.')
+        .appendTo(summary);
     const legend = $('<div class="wsw-legend">').appendTo(details);
     for (const how of ['drawn', 'mirrored', 'other', 'base'])
         $('<span>').append($('<i>').addClass(`wsw-${how}`)).append(document.createTextNode(WSW_HOW[how])).appendTo(legend);
-    if (room) $('<div class="wsw-hint">').text(figure ?
-        'Das Spiel läuft auch so: wo es kein eigenes Bild gibt, zeigt die Figur eins, das schon da ist. Wenn du magst, mal eins dazu – leg einen Zustand an und gib ihm unten bei „Rolle zuweisen“ die Rolle.' :
-        'Das Sprite zeigt einfach weiter sein Bild. Wenn du magst, leg einen Zustand dafür an und gib ihm unten bei „Rolle zuweisen“ die Rolle.').appendTo(details);
 }
 
 function refresh_who_shows_what_pictures() {

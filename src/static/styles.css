@@ -19,9 +19,9 @@ body {
     height: 50px;
     border-radius: 8px;
     position: absolute;
-    background-color: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
+    background-color: var(--panel-bg);
+    border: 1px solid var(--panel-edge);
+    backdrop-filter: blur(10px);
     text-align: right;
     overflow-x: auto;
     overflow-y: hidden;
@@ -76,11 +76,11 @@ body {
     left: 200px;
     top: 50px;
     height: 50px;
-    border-radius: 4px;
+    border-radius: 8px;
     position: absolute;
-    background-color: rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
+    background-color: var(--panel-bg);
+    border: 1px solid var(--panel-edge);
+    backdrop-filter: blur(10px);
     text-align: left;
     overflow-x: auto;
     overflow-y: hidden;
@@ -129,6 +129,28 @@ body {
 :root {
     --nav-height: 41px;
 }
+
+/* Boxes are told apart by their surface, not by lines: a box is a slightly
+   lifted, blurred surface with a faint edge (the background runs from blue to
+   almost black, so the edge keeps the box visible at the bottom). Inside a
+   box, rows are fills without a border. Lines stay where they mean something:
+   around what you can type into or switch (fields, dropdowns, checkboxes –
+   children have to see that they can), the selected item, the focused field
+   and the drawing area. */
+:root {
+    --panel-bg: rgba(14, 20, 32, 0.6);
+    --panel-edge: rgba(255, 255, 255, 0.08);
+    --panel-divider: rgba(255, 255, 255, 0.07);
+    --header-bg: rgba(0, 0, 0, 0.25);
+    --row-bg: rgba(255, 255, 255, 0.06);
+    --row-hover: rgba(255, 255, 255, 0.12);
+    --field-bg: rgba(0, 0, 0, 0.25);
+    --field-edge: rgba(255, 255, 255, 0.22);
+    --field-edge-hover: rgba(255, 255, 255, 0.45);
+    --on: #a7f070;
+    --selected-bg: rgba(255, 255, 255, 0.16);
+    --selected-edge: rgba(255, 255, 255, 0.85);
+}
 #main_div_sprites > .menu_container:first-child,
 #main_div_sprites .right_menu_container,
 #main_div_sprites .states_menu_container,
@@ -171,7 +193,7 @@ body {
     right: 0;
     background-image: url(rough.png);
     opacity: 0.3;
-    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-left: 1px solid transparent;
     /* z-index: 100; */
 }
 
@@ -206,7 +228,7 @@ body {
     right: 0;
     background-image: url(rough.png);
     opacity: 0.3;
-    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-left: 1px solid transparent;
 }
 
 .menu_level_item {
@@ -223,7 +245,7 @@ body {
     right: 0;
     background-image: url(rough.png);
     opacity: 0.3;
-    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-left: 1px solid transparent;
 }
 
 .menu_layer_item {
@@ -248,7 +270,7 @@ body {
     right: 0;
     background-image: url(rough.png);
     opacity: 0.3;
-    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-left: 1px solid transparent;
 }
 
 .menu_backdrop_item {
@@ -288,7 +310,7 @@ body {
     right: 0;
     background-image: url(rough.png);
     opacity: 0.3;
-    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-left: 1px solid transparent;
 }
 
 .menu_frame_item {
@@ -392,7 +414,7 @@ body {
     right: 0;
     background-image: url(rough.png);
     opacity: 0.3;
-    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    border-left: 1px solid transparent;
 }
 
 .menu_level_sprite_item {
@@ -426,28 +448,53 @@ body {
 
 .menu h3, .menu h4 {
     color: #fff;
-    font-size: 15px;
+    font-size: 13px;
+    line-height: 20px;
     margin: 0 0 0.3em 0;
-    text-align: center;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 4px 0;
-    background-color: rgba(255, 255, 255, 0.05);
-    /* background-color: rgba(0, 0, 0, 0.1); */
-    font-weight: normal;
+    text-align: left;
+    /* a darker band marks the title; the line under it is gone (transparent:
+       the height stays) */
+    background-color: var(--header-bg);
+    border-bottom: 1px solid transparent;
+    padding: 4.5px 10px 3px 10px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
     margin-top: -5px;
-    border-top: none;
     margin-left: -5px;
     margin-right: -5px;
 }
 
+/* a part of a box (an Eigenschaft with its delete button): a quiet band */
 .menu h4 {
-    font-size: 13px;
-    text-align: left;
+    font-weight: 500;
+    line-height: normal;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1px 4px 1px 8px;
+    padding: 1px 4px 1px 10px;
+    background-color: var(--row-bg);
+}
+
+/* Its delete button (game.js, level_editor.js: a .btn with a trash icon): no
+   ring, a quiet outline bin, red only while the mouse is on it – it removes
+   the Eigenschaft. Same 26 px as before, so the head keeps its height. */
+.menu h4 > button.btn:has(> .fa-trash) {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 15px;
+}
+.menu h4 > button.btn:has(> .fa-trash) > .fa-trash::before {
+    content: "\f014";   /* fa-trash-o: the outline bin */
+}
+.menu h4 > button.btn:has(> .fa-trash):hover {
+    background-color: rgba(239, 125, 87, 0.16);
+    color: #ef7d57;
+}
+.menu h4 > button.btn:has(> .fa-trash):focus-visible {
+    outline: 2px solid rgba(115, 239, 247, 0.6);
+    outline-offset: 1px;
 }
 
 /* Compact, aligned headings and expandable hints inside sprite traits. */
@@ -507,8 +554,8 @@ body {
 
 .menu {
     /* width: 152px; */
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background-color: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--panel-edge);
+    background-color: var(--panel-bg);
     padding: 5px;
     border-radius: 10px;
     margin-bottom: 10px;
@@ -526,14 +573,16 @@ body {
     border-top: none;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
+    /* where two parts of one box meet: a faint line that takes no room */
+    box-shadow: inset 0 1px 0 var(--panel-divider);
 }
 
 .menu hr {
     margin: 5px 0;
     border: none;
     height: 0px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+    border-top: 1px solid var(--panel-divider);
+    border-bottom: 1px solid transparent;
 }
 
 .menu_container select {
@@ -1281,14 +1330,18 @@ button.collab-leave:hover {
 }
 
 .menu input[type="text"], .menu-body input[type="text"] {
-    background-color: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: var(--field-bg);
+    border: 1px solid var(--field-edge);
     display: block;
     width: calc(100% - 20px);
     margin: 1px;
     padding: 4px 8px;
     border-radius: 4px;
     color: rgba(255, 255, 255, 0.8);
+}
+
+.menu input[type="text"]:hover, .menu-body input[type="text"]:hover {
+    border-color: var(--field-edge-hover);
 }
 
 .menu input[type="text"]:focus, .menu-body input[type="text"]:focus {
@@ -1313,8 +1366,8 @@ button.collab-leave:hover {
     break-inside: avoid;
     margin: 0 0 18px 0;
     padding: 4px 8px 10px 8px;
-    background: rgba(0, 0, 0, 0.22);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-edge);
     border-radius: 10px;
     display: inline-block;   /* keeps a card in one column (older browsers) */
     width: 100%;
@@ -1354,26 +1407,46 @@ button.btn {
     margin: 1px;
 }
 
+/* A checkbox (widgets.js CheckboxWidget): an empty square when off – not a
+   cross, which looks like "löschen" or "schließen" – and a green tick when
+   on, framed and tinted like the switches that are on (.view-toggle.active):
+   clear at a glance, without outshining the rest of the box.
+   20 px plus 4 px margin take the same room as the old 26 px circle. */
 button.btn-checkbox {
-    background-color: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 100%;
-    color: rgba(255, 255, 255, 0.8);
-    width: 26px;
-    height: 26px;
-    min-width: 26px;
-    min-height: 26px;
+    box-sizing: border-box;
+    background-color: var(--field-bg);
+    border: 1.5px solid rgba(255, 255, 255, 0.5);
+    border-radius: 5px;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
     cursor: pointer;
     padding: 0;
-    margin: 1px;
-    background-image: url(icons/times-44.png);
+    margin: 4px;
+    background-image: none;
     background-repeat: no-repeat;
     background-position: center center;
-    background-size: 16px 16px;
+    background-size: 14px 14px;
+}
+
+button.btn-checkbox:hover {
+    border-color: rgba(255, 255, 255, 0.9);
+}
+
+button.btn-checkbox:focus-visible {
+    outline: 2px solid rgba(115, 239, 247, 0.6);
+    outline-offset: 1px;
 }
 
 button.btn-checkbox[data-state='true'] {
-    background-image: url(icons/check-44.png);
+    background-color: rgba(167, 240, 112, 0.12);
+    border-color: rgba(167, 240, 112, 0.6);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2.5 7.4l3 3 6-6.6' fill='none' stroke='%23a7f070' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+button.btn-checkbox[data-state='true']:hover {
+    border-color: var(--on);
 }
 
 .state-header {
@@ -1464,12 +1537,12 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     top: 0;
     left: 0;
     transition: left 0.2s, top 0.2s;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid transparent;
+    background-color: var(--row-bg);
     overflow: hidden;
     vertical-align: middle;
     /* pointer-events: none; */
-    border-radius: 2px;
+    border-radius: 4px;
 }
 
 ._dnd_item._no_anim>div {
@@ -1478,18 +1551,19 @@ border: 1px solid rgba(255, 255, 255, 0.7);
 }
 
 ._dnd_item>div:hover {
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    background-color: var(--row-hover);
 }
 
+/* the one being edited: the same clear frame in every list */
 ._dnd_item.active>div {
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid var(--selected-edge);
+    background-color: var(--selected-bg);
 }
 
 ._dnd_item.add>div {
     background-color: transparent;
-    border: 1px dashed rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
+    border: 1px dashed rgba(255, 255, 255, 0.16);
+    border-radius: 4px;
 }
 
 ._dnd_item>div>.add {
@@ -1871,14 +1945,13 @@ input:not([type='range']) {
 }
 
 .item .separator {
-    border-top: 1px solid rgba(255,255,255,0.1);
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    background-color: rgba(0,0,0,0.2);
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+    background-color: var(--row-bg);
     width: 100%;
     padding: 5px;
     margin: 5px -5px;
-    font-weight: bold;
-    box-shadow: 0 0 5px rgb(0 0 0 / 50%);
+    font-weight: 600;
 }
 
 .wide-menu-body .item {
@@ -5082,9 +5155,9 @@ select.dropdown-native {
     max-width: 100%;
     margin: 1px 0;
     padding: 0.3em 0.55em 0.3em 0.7em;
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    border: 1px solid var(--field-edge);
     border-radius: 5px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--row-bg);
     color: #eee;
     font: inherit;
     font-size: inherit;
@@ -5093,9 +5166,14 @@ select.dropdown-native {
     cursor: pointer;
 }
 
-.dropdown-button:hover, .dropdown-button.open {
+.dropdown-button:hover {
+    border-color: var(--field-edge-hover);
+    background: var(--row-hover);
+}
+
+.dropdown-button.open {
     border-color: rgba(255, 255, 255, 0.5);
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--row-hover);
 }
 
 .dropdown-button:focus-visible {
@@ -6150,18 +6228,18 @@ button.resize-cell.active {
     font-size: 13px;
     padding: 3px 4px 3px 7px;
     border-radius: 5px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid transparent;
+    background: var(--row-bg);
     color: #bbb;
     cursor: pointer;
 }
 .view-toggle:hover {
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: var(--row-hover);
     color: #fff;
 }
 .view-toggle .view-toggle-dot {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.2);
 }
@@ -6638,6 +6716,10 @@ input.dnd-rename {
     margin: 0;
     box-sizing: border-box;
 }
+/* the tools: a fill and a faint edge; hovering shows the full one (.button:hover) */
+#tool_menu > .button:not(.active):not(:hover) {
+    border-color: rgba(255, 255, 255, 0.12);
+}
 #tool_menu > hr {
     grid-column: 1 / -1;
     width: 100%;
@@ -6666,6 +6748,7 @@ input.dnd-rename {
     font-size: 11px;
     color: #94b0c2;
     border: 1px solid rgba(148, 176, 194, 0.5);
+    cursor: help;   /* its title explains it (who_shows_what.js) */
 }
 .wsw-table {
     display: grid;
@@ -6750,11 +6833,6 @@ input.dnd-rename {
     border-radius: 2px;
     margin-right: 4px;
     vertical-align: -1px;
-}
-.wsw-hint {
-    font-size: 11px;
-    color: #9aa;
-    padding: 4px 2px 2px;
 }
 
 /* ------------------------------------------------------------ touch
