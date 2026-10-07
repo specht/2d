@@ -4437,7 +4437,8 @@ details.trait-advanced[open] > summary {
     margin: 6px 0 10px 0;
     padding: 10px;
     border-radius: 6px;
-    background: #29366f;
+    /* a dark, see-through surface like the boxes (the sentences bring their own outline) */
+    background: rgba(0, 0, 0, 0.45);
     overflow-x: auto;
 }
 .speech-preview-canvas {
