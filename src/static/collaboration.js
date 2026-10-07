@@ -224,6 +224,18 @@ function collaboration_rejection_notice(message, holder_name = null) {
     return 'Das hat nicht geklappt, weil sich gleichzeitig etwas anderes geändert hat. Der gemeinsame Stand wird neu geladen.';
 }
 
+// The same person by name (collaboration.rb remove): what the server compares,
+// so only a copy of oneself gets the "Entfernen" button.
+function collaboration_same_person(a, b) {
+    const norm = (name) => (normalize_collaboration_name(name) ?? '').toLowerCase();
+    return norm(a) !== '' && norm(a) === norm(b);
+}
+
+function collaboration_remove_notice(reason) {
+    if (reason === 'not_same_name') return 'Nur eine Kopie von dir selbst (mit deinem Namen) kann entfernt werden.';
+    return 'Diese Kopie ist schon nicht mehr dabei.';
+}
+
 function collaboration_saved_notice(saved_by, is_me) {
     if (is_me || !saved_by) return 'Spiel gespeichert.';
     return `${saved_by} hat das Spiel gespeichert.`;
@@ -415,6 +427,11 @@ class CollaborationClient {
             if (event.code === 4010) {
                 // The same participant joined again from another tab or window.
                 this.end_session('Diese gemeinsame Sitzung ist jetzt in einem anderen Tab oder Fenster geöffnet. Hier ist sie beendet.');
+                return;
+            }
+            if (event.code === 4012) {
+                // removed as a copy of oneself (collaboration.rb remove)
+                this.end_session('Du bist in dieser Sitzung schon in einem anderen Fenster oder an einem anderen Computer dabei – diese Kopie wurde entfernt. Was hier noch nicht gespeichert ist, kannst du speichern.');
                 return;
             }
             this.render_control();
@@ -667,6 +684,11 @@ class CollaborationClient {
         const previous = this.participants;
         if (Array.isArray(message.participants)) this.participants = message.participants;
 
+        if (message.request === 'remove') {
+            this.show_temporary_notice(collaboration_remove_notice(message.reason), 5000);
+            this.render_status();
+            return;
+        }
         if (message.request === 'lock' || message.request === 'unlock') {
             if (message.request === 'lock' && this.lock_request?.resource === message.resource) {
                 this.lock_request = null;
@@ -1476,8 +1498,26 @@ class CollaborationClient {
             if (me) name.append($('<span>').addClass('collab-me').text('du'));
             const doing = $('<div>').addClass('collab-person-activity').text(activity.text).appendTo(text);
             if (activity.picture) doing.append($('<img>').attr({ src: activity.picture, alt: '' }));
+            // a copy of oneself (an old tab, the computer next door): it can go
+            if (!me && collaboration_same_person(participant.name, this.name)) row.append(this.remove_button(participant));
             list.append(row);
         }
+    }
+
+    // Two clicks, so that nobody removes the copy by mistake.
+    remove_button(participant) {
+        const button = $('<button type="button" class="collab-remove">').text('Entfernen')
+            .attr('title', 'Das bist wohl du – in einem alten Fenster oder an einem anderen Computer. Entfernen gibt frei, was diese Kopie gerade bearbeitet.');
+        button.on('click', () => {
+            if (!button.hasClass('confirm')) {
+                button.addClass('confirm').text('Wirklich entfernen?');
+                setTimeout(() => button.removeClass('confirm').text('Entfernen'), 4000);
+                return;
+            }
+            button.prop('disabled', true);
+            this.send({ type: 'remove', participant_id: participant.id });
+        });
+        return button;
     }
 
     copy_to_clipboard(text, button) {
@@ -1964,6 +2004,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+        collaboration_same_person,
         normalize_collaboration_name,
         format_collaboration_code_input,
         normalize_collaboration_code,

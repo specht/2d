@@ -775,3 +775,12 @@ test('the tag on something others work on names them and invites to watch', () =
     assert.equal(collaboration_people_title(1), 'Du bist allein in der Sitzung');
     assert.equal(collaboration_people_title(4), '4 Leute in der Sitzung');
 });
+
+test('only a copy of oneself (the same name) can be removed', () => {
+    const { collaboration_same_person } = require('../src/static/collaboration.js');
+    assert.equal(collaboration_same_person('  Mia  ', 'mia'), true);
+    assert.equal(collaboration_same_person('Anna  Maria', 'anna maria'), true);
+    assert.equal(collaboration_same_person('Mia', 'Ben'), false);
+    assert.equal(collaboration_same_person('', ''), false);
+    assert.equal(collaboration_same_person(null, 'Mia'), false);
+});

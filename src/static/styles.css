@@ -1202,6 +1202,24 @@ button.collab-choice:focus-visible {
     min-width: 0;
 }
 
+/* a copy of oneself (collaboration.js remove_button): at the row's end */
+.collab-remove {
+    margin-left: auto;
+    flex: none;
+    font: inherit;
+    font-size: 13px;
+    padding: 3px 10px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.06);
+    color: #ddd;
+    cursor: pointer;
+}
+.collab-remove:hover, .collab-remove.confirm {
+    border-color: #ef7d57;
+    color: #ef7d57;
+}
+
 .collab-person-name {
     color: #fff;
     overflow: hidden;

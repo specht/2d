@@ -475,6 +475,20 @@ class Main < Sinatra::Base
             end
         end
 
+        # The socket of a participant that was removed (a copy of oneself): it
+        # is told why and closed, so that tab ends instead of reconnecting.
+        def collaboration_close_removed(code, participant_id)
+            entry = @@collaboration_sockets_mutex.synchronize do
+                sockets = @@collaboration_sockets.fetch(code, {})
+                sockets.delete(participant_id)
+            end
+            return unless entry
+            collaboration_send(entry[:socket], :type => "error", :error => "removed", :fatal => true)
+            entry[:socket].close(4012, "removed")
+        rescue => e
+            debug "Could not close a removed participant: #{e}"
+        end
+
         def collaboration_unregister_socket(code, participant_id, connection_id)
             @@collaboration_sockets_mutex.synchronize do
                 sockets = @@collaboration_sockets.fetch(code, {})
@@ -573,6 +587,19 @@ class Main < Sinatra::Base
             when "request_snapshot"
                 snapshot = @@collaboration_store.snapshot(:code => code)
                 collaboration_send(socket, collaboration_snapshot_payload("snapshot", snapshot))
+            when "remove"
+                # a copy of oneself left behind (collaboration.rb remove)
+                target_id = collaboration_string(message["participant_id"])
+                result = @@collaboration_store.remove(**ids, :target_id => target_id)
+                if result[:removed]
+                    collaboration_close_removed(code, target_id)
+                    collaboration_broadcast_presence(code, result[:participants])
+                else
+                    collaboration_send(socket, {
+                        :type => "rejected", :request => "remove", :reason => result[:reason],
+                        :participants => result[:participants],
+                    })
+                end
             when "lock", "unlock"
                 resource = collaboration_string(message["resource"])
                 result = if type == "lock"

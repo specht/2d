@@ -119,6 +119,33 @@ class CollaborationStoreTest < Minitest::Test
         assert @store.touch(**ids(again))[:participants].first[:lock]
     end
 
+    def test_a_copy_of_oneself_can_be_removed_with_its_lock_but_nobody_else
+        @store.create(state: @state)
+        old = @store.join(code: "session", name: "Mia")
+        @store.lock(code: "session", participant_id: old[:participant_id], connection_id: old[:connection_id], resource: "sprite:held")
+        mia = @store.join(code: "session", name: " mia ")
+        ben = @store.join(code: "session", name: "Ben")
+        ids = ->(p) { { code: "session", participant_id: p[:participant_id], connection_id: p[:connection_id] } }
+
+        # nobody else, not oneself
+        refused = @store.remove(**ids.call(ben), target_id: old[:participant_id])
+        assert_equal [false, "not_same_name"], [refused[:removed], refused[:reason]]
+        assert_equal "self", @store.remove(**ids.call(mia), target_id: mia[:participant_id])[:reason]
+        assert_equal "unknown_participant", @store.remove(**ids.call(mia), target_id: "nobody")[:reason]
+
+        removed = @store.remove(**ids.call(mia), target_id: old[:participant_id])
+        assert removed[:removed]
+        assert_equal [mia[:participant_id], ben[:participant_id]], removed[:participants].map { |p| p[:id] }
+        # its lock is free at once
+        assert @store.lock(**ids.call(mia), resource: "sprite:held")[:applied]
+        # it cannot come back as itself, and its connection does nothing any more
+        back = @store.join(code: "session", name: "Mia", participant_id: old[:participant_id], reconnect_token: old[:reconnect_token])
+        refute_equal old[:participant_id], back[:participant_id]
+        assert_raises(Collaboration::InvalidParticipant) do
+            @store.touch(code: "session", participant_id: old[:participant_id], connection_id: old[:connection_id])
+        end
+    end
+
     def test_reconnect_tokens_are_never_shown_to_others
         @store.create(state: @state)
         mia = @store.join(code: "session", name: "Mia")

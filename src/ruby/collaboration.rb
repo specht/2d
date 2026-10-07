@@ -32,6 +32,11 @@ require "thread"
 # connection dropped takes over its own participant (and lock) again, even
 # before the server noticed that the old connection is gone.
 #
+# A copy of oneself that is left behind (an old tab, the computer next door)
+# can be removed by a participant with the same name (remove): it loses its
+# lock and its reconnect token at once. Only the same name – nobody can throw
+# somebody else out.
+#
 # Sessions live in memory. persist_to/restore_from write them to a private file
 # and read them back, so a server restart (a deploy, for example) does not end
 # them: after the restart everybody reconnects with their token.
@@ -241,6 +246,27 @@ module Collaboration
                 participant[:last_seen] = now
                 session[:last_seen] = now
                 true
+            end
+        end
+
+        # Removes another participant with one's own name – a copy of oneself
+        # left in an old tab or on another computer, still listed, maybe with
+        # the lock one needs. It is gone at once with its lock and its
+        # reconnect token (it cannot come back as itself). Returns { removed:,
+        # reason:, participants: }; reason "unknown_participant", "self" or
+        # "not_same_name" when nothing was removed.
+        def remove(code:, participant_id:, connection_id:, target_id:)
+            with_participant(code, participant_id, connection_id) do |session, participant|
+                target = target_id.is_a?(String) ? session[:participants][target_id] : nil
+                reason = if target.nil? || !target[:connected]
+                    "unknown_participant"
+                elsif target[:id] == participant[:id]
+                    "self"
+                elsif target[:name].to_s.downcase != participant[:name].to_s.downcase
+                    "not_same_name"
+                end
+                session[:participants].delete(target[:id]) if reason.nil?
+                { removed: reason.nil?, reason: reason, participants: participants_locked(session) }
             end
         end
 
