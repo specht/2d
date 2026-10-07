@@ -1538,7 +1538,12 @@ border: 1px solid rgba(255, 255, 255, 0.7);
     left: 0;
     transition: left 0.2s, top 0.2s;
     border: 1px solid transparent;
-    background-color: var(--row-bg);
+    /* a little stronger than other rows: each item is a thing you can drag */
+    background-color: rgba(255, 255, 255, 0.08);
+    /* the fill stops inside the (transparent) border: stacked rows get a 2 px
+       gap between them without changing their height – the lists move items
+       aside by fixed steps (widgets.js step_aside_css) */
+    background-clip: padding-box;
     overflow: hidden;
     vertical-align: middle;
     /* pointer-events: none; */
@@ -1961,19 +1966,23 @@ input:not([type='range']) {
     padding: 0 5px;
 }
 
+/* A colour (widgets.js ColorWidget): a round dot in its colour, never
+   stretched like a text field (it is an <input type="text"> for Coloris), and
+   with its own ring, not the fields' faint edge – dark colours need it. */
 .color-dot {
     display: inline-block;
+    flex: none !important;
     width: 24px !important;
     height: 24px !important;
-    border: 1.5px solid rgba(255, 255, 255, 0.5);
+    border: 1.5px solid rgba(255, 255, 255, 0.5) !important;
     border-radius: 20px !important;
     padding: 0 !important;
     cursor: pointer;
     color: transparent !important;
 }
 
-.color-dot:hover {
-    border: 1.5px solid rgba(255, 255, 255, 1.0);
+.color-dot:hover, .color-dot:focus {
+    border: 1.5px solid rgba(255, 255, 255, 1.0) !important;
 }
 
 
@@ -2738,7 +2747,7 @@ svg.game-family .family-node.selected circle {
     white-space: normal !important;
 }
 #menu_layer_properties > .item > select,
-#menu_layer_properties > .item > input[type="text"] {
+#menu_layer_properties > .item > input[type="text"]:not(.color-dot) {
     box-sizing: border-box;
     min-width: 0;
     max-width: 100%;
@@ -4293,7 +4302,7 @@ details.trait-advanced[open] > summary {
     text-overflow: ellipsis;
 }
 #menu_placed_properties .item > select,
-#menu_placed_properties .item > input[type="text"] {
+#menu_placed_properties .item > input[type="text"]:not(.color-dot) {
     box-sizing: border-box;
     flex: 1 1 0;
     width: 0;
