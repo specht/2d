@@ -3493,7 +3493,9 @@ button.film-weiter-knopf:hover {
     flex-direction: column;
     gap: 4px;
     overflow-y: auto;
-    overscroll-behavior: contain;
+    /* scrolled to its end, a finger or the wheel goes on scrolling the page
+       (contain kept it stuck in the list on a tablet) */
+    overscroll-behavior: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
