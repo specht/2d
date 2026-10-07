@@ -125,6 +125,14 @@ Mit **wechselt** schaltet jeder Druck auf den Schalter den Bereich an oder aus �
 - **Schnee, Regen, Rauch, Feuer, Blasen und Gewitter:** Sie fallen oder steigen auf dem Bildschirm immer nach unten oder oben – auch wenn sich die Kamera gedreht hat.
 - **Blöcke von oben:** Ein Brett, auf dem man von oben stehen kann, ist auf der Wand ein Brett, das man nur von einer Seite aus betritt.
 
+## Die Kamera bleiben lassen
+
+Bei **Kamera** stellst du ein, ob sich die Kamera mitdreht:
+
+- **dreht sich mit:** wie oben – die Spielfigur bleibt auf dem Bildschirm aufrecht, die Welt dreht sich um sie.
+- **bleibt – Pfeiltasten wie auf dem Bildschirm:** Die Kamera bleibt, wie sie ist. Die Spielfigur steht seitlich an der Wand oder hängt kopfüber an der Decke. Die Pfeiltasten gehen so, wie man es sieht: An der rechten Wand läuft sie mit **↑** hinauf, an der Decke mit **→** nach rechts.
+- **bleibt – Pfeiltasten wie für die Figur:** Die Kamera bleibt, aber **→** heißt immer „vorwärts“ für die Spielfigur. An der Decke läuft sie damit auf dem Bildschirm nach links – knifflig, aber genau richtig für ein Rätsel.
+
 ## Tipps
 
 - Mach den Raum ungefähr so hoch wie breit. Ist die Kamera gedreht, sieht man vom Level mehr in die Höhe und weniger in die Breite.

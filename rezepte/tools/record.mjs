@@ -89,7 +89,7 @@ export async function record(browser, repo, game, recipe) {
     });
     await page.goto('http://rezepte.local/standalone');
     await page.waitForFunction(() => window.game && typeof shaders !== 'undefined' && shaders?.shaders?.['texture.fs']);
-    await page.evaluate(async ({ tag, lift, start_items, hud }) => {
+    await page.evaluate(async ({ tag, lift, start_items, start_points, hud }) => {
         window.requestAnimationFrame = () => 0;      // we call render() ourselves
         const g = window.game;
         await g.load(tag);
@@ -97,6 +97,8 @@ export async function record(browser, repo, game, recipe) {
         g.reset();
         // szene.inventar: what the figure brings along from another level (inventory.js)
         for (const si of start_items) g.keep_item(si, 0);
+        // szene.punkte: brought along from a level before
+        g.points = start_points;
         g.setup();
         // the game's speech font, before the first frame (speech.js)
         await g.speech_fonts_ready?.();
@@ -112,7 +114,7 @@ export async function record(browser, repo, game, recipe) {
         // bild_hoch with kamera: the engine centres the camera on the level's
         // bounds (when they fit on the screen) – lift them, and the camera with them
         if (lift) { g.miny += lift; g.maxy += lift; }
-    }, { tag: game.tag, lift: game.camera_lift ?? 0, start_items: game.start_items ?? [], hud: recipe.hud === true });
+    }, { tag: game.tag, lift: game.camera_lift ?? 0, start_items: game.start_items ?? [], start_points: game.start_points ?? 0, hud: recipe.hud === true });
 
     const events = key_events(recipe.ablauf);
     const duration = Number(recipe.dauer ?? 4);

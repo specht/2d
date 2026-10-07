@@ -218,6 +218,49 @@ test('gravity up by a Signal: the figure falls to the ceiling and stands there',
     assert.ok(pc.mesh.position.x > 48 + 100, `x = ${pc.mesh.position.x}`);
 });
 
+test('the camera: turns along (as always), or stays – the arrow keys following the screen or the figure', () => {
+    assert.equal(MovementRegions.settings({ mode: 'normal', direction: 'up' }).camera, undefined);
+    assert.equal(MovementRegions.settings({ mode: 'normal', direction: 'up', camera: 'fixed' }).camera, 'fixed');
+    assert.equal(MovementRegions.settings({ mode: 'normal', direction: 'up', camera: 'sideways' }).camera, undefined);
+    // without a turned gravity there is nothing for the camera to do
+    assert.equal(MovementRegions.settings({ mode: 'normal', camera: 'fixed' }).camera, undefined);
+    const on_ceiling = (camera) => {
+        const r = room({ blocks: walls(), player: [144, 24],
+            regions: [region({ mode: 'normal', direction: 'up', turn_seconds: 0, ...(camera ? { camera } : {}) }, [rect(-1000, -1000, 3000, 3000)])] });
+        r.run(1.5);
+        const x = r.pc.mesh.position.x;
+        r.run(0.5, () => ['right']);
+        return { moved: r.pc.mesh.position.x - x, camera: r.pc.camera_angle(r.time()), figure: r.pc.visual_angle(r.time()) };
+    };
+    // turns along: upside down on the screen the world's left is the screen's right
+    const turning = on_ceiling(null);
+    assert.ok(turning.moved < -50, `${turning.moved}`);
+    assert.equal(turning.camera, Math.PI);
+    // stays, keys like the screen: → walks to the right of the screen (the world's right)
+    const screen = on_ceiling('fixed');
+    assert.ok(screen.moved > 50, `${screen.moved}`);
+    assert.equal(screen.camera, 0);
+    assert.equal(screen.figure, Math.PI, 'the figure hangs upside down');
+    // stays, keys like the figure: → is its forward – the screen's left
+    const figure = on_ceiling('fixed_figure');
+    assert.ok(figure.moved < -50, `${figure.moved}`);
+    assert.equal(figure.camera, 0);
+});
+
+test('the camera stays, keys like the screen: on the right wall ↑ walks up it, → does nothing', () => {
+    const { pc, run } = room({ blocks: walls(), player: [240, 24],
+        regions: [region({ mode: 'normal', direction: 'right', turn_seconds: 0, camera: 'fixed' }, [rect(-1000, -1000, 3000, 3000)])] });
+    run(1.5);
+    assert.equal(pc.gravity_k, 1);
+    const y = pc.mesh.position.y;
+    run(0.5, () => ['right']);
+    assert.ok(Math.abs(pc.mesh.position.y - y) < 1, 'pressed against the wall, it stays');
+    run(0.5, () => ['up']);
+    assert.ok(pc.mesh.position.y > y + 50, `y = ${pc.mesh.position.y}`);
+    run(0.5, () => ['down']);
+    assert.ok(pc.mesh.position.y < y + 50, `y = ${pc.mesh.position.y}`);
+});
+
 test('changing its mind before halfway: no change of gravity, the figure turns back', () => {
     const { pc, run, time } = room({ blocks: walls(), player: [48, 24],
         regions: [region({ mode: 'normal', direction: 'left', turn_seconds: 2 }, [rect(100, 12, 20, 100)])] });

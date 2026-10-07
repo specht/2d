@@ -1159,10 +1159,11 @@ sprites:
     states: [{ strip: extra/heiltrank, fps: 6 }]
   # ------------------------------------------- Laden (Rezept "Ein Laden")
   # the Händler is a Hinweistext that speaks itself (and "spricht im Laden");
-  # 48 high: behind the counter only his upper half shows
+  # 48 high: behind the counter only his upper half shows; 48 wide: room
+  # beside him for his hands – he talks with both of them
   haendler:
     label: Händler (spricht)
-    groesse: [24, 48]
+    groesse: [48, 48]
     traits: { text: {} }
     states:
       - { strip: laden/haendler, fps: 3 }

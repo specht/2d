@@ -2947,13 +2947,14 @@ class LevelEditor {
         if (mode !== 'inherit') {
             new SelectWidget({
                 container: box, label: 'Schwerkraft zieht nach',
-                hint: 'Wohin die Schwerkraft hier zieht. Nach links, oben oder rechts: Die Spielfigur und laufende Gegner drehen sich mit – ihr Boden ist dann eine Wand oder die Decke. Die Kamera dreht sich mit der Spielfigur, so bleibt sie auf dem Bildschirm aufrecht. Schräge und Leitern gehen nur, wenn die Schwerkraft nach unten zieht; sonst ist eine Schräge ein Block. Mit „Bei Signal“ kann ein Schalter den Bereich an- und ausschalten.',
+                hint: 'Wohin die Schwerkraft hier zieht. Nach links, oben oder rechts: Die Spielfigur und laufende Gegner drehen sich mit – ihr Boden ist dann eine Wand oder die Decke. Die Kamera dreht sich mit der Spielfigur, so bleibt sie auf dem Bildschirm aufrecht – oder sie bleibt, wie sie ist (Kamera). Schräge und Leitern gehen nur, wenn die Schwerkraft nach unten zieht; sonst ist eine Schräge ein Block. Mit „Bei Signal“ kann ein Schalter den Bereich an- und ausschalten.',
                 options: { down: 'unten (wie immer)', left: 'links', up: 'oben', right: 'rechts' },
                 get: () => get()?.direction ?? 'down',
                 set: (value) => {
                     if (value === 'down') {
                         delete get().direction;
                         delete get().turn_seconds;
+                        delete get().camera;
                     } else get().direction = value;
                     self.add_movement_controls(box, settings, whole_level);
                     self.render();
@@ -2966,6 +2967,16 @@ class LevelEditor {
                     hint: 'Wie lange das Drehen dauert, wenn die Spielfigur in diesen Bereich kommt – und wieder hinaus. Die Schwerkraft wechselt genau in der Mitte. Ohne Änderung: 2 Sekunden. 0 Sekunden: sofort.',
                     get: () => get()?.turn_seconds ?? MovementRegions.TURN_SECONDS,
                     set: (value) => { if (Number.isFinite(value) && value >= lo && value <= hi) get().turn_seconds = value; },
+                });
+                new SelectWidget({
+                    container: box, label: 'Kamera',
+                    hint: 'Was die Kamera macht, wenn sich die Schwerkraft dreht. „dreht sich mit“: Die Spielfigur bleibt auf dem Bildschirm aufrecht, die Welt dreht sich um sie. „bleibt – Pfeiltasten wie auf dem Bildschirm“: Die Kamera bleibt, die Spielfigur steht an der Wand oder hängt an der Decke; an der rechten Wand läuft sie mit ↑ hinauf, an der Decke mit → nach rechts. „bleibt – Pfeiltasten wie für die Figur“: Die Kamera bleibt, und → ist immer „vorwärts“ für die Figur – an der Decke läuft sie damit auf dem Bildschirm nach links.',
+                    options: { turn: 'dreht sich mit', fixed: 'bleibt – Pfeiltasten wie auf dem Bildschirm', fixed_figure: 'bleibt – Pfeiltasten wie für die Figur' },
+                    get: () => get()?.camera ?? 'turn',
+                    set: (value) => {
+                        if (value === 'turn') delete get().camera;
+                        else get().camera = value;
+                    },
                 });
             }
         }

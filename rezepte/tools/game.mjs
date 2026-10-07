@@ -547,6 +547,12 @@ export async function build_game(catalog, recipe, repo) {
             out.direction = directions[b.schwerkraft_nach];
         }
         if (b.drehdauer !== undefined) out.turn_seconds = Number(b.drehdauer);
+        // kamera: dreht (as always) | fest (the arrow keys follow the screen) | fest_figur (they stay the figure's)
+        if (b.kamera !== undefined && b.kamera !== 'dreht') {
+            const modes = { fest: 'fixed', fest_figur: 'fixed_figure' };
+            if (!modes[b.kamera]) throw new Error(`${recipe.id}: ${where}: kamera muss dreht, fest oder fest_figur sein`);
+            out.camera = modes[b.kamera];
+        }
         return out;
     };
     const movement_regions = (scene.bewegungsbereiche ?? []).map((b, i) => ({
@@ -622,7 +628,10 @@ export async function build_game(catalog, recipe, repo) {
     // used: the catalogue id of every sprite, in the game's order
     // start_items: sprite indices the figure has from the start (szene.inventar)
     const start_items = (scene.inventar ?? []).map(index_of);
-    return { tag, data, sheet, pngs, view: view_out, screen_pixel_height, rows, cols, camera_lift: follow ? lift : 0, used, start_items };
+    // start_points: points the figure has from the start (szene.punkte, as if collected in a level before)
+    const start_points = Number(scene.punkte ?? 0);
+    if (!Number.isFinite(start_points) || start_points < 0) throw new Error(`${recipe.id}: szene.punkte muss eine Zahl ab 0 sein`);
+    return { tag, data, sheet, pngs, view: view_out, screen_pixel_height, rows, cols, camera_lift: follow ? lift : 0, used, start_items, start_points };
 }
 
 // The recipe's scene as a game the studio can open (Hilfe → "Im Studio

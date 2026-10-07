@@ -328,26 +328,57 @@ class Character {
 		return this.game.collision_candidates(b[0], b[1], b[2], b[3]);
 	}
 
-	// The angle the figure is drawn at (radians, counter-clockwise): its
-	// gravity, or on the way to the next – the camera follows the player's
-	// (Game.render). A turn takes turn.seconds; gravity changes halfway.
-	visual_angle(t) {
-		const base = (this.gravity_k ?? 0) * Math.PI / 2;
+	// How far a turn has come (0 … 1, eased), or null when there is none.
+	// A turn takes turn.seconds; gravity changes halfway.
+	turn_progress(t) {
 		const turn = this.gravity_turn;
-		if (!turn) return base;
+		if (!turn) return null;
 		const s = turn.seconds > 0 ? (t - turn.at) / turn.seconds : 1;
 		if (!(s < 1) && turn.switched) {
 			this.gravity_turn = null;
-			return base;
+			return null;
 		}
 		const u = Math.min(1, Math.max(0, s));
-		return turn.from + (turn.to - turn.from) * u * u * (3 - 2 * u);
+		return u * u * (3 - 2 * u);
+	}
+
+	// The angle the figure is drawn at (radians, counter-clockwise): its
+	// gravity, or on the way to the next.
+	visual_angle(t) {
+		const e = this.turn_progress(t);
+		if (e === null) return (this.gravity_k ?? 0) * Math.PI / 2;
+		return this.gravity_turn.from + (this.gravity_turn.to - this.gravity_turn.from) * e;
+	}
+
+	// The camera's angle for the player (Game.render): the same as the figure's
+	// – or 0 while the region says the camera stays as it is (camera 'fixed' /
+	// 'fixed_figure', movement_regions.js).
+	camera_angle(t) {
+		const e = this.turn_progress(t);
+		if (e === null) return this.gravity_camera && this.gravity_camera !== 'turn' ? 0 : (this.gravity_k ?? 0) * Math.PI / 2;
+		return this.gravity_turn.camera_from + (this.gravity_turn.camera_to - this.gravity_turn.camera_from) * e;
+	}
+
+	// The camera stays and the arrow keys mean the screen's directions (camera
+	// 'fixed'): which of the figure's own keys they are. On the right wall
+	// "up" walks up it, on the ceiling "right" walks to the right.
+	screen_keys(keys) {
+		const arrows = [[KEY_RIGHT, 1, 0], [KEY_LEFT, -1, 0], [KEY_UP, 0, 1], [KEY_DOWN, 0, -1]];
+		const out = { ...keys };
+		for (const [key] of arrows) out[key] = false;
+		for (const [key, x, y] of arrows) {
+			if (!keys[key]) continue;
+			const [lx, ly] = MovementRegions.to_local(this.frame_k, x, y);
+			out[arrows.find(([, ax, ay]) => ax === Math.round(lx) && ay === Math.round(ly))[0]] = true;
+		}
+		return out;
 	}
 
 	// Back to gravity pulling down at once (starting again after a lost life).
 	reset_gravity() {
 		this.gravity_k = 0;
 		this.gravity_turn = null;
+		this.gravity_camera = null;
 		this.turn_settle = false;
 	}
 
@@ -373,18 +404,26 @@ class Character {
 				// turning back out of a region takes as long as turning in
 				const seconds = here?.direction ? here.turn_seconds : (this.gravity_turn_seconds ?? MovementRegions.TURN_SECONDS);
 				if (here?.direction) this.gravity_turn_seconds = here.turn_seconds;
+				// what the camera does: the region's say (turning back: as when turning in)
+				const camera = here?.direction ? (here.camera ?? 'turn') : (this.gravity_camera ?? 'turn');
 				const from = this.visual_angle(t);
+				const camera_from = this.camera_angle(t);
 				const from_k = this.gravity_k;
 				// from the angle it is drawn at, the short way to the new direction
 				const to = from_k * Math.PI / 2 + MovementRegions.turn_delta(from_k, want);
 				const unwound = from - Math.round((from - from_k * Math.PI / 2) / (2 * Math.PI)) * 2 * Math.PI;
-				turn = this.gravity_turn = { from: unwound, to, to_k: want, at: t, seconds, switched: want === from_k };
+				// the camera: along to the same angle, or (staying) back to upright
+				const camera_to = camera === 'turn' ? to : 0;
+				const camera_unwound = camera_from - Math.round((camera_from - camera_to) / (2 * Math.PI)) * 2 * Math.PI;
+				turn = this.gravity_turn = { from: unwound, to, to_k: want, at: t, seconds, switched: want === from_k,
+					camera, camera_from: camera_unwound, camera_to };
 				this.gravity_turn_started = t;
 			}
 		}
 		// halfway through the turn, gravity changes
 		if (turn && !turn.switched && (turn.seconds <= 0 || t >= turn.at + turn.seconds / 2)) {
 			turn.switched = true;
+			this.gravity_camera = turn.camera;
 			this.turn_gravity(turn.to_k);
 		}
 	}
@@ -1549,6 +1588,9 @@ void main() {
 			this.pressed_keys = this.game.pressed_keys;
 			if (this.game.curtain.showing)
 				this.pressed_keys = {};
+			// a turned gravity with the camera staying: the arrow keys follow the screen
+			else if (this.frame_k && this.gravity_camera === 'fixed')
+				this.pressed_keys = this.screen_keys(this.pressed_keys);
 		}
 
 		let entry = this.has_trait_at(['falls_down'], -0.5, 0.5, -1.0, -0.1);
@@ -3740,6 +3782,12 @@ class Game {
 		if (speaker === 'player') {
 			const pc = this.player_character;
 			if (!pc?.mesh) return null;
+			// the camera stays while the figure is turned: above it on the screen
+			const t = this.clock.getElapsedTime();
+			if (pc.camera_angle && Math.abs(Math.sin((pc.visual_angle(t) - pc.camera_angle(t)) / 2)) > 1e-6) {
+				const [x0, x1, y0, y1] = pc.world_box(-pc.sprite.width / 2, pc.sprite.width / 2, 0, pc.sprite.height);
+				return this.screen_top_of((x0 + x1) / 2, y0, x1 - x0, y1 - y0);
+			}
 			return this.world_to_screen(...(pc.head_world?.() ?? [pc.mesh.position.x, pc.mesh.position.y + pc.sprite.height]));
 		}
 		const entry = this.active_level_sprites[speaker];
@@ -4212,7 +4260,7 @@ class Game {
 		// turn the camera glides from where the edges held it before to where
 		// they hold it after, so the player stays in the picture. Unturned, all
 		// of this is exactly as it has always been.
-		const view_angle = this.player_character?.visual_angle?.(this.clock.getElapsedTime()) ?? 0;
+		const view_angle = this.player_character?.camera_angle?.(this.clock.getElapsedTime()) ?? 0;
 		this.view_angle = view_angle;
 		const turn = view_angle ? this.player_character?.gravity_turn : null;
 		const held = (angle) => {
@@ -4248,21 +4296,21 @@ class Game {
 			}
 			return [camera_x, camera_y];
 		};
-		const turned_to = turn ? turn.to : view_angle;
-		const before = turn ? held(turn.from) : null;
+		const turned_to = turn ? turn.camera_to : view_angle;
+		const before = turn ? held(turn.camera_from) : null;
 		[this.camera_x, this.camera_y] = held(turned_to);
 		let view_x = this.camera_x, view_y = this.camera_y;
-		if (before && turn.to !== turn.from) {
+		if (before && turn.camera_to !== turn.camera_from) {
 			// where the player is on the screen glides from before to after – it
 			// never leaves the picture while everything turns around it
-			const e = Math.min(1, Math.max(0, (view_angle - turn.from) / (turn.to - turn.from)));
+			const e = Math.min(1, Math.max(0, (view_angle - turn.camera_from) / (turn.camera_to - turn.camera_from)));
 			const [px, py] = this.player_character.world_center();
 			const on_screen = (cx, cy, a) => {
 				const c = Math.cos(-a), s = Math.sin(-a), dx = px - cx, dy = py - cy;
 				return [c * dx - s * dy, s * dx + c * dy];
 			};
-			const [ax, ay] = on_screen(before[0], before[1], turn.from);
-			const [bx, by] = on_screen(view_x, view_y, turn.to);
+			const [ax, ay] = on_screen(before[0], before[1], turn.camera_from);
+			const [bx, by] = on_screen(view_x, view_y, turn.camera_to);
 			const sx = ax + (bx - ax) * e, sy = ay + (by - ay) * e;
 			const c = Math.cos(view_angle), s = Math.sin(view_angle);
 			view_x = px - (c * sx - s * sy);

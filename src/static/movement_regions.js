@@ -26,6 +26,13 @@
 //            screen (absent = 2 s; 0 = at once, at most 5 s). Gravity itself changes
 //            halfway through the turn. Turning back out of the region takes
 //            as long as turning in.
+//   camera   (with a direction) what the camera does: absent = it turns
+//            with the player, so the player stays upright on the screen;
+//            'fixed' = it stays as it is, and the arrow keys mean the
+//            screen's directions (on the right wall "up" walks up it);
+//            'fixed_figure' = it stays as it is, and the arrow keys mean the
+//            figure's own directions (on the ceiling "right" walks to the
+//            left of the screen).
 // The frontmost region that contains the centre of the figure decides the mode
 // and its settings; the currents of all regions there add up. A region whose
 // layer a Signal has taken away (layer properties signal_code /
@@ -44,6 +51,7 @@ const MovementRegions = (() => {
     // together; gravity changes halfway (absent turn_seconds = this)
     const TURN_SECONDS = 2;
     const TURN_LIMITS = [0, 5];
+    const CAMERA_MODES = ['turn', 'fixed', 'fixed_figure'];
 
     const number = (value, [lo, hi], fallback) =>
         typeof value === 'number' && Number.isFinite(value) ? Math.min(hi, Math.max(lo, value)) : fallback;
@@ -67,6 +75,8 @@ const MovementRegions = (() => {
         const k = direction_k(raw.direction);
         if (k && mode !== 'inherit') out.direction = k;
         if (mode !== 'inherit') out.turn_seconds = number(raw.turn_seconds, TURN_LIMITS, TURN_SECONDS);
+        // the camera with a turned gravity (absent or unknown: it turns along)
+        if (out.direction && CAMERA_MODES.includes(raw.camera) && raw.camera !== 'turn') out.camera = raw.camera;
         const speed = number(raw.current?.speed, [0, 1200], 0);
         const angle = number(raw.current?.angle, [-360, 720], 0) * Math.PI / 180;
         out.current = speed > 0 ? { x: Math.cos(angle) * speed / 60, y: Math.sin(angle) * speed / 60 } : { x: 0, y: 0 };
@@ -212,7 +222,7 @@ const MovementRegions = (() => {
         return { vx, vy };
     }
 
-    return { MODES, DEFAULTS, DIRECTIONS, TURN_SECONDS, TURN_LIMITS, settings, resolve, at, fluid_step, valid_rect,
+    return { MODES, DEFAULTS, DIRECTIONS, TURN_SECONDS, TURN_LIMITS, CAMERA_MODES, settings, resolve, at, fluid_step, valid_rect,
         direction_k, to_world, to_local, box_to_world, box_to_local, local_faces, turn_delta };
 })();
 
