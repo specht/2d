@@ -9,9 +9,10 @@
 #   ./moderate.rb show 3fa2b1c      one game: its texts, pictures, versions
 #   ./moderate.rb delete 3fa2b1c …  delete versions (asks; --ja does not;
 #                                   --mit-spaeteren: also every later version)
-#   ./moderate.rb web [480]         a moderation page for 8 hours: every new
-#                                   picture and text, newest first, each only
-#                                   once, with the word search and deleting;
+#   ./moderate.rb web [480]         a moderation page for 8 hours: live, every
+#                                   new picture and text as it is saved (each
+#                                   only once) beside today's Fehlerberichte,
+#                                   with the word search and deleting;
 #                                   prints its secret link (Strg+C closes it)
 #   ./moderate.rb log               what was deleted, when and why
 #

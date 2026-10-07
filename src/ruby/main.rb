@@ -1580,6 +1580,23 @@ class Main < Sinatra::Base
                                       saved: moderation_saved))
     end
 
+    # Neues laufend: { since: seconds | null } (moderation.rb page_stream)
+    post "/api/moderation/stream" do
+        data = moderation_request
+        catalog = moderation_catalog
+        return respond(moderation_loading) unless catalog
+        since = data["since"].is_a?(Integer) ? data["since"] : nil
+        respond(Moderation.page_stream(catalog, since: since, limit: data["limit"].to_i, saved: moderation_saved))
+    end
+
+    # Fehler: today's open groups of the Fehlerberichte, the latest first, each
+    # with the text of `./errors.rb show` (client_errors.rb dashboard) –
+    # beside the live stream, a workshop at a glance
+    post "/api/moderation/errors" do
+        moderation_request
+        respond(:groups => ClientErrors.dashboard(CLIENT_ERRORS_PATH), :now => Time.now.to_i)
+    end
+
     post "/api/moderation/search" do
         data = moderation_request
         catalog = moderation_catalog

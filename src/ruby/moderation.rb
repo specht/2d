@@ -687,6 +687,24 @@ module Moderation
         { :total => list.size, :all => catalog.size, :offset => offset, :games => games }
     end
 
+    # The live stream on the page: versions saved since `since` (seconds, the
+    # game file's time) that show a picture or a text for the first time,
+    # newest first, only what is new in them. Without since: the newest ones
+    # to begin with. The page asks again every few seconds with the time of
+    # the newest version it has (the same second may come twice: the page
+    # drops the tags it shows already).
+    def self.page_stream(catalog, since: nil, limit: 30, saved: nil)
+        since = since.nil? ? nil : since.to_i
+        list = since ? catalog.entries.select { |e| e.time >= since } : catalog.entries
+        list = list.sort_by { |e| [-e.time, e.tag] }.select do |entry|
+            novel = catalog.novelty(entry.tag)
+            !novel[:frames].empty? || !novel[:texts].empty?
+        end
+        children = catalog.children
+        games = list.first(limit.to_i.clamp(1, 100)).map { |entry| page_entry(catalog, entry, children, true, saved) }
+        { :all => catalog.size, :now => Time.now.to_i, :games => games }
+    end
+
     # The word search on the page: the newest 200 games found, with where.
     def self.page_search(catalog, query, saved: nil, only_new: false)
         terms = terms(query.to_s[0, 500])

@@ -190,6 +190,34 @@ class ClientErrorsTest < Minitest::Test
         end
     end
 
+    def test_the_dashboard_lists_open_groups_with_the_text_of_show
+        Dir.mktmpdir do |dir|
+            stack = "TypeError: x\n    at Canvas.attachSprite (https://2d.hackschule.de/canvas.js?v1:1809:33)"
+            first = { "message" => "Uncaught TypeError: x", "stack" => stack, "context" => { "pane" => "sprites", "page" => "a" },
+                      "breadcrumbs" => ["1.0s sprites click canvas"], "game_tag" => "abcdefg" }
+            later = { "message" => "Uncaught TypeError: y", "stack" => "TypeError: y\n    at Character.try_move_y (https://2d.hackschule.de/app.js?v1:791:5)",
+                      "context" => { "pane" => "play", "page" => "b" }, "details" => { "im_spiel" => true } }
+            t1 = Time.now.utc - 60
+            t2 = Time.now.utc - 30
+            ClientErrors.append(dir, ClientErrors.entry(first, t1), t1)
+            ClientErrors.append(dir, ClientErrors.entry(later, t2), t2)
+            ClientErrors.append(dir, ClientErrors.entry(first, t2), t2)
+            list = ClientErrors.dashboard(dir)
+            # the one that happened last first, each once with its count
+            assert_equal [2, 1], list.map { |g| g["count"] }
+            assert_equal "Uncaught TypeError: x", list.first["message"]
+            assert_equal true, list.last["in_game"]
+            group = ClientErrors.groups(ClientErrors.read(ClientErrors.files(dir))).find { |g| g["id"] == list.first["id"] }
+            assert_equal ClientErrors.show_lines(group).join("\n"), list.first["text"]
+            assert_includes list.first["text"], "Spiele zum Nachstellen: /?abcdefg"
+            assert_includes list.first["text"], "  · 1.0s sprites click canvas"
+            refute_includes list.first["text"], "\e["
+            # resolved ones stay away
+            ClientErrors.write_resolved(dir, { list.last["id"] => Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ") })
+            assert_equal [list.first["id"]], ClientErrors.dashboard(dir).map { |g| g["id"] }
+        end
+    end
+
     def test_day_files_for_listing_and_pruning
         Dir.mktmpdir do |dir|
             %w(2026-10-01 2026-10-10 2026-10-12).each { |day| File.write(File.join(dir, "#{day}.jsonl"), "") }

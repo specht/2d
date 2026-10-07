@@ -201,6 +201,98 @@ module ClientErrors
         ids.each { |id| links[id].concat(ids - [id]) } if ids.size > 1
     end
 
+    # ------------------------------------------------ one group as text
+    # What `./errors.rb show` prints, line by line – also the text the
+    # moderation page's Fehler column copies (plain). paint.call(text,
+    # *styles) colours a part (errors.rb: TerminalColors), PLAIN leaves it.
+    PLAIN = ->(text, *_styles) { text.to_s }
+
+    # "game.js:1244 (5×), game.js:1243 (1×)": where the group's first frame was
+    # (the line moves between versions).
+    def self.places(group, paint = PLAIN)
+        group["reports"].map do |report|
+            frame = app_frames(report["stack"]).first
+            frame ? "#{frame[:file]}:#{frame[:line]}" : "#{script_name(report['source'])}:#{report['line']}"
+        end.tally.sort_by { |_, n| -n }.map { |where, n| "#{paint.call(where, :bold)} #{paint.call("(#{n}×)", :dim)}" }
+    end
+
+    # The stack: the message red, the studio's own frames bright (the first,
+    # where it broke, yellow), libraries and the browser dimmed.
+    def self.stack_lines(stack, paint = PLAIN)
+        first = true
+        stack.to_s.lines.first(20).each_with_index.map do |line, i|
+            line = line.rstrip
+            if i.zero? && !line.lstrip.start_with?("at ")
+                "  #{paint.call(line, :red)}"
+            elsif app_frames(line).any?
+                styles = first ? [:yellow, :bold] : []
+                first = false
+                "  #{paint.call(line, *styles)}"
+            else
+                "  #{paint.call(line, :dim)}"
+            end
+        end
+    end
+
+    # "2231.4s level click canvas": the time dimmed, the pane coloured, the last
+    # one – just before the error – bold.
+    def self.crumb_line(crumb, last, paint = PLAIN)
+        time, pane, kind, what = crumb.split(" ", 4)
+        return "  · #{paint.call(crumb, *(last ? [:bold] : []))}" unless what
+        "  · #{paint.call(time, :dim)} #{paint.call(pane, :cyan)} #{paint.call(kind, :dim)} #{paint.call(what, *(last ? [:bold] : []))}"
+    end
+
+    def self.show_lines(group, paint = PLAIN)
+        label = ->(text) { paint.call(text.ljust(11), :dim) }
+        ids = ->(list) { list.map { |id| paint.call(id, :magenta) }.join(", ") }
+        g = group
+        latest = g["reports"].last
+        context = latest["context"] || {}
+        kinds = g["reports"].map { |r| r["kind"] || "error" }.tally.map { |k, n| "#{k} #{n}×" }.join(", ")
+        flag = g["again"] ? "  #{paint.call('WIEDER AUFGETRETEN', :red, :bold)}" : ""
+        lines = []
+        lines << "#{paint.call(g['id'], :yellow, :bold)}: #{paint.call("#{g['reports'].size}×", :bold)} #{paint.call("(#{kinds})", :cyan)} #{paint.call(latest['message'], :red, :bold)}#{flag}"
+        lines << "#{label.call('Orte:')}#{places(g, paint).join(', ')}"
+        lines << "#{label.call('Zeit:')}zuerst #{g['first']}, zuletzt #{g['last']}"
+        lines << "#{label.call('Versionen:')}#{g['reports'].map { |r| r['studio_version'] }.uniq.join(', ')}"
+        lines << "#{label.call('Zusammen:')}mit #{ids.call(g['related'])} #{paint.call('(dieselbe Seite, im selben Moment – oft eine Ursache)', :dim)}" unless g["related"].empty?
+        lines << "#{label.call('Ansicht:')}#{paint.call("#{context['pane']} / #{context['tool']}", :cyan)}  #{context['url']}  #{paint.call("(#{context['screen']})", :dim)}"
+        lines << "#{label.call('Spiel:')}#{context['sprites']} Sprites, #{context['levels']} Level#{context['from_recipe'] ? ", Rezept #{context['from_recipe']}" : ''}#{context['in_session'] ? ', in einer Sitzung' : ''}"
+        lines << "#{label.call('Browser:')}#{paint.call(context['user_agent'], :dim)}"
+        lines << "#{label.call('Details:')}#{latest['details'].to_json}" if latest["details"]
+        games = g["reports"].map { |r| r["game_tag"] }.compact.uniq
+        unless games.empty?
+            lines << "#{paint.call('Spiele zum Nachstellen:', :dim)} #{games.map { |t| paint.call("/?#{t}", :green, :bold) }.join('  ')}"
+            lines << paint.call("           als Datei: ./errors.rb game #{g['id']} > spiel.json", :dim)
+        end
+        if latest["stack"]
+            lines << "" << paint.call("Stack:", :bold)
+            lines.concat(stack_lines(latest["stack"], paint))
+        end
+        crumbs = latest["breadcrumbs"] || []
+        unless crumbs.empty?
+            lines << "" << paint.call("Davor (die letzten Klicks und Tasten):", :bold)
+            crumbs.each_with_index { |crumb, i| lines << crumb_line(crumb, i == crumbs.size - 1, paint) }
+        end
+        lines
+    end
+
+    # The moderation page's Fehler column (a workshop at a glance): the open
+    # groups of the last `days` days, the latest first, each with the text of
+    # `./errors.rb show` to copy.
+    def self.dashboard(dir, days: 1)
+        groups(read(files(dir, days)), read_resolved(dir)).sort_by { |g| [g["last"].to_s, g["id"]] }.reverse.map do |g|
+            latest = g["reports"].last
+            context = latest["context"] || {}
+            {
+                "id" => g["id"], "count" => g["reports"].size, "message" => latest["message"].to_s[0, 300],
+                "first" => g["first"], "last" => g["last"], "again" => g["again"], "related" => g["related"],
+                "pane" => context["pane"], "in_game" => !!(latest["details"].is_a?(Hash) && latest["details"]["im_spiel"]),
+                "in_session" => !!context["in_session"], "text" => show_lines(g).join("\n"),
+            }
+        end
+    end
+
     # Deletes every day file (all reports); resolved.json stays, so a fixed
     # bug that comes back is still marked as such. Returns how many files.
     def self.clear(dir)

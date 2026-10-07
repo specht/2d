@@ -129,6 +129,28 @@ class ModerationTest < Minitest::Test
         assert_equal %w(fbad001), @catalog.novelty("ccccccc")[:frames]
     end
 
+    def test_stream_shows_what_is_new_as_it_is_saved
+        # to begin with: the newest versions that show something for the first time
+        first = Moderation.page_stream(@catalog, limit: 10)
+        assert_equal %w(ddddddd ccccccc bbbbbbb aaaaaaa), first[:games].map { |g| g[:tag] }
+        assert_equal %w(fbad001), first[:games][2][:frames]
+        # nothing saved since: nothing (the newest one again, its second is asked for)
+        assert_equal %w(ddddddd), Moderation.page_stream(@catalog, since: 400)[:games].map { |g| g[:tag] }
+        # a new version with a new picture and a new word, and one with nothing new
+        write_game("eeeeeee", game("Pip", %w(f000001 fbad002), parent: "ccccccc",
+                                   extra: { "levels" => [{ "properties" => { "name" => "Doofer Wald" } }] }), 500)
+        write_game("fffffff", game("Pip", %w(f000001 f000002), parent: "aaaaaaa"), 600)
+        @catalog.refresh
+        live = Moderation.page_stream(@catalog, since: 401)
+        assert_equal %w(eeeeeee), live[:games].map { |g| g[:tag] }
+        assert_equal %w(fbad002), live[:games].first[:frames]
+        assert_equal ["Doofer Wald"], live[:games].first[:texts]
+        assert_equal 6, live[:all]
+        # a deleted game leaves the stream
+        @catalog.forget(%w(eeeeeee))
+        assert_equal [], Moderation.page_stream(@catalog, since: 401)[:games]
+    end
+
     def test_pictures_and_texts_of_the_recipes_are_safe
         static = File.join(@dir, "static")
         FileUtils.mkpath(File.join(static, "rezepte", "spiele"))

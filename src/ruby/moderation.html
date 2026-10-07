@@ -9,7 +9,10 @@
 <!--
     The temporary moderation page (./moderate.rb web, main.rb /moderation/:token,
     rules in moderation.rb). Not in src/static: nginx never serves it, only the
-    server with an open session. Everything a game holds is shown as text
+    server with an open session. It opens Live: every few seconds the versions
+    saved since bring their new pictures and texts on top (page_stream), and
+    beside them today's open Fehlerberichte with the text of ./errors.rb show
+    to copy (client_errors.rb dashboard) – a workshop at a glance. Everything a game holds is shown as text
     (textContent), never as HTML.
 -->
 <style>
@@ -52,9 +55,10 @@
     .actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
     .actions a { color: var(--accent); text-decoration: none; font-size: 14px; }
     .frames { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    .frames button { width: 64px; height: 64px; padding: 3px; display: grid; place-items: center; border-radius: 6px;
+    /* the picture fills its tile, scaled up without smoothing (the sprites are small) */
+    .frames button { width: 80px; height: 80px; padding: 0; display: block; overflow: hidden; border-radius: 6px;
         background: repeating-conic-gradient(var(--check-a) 0 25%, var(--check-b) 0 50%) 0 0 / 12px 12px; }
-    .frames img { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+    .frames img { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
     .texts { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
     .texts span { font-size: 13px; padding: 1px 7px; border-radius: 5px; background: var(--bg); border: 1px solid var(--line); max-width: 100%; overflow-wrap: anywhere; }
     .hits { margin: 8px 0 0; padding: 0; list-style: none; font-size: 14px; }
@@ -69,6 +73,48 @@
     .error { color: var(--danger); }
     #more { display: block; margin: 16px auto; }
     [hidden] { display: none !important; }
+    /* Live: what is new, as it is saved – bigger, to be seen at a glance */
+    button.live { display: inline-flex; align-items: center; gap: 6px; }
+    button.live.on { border-color: var(--danger); color: var(--danger); font-weight: 600; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; }
+    button.live.on .dot, #status .dot.on { background: var(--danger); animation: pulse 1.6s ease-in-out infinite; }
+    #status .dot.paused { background: var(--muted); animation: none; }
+    @keyframes pulse { 50% { opacity: .3; } }
+    .card.live .frames button { width: 128px; height: 128px; }
+    .card.live .texts span { font-size: 16px; padding: 3px 9px; }
+    .card.live .head .time { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .card.fresh { animation: fresh 6s ease-out; }
+    @keyframes fresh { from { background: var(--mark); } to { background: var(--card); } }
+    body.dashboard header .bar { max-width: 1680px; }
+    main.dashboard { max-width: 1680px; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 0 20px; align-items: start; }
+    main.dashboard > #status { grid-column: 1 / -1; }
+    main.dashboard > #games, main.dashboard > #more { grid-column: 1; }
+    #errors { grid-column: 2; grid-row: 2 / span 2; position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow-y: auto;
+        background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+    @media (max-width: 1000px) {
+        main.dashboard { grid-template-columns: minmax(0, 1fr); }
+        /* one column: the errors above the stream */
+        main.dashboard > #status { order: -2; }
+        #errors { grid-column: 1; grid-row: auto; order: -1; position: static; max-height: 40vh; margin-bottom: 14px; }
+    }
+    #errors h2 { font-size: 16px; margin: 0; display: flex; align-items: center; gap: 8px; }
+    #errors h2 .count { color: var(--danger); }
+    #errors .tools { margin-left: auto; display: flex; gap: 6px; }
+    #errors .tools button, .err button { font-size: 13px; padding: 3px 9px; }
+    #errors .hint { color: var(--muted); font-size: 13px; margin: 6px 0 2px; }
+    .err { border-top: 1px solid var(--line); padding: 8px 0; }
+    .err:first-of-type { border-top: none; }
+    .err .top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+    .err .id { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 600; color: var(--accent); }
+    .err .n { font-weight: 700; }
+    .err .msg { color: var(--danger); overflow-wrap: anywhere; margin: 2px 0; }
+    .err .badge.again { color: var(--danger); border-color: currentColor; font-weight: 600; }
+    .err .row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+    .err pre { margin: 6px 0 0; padding: 8px; background: var(--bg); border-radius: 6px; font-size: 12px; white-space: pre-wrap;
+        overflow-wrap: anywhere; max-height: 360px; overflow-y: auto; }
+    .err.fresh { animation: fresh 6s ease-out; border-radius: 6px; }
+    #newer { position: fixed; top: 112px; left: 50%; transform: translateX(-50%); z-index: 6; background: var(--accent); color: #fff;
+        border: none; border-radius: 18px; padding: 6px 16px; box-shadow: 0 2px 10px rgba(0, 0, 0, .25); }
     #closed { position: fixed; inset: 0; background: rgba(0, 0, 0, .6); display: none; place-items: center; z-index: 20; }
     #closed div { background: var(--card); padding: 24px 28px; border-radius: 12px; max-width: 420px; }
     #zoom { position: fixed; inset: 0; background: rgba(0, 0, 0, .75); display: none; place-items: center; z-index: 10; cursor: zoom-out; }
@@ -85,10 +131,11 @@
             <input type="search" id="query" placeholder="Wörter suchen, z. B. wort1, wort2 oder &quot;zwei Wörter&quot;" autocomplete="off">
             <button type="submit">Suchen</button>
             <button type="button" id="list">Alle Versionen</button>
+            <button type="button" id="live" class="live" title="Neue Bilder und Texte zeigen, sobald ein Spiel gespeichert wird"><span class="dot"></span>Live</button>
         </form>
         <span id="clock"></span>
     </div>
-    <div class="bar" style="margin-top: 8px">
+    <div class="bar" id="filters" style="margin-top: 8px">
         <label><input type="checkbox" id="only_new" checked> nur Neues (jedes Bild und jeder Text nur einmal: im ältesten Spiel, das ihn hat)</label>
         <label><input type="checkbox" id="only_saved"> nur gespeicherte Versionen</label>
     </div>
@@ -97,7 +144,10 @@
     <div id="status"></div>
     <div id="games"></div>
     <button id="more" hidden>Weitere zeigen</button>
+    <!-- Live: the Fehlerberichte beside the new pictures and texts -->
+    <aside id="errors" hidden></aside>
 </main>
+<button id="newer" type="button" hidden></button>
 <div id="zoom"><figure><img alt=""><figcaption></figcaption></figure></div>
 <div id="closed"><div><h2 style="margin-top: 0">Die Seite ist geschlossen</h2>
     <p>Die Zeit ist um oder die Moderation wurde im Terminal beendet. <code>./moderate.rb web</code> öffnet eine neue Seite mit einem neuen Link.</p></div></div>
@@ -105,7 +155,12 @@
 'use strict';
 const TOKEN = location.pathname.split('/')[2] || '';
 const PAGE = 30;
-const state = { mode: 'list', offset: 0, query: '', deleted: new Set(), expires: 0, offset_now: 0 };
+const state = { mode: 'list', offset: 0, query: '', deleted: new Set(), expires: 0, offset_now: 0, closed: false };
+// Live: the newest file time seen, the tags shown, new ones not looked at yet
+const live = { since: null, shown: new Set(), timer: null, busy: false, paused: false, unseen: 0, newer: 0, checked: null,
+    errors: new Map() };   // group id → count shown
+const LIVE_EVERY_MS = 4000;
+const LIVE_MAX_CARDS = 300;
 const $ = (id) => document.getElementById(id);
 
 // Builds an element; strings become text (never HTML).
@@ -135,6 +190,8 @@ async function api(path, data = {}) {
 }
 
 function closed() {
+    state.closed = true;
+    stop_live();
     $('closed').style.display = 'grid';
 }
 
@@ -248,19 +305,20 @@ function confirm_box(where, tags, later_count, done) {
     reason.focus();
 }
 
-function card(game, terms = []) {
+function card(game, terms = [], { in_live = false } = {}) {
     const gone = state.deleted.has(game.tag);
     const title = game.title?.trim() ? `»${game.title}«` : '(ohne Titel)';
     const author = game.author?.trim() ? ` von ${game.author}` : '';
-    const node = el('div', { class: `card${gone ? ' gone' : ''}`, 'data-tag': game.tag });
+    const node = el('div', { class: `card${gone ? ' gone' : ''}${in_live ? ' live' : ''}`, 'data-tag': game.tag });
     const del = el('button', { class: 'danger light', type: 'button' }, 'Löschen …');
     del.addEventListener('click', () => confirm_box(node, [game.tag], game.later.filter(t => !state.deleted.has(t)).length, (report) => {
         node.append(el('div', { class: 'result' }, delete_report(report)));
     }));
     node.append(el('div', { class: 'head' },
+        in_live ? el('span', { class: 'time' }, new Date(game.time * 1000).toLocaleTimeString('de-DE')) : null,
         el('span', { class: 'tag' }, game.tag),
         el('span', { class: 'name' }, title, author),
-        el('span', { class: 'meta' }, date(game.time)),
+        in_live ? null : el('span', { class: 'meta' }, date(game.time)),
         game.saved === true ? el('span', { class: 'badge saved' }, 'gespeichert') : game.saved === false ? el('span', { class: 'badge' }, 'nur gespielt') : null,
         game.parent ? el('span', { class: 'meta' }, `aus ${game.parent}`) : null,
         game.later.length ? el('span', { class: 'meta' }, plural(game.later.length, 'spätere Version', 'spätere Versionen')) : null,
@@ -271,21 +329,21 @@ function card(game, terms = []) {
         node.append(el('ul', { class: 'hits' }, game.hits.map(hit =>
             el('li', {}, el('span', { class: 'where' }, `${hit.where}: `), marked(hit.text, hit.term)))));
     }
-    const only_new = $('only_new').checked;
+    const only_new = in_live || $('only_new').checked;
     // pictures from the recipes, or shown with an older game already
     const known = game.frame_count - game.frames.length;
     if (game.frames.length) {
         node.append(el('div', { class: 'frames' }, game.frames.map(frame =>
             el('button', { type: 'button', title: frame, onclick: () => zoom(frame) },
                 el('img', { src: `/gen/png/${frame}.png`, alt: '', loading: 'lazy' })))));
-    } else {
+    } else if (!in_live) {
         node.append(el('div', { class: 'none' }, only_new ? 'keine neuen Bilder' : 'keine eigenen Bilder'));
     }
-    if (known > 0) node.append(el('div', { class: 'none' }, `${plural(known, 'weiteres Bild ist', 'weitere Bilder sind')} aus den Rezepten${only_new ? ' oder schon bei einem älteren Spiel gezeigt' : ''}.`));
+    if (known > 0 && !in_live) node.append(el('div', { class: 'none' }, `${plural(known, 'weiteres Bild ist', 'weitere Bilder sind')} aus den Rezepten${only_new ? ' oder schon bei einem älteren Spiel gezeigt' : ''}.`));
     if (game.texts.length) {
         node.append(el('div', { class: 'texts', title: only_new ? 'neue Texte' : 'alle Texte' },
             game.texts.map(text => el('span', {}, terms.length ? marked_any(text, terms) : text))));
-    } else if (only_new) {
+    } else if (only_new && !in_live) {
         node.append(el('div', { class: 'none' }, 'keine neuen Texte'));
     }
     return node;
@@ -297,6 +355,7 @@ function marked_any(text, terms) {
 }
 
 async function show_list(more = false) {
+    stop_live();
     state.mode = 'list';
     if (!more) {
         state.offset = 0;
@@ -317,6 +376,7 @@ async function show_list(more = false) {
 }
 
 async function search(query) {
+    stop_live();
     state.mode = 'search';
     state.query = query;
     $('games').replaceChildren();
@@ -354,6 +414,193 @@ async function search(query) {
     }
 }
 
+// ------------------------------------------------------------ Live
+// Every few seconds: the versions saved since the newest one shown that bring
+// a picture or a text for the first time (moderation.rb page_stream), on top.
+function stop_live() {
+    clearTimeout(live.timer);
+    live.timer = null;
+    $('live').classList.remove('on');
+    $('filters').hidden = false;
+    $('errors').hidden = true;
+    document.querySelector('main').classList.remove('dashboard');
+    document.body.classList.remove('dashboard');
+    document.documentElement.style.overflowAnchor = '';
+    $('newer').hidden = true;
+    live.newer = 0;
+}
+
+function show_live() {
+    stop_live();
+    state.mode = 'live';
+    live.since = null;
+    live.shown = new Set();
+    live.paused = false;
+    live.unseen = 0;
+    live.errors = new Map();
+    live.errors_seen = false;
+    $('games').replaceChildren();
+    $('more').hidden = true;
+    $('filters').hidden = true;
+    document.querySelector('main').classList.add('dashboard');
+    document.body.classList.add('dashboard');
+    // add_live keeps the place itself (the same in every browser; Chrome's
+    // own scroll anchoring would move it a second time)
+    document.documentElement.style.overflowAnchor = 'none';
+    $('errors').hidden = false;
+    $('errors').replaceChildren(el('h2', {}, 'Fehler'), el('div', { class: 'hint' }, 'Die Fehlerberichte werden gelesen …'));
+    $('live').classList.add('on');
+    live_status('Die neuesten Spiele werden gelesen …');
+    poll_live();
+}
+
+function live_status(text) {
+    const dot = el('span', { class: `dot ${live.paused ? 'paused' : 'on'}` });
+    const pause = el('button', { type: 'button', onclick: () => {
+        live.paused = !live.paused;
+        if (!live.paused) poll_live(); else { clearTimeout(live.timer); live_status(); }
+    } }, live.paused ? 'Weiter' : 'Anhalten');
+    const checked = live.checked ? `zuletzt nachgesehen ${live.checked.toLocaleTimeString('de-DE')}` : '';
+    show_status(dot, text ?? (live.paused ? 'Angehalten – nichts Neues kommt dazu.' :
+        `Live: neue Bilder und Texte, sobald ein Spiel gespeichert wird (jedes nur einmal, nichts aus den Rezepten). ${checked}`), pause);
+}
+
+async function poll_live() {
+    if (state.mode !== 'live' || live.paused || live.busy || state.closed) return;
+    live.busy = true;
+    poll_errors();
+    try {
+        const data = await load('stream', { since: live.since, limit: live.since === null ? 30 : 100 });
+        if (state.mode !== 'live') return;
+        const fresh = data.games.filter(g => !live.shown.has(g.tag));
+        for (const g of data.games) live.since = Math.max(live.since ?? 0, g.time);
+        if (live.since === null) live.since = data.now;
+        add_live(fresh, live.checked !== null);
+        live.checked = new Date();
+        if (!$('games').children.length) live_status('Live: noch nichts Neues – sobald ein Spiel mit neuen Bildern oder Texten gespeichert wird, steht es hier.');
+        else live_status();
+    } catch (e) {
+        if (e.message !== 'closed') live_status(`Live: ${e.message} Es wird gleich noch einmal versucht.`);
+    } finally {
+        live.busy = false;
+        if (state.mode === 'live' && !live.paused && !state.closed) live.timer = setTimeout(poll_live, LIVE_EVERY_MS);
+    }
+}
+
+// newest first, on top; the page does not jump while one looks further down
+function add_live(games, highlight) {
+    if (!games.length) return;
+    const list = $('games');
+    const before = list.offsetHeight;
+    const nodes = games.map(game => {
+        live.shown.add(game.tag);
+        return card(game, [], { in_live: true });
+    });
+    if (highlight) nodes.forEach(n => n.classList.add('fresh'));
+    list.prepend(...nodes);
+    while (list.children.length > LIVE_MAX_CARDS) list.lastElementChild.remove();
+    if (!highlight) return;
+    if (window.scrollY > 80) {
+        window.scrollBy(0, list.offsetHeight - before);
+        live.newer += games.length;
+        $('newer').textContent = `↑ ${plural(live.newer, 'neues Spiel', 'neue Spiele')}`;
+        $('newer').hidden = false;
+    }
+    count_unseen(games.length);
+}
+
+function count_unseen(n) {
+    if (!document.hidden || !n) return;
+    live.unseen += n;
+    document.title = `(${live.unseen}) Moderation – 2D Game Studio`;
+}
+
+// ---------------------------------------------------------------- Fehler
+// Today's open Fehlerberichte, the latest first (client_errors.rb dashboard):
+// each with the text of ./errors.rb show, to copy and paste.
+async function copy_text(text, button) {
+    const label = button.textContent;
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch (e) {
+        const area = el('textarea', { style: 'position: fixed; opacity: 0' });
+        area.value = text;
+        document.body.append(area);
+        area.select();
+        document.execCommand('copy');
+        area.remove();
+    }
+    button.textContent = 'Kopiert ✓';
+    setTimeout(() => { button.textContent = label; }, 1500);
+}
+
+function error_item(group, fresh) {
+    const where = { sprites: 'Sprites', level: 'Level', play: 'Spielen', settings: 'Einstellungen', help: 'Hilfe' }[group.pane] ?? group.pane;
+    const details = el('pre', { hidden: true }, group.text);
+    const show = el('button', { type: 'button', onclick: () => {
+        details.hidden = !details.hidden;
+        show.textContent = details.hidden ? 'Einzelheiten' : 'Zuklappen';
+    } }, 'Einzelheiten');
+    const copy = el('button', { type: 'button', onclick: () => copy_text(group.text, copy) }, 'Kopieren');
+    const time = new Date(group.last).toLocaleTimeString('de-DE');
+    return el('div', { class: `err${fresh ? ' fresh' : ''}`, 'data-id': group.id },
+        el('div', { class: 'top' },
+            el('span', { class: 'id' }, group.id),
+            el('span', { class: 'n' }, `${group.count}×`),
+            el('span', { class: 'meta' }, `zuletzt ${time}`),
+            group.again ? el('span', { class: 'badge again' }, 'wieder aufgetreten') : null),
+        el('div', { class: 'msg' }, group.message),
+        el('div', { class: 'meta' }, [where, group.in_game ? 'im Spiel' : null, group.in_session ? 'in einer Sitzung' : null,
+            group.related.length ? `zusammen mit ${group.related.join(', ')}` : null].filter(Boolean).join(' · ')),
+        el('div', { class: 'row' }, copy, show),
+        details);
+}
+
+async function poll_errors() {
+    let data;
+    try { data = await api('errors'); } catch (e) { return; }
+    if (state.mode !== 'live') return;
+    // the first answer is what was there already: nothing is marked new
+    const first = !live.errors_seen;
+    live.errors_seen = true;
+    let changed = 0;
+    const items = data.groups.map(group => {
+        const before = live.errors.get(group.id);
+        const fresh = !first && before !== group.count;
+        if (fresh) changed += 1;
+        return error_item(group, fresh);
+    });
+    live.errors = new Map(data.groups.map(g => [g.id, g.count]));
+    const all = data.groups.map(g => g.text).join('\n\n');
+    const copy_all = el('button', { type: 'button', onclick: () => copy_text(all, copy_all) }, 'Alle kopieren');
+    const reports = data.groups.reduce((n, g) => n + g.count, 0);
+    const box = $('errors');
+    // an open "Einzelheiten" stays open
+    const open = new Set([...box.querySelectorAll('.err')].filter(e => !e.querySelector('pre').hidden).map(e => e.dataset.id));
+    box.replaceChildren(
+        el('h2', {}, 'Fehler heute', el('span', { class: 'count' }, data.groups.length ? `${data.groups.length}` : ''),
+            el('span', { class: 'tools' }, data.groups.length ? copy_all : null)),
+        el('div', { class: 'hint' }, data.groups.length
+            ? `${plural(reports, 'Bericht', 'Berichte')} in ${plural(data.groups.length, 'Gruppe', 'Gruppen')}, offen (./errors.rb resolve blendet erledigte aus). Kopieren gibt den Text von ./errors.rb show.`
+            : 'Keine offenen Fehlerberichte heute. Kommt einer, steht er hier.'),
+        ...items);
+    for (const item of box.querySelectorAll('.err')) {
+        if (!open.has(item.dataset.id)) continue;
+        item.querySelector('pre').hidden = false;
+        item.querySelector('.row button:last-child').textContent = 'Zuklappen';
+    }
+    count_unseen(changed);
+}
+
+$('live').addEventListener('click', () => show_live());
+$('newer').addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+window.addEventListener('scroll', () => {
+    if (window.scrollY <= 80 && !$('newer').hidden) { $('newer').hidden = true; live.newer = 0; }
+});
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { live.unseen = 0; document.title = 'Moderation – 2D Game Studio'; }
+});
+
 $('search').addEventListener('submit', (e) => {
     e.preventDefault();
     const query = $('query').value.trim();
@@ -361,12 +608,13 @@ $('search').addEventListener('submit', (e) => {
 });
 $('list').addEventListener('click', () => { $('query').value = ''; show_list(); });
 $('more').addEventListener('click', () => show_list(true));
-for (const id of ['only_new', 'only_saved']) $(id).addEventListener('change', () => { if (state.mode === 'list') show_list(); else search(state.query); });
+for (const id of ['only_new', 'only_saved']) $(id).addEventListener('change', () => { if (state.mode === 'list') show_list(); else if (state.mode === 'search') search(state.query); });
 
 status();
 setInterval(status, 30000);
 setInterval(tick, 5000);
-show_list();
+// opens with what is new, as it comes (Alle Versionen and the search as before)
+show_live();
 </script>
 </body>
 </html>
