@@ -226,6 +226,8 @@ function collaboration_rejection_notice(message, holder_name = null) {
 
 // The same person by name (collaboration.rb remove): what the server compares,
 // so only a copy of oneself gets the "Entfernen" button.
+const COLLABORATION_REMOVED_TEXT = 'Du bist in dieser Sitzung schon in einem anderen Fenster oder an einem anderen Computer dabei – diese Kopie wurde entfernt. Was hier noch nicht gespeichert ist, kannst du speichern.';
+
 function collaboration_same_person(a, b) {
     const norm = (name) => (normalize_collaboration_name(name) ?? '').toLowerCase();
     return norm(a) !== '' && norm(a) === norm(b);
@@ -431,7 +433,7 @@ class CollaborationClient {
             }
             if (event.code === 4012) {
                 // removed as a copy of oneself (collaboration.rb remove)
-                this.end_session('Du bist in dieser Sitzung schon in einem anderen Fenster oder an einem anderen Computer dabei – diese Kopie wurde entfernt. Was hier noch nicht gespeichert ist, kannst du speichern.');
+                this.end_session(COLLABORATION_REMOVED_TEXT);
                 return;
             }
             this.render_control();
@@ -730,6 +732,12 @@ class CollaborationClient {
 
     handle_error(message) {
         console.warn('Collaboration error', message.error);
+        // removed as a copy of oneself: this tab ends instead of coming back
+        // (the server refuses its reconnects, too – collaboration.rb remove)
+        if (message.error === 'removed') {
+            this.end_session(COLLABORATION_REMOVED_TEXT);
+            return;
+        }
         const text = collaboration_join_error_text(message.error);
         // Other errors are either harmless or the server closes the socket,
         // after which we reconnect.

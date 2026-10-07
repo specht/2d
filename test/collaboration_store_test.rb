@@ -139,11 +139,23 @@ class CollaborationStoreTest < Minitest::Test
         # its lock is free at once
         assert @store.lock(**ids.call(mia), resource: "sprite:held")[:applied]
         # it cannot come back as itself, and its connection does nothing any more
-        back = @store.join(code: "session", name: "Mia", participant_id: old[:participant_id], reconnect_token: old[:reconnect_token])
-        refute_equal old[:participant_id], back[:participant_id]
+        # its old tab reconnects by itself: refused, not let in as somebody new
+        assert_raises(Collaboration::ParticipantRemoved) do
+            @store.join(code: "session", name: "Mia", participant_id: old[:participant_id], reconnect_token: old[:reconnect_token])
+        end
+        assert_equal 2, @store.participants(code: "session").size
+        # joining anew (typing the name) works
+        fresh = @store.join(code: "session", name: "Mia")
+        refute_equal old[:participant_id], fresh[:participant_id]
         assert_raises(Collaboration::InvalidParticipant) do
             @store.touch(code: "session", participant_id: old[:participant_id], connection_id: old[:connection_id])
         end
+    end
+
+    def test_the_source_tag_without_a_copy_of_the_game
+        @store.create(state: @state, source_tag: "abc1234")
+        assert_equal "abc1234", @store.source_tag(code: "session")
+        assert_nil @store.source_tag(code: "nothere")
     end
 
     def test_reconnect_tokens_are_never_shown_to_others
@@ -746,6 +758,21 @@ class CollaborationStoreTest < Minitest::Test
             assert_nil again[:snapshot][:participants].first[:lock], "locks are taken again after a restart"
             stranger = restarted.join(code: "session", name: "Ben", participant_id: ben[:participant_id])
             refute_equal ben[:participant_id], stranger[:participant_id], "the token is still required"
+        end
+    end
+
+    def test_a_removed_copy_stays_out_after_a_restart
+        Dir.mktmpdir do |dir|
+            path = File.join(dir, "collaboration", "sessions.json")
+            old, mia = session_with("Mia", "Mia")
+            assert @store.remove(**ids(mia), target_id: old[:participant_id])[:removed]
+            assert @store.persist_to(path)
+            restarted = Collaboration::Store.new(clock: -> { @now }, session_ttl: 100, reconnect_grace: 10,
+                id_generator: -> { "new-#{rand(1_000_000)}" })
+            restarted.restore_from(path)
+            assert_raises(Collaboration::ParticipantRemoved) do
+                restarted.join(code: "session", name: "Mia", participant_id: old[:participant_id], reconnect_token: old[:reconnect_token])
+            end
         end
     end
 

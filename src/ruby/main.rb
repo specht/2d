@@ -555,6 +555,12 @@ class Main < Sinatra::Base
                 game_to_save["parent"] = prepared[:source_tag]
                 game_to_save["palette"] = palette if palette
                 tag = save_game(game_to_save, true)
+                # a submitted game: this version is tested from now on (as with /api/save_game)
+                begin
+                    @@playtesting.after_save(tag, { "properties" => game_to_save["properties"], "parent" => prepared[:source_tag] })
+                rescue => e
+                    STDERR.puts "Playtesting after shared save: #{e}"
+                end
                 saved = @@collaboration_store.finish_save(
                     :code => code,
                     :token => prepared[:token],
@@ -912,16 +918,35 @@ class Main < Sinatra::Base
     # (playtesting.rb; the studio side is src/static/playtesting.js)
 
     def playtest_request(*keys)
-        data = parse_request_data(:required_keys => [:browser], :optional_keys => keys,
+        data = parse_request_data(:required_keys => [:browser], :optional_keys => keys + [:session, :open_tag],
                                   :types => { :answers => Hash }, :max_body_length => 16 * 1024,
-                                  :max_value_lengths => { :name => 80, :tag => 16, :assignment => 32 })
+                                  :max_value_lengths => { :name => 80, :tag => 16, :assignment => 32, :session => 16, :open_tag => 16 })
         assert(data[:browser].is_a?(String) && data[:browser] =~ /\A[a-z0-9]{8,40}\z/, "bad_browser")
         data
     end
 
+    # A browser in a live session sends its code: the session's game (from
+    # the session, never from what the browser says) is its team's game.
+    def playtest_session_tag(data)
+        return nil unless COLLABORATION_ENABLED && data[:session].is_a?(String) && data[:session] =~ /\A[A-Z0-9]{4,12}\z/
+        @@collaboration_store.source_tag(:code => data[:session])
+    rescue StandardError
+        nil
+    end
+
+    # ... and joins it, if that game is submitted (written only then).
+    def playtest_join_team(data)
+        tag = playtest_session_tag(data)
+        return unless tag
+        submission = Playtesting.submission_with_tag(@@playtesting.read, tag)
+        return if submission.nil? || Playtesting.team?(submission, data[:browser])
+        @@playtesting.transaction { |state| Playtesting.join_team(state, data[:browser], tag) }
+    end
+
     post "/api/playtest/status" do
         data = playtest_request
-        respond(Playtesting.status(@@playtesting.read, data[:browser]))
+        playtest_join_team(data)
+        respond(Playtesting.status(@@playtesting.read, data[:browser], open_tag: data[:open_tag]))
     end
 
     # The game with this tag (just saved by the studio) is submitted.
@@ -930,13 +955,18 @@ class Main < Sinatra::Base
         tag = data[:tag].to_s
         assert(tag =~ /\A[a-z0-9]{7}\z/ && File.exist?("/gen/games/#{tag}.json"), "unknown_game")
         game = JSON.parse(File.read("/gen/games/#{tag}.json"))
-        submission, error = @@playtesting.transaction { |state| Playtesting.submit(state, tag, game, data[:browser]) }
-        respond(error ? { :error => error } : { :submission => submission.slice("id", "title", "tag") })
+        submission, error, already = @@playtesting.transaction { |state| Playtesting.submit(state, tag, game, data[:browser]) }
+        playtest_join_team(data) unless error
+        # already: somebody of the team submitted it before – no second entry
+        respond(error ? { :error => error } : { :submission => submission.slice("id", "title", "tag", "author"), :already => already })
     end
 
     post "/api/playtest/next" do
         data = playtest_request(:name)
+        team_tag = playtest_session_tag(data)
         result = @@playtesting.transaction do |state|
+            # never the own team's game
+            Playtesting.join_team(state, data[:browser], team_tag) if team_tag
             assignment = Playtesting.next_assignment(state, data[:browser], data[:name].to_s)
             assignment ? Playtesting.assignment_for_client(state, assignment) : nil
         end

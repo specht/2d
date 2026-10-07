@@ -35,7 +35,9 @@ require "thread"
 # A copy of oneself that is left behind (an old tab, the computer next door)
 # can be removed by a participant with the same name (remove): it loses its
 # lock and its reconnect token at once. Only the same name – nobody can throw
-# somebody else out.
+# somebody else out. The session remembers it: a join that brings the removed
+# participant's id is refused ("removed"), so its tab cannot come back by
+# itself (an old tab reconnects on its own); joining anew with a name works.
 #
 # Sessions live in memory. persist_to/restore_from write them to a private file
 # and read them back, so a server restart (a deploy, for example) does not end
@@ -50,6 +52,7 @@ module Collaboration
     class TooManySessions < Error; end
     class SessionFull < Error; end
     class TooManyAttempts < Error; end
+    class ParticipantRemoved < Error; end
 
     # Counts failed attempts (wrong session codes) per client and blocks a
     # client that keeps guessing. Generous on purpose: a whole school may share
@@ -171,6 +174,8 @@ module Collaboration
                     saved_revision: 0,
                     resource_revisions: {},
                     participants: {},
+                    # ids of participants removed as copies (remove): never back by themselves
+                    removed: [],
                     save: nil,
                     created_at: now,
                     last_seen: now,
@@ -190,6 +195,7 @@ module Collaboration
                 session = fetch_session_locked(code)
                 expire_stale_locked(session, now)
                 display_name = normalize_name(name)
+                raise ParticipantRemoved, "removed" if participant_id && (session[:removed] || []).include?(participant_id)
 
                 participant = participant_id && session[:participants][participant_id]
                 participant = nil unless participant && secure_equal?(participant[:reconnect_token], reconnect_token)
@@ -265,7 +271,11 @@ module Collaboration
                 elsif target[:name].to_s.downcase != participant[:name].to_s.downcase
                     "not_same_name"
                 end
-                session[:participants].delete(target[:id]) if reason.nil?
+                if reason.nil?
+                    session[:participants].delete(target[:id])
+                    (session[:removed] ||= []) << target[:id]
+                    session[:removed] = session[:removed].last(200)
+                end
                 { removed: reason.nil?, reason: reason, participants: participants_locked(session) }
             end
         end
@@ -283,6 +293,12 @@ module Collaboration
                 cleanup_locked(@clock.call)
                 snapshot_locked(fetch_session_locked(code))
             end
+        end
+
+        # The game a session works on (its last saved version), without a copy
+        # of the state: playtesting asks often (main.rb playtest_session_tag).
+        def source_tag(code:)
+            @mutex.synchronize { @sessions[code]&.dig(:source_tag) }
         end
 
         def participants(code:)
@@ -604,6 +620,7 @@ module Collaboration
             [
                 session[:revision], session[:saved_revision], session[:source_tag],
                 session[:participants].map { |id, p| [id, p[:name], p[:reconnect_token]] }.sort,
+                session[:removed] || [],
             ]
         end
 
@@ -639,6 +656,7 @@ module Collaboration
                 saved_revision: raw["saved_revision"].to_i,
                 resource_revisions: (raw["resource_revisions"] || {}).transform_values(&:to_i),
                 participants: participants,
+                removed: Array(raw["removed"]).select { |id| id.is_a?(String) }.last(200),
                 joined_count: [raw["joined_count"].to_i, participants.values.map { |p| p[:joined] }.max.to_i].max,
                 save: nil,
                 created_at: raw["created_at"].to_f,

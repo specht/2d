@@ -67,9 +67,17 @@ class Playtesting {
         this.timer = null;
     }
 
+    // In a live session its code comes along: the server takes the team's
+    // game from the session (playtesting.rb teams), and the game open here
+    // tells whether it is submitted already – by anybody.
     api(path, data) {
+        const extra = {};
+        const session = window.collaboration?.code;
+        if (session) extra.session = session;
+        const open_tag = game?.data?.parent;
+        if (typeof open_tag === 'string' && /^[a-z0-9]{7}$/.test(open_tag)) extra.open_tag = open_tag;
         return new Promise((resolve) => {
-            api_call(`/api/playtest/${path}`, { browser: this.browser, ...data }, (result) => resolve(result));
+            api_call(`/api/playtest/${path}`, { browser: this.browser, ...extra, ...data }, (result) => resolve(result));
         });
     }
 
@@ -134,14 +142,23 @@ class Playtesting {
         const current = submissions.find(s => (s.tags ?? [s.tag]).includes(parent));
         for (const s of submissions) {
             const row = $('<div class="pt-submission">').appendTo(card);
-            $('<div class="pt-submission-title">').text(`»${s.title}«`).appendTo(row);
+            $('<div class="pt-submission-title">').text(s.team ? `»${s.title}« (euer Team-Spiel)` : `»${s.title}«`).appendTo(row);
             const tests = s.tests === 0 ? 'noch nicht getestet' : `${s.tests}× getestet`;
             $('<div class="pt-submission-stats">').text(s.fun ? `${tests} · Spaß ${playtest_stars(s.fun)}` : tests).appendTo(row);
         }
         if (current) {
+            const yours = current.team
+                ? `Euer Team-Spiel ist eingereicht (von ${current.author}). Keiner von euch bekommt es zum Testen.`
+                : 'Das ist dein eingereichtes Spiel.';
             $('<p class="pt-note">').text(game.has_unsaved_changes?.()
-                ? 'Das ist dein eingereichtes Spiel. Speichere, damit die Tester deine neuesten Änderungen bekommen.'
-                : 'Das ist dein eingereichtes Spiel. Jede Version, die du speicherst, wird ab jetzt getestet.').appendTo(card);
+                ? `${yours} Speichere, damit die Tester die neuesten Änderungen bekommen.`
+                : `${yours} Jede Version, die gespeichert wird, wird ab jetzt getestet.`).appendTo(card);
+            return;
+        }
+        // the game open here is somebody else's submission: once is enough
+        const open = this.status.open_game;
+        if (open) {
+            $('<p class="pt-note">').text(`Dieses Spiel ist schon eingereicht – »${open.title}« von ${open.author}. Jedes Spiel wird nur einmal getestet. Arbeitet ihr zusammen daran? Dann seid ihr ein Team, sobald ihr in einer gemeinsamen Sitzung seid.`).appendTo(card);
             return;
         }
         $('<p class="pt-note">').text(submissions.length
@@ -184,7 +201,9 @@ class Playtesting {
                 return;
             }
             await this.refresh();
-            this.notice(`»${result.submission.title}« ist eingereicht – jetzt können die anderen es testen!`);
+            this.notice(result.already
+                ? `»${result.submission.title}« war schon eingereicht – von ${result.submission.author}. Ihr seid ein Team: es wird nur einmal getestet, und keiner von euch bekommt es zum Testen.`
+                : `»${result.submission.title}« ist eingereicht – jetzt können die anderen es testen!`);
         }, () => message.text('Speichern hat nicht geklappt. Versuch es gleich noch einmal.'));
     }
 

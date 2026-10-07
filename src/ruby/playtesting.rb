@@ -15,6 +15,13 @@
 # - A test runs for `minutes`; the survey comes after it. Testers give their
 #   first name, which is printed with their feedback.
 #
+# Teams: several children make one game together in a live session
+# (collaboration.rb). It is submitted once, by whoever clicks first; the
+# others become members of that submission when they ask from inside the
+# session (main.rb takes the game from the session itself, never from what a
+# browser says). Members see it as their own game and never get it to test.
+# Shared saves move it on like any other save.
+#
 # There are no accounts: a browser is known by a random id it keeps
 # (localStorage). Everything is kept in one JSON file under /raw (not served
 # by nginx), changed under a file lock, so the server and the terminal
@@ -92,18 +99,42 @@ module Playtesting
         end
         stamp = now.utc.iso8601
         if existing
+            # somebody of the team (or with the game) submitted it already
+            already = !team?(existing, browser)
+            (existing["members"] ||= []) << browser if already
             existing["tag"] = tag
             (existing["tags"] ||= []) << tag unless existing["tags"].include?(tag)
             existing["title"] = title
             existing["author"] = author
             existing["updated_at"] = stamp
             existing["owner"] ||= browser
-            return [existing, nil]
+            return [existing, nil, already]
         end
         id = SecureRandom.hex(4)
         state["submissions"][id] = { "id" => id, "tag" => tag, "tags" => [tag], "title" => title, "author" => author,
                                      "owner" => browser, "submitted_at" => stamp, "updated_at" => stamp }
-        [state["submissions"][id], nil]
+        [state["submissions"][id], nil, false]
+    end
+
+    # ------------------------------------------------ teams
+
+    def self.team?(submission, browser)
+        submission["owner"] == browser || (submission["members"] || []).include?(browser)
+    end
+
+    # The submission one of whose versions this is.
+    def self.submission_with_tag(state, tag)
+        return nil unless tag.is_a?(String) && !tag.empty?
+        state["submissions"].values.find { |s| !s["withdrawn"] && (s["tags"] || [s["tag"]]).include?(tag) }
+    end
+
+    # The browser works on this game in a session: one of its team from now
+    # on. Returns the submission when it was added, else nil.
+    def self.join_team(state, browser, tag)
+        submission = submission_with_tag(state, tag)
+        return nil if submission.nil? || team?(submission, browser)
+        (submission["members"] ||= []) << browser
+        submission
     end
 
     # A new version was saved: if its parent is the version of a submission,
@@ -145,7 +176,7 @@ module Playtesting
         return nil unless state["enabled"]
         tested = mine.map { |a| a["submission"] }
         candidates = state["submissions"].values.reject do |s|
-            s["withdrawn"] || s["owner"] == browser || tested.include?(s["id"])
+            s["withdrawn"] || team?(s, browser) || tested.include?(s["id"])
         end
         return nil if candidates.empty?
         load = lambda do |s|
@@ -204,7 +235,8 @@ module Playtesting
         values.empty? ? nil : (values.sum.to_f / values.size).round(1)
     end
 
-    def self.status(state, browser, now = Time.now)
+    # open_tag: the game open in the studio – already submitted (by anybody)?
+    def self.status(state, browser, now = Time.now, open_tag: nil)
         minutes = state["minutes"].to_i
         mine = state["assignments"].values.select { |a| a["browser"] == browser }
         running = mine.find { |a| running?(a, minutes, now) && state["submissions"][a["submission"]] }
@@ -213,10 +245,13 @@ module Playtesting
             "minutes" => minutes,
             "questions" => QUESTIONS,
             "scale_labels" => SCALE_LABELS,
-            "submissions" => state["submissions"].values.select { |s| s["owner"] == browser && !s["withdrawn"] }.map do |s|
+            "submissions" => state["submissions"].values.select { |s| team?(s, browser) && !s["withdrawn"] }.map do |s|
                 { "id" => s["id"], "title" => s["title"], "tag" => s["tag"], "tags" => s["tags"],
+                  "author" => s["author"], "team" => s["owner"] != browser,
                   "tests" => feedback_of(state, s["id"]).size, "fun" => fun_average(state, s["id"]) }
             end,
+            "open_game" => (open = submission_with_tag(state, open_tag)) &&
+                { "id" => open["id"], "title" => open["title"], "author" => open["author"], "team" => team?(open, browser) },
             "tested" => mine.count { |a| a["finished_at"] },
             "class_tests" => state["assignments"].values.count { |a| a["finished_at"] },
             "games" => state["submissions"].values.count { |s| !s["withdrawn"] },
@@ -241,7 +276,7 @@ module Playtesting
         active = state["submissions"].values.reject { |s| s["withdrawn"] }
         browsers = assignments.map { |a| a["browser"] }.uniq
         available = lambda do |browser, submission|
-            submission["owner"] != browser &&
+            !team?(submission, browser) &&
                 assignments.none? { |a| a["browser"] == browser && a["submission"] == submission["id"] }
         end
         games = state["submissions"].values.sort_by { |s| s["submitted_at"].to_s }.map do |s|

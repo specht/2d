@@ -67,6 +67,43 @@ class PlaytestingTest < Minitest::Test
         assert_nil Playtesting.next_assignment(state, "t1", "t1", now + 910)
     end
 
+    def test_a_team_submits_its_game_once_and_none_of_them_tests_it
+        state = on_state
+        # Mia submits the team's game (the session's version v1)
+        team, error, already = Playtesting.submit(state, "v1aaaaa", game("Burg", "Mia, Ben"), "mia")
+        assert_nil error
+        assert_equal false, already
+        other, = Playtesting.submit(state, "zzzzzzz", game("Andere", "Lea"), "lea")
+        # Ben asks from inside the session: one of the team now
+        assert_equal team, Playtesting.join_team(state, "ben", "v1aaaaa")
+        assert_nil Playtesting.join_team(state, "ben", "v1aaaaa"), "once is enough"
+        assert_nil Playtesting.join_team(state, "ben", "nichtda"), "a game nobody submitted"
+        # a shared save moves it on; Ben sees it as the team's game
+        Playtesting.after_save(state, "v2aaaaa", game("Burg", "Mia, Ben", "v1aaaaa"))
+        status = Playtesting.status(state, "ben", open_tag: "v2aaaaa")
+        assert_equal [[team["id"], true, "Mia, Ben"]], status["submissions"].map { |s| s.values_at("id", "team", "author") }
+        assert_equal({ "id" => team["id"], "title" => "Burg", "author" => "Mia, Ben", "team" => true }, status["open_game"])
+        assert_equal 2, status["games"], "one game for the team, not one each"
+        # Tom (not in the session) has the game open: he is told, not made one of the team
+        tom = Playtesting.status(state, "tom", open_tag: "v2aaaaa")
+        assert_equal [false, []], [tom["open_game"]["team"], tom["submissions"]]
+        # Paul submits it again from the session: no second entry, he is told
+        again, error, already = Playtesting.submit(state, "v3aaaaa", game("Burg", "Mia, Ben, Paul", "v2aaaaa"), "paul")
+        assert_nil error
+        assert_equal [team["id"], true], [again["id"], already]
+        assert_equal 2, state["submissions"].size
+        # nobody of the team gets it to test – only the other game
+        now = Time.utc(2026, 10, 12, 9, 0)
+        %w(mia ben paul).each do |b|
+            assert_equal other["id"], Playtesting.next_assignment(state, b, b, now)["submission"], b
+        end
+        assert_equal team["id"], Playtesting.next_assignment(state, "lea", "Lea", now)["submission"]
+        # the teacher's overview counts it the same way
+        overview = Playtesting.overview(state, now)
+        burg = overview["games"].find { |g| g["id"] == team["id"] }
+        assert_equal 0, burg["left"], "the team cannot test it, Lea is testing it already"
+    end
+
     def test_an_abandoned_test_stops_counting_after_its_time_and_a_grace_period
         state = on_state
         Playtesting.submit(state, "aaaaaaa", game("A", "a"), "oa")
