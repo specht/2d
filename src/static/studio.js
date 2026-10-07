@@ -234,7 +234,7 @@ function setCurrentColor(color) {
     const own = base.toRgb();
     const v = color_variations([own.r, own.g, own.b]);
     const as_colors = (row) => row.map(([r, g, b]) => tinycolor({ r, g, b, a: alpha }));
-    add_row(as_colors(v.similar), 'Ähnliche Farbtöne – gleich hell, gleich kräftig', v.similar_index);
+    add_row(as_colors(v.similar), 'Ähnliche Farbtöne – gleich kräftig (und gleich hell, wo der Farbton das zulässt)', v.similar_index);
     add_row(as_colors(v.light_shadow),
         'Schatten und Licht wie in Pixel-Art: dunkler wird kühler (bläulicher), heller wird wärmer (gelblicher)', v.light_shadow_index);
     const grid_titles = ['Dunkler und heller – so kräftig, wie es geht', 'Dunkler und heller – mittel', 'Dunkler und heller – blass'];

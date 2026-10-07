@@ -105,9 +105,16 @@ test('colour variations: the colour is in every row, rows differ and keep what t
         assert.deepEqual(v.grid[v.grid_index[0]][v.grid_index[1]], c);
         assert.equal(v.grid.length, 3);
         for (const row of [v.similar, v.light_shadow, ...v.grid]) assert.equal(row.length, 11);
-        const L = px.srgb_to_oklch(c).L;
-        // similar hues: as light as the colour (within rounding and the screen's limits)
-        for (const s of v.similar) assert.ok(Math.abs(px.srgb_to_oklch(s).L - L) < 0.03, `${c} → ${s}`);
+        const { L, C } = px.srgb_to_oklch(c);
+        // similar hues: as colourful as the colour; as light, too, unless the
+        // hue cannot be that colourful there (then lighter or darker, not paler)
+        for (const s of v.similar) {
+            const o = px.srgb_to_oklch(s);
+            // (or as colourful as that hue can be at all: a cyan is never as strong as a yellow)
+            if (C >= 0.02) assert.ok(Math.abs(o.C - Math.min(C, px.oklch_cusp(o.h).C)) < 0.02, `${c} → ${s}: Buntheit`);
+            const room = px.oklch_max_chroma(L, o.h) >= C - 0.005;
+            if (room || C < 0.02) assert.ok(Math.abs(o.L - L) < 0.03, `${c} → ${s}: Helligkeit`);
+        }
         // light and shadow: from dark to light, every swatch visibly different from its neighbour
         for (let i = 1; i < 11; i++) {
             assert.ok(px.srgb_to_oklch(v.light_shadow[i]).L > px.srgb_to_oklch(v.light_shadow[i - 1]).L - 0.005);
@@ -116,6 +123,12 @@ test('colour variations: the colour is in every row, rows differ and keep what t
         // the grid: top row at least as colourful as the bottom one
         for (let i = 0; i < 11; i++) assert.ok(px.srgb_to_oklch(v.grid[0][i]).C >= px.srgb_to_oklch(v.grid[2][i]).C - 0.005);
     }
+    // a bright yellow's neighbours reach orange-red on one side and green on the
+    // other, and stay strong colours (they used to fade to pale peach)
+    const yellow = px.color_variations([240, 240, 60]).similar.map(px.srgb_to_oklch);
+    assert.ok(yellow[0].h < 50 && yellow[0].C > 0.15, `rot: ${JSON.stringify(yellow[0])}`);
+    assert.ok(yellow[10].h > 150 && yellow[10].C > 0.15, `grün: ${JSON.stringify(yellow[10])}`);
+    assert.ok(yellow[0].L < 0.8);   // an orange-red that strong is darker than the yellow
     // a light yellow has most of its room below: its place is near the right end
     assert.ok(px.color_variations([255, 230, 23]).light_shadow_index >= 8);
 });

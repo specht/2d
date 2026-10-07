@@ -86,8 +86,8 @@ function hue_toward(h, target, amount) {
 // The colour variations under the palette (studio.js setCurrentColor) are made
 // in OKLCH: L is how light a colour looks (0 … 1), C how colourful (0 = grey),
 // h its hue in degrees. Unlike HSL, changing one of them leaves the others as
-// they look: a "similar hue" is as light as the colour it came from, and
-// "paler" does not make it lighter. Colours are [r, g, b] with 0 … 255.
+// they look: "paler" does not make a colour lighter, a darker step looks as
+// much darker for every hue. Colours are [r, g, b] with 0 … 255.
 
 const OKLCH_GREY = 0.02;     // below this chroma a colour counts as grey (no hue to speak of)
 
@@ -134,6 +134,34 @@ function oklch_max_chroma(L, h) {
     return lo;
 }
 
+// The lightness at which this hue can be most colourful (the tip of the
+// screen's colours: a yellow's is light, a blue's dark), and how colourful.
+// The most chroma rises with the lightness up to the tip and falls after it.
+function oklch_cusp(h) {
+    let lo = 0.05, hi = 0.995;
+    for (let i = 0; i < 40; i++) {
+        const a = lo + (hi - lo) / 3, b = hi - (hi - lo) / 3;
+        if (oklch_max_chroma(a, h) < oklch_max_chroma(b, h)) lo = a; else hi = b;
+    }
+    const L = (lo + hi) / 2;
+    return { L, C: oklch_max_chroma(L, h) };
+}
+
+// The lightness nearest to L at which hue h can be C colourful: L itself where
+// it can; an orange as colourful as a bright yellow has to be darker, a cyan
+// as colourful as a blue lighter (toward the tip, as little as needed).
+function lightness_for_chroma(L, C, h) {
+    if (oklch_max_chroma(L, h) >= C) return L;
+    const cusp = oklch_cusp(h);
+    if (cusp.C <= C) return cusp.L;
+    let short = L, enough = cusp.L;
+    for (let i = 0; i < 24; i++) {
+        const mid = (short + enough) / 2;
+        if (oklch_max_chroma(mid, h) >= C) enough = mid; else short = mid;
+    }
+    return enough;
+}
+
 // [r, g, b] of an OKLCH colour; a colour the screen cannot show keeps its
 // lightness and hue and loses chroma until it can (as CSS Color 4 maps colours).
 function oklch_to_srgb(L, C, h) {
@@ -158,9 +186,12 @@ const VARIATION_L_MIN = 0.15, VARIATION_L_MAX = 0.97;
 
 // The variations of a colour ([r, g, b]); every row has 11 colours, and
 // *_index says where the colour itself is:
-//   similar        same lightness and colourfulness, the hue a little to either
-//                  side; the hue step grows as the colour gets greyer, so
-//                  neighbours always look different (a grey gets cooler and warmer tints)
+//   similar        the hue a little to either side, as colourful as the colour
+//                  and as light where the screen allows: a bright yellow's
+//                  neighbours on the way to red are darker oranges and reds, not
+//                  pale peach (keeping the lightness made them all alike).
+//                  The hue step grows as the colour gets greyer, so neighbours
+//                  always look different (a grey gets cooler and warmer tints)
 //   light_shadow   from dark to light in even steps, as pixel artists shade:
 //                  darker turns cooler (towards blue-violet), lighter warmer
 //                  (towards yellow) and paler
@@ -178,8 +209,10 @@ function color_variations(rgb) {
         if (k === 0) { similar.push([...rgb]); continue; }
         if (grey) similar.push(oklch_to_srgb(base.L, 0.011 * Math.abs(k), k < 0 ? 250 : 70));
         else {
-            const step = Math.min(30, Math.max(6, (0.035 / base.C) * 180 / Math.PI));
-            similar.push(oklch_to_srgb(base.L, base.C, base.h + step * k));
+            // five steps reach the neighbouring colour family (yellow → red)
+            const step = Math.min(30, Math.max(8, (0.05 / base.C) * 180 / Math.PI));
+            const h = base.h + step * k;
+            similar.push(oklch_to_srgb(lightness_for_chroma(base.L, base.C, h), base.C, h));
         }
     }
 
@@ -302,6 +335,6 @@ function flip_selected(pixels, mask, width, height, axis) {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { mirror_points, mirror_axis, replace_color_in, outline_pixels, rgba_of,
-        hue_toward, srgb_to_oklch, oklch_to_srgb, oklch_max_chroma, steps_around, color_variations,
+        hue_toward, srgb_to_oklch, oklch_to_srgb, oklch_max_chroma, oklch_cusp, lightness_for_chroma, steps_around, color_variations,
         selection_box, copy_selected, clear_selected, paste_selected, move_selected, flip_selected };
 }
