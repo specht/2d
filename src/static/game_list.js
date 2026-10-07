@@ -93,11 +93,13 @@ function game_list_date(ts) {
     return game_list_date_format.format(new Date(ts * 1000));
 }
 
-function game_list_short_date(ts) {
+// day and time; the year, too, when it is not this year's (`now`: seconds)
+function game_list_short_date(ts, now = Date.now() / 1000) {
     if (!ts) return '';
     const d = new Date(ts * 1000);
     const two = (x) => String(x).padStart(2, '0');
-    return `${two(d.getDate())}.${two(d.getMonth() + 1)}. ${two(d.getHours())}:${two(d.getMinutes())}`;
+    const year = d.getFullYear() !== new Date(now * 1000).getFullYear() ? d.getFullYear() : '';
+    return `${two(d.getDate())}.${two(d.getMonth() + 1)}.${year} ${two(d.getHours())}:${two(d.getMinutes())}`;
 }
 
 function game_list_row_html(node, columns) {
@@ -118,14 +120,18 @@ function game_list_row_html(node, columns) {
 
 // ---------------------------------------------------------------- family tree
 
-// Where every version of a family goes in the tree: one column per step
-// (left: the first version), branches in rows. The branch that leads to
+// Where every version of a family goes in the tree: left to right in the
+// order they were saved (a version is never left of an older one, nor of its
+// parent), branches in rows. Versions of the same year may share a column
+// (two branches worked on at the same time); a new year starts a new column,
+// so the years lie side by side (`years`: [{ year, from, to }] in columns,
+// when there is more than one). The branch that leads to
 // `main_tag` (default: the newest version) runs straight through, the others
 // below and above it (packed: see "rows"). In big families a straight stretch (one version after the other, no
 // branch) is folded: only its ends are shown, the edge counts the versions
 // in between. `keep` tags are never folded.
 // nodes: [{ tag, parent, ts_created, … }] → { nodes: [{ …node, x, y, tip }],
-//   edges: [{ from, to, folded }], columns, rows }
+//   edges: [{ from, to, folded }], columns, rows, years }
 // `title`: the family's name (a tip's label shows its title only when it
 // differs); `measure(text)`: a label's width in pixels (the browser measures
 // it; the estimate is for the tests). Every branch keeps room for the label
@@ -187,6 +193,32 @@ function game_family_layout(nodes, { main_tag = null, keep = [], fold = null, ti
     // a loop has no root (the server never writes one): start anywhere
     for (const n of nodes) if (!placed.has(n.tag) && !passed.has(n.tag)) starts.push(visit(n.tag, 0, null, 0));
 
+    // columns in time: through the drawn versions, oldest first (a version
+    // with a clock behind its parent's counts as saved right after it); each
+    // goes right of its parent and not left of the one saved before it – one
+    // further when the year changes
+    const drawn_parent = new Map(edges.map(e => [e.to, e.from]));
+    const order = [...placed.keys()];
+    const when = new Map();
+    for (const t of order) when.set(t, Math.max(ts(t), when.get(drawn_parent.get(t)) ?? -Infinity));
+    const year_of = t => new Date(when.get(t) * 1000).getFullYear();
+    const rank = new Map(order.map((t, i) => [t, i]));
+    const in_time = order.slice().sort((a, b) => when.get(a) - when.get(b) || rank.get(a) - rank.get(b));
+    let previous = null;
+    for (const t of in_time) {
+        const p = drawn_parent.get(t);
+        const after_parent = p ? placed.get(p).x + 1 : 0;
+        const after_previous = previous === null ? 0 : placed.get(previous).x + (year_of(t) !== year_of(previous) ? 1 : 0);
+        placed.get(t).x = Math.max(after_parent, after_previous);
+        previous = t;
+    }
+    const years = [];
+    for (const t of in_time) {
+        const year = year_of(t), x = placed.get(t).x;
+        if (years.at(-1)?.year === year) years.at(-1).to = x;
+        else years.push({ year, from: x, to: x });
+    }
+
     // rows: a branch runs from where it leaves its parent to its newest
     // version along one row. The main branch takes row 0; every other branch
     // takes the nearest row (below first, then above, then further away)
@@ -206,9 +238,9 @@ function game_family_layout(nodes, { main_tag = null, keep = [], fold = null, ti
         used.get(r).push([a, b, owner]);
     };
     const pending = starts.filter(Boolean).map((tag, i) => ({ tag, parent: null, order: i }));
-    let order = pending.length;
     let top = 0, bottom = 0;
     const column_of = (p) => (p.parent ? placed.get(p.parent).x : Infinity);
+    let order_index = order.length;
     while (pending.length) {
         // rightmost branch point first; equal ones in the order they were found
         pending.sort((p, q) => (column_of(q) - column_of(p)) || p.order - q.order);
@@ -221,9 +253,12 @@ function game_family_layout(nodes, { main_tag = null, keep = [], fold = null, ti
         // a branch that starts with folded versions keeps room for their count
         // (left of its first version)
         const counted = parent && edges.some(e => e.to === start && e.folded);
-        const span = [xs - (counted ? 0.6 : 0.2), placed.get(end).x + label_columns];
+        // the line comes down from the parent half a column after it and runs
+        // along the row to the branch's first version (which may be further right)
+        const xp = parent ? placed.get(parent).x : xs - 1;
+        const span = [Math.min(xs - (counted ? 0.6 : 0.2), xp + 0.5), placed.get(end).x + label_columns];
         const from_row = parent ? placed.get(parent).y : 0;
-        const curve = [xs - 0.75, xs - 0.25];
+        const curve = [xp + 0.25, xp + 0.75];
         const between = (row) => {
             const rows_between = [];
             for (let q = Math.min(from_row, row) + 1; q < Math.max(from_row, row); q++) rows_between.push(q);
@@ -246,7 +281,7 @@ function game_family_layout(nodes, { main_tag = null, keep = [], fold = null, ti
         for (let t = start; t; t = placed.get(t).kids[0]) {
             const entry = placed.get(t);
             entry.y = r;
-            for (const kid of entry.kids.slice(1)) pending.push({ tag: kid, parent: t, order: order++ });
+            for (const kid of entry.kids.slice(1)) pending.push({ tag: kid, parent: t, order: order_index++ });
         }
     }
     for (const entry of placed.values()) entry.y -= top;
@@ -260,6 +295,7 @@ function game_family_layout(nodes, { main_tag = null, keep = [], fold = null, ti
         columns: out.reduce((m, n) => Math.max(m, n.x + 1), 0),
         rows,
         main_tag,
+        years: years.length > 1 ? years : [],
     };
 }
 
@@ -280,13 +316,14 @@ const GAME_FAMILY_ROW = 38;
 const GAME_FAMILY_MARGIN = 22;
 const GAME_FAMILY_LABEL_GAP = 18;
 const GAME_FAMILY_TITLE_MAX = 28;
+const GAME_FAMILY_YEAR_ROOM = 18;   // above the tree: the years
 
 // The label of the newest version of a branch: its date, and its title when
 // it is not the family's
-function game_family_label(node, title = null) {
+function game_family_label(node, title = null, now = undefined) {
     let t = node.title && node.title !== title ? node.title : null;
     if (t && t.length > GAME_FAMILY_TITLE_MAX) t = t.slice(0, GAME_FAMILY_TITLE_MAX - 1) + '…';
-    return [t, game_list_short_date(node.ts_created) || node.tag].filter(Boolean).join(' · ');
+    return [t, game_list_short_date(node.ts_created, now) || node.tag].filter(Boolean).join(' · ');
 }
 
 // a label's width in pixels without a browser (15 px text, wide letters)
@@ -296,8 +333,9 @@ function game_family_estimate(text) {
 
 // The tree as SVG: a dot per version (newer ones brighter), the newest
 // version of each branch with its date (and its title, when it is not the
-// family's `title`), the way to `selected` highlighted.
-function game_family_svg(layout, selected = null, { title = null, measure = game_family_estimate } = {}) {
+// family's `title`), the way to `selected` highlighted; behind it, when the
+// family spans several years, a band per year with the year on top.
+function game_family_svg(layout, selected = null, { title = null, measure = game_family_estimate, now = undefined } = {}) {
     const by_tag = new Map(layout.nodes.map(n => [n.tag, n]));
     const on_path = new Set();
     // the highlighted way: from the selected version back along the drawn edges
@@ -309,15 +347,19 @@ function game_family_svg(layout, selected = null, { title = null, measure = game
     const times = layout.nodes.map(n => n.ts_created ?? 0);
     const t0 = Math.min(...times), t1 = Math.max(...times);
     const age = n => (t1 > t0 ? ((n.ts_created ?? 0) - t0) / (t1 - t0) : 1);
+    const years = layout.years ?? [];
+    const top = years.length ? GAME_FAMILY_YEAR_ROOM : 0;
     const X = n => GAME_FAMILY_MARGIN + n.x * GAME_FAMILY_COLUMN;
-    const Y = n => GAME_FAMILY_MARGIN + n.y * GAME_FAMILY_ROW;
+    const Y = n => top + GAME_FAMILY_MARGIN + n.y * GAME_FAMILY_ROW;
     let label_room = 0;
     const parts = [];
     for (const e of layout.edges) {
         const a = by_tag.get(e.from), b = by_tag.get(e.to);
         const x1 = X(a), y1 = Y(a), x2 = X(b), y2 = Y(b);
         const mid = x1 + GAME_FAMILY_COLUMN / 2;
-        const d = y1 === y2 ? `M${x1} ${y1}H${x2}` : `M${x1} ${y1}C${mid} ${y1} ${mid} ${y2} ${x2} ${y2}`;
+        // to another row: down within one column, then along the row
+        const bend = Math.min(x2, x1 + GAME_FAMILY_COLUMN);
+        const d = y1 === y2 ? `M${x1} ${y1}H${x2}` : `M${x1} ${y1}C${mid} ${y1} ${mid} ${y2} ${bend} ${y2}${bend < x2 ? `H${x2}` : ''}`;
         const hl = on_path.has(e.from) && on_path.has(e.to) ? ' highlight' : '';
         parts.push(`<path class="family-edge${hl}" d="${d}"/>`);
         if (e.folded && y1 === y2)
@@ -328,7 +370,7 @@ function game_family_svg(layout, selected = null, { title = null, measure = game
     for (const n of layout.nodes) {
         const hl = on_path.has(n.tag) ? ' highlight' : '';
         const sel = n.tag === selected ? ' selected' : '';
-        const tip_text = n.tip ? game_family_label(n, title) : '';
+        const tip_text = n.tip ? game_family_label(n, title, now) : '';
         // opaque, newer ones brighter: the lines end at the dots instead of showing through
         const grey = Math.round(0x70 + (0xee - 0x70) * age(n));
         const tooltip = [n.tag, n.title, n.author, game_list_date(n.ts_created)].filter(Boolean).join(' – ');
@@ -340,8 +382,16 @@ function game_family_svg(layout, selected = null, { title = null, measure = game
         if (n.tip) label_room = Math.max(label_room, X(n) + GAME_FAMILY_LABEL_GAP + measure(tip_text) + 8);
     }
     const width = Math.max(label_room, (layout.columns - 1) * GAME_FAMILY_COLUMN + 2 * GAME_FAMILY_MARGIN) + 8;
-    const height = Math.max(0, layout.rows - 1) * GAME_FAMILY_ROW + 2 * GAME_FAMILY_MARGIN;
-    return `<svg class="game-family" xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${parts.join('')}</svg>`;
+    const height = top + Math.max(0, layout.rows - 1) * GAME_FAMILY_ROW + 2 * GAME_FAMILY_MARGIN;
+    // the years: bands from half a column before their first version to half
+    // a column after their last (the last one to the end, with the labels)
+    const bands = years.map((y, i) => {
+        const left = i === 0 ? 0 : GAME_FAMILY_MARGIN + (y.from - 0.5) * GAME_FAMILY_COLUMN;
+        const right = i === years.length - 1 ? width : GAME_FAMILY_MARGIN + (y.to + 0.5) * GAME_FAMILY_COLUMN;
+        return `<rect class="family-year${i % 2 ? ' odd' : ''}" x="${left}" y="0" width="${right - left}" height="${height}"/>` +
+            `<text class="family-year-label" x="${(left + Math.min(right, left + 2 * GAME_FAMILY_COLUMN)) / 2}" y="13">${y.year}</text>`;
+    });
+    return `<svg class="game-family" xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${bands.join('')}${parts.join('')}</svg>`;
 }
 
 // ---------------------------------------------------------------- UI

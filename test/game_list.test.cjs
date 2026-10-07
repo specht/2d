@@ -51,8 +51,9 @@ test('the family tree: the newest branch straight through, the others around it'
     const layout = g.game_family_layout(family);
     const at = Object.fromEntries(layout.nodes.map(n => [n.tag, [n.x, n.y]]));
     assert.equal(layout.main_tag, 'c');
-    // d leaves further right: placed first, below; f does not fit beside it: above
-    assert.deepEqual(at, { r: [0, 1], a: [1, 1], b: [2, 1], c: [3, 1], d: [2, 2], e: [3, 2], f: [1, 0] });
+    // d leaves further right: placed first, below; f does not fit beside it: above.
+    // Left to right in time: f was saved after e, so it is not left of it
+    assert.deepEqual(at, { r: [0, 1], a: [1, 1], b: [2, 1], c: [3, 1], d: [2, 2], e: [3, 2], f: [3, 0] });
     assert.equal(layout.rows, 3);
     assert.equal(layout.columns, 4);
     assert.deepEqual(layout.nodes.filter(n => n.tip).map(n => n.tag).sort(), ['c', 'e', 'f']);
@@ -115,7 +116,8 @@ test('a branch tip shows its date, and its title only when it differs from the f
 
 test('short branches far apart share a row, branches never overlap', () => {
     const chain = ['r', 'a', 'b', 'c', 'd', 'e', 'f', 'g'].map((t, i, all) => node(t, i ? all[i - 1] : null, i * 10));
-    const nodes = [...chain, node('s1', 'a', 100), node('s2', 'f', 101), node('s3', 'b', 102)];
+    // (saved soon after the version they come from: left to right is in time)
+    const nodes = [...chain, node('s1', 'a', 15), node('s2', 'f', 65), node('s3', 'b', 25)];
     const layout = g.game_family_layout(nodes, { main_tag: 'g' });
     const at = Object.fromEntries(layout.nodes.map(n => [n.tag, [n.x, n.y]]));
     assert.deepEqual(at.g, [7, 1]);
@@ -142,4 +144,35 @@ test('a big random family: every version drawn once, rows packed', () => {
     assert.equal(new Set(layout.nodes.map(n => `${n.x},${n.y}`)).size, layout.nodes.length);
     const tips = layout.nodes.filter(n => n.tip).length;
     assert.ok(layout.rows < tips, `${layout.rows} rows for ${tips} branches`);
+});
+
+test('several years: left to right in time, a band per year, older branches before newer versions', () => {
+    const at = (date) => Date.parse(date) / 1000;
+    // 2023: the first versions; 2024: a branch from them; 2025 and 2026: the main line goes on
+    const nodes = [node('r', null, at('2023-01-03T12:00:00Z'))];
+    for (let i = 1; i <= 13; i++) nodes.push(node(`a${i}`, nodes.at(-1).tag, at('2023-01-03T12:00:00Z') + i * 600));
+    const branch_point = nodes.at(-1).tag;
+    for (const [i, time] of ['2024-01-30T11:00:00Z', '2024-01-30T11:03:00Z', '2024-01-30T11:06:00Z'].entries())
+        nodes.push(node(`s${i}`, i ? `s${i - 1}` : branch_point, at(time)));
+    nodes.push(node('m0', branch_point, at('2025-05-09T12:00:00Z')));
+    for (let i = 1; i <= 62; i++) nodes.push(node(`m${i}`, `m${i - 1}`, at('2025-05-09T12:00:00Z') + i * 86400 * 8));
+    const layout = g.game_family_layout(nodes);
+    const x = Object.fromEntries(layout.nodes.map(n => [n.tag, n.x]));
+    assert.equal(layout.main_tag, 'm62');
+    // the branch from 2024 lies before the main line's versions from 2025 on
+    assert.ok(x.s2 < x.m0, JSON.stringify(x));
+    // never an older version right of a newer one
+    const drawn = layout.nodes.slice().sort((p, q) => p.ts_created - q.ts_created);
+    for (let i = 1; i < drawn.length; i++) assert.ok(drawn[i].x >= drawn[i - 1].x, `${drawn[i - 1].tag} → ${drawn[i].tag}`);
+    // the years side by side
+    assert.deepEqual(layout.years.map(y => y.year), [2023, 2024, 2025, 2026]);
+    for (let i = 1; i < layout.years.length; i++) assert.ok(layout.years[i].from > layout.years[i - 1].to);
+    const svg = g.game_family_svg(layout, 'm62', { now: at('2026-10-07T12:00:00Z') });
+    assert.equal((svg.match(/class="family-year[ "]/g) || []).length, 4);
+    assert.ok(svg.includes('>2024</text>'));
+    // the branch's date says its year; this year's does not
+    assert.ok(svg.includes('30.01.2024 '));
+    assert.ok(/>\d\d\.\d\d\. \d\d:\d\d</.test(svg));
+    // one year: no bands
+    assert.deepEqual(g.game_family_layout(family).years, []);
 });

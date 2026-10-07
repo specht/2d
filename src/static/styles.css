@@ -2685,6 +2685,21 @@ svg.game-family .family-edge.highlight {
     stroke: var(--graph-highlight-color);
 }
 
+/* the years behind the tree (game_family_svg): every other one a little lighter */
+svg.game-family .family-year {
+    fill: rgba(255, 255, 255, 0.025);
+}
+
+svg.game-family .family-year.odd {
+    fill: rgba(255, 255, 255, 0.06);
+}
+
+svg.game-family .family-year-label {
+    fill: #999;
+    font-size: 12px;
+    text-anchor: middle;
+}
+
 svg.game-family .family-folded {
     fill: #aaa;
     font-size: 13px;

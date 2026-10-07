@@ -1241,7 +1241,7 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                 </div>
                 <div class='load-games-scroll'>
                     <div id='games_sublist_graph' class='load-games-family'></div>
-                    <p class='load-games-hint'>Jeder Punkt ist eine gespeicherte Version – links die erste, rechts die neueste. Eine Abzweigung entsteht, wenn jemand eine ältere Version lädt und weiterbaut. Klick einen Punkt an: Unten steht diese Version mit allen davor. Ein Klick auf eine Zeile lädt sie.</p>
+                    <p class='load-games-hint'>Jeder Punkt ist eine gespeicherte Version – von links nach rechts so, wie sie gespeichert wurden (dahinter die Jahre). Eine Abzweigung entsteht, wenn jemand eine ältere Version lädt und weiterbaut. Klick einen Punkt an: Unten steht diese Version mit allen davor. Ein Klick auf eine Zeile lädt sie.</p>
                     <div id='load_games_sublist'></div>
                 </div>
             </div>
