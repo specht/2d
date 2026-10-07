@@ -220,7 +220,7 @@ class SpriteBasket {
     // The Sprite-Katalog (katalog.json, written by the recipe build), once.
     load_catalogue() {
         if (this.catalogue) {
-            this.info('Alle Sprites aus den Rezepten und noch ein paar mehr. Klicke an, was du in deinem Spiel haben möchtest. Du bekommst die Bilder – was ein Sprite im Spiel tut, stellst du danach selbst bei „Eigenschaften“ ein.');
+            // this.info('Alle Sprites aus den Rezepten und noch ein paar mehr. Klicke an, was du in deinem Spiel haben möchtest. Du bekommst die Bilder – was ein Sprite im Spiel tut, stellst du danach selbst bei „Eigenschaften“ ein.');
             return;
         }
         if (this.catalogue_loading) return;
