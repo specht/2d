@@ -2187,9 +2187,15 @@ class Curtain {
 
 	// A screen of screens.js (in German, in the game's pixel font): kind and
 	// info as curtain_screen takes them; the prompt comes from the game.
-	show_screen(kind, info, text_delay, key_delay, oncomplete) {
+	// auto: after so many seconds it goes on by itself (a door into a Nebenlevel).
+	show_screen(kind, info, text_delay, key_delay, oncomplete, auto = null) {
 		const game = this.game;
 		const token = this.token = (this.token ?? 0) + 1;
+		if (Number.isFinite(auto)) setTimeout(() => {
+			if (!this.showing || token !== this.token) return;
+			this.oncomplete?.();
+			this.hide();
+		}, auto * 1000.0);
 		const screen = curtain_screen(kind, { prompt: game.continue_prompt?.(), ...(info ?? {}) });
 		const font = speech_settings(game.data?.properties).font;
 		setTimeout(() => {
@@ -2574,26 +2580,34 @@ class Game {
 	// delta 1, signal_level_complete_target). Once per level (reached_flag); the
 	// camera zooms onto the figure, then the curtain leads to where the exit
 	// leads (level_flow.js: the next level in use unless something else was
-	// chosen) – or THE END.
+	// chosen) – or THE END. Into or out of a Nebenlevel it is only a door: a
+	// short curtain with where it leads, without "Geschafft!" (an intentional fix).
 	complete_level(delta = 1, target = null) {
 		if (this.reached_flag || this.replaying_memory) return false;
 		this.reached_flag = true;
-		this.ts_zoom_actor = this.clock.getElapsedTime();
 		let self = this;
 		const levels = self.data.levels;
 		const here = levels[self.level_index];
 		const result = resolve_level_exit(levels, self.level_index, { target, delta }, self.level_trail);
-		if (!result.end) {
+		const go_on = function () {
 			const next = levels[result.index];
-			this.curtain.show_screen('level_complete', { next_name: next.properties.name }, 0.5, 1.0, function () {
-				self.level_trail = next_level_trail(self.level_trail, here?.id ?? null, result, next.id ?? null);
-				// the figure arrives at the exit that leads back here (setup: place_player_on_arrival)
-				self.arrived_from = here?.id ?? null;
-				self.level_index = result.index;
-				self.setup();
-				self.run();
-			});
+			self.level_trail = next_level_trail(self.level_trail, here?.id ?? null, result, next.id ?? null);
+			// the figure arrives at the exit that leads back here (setup: place_player_on_arrival)
+			self.arrived_from = here?.id ?? null;
+			self.level_index = result.index;
+			self.setup();
+			self.run();
+		};
+		if (!result.end && (level_is_side(here) || level_is_side(levels[result.index]))) {
+			// into or out of a Nebenlevel (a shop, a secret room): a door, not a
+			// level geschafft – no zoom, no "Geschafft!", only where it leads, and
+			// it goes on by itself (a key goes on sooner)
+			this.curtain.show_screen('level_change', { level_name: levels[result.index].properties.name }, 0.15, 0.3, go_on, 1.2);
+		} else if (!result.end) {
+			this.ts_zoom_actor = this.clock.getElapsedTime();
+			this.curtain.show_screen('level_complete', { next_name: levels[result.index].properties.name }, 0.5, 1.0, go_on);
 		} else {
+			this.ts_zoom_actor = this.clock.getElapsedTime();
 			this.curtain.show_screen('the_end', this.end_screen_info(), 0.5, 2.0, function () {
 				self.stop();
 				$('#screen').hide();

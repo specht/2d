@@ -10,6 +10,9 @@ test('the curtain screens speak German and say what happens next', () => {
     assert.deepEqual(texts('game_over'), ['Game Over', 'Keine Leben mehr']);
     assert.deepEqual(texts('level_complete', { next_name: 'Level 2' }), ['Geschafft!', 'Weiter mit: Level 2']);
     assert.deepEqual(texts('level_complete', {}), ['Geschafft!']);
+    // into or out of a Nebenlevel: a door – only where it leads, nothing geschafft
+    assert.deepEqual(texts('level_change', { level_name: 'Sigis Laden', prompt: 'Drück eine Taste' }), ['Sigis Laden']);
+    assert.deepEqual(texts('level_change', { level_name: ' ' }), []);
     assert.deepEqual(texts('the_end', { title: 'Pips Reise', points: 120, show_points: true }), ['Ende', 'Du hast „Pips Reise“ geschafft!', 'Punkte: 120']);
     assert.deepEqual(texts('the_end', { points: 0, show_points: false }), ['Ende', 'Du hast es geschafft!']);
     // names are text: no HTML is ever made of them

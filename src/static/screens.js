@@ -1,5 +1,5 @@
 // The curtain screens of a game (level start, a lost life, Game Over, level
-// geschafft, the end), in German and in the game's own pixel font – the same
+// geschafft, through a door into or out of a Nebenlevel, the end), in German and in the game's own pixel font – the same
 // letters as the HUD and the speech bubbles (speech.js render_speech_bitmap),
 // so they belong to the game instead of looking like a web page.
 //
@@ -17,7 +17,8 @@ const CURTAIN_COLORS = {
 const CURTAIN_SIZES = { big: 0.085, medium: 0.05, small: 0.032 };
 
 // What a screen says: { lines: [{ text, size, color, pulse? }] }.
-//   kind: 'level_start' | 'lost_life' | 'game_over' | 'level_complete' | 'the_end'
+//   kind: 'level_start' | 'lost_life' | 'game_over' | 'level_complete' | 'level_change' | 'the_end'
+//   (level_change: into or out of a Nebenlevel – a door, nothing was geschafft)
 //   info: { level_name, next_name, lives, title, points, show_points, prompt }
 function curtain_screen(kind, info = {}) {
     const prompt = String(info.prompt ?? 'Drück eine Taste');
@@ -38,6 +39,8 @@ function curtain_screen(kind, info = {}) {
     } else if (kind === 'level_complete') {
         lines.push(line('Geschafft!', 'big', CURTAIN_COLORS.good));
         if (clean(info.next_name)) lines.push(line(`Weiter mit: ${clean(info.next_name)}`, 'medium', CURTAIN_COLORS.quiet));
+    } else if (kind === 'level_change') {
+        if (clean(info.level_name)) lines.push(line(clean(info.level_name), 'big'));
     } else if (kind === 'the_end') {
         lines.push(line('Ende', 'big', CURTAIN_COLORS.good));
         lines.push(line(clean(info.title) ? `Du hast „${clean(info.title)}“ geschafft!` : 'Du hast es geschafft!', 'medium'));
