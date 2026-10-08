@@ -1477,6 +1477,8 @@ void main() {
 			});
 		} else {
 			this.game.curtain.show_screen('lost_life', { lives: this.game.lives }, 0.5, 1.0, function () {
+				// a crumbled bridge is back, so the level stays possible (an intentional fix)
+				self.game.restore_fallen_blocks();
 				self.reset_gravity();
 				self.mesh.position.x = self.initial_position[0];
 				self.mesh.position.y = self.initial_position[1];
@@ -1629,8 +1631,12 @@ void main() {
 					}
 					if ((!(sprite.traits.falls_down.accumulates)) || (this.game.active_level_sprites[entry.entry_index].accumulated >= sprite.traits.falls_down.timeout * SIMULATION_RATE)) {
 						let t = sprite.traits.falls_down.accumulates ? 0.0 : sprite.traits.falls_down.timeout;
-						this.game.active_level_sprites[entry.entry_index].falling = true;
-						this.game.future_event_list.insert(this.game.clock.getElapsedTime() + t, { action: 'falls_down', entry_index: entry.entry_index });
+						const falling_entry = this.game.active_level_sprites[entry.entry_index];
+						falling_entry.falling = true;
+						// where it was (Game.restore_fallen_blocks), and which fall this is
+						falling_entry.fall_home ??= [entry.mesh.position.x, entry.mesh.position.y];
+						falling_entry.fall_seq = (falling_entry.fall_seq ?? 0) + 1;
+						this.game.future_event_list.insert(this.game.clock.getElapsedTime() + t, { action: 'falls_down', entry_index: entry.entry_index, seq: falling_entry.fall_seq });
 						if (!sprite.traits.falls_down.accumulates) {
 							this.game.state_for_mesh[entry.mesh.uuid].t0 = this.game.clock.getElapsedTime();
 							this.game.state_for_mesh[entry.mesh.uuid].t1 = this.game.clock.getElapsedTime() + sprite.traits.falls_down.timeout;
@@ -4519,6 +4525,36 @@ class Game {
 			Math.max(1, Math.floor(game_h * (this.width / this.height) * shrink)), Math.max(1, Math.floor(game_h * shrink))];
 	}
 
+	// After a lost life every block that crumbled or fell (falls_down) is back
+	// where it was, whole – as when the level is entered again (level memory).
+	restore_fallen_blocks() {
+		for (const [index, entry] of (this.active_level_sprites ?? []).entries()) {
+			if (!entry?.fall_home || !(entry.falling || entry.accumulated)) continue;
+			const sprite = this.data.sprites[entry.sprite_index];
+			const [x, y] = entry.fall_home;
+			if (entry.fallen) {
+				this.interval_tree_x.insert([x - sprite.width / 2, x + sprite.width / 2], index);
+				this.interval_tree_y.insert([y, y + sprite.height], index);
+			}
+			delete this.falling_sprite_indices[index];
+			entry.falling = false;
+			entry.fallen = false;
+			entry.accumulated = 0;
+			entry.fall_seq = (entry.fall_seq ?? 0) + 1;
+			entry.mesh.position.x = x;
+			entry.mesh.position.y = y;
+			entry.mesh.visible = true;
+			const state = this.state_for_mesh[entry.mesh.uuid];
+			if (state) {
+				state.state_index = 0;
+				state.frame_index = 0;
+				state.loop = true;
+				delete state.t0;
+				delete state.t1;
+			}
+		}
+	}
+
 	resume_game() {
 		if (this.lives > 0) {
 			this.ts_zoom_actor = -1;
@@ -5061,9 +5097,12 @@ class Game {
 		let next_fel_entry = this.future_event_list.peek();
 		while ((next_fel_entry !== null) && (next_fel_entry <= t)) {
 			let fel_entry = this.future_event_list.pop();
-			if (fel_entry.action === 'falls_down') {
-				let sprite = this.data.sprites[this.active_level_sprites[fel_entry.entry_index].sprite_index];
-				let mesh = this.active_level_sprites[fel_entry.entry_index].mesh;
+			// (a block put back after a lost life: its old fall is over)
+			const falling_entry = fel_entry.action === 'falls_down' ? this.active_level_sprites[fel_entry.entry_index] : null;
+			if (falling_entry && falling_entry.falling && (fel_entry.seq === undefined || fel_entry.seq === falling_entry.fall_seq)) {
+				falling_entry.fallen = true;
+				let sprite = this.data.sprites[falling_entry.sprite_index];
+				let mesh = falling_entry.mesh;
 				this.falling_sprite_indices[fel_entry.entry_index] = { vy: 0.0, damage: sprite.traits.falls_down.damage, width: sprite.width };
 				let x = mesh.position.x;
 				let y = mesh.position.y;
