@@ -1813,7 +1813,8 @@ class Main < Sinatra::Base
         state = archive ? @@playtesting.read_archive(archive) : @@playtesting.read
         return respond(:error => "unknown_round") unless state
         Dir.mktmpdir do |dir|
-            path = PlaytestPDF.render(state, File.join(dir, "rueckmeldungen.pdf"), static: "/static", gen: "/gen", games: "/gen/games")
+            path = PlaytestPDF.render(state, File.join(dir, "rueckmeldungen.pdf"), static: "/static", gen: "/gen", games: "/gen/games",
+                                      link_root: Moderation.web_root(MODERATION_PATH))
             stamp = archive ? archive[0, 15] : Time.now.strftime("%Y-%m-%d-%H%M")
             respond_raw_with_mimetype_and_filename(File.binread(path), "application/pdf", "rueckmeldungen-#{stamp}.pdf")
         end

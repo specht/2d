@@ -299,6 +299,28 @@ function game_family_layout(nodes, { main_tag = null, keep = [], fold = null, ti
     };
 }
 
+// The versions made later from `tag` (its descendants: saved again, also
+// on other branches that start from it), newest first.
+function game_family_newer(nodes, tag) {
+    const children = new Map();
+    for (const n of nodes ?? []) {
+        if (!n?.parent || n.parent === n.tag) continue;
+        if (!children.has(n.parent)) children.set(n.parent, []);
+        children.get(n.parent).push(n);
+    }
+    const out = [];
+    const seen = new Set([tag]);
+    const queue = [...(children.get(tag) ?? [])];
+    while (queue.length) {
+        const n = queue.shift();
+        if (seen.has(n.tag)) continue;
+        seen.add(n.tag);
+        out.push(n);
+        queue.push(...(children.get(n.tag) ?? []));
+    }
+    return out.sort((a, b) => (b.ts_created ?? 0) - (a.ts_created ?? 0));
+}
+
 // A version and everything before it, newest first (the versions table).
 function game_family_ancestors(nodes, tag) {
     const by_tag = new Map(nodes.map(n => [n.tag, n]));
@@ -539,5 +561,6 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         GAME_LIST_COLUMNS, game_list_normalize, game_list_code, game_list_search_text, game_list_matches,
         game_list_sort, game_list_row_html, game_family_layout, game_family_ancestors, game_family_svg, game_family_label,
+        game_family_newer,
     };
 }

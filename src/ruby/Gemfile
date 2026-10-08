@@ -3,6 +3,8 @@ source 'https://rubygems.org'
 gem 'neo4j_bolt', '>=0.1.11'
 # playtest.rb pdf: the printed feedback of the classroom playtesting
 gem 'prawn'
+# its QR code: the game to open
+gem 'rqrcode_core'
 gem 'chunky_png'
 gem 'faye-websocket', '~> 0.12.0'
 gem 'rerun'

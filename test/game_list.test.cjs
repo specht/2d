@@ -176,3 +176,13 @@ test('several years: left to right in time, a band per year, older branches befo
     // one year: no bands
     assert.deepEqual(g.game_family_layout(family).years, []);
 });
+
+test('newer versions of a version: everything saved from it later, newest first', () => {
+    //  r ── a ── b ── c          d and e branch off a; f off r
+    //            └── d ── e
+    assert.deepEqual(g.game_family_newer(family, 'a').map(n => n.tag), ['c', 'e', 'd', 'b']);
+    assert.deepEqual(g.game_family_newer(family, 'c').map(n => n.tag), []);
+    assert.deepEqual(g.game_family_newer(family, 'd').map(n => n.tag), ['e']);
+    // a loop never runs forever
+    assert.deepEqual(g.game_family_newer([node('x', 'y', 1), node('y', 'x', 2)], 'x').map(n => n.tag), ['y']);
+});

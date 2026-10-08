@@ -80,6 +80,41 @@ function level_check_missing_states(sprite, trait) {
     return pair.states.filter(([role]) => !states.some(state => role in (state?.traits?.[trait] ?? {})));
 }
 
+// The roles of other traits a Zustand can have, as the children see them
+// (traits.js STATE_TRAITS – not loaded with the tests, so written here)
+const LEVEL_CHECK_ROLE_LABELS = {
+    checkpoint: { active: 'Checkpoint aktiviert' },
+    level_complete: { closed: 'Ausgang zu', open: 'Ausgang offen' },
+    bomb: { fuse: 'Zündschnur', explosion: 'Explosion' },
+    counter: { waiting: 'Zähler wartet', done: 'Zähler erreicht' },
+};
+function level_check_role_label(trait, role) {
+    if (trait === 'counter' && /^count_\d+$/.test(role)) return `Zähler zeigt ${role.slice(6)}`;
+    return LEVEL_CHECK_ROLE_LABELS[trait]?.[role] ?? LEVEL_CHECK_STATE_PAIRS[trait]?.states.find(([r]) => r === role)?.[1] ?? role;
+}
+
+// The index of the Zustand with this role, or -1 (app.js show_trait_state: the first)
+function level_check_state_with(sprite, trait, role) {
+    const states = Array.isArray(sprite?.states) ? sprite.states : [];
+    return states.findIndex(state => role in (state?.traits?.[trait] ?? {}));
+}
+
+function level_check_state_name(sprite, index) {
+    const name = sprite?.states?.[index]?.properties?.name;
+    return (typeof name === 'string' && name.trim()) || `Zustand ${index + 1}`;
+}
+
+// A bomb's pictures (combat_projectile.js bomb_state): the Zustand with the
+// role, else one named so (the old way) – or -1
+function level_check_bomb_state(sprite, role, old_name) {
+    const tagged = level_check_state_with(sprite, 'bomb', role);
+    if (tagged >= 0) return tagged;
+    const states = Array.isArray(sprite?.states) ? sprite.states : [];
+    return states.findIndex(state => String(state?.properties?.name ?? '').trim().toLocaleLowerCase('de') === old_name);
+}
+
+const LEVEL_CHECK_HOW_ROLE = 'unter „Zustände“ mit „Rolle zuweisen“';
+
 function level_check_trait_word(trait) {
     const label = (typeof SPRITE_TRAITS !== 'undefined' && SPRITE_TRAITS[trait]?.label) || LEVEL_CHECK_TRAIT_FALLBACK[trait] || trait;
     return `„${label}“`;
@@ -105,7 +140,8 @@ function level_check_layer_plays(layer) {
 // The mistakes in one sprite's Eigenschaften: [{ id, severity, text }].
 // severity 'problem': it does not work as meant; 'hint': worth knowing.
 // game_properties (the game's settings): for the hint about Leben.
-function sprite_pitfalls(sprite, name = 'Dieses Sprite', game_properties = null) {
+// sprite_of(ref): another sprite of the game (a figure's bomb), or null.
+function sprite_pitfalls(sprite, name = 'Dieses Sprite', game_properties = null, { sprite_of = null } = {}) {
     const traits = sprite?.traits ?? {};
     const has = (trait) => Object.prototype.hasOwnProperty.call(traits, trait);
     const it = `»${name}«`;
@@ -121,6 +157,8 @@ function sprite_pitfalls(sprite, name = 'Dieses Sprite', game_properties = null)
         if (objects.length)
             out.push({ id: 'figure_object', severity: 'problem',
                 text: `${it} ist ${LEVEL_CHECK_FIGURE_WORDS[figure]}. ${level_check_and(objects.map(level_check_trait_word))} ${objects.length > 1 ? 'wirken' : 'wirkt'} bei einer Figur nicht – nur bei Sprites, die keine Figur sind. Nimm ${objects.length > 1 ? 'sie' : 'es'} weg oder mach dafür ein eigenes Sprite.` });
+        out.push(...level_check_figure_states(sprite, figure, it));
+        out.push(...level_check_bombs(sprite, it, sprite_of));
         // the rest is about objects
         return out;
     }
@@ -172,6 +210,24 @@ function sprite_pitfalls(sprite, name = 'Dieses Sprite', game_properties = null)
             text: `${LEVEL_CHECK_STATE_PAIRS[trait].check}: ${it} ist ${trait === 'door' ? 'eine Tür' : trait === 'switch' ? 'ein Schalter' : 'eine Druckplatte'}, aber ${missing.length > 1 ? 'kein Zustand hat die Rollen' : 'kein Zustand hat die Rolle'} ${roles}. ${why}${how}` });
     }
 
+    // both pictures in one Zustand: it never looks different
+    for (const trait of [...Object.keys(LEVEL_CHECK_STATE_PAIRS), 'level_complete']) {
+        if (!has(trait)) continue;
+        const roles = trait === 'level_complete' ? ['closed', 'open'] : LEVEL_CHECK_STATE_PAIRS[trait].states.map(([role]) => role);
+        const [a, b] = roles.map(role => level_check_state_with(sprite, trait, role));
+        if (a < 0 || a !== b) continue;
+        const labels = roles.map(role => `„${level_check_role_label(trait, role)}“`);
+        out.push({ id: `${trait}_same_state`, severity: 'problem',
+            text: `${it}: Der Zustand »${level_check_state_name(sprite, a)}« hat beide Rollen, ${labels[0]} und ${labels[1]}. So sieht es immer gleich aus – man sieht nicht, was passiert ist. Zeichne das zweite Bild als eigenen Zustand und gib ${LEVEL_CHECK_HOW_ROLE} nur ihm die Rolle ${labels[1]}.` });
+    }
+
+    // a checkpoint shows that it is active only with a picture for it (app.js)
+    if (has('checkpoint') && Array.isArray(sprite?.states) && sprite.states.length && level_check_state_with(sprite, 'checkpoint', 'active') < 0)
+        out.push({ id: 'checkpoint_state', severity: 'hint',
+            text: `${it} ist ein Checkpoint, aber kein Zustand hat die Rolle „Checkpoint aktiviert“. Er funktioniert – aber man sieht nicht, dass die Spielfigur ihn erreicht hat. Zeichne zum Beispiel eine gehisste Fahne als eigenen Zustand und gib ihm ${LEVEL_CHECK_HOW_ROLE} die Rolle „Checkpoint aktiviert“.` });
+
+    if (has('bomb')) out.push(...level_check_bomb_art(sprite, it));
+
     const lives = Number(traits.pickup?.lives) || 0;
     if (lives > 0 && game_properties) {
         // game.js: absent = 5 and 5
@@ -184,11 +240,79 @@ function sprite_pitfalls(sprite, name = 'Dieses Sprite', game_properties = null)
     return out;
 }
 
+// A figure's pictures: which Zustand shows when is given by its roles (app.js
+// Character: without any, it always shows its first Zustand, mirrored to the
+// left – it never walks, jumps or falls in a picture of its own).
+function level_check_figure_states(sprite, figure, it) {
+    const states = Array.isArray(sprite?.states) ? sprite.states : [];
+    if (states.length < 2) return [];
+    const figure_roles = (state) => Object.keys(state?.traits?.[figure] ?? {});
+    // a role of a trait the sprite still has (an old one of a trait taken away shows nothing)
+    const any_role = (state) => Object.entries(state?.traits ?? {}).some(([trait, roles]) =>
+        trait in (sprite.traits ?? {}) && roles && typeof roles === 'object' && Object.keys(roles).length);
+    if (!states.some(state => figure_roles(state).length)) {
+        const who = { actor: 'die Spielfigur', baddie: 'der Gegner', companion: 'der Begleiter' }[figure];
+        return [{ id: 'figure_no_roles', severity: 'problem',
+            text: `${it} hat ${states.length} Zustände, aber keiner hat eine Rolle. Darum zeigt das Spiel immer nur den ersten, »${level_check_state_name(sprite, 0)}« – ${who} läuft, springt und fällt immer mit demselben Bild. Gib jedem Zustand ${LEVEL_CHECK_HOW_ROLE} seine Rolle, zum Beispiel „${LEVEL_CHECK_FIGURE_ROLE_EXAMPLE[figure]}“.` }];
+    }
+    const unused = states.map((state, i) => i).filter(i => !any_role(states[i]));
+    if (!unused.length) return [];
+    const names = unused.map(i => `»${level_check_state_name(sprite, i)}«`);
+    return [{ id: 'figure_state_unused', severity: 'hint',
+        text: `${unused.length > 1 ? `Die Zustände ${level_check_and(names)} von ${it} haben` : `Der Zustand ${names[0]} von ${it} hat`} keine Rolle und ${unused.length > 1 ? 'werden' : 'wird'} im Spiel nie gezeigt. ${unused.length > 1 ? 'Sollen sie vorkommen, gib ihnen' : 'Soll er vorkommen, gib ihm'} ${LEVEL_CHECK_HOW_ROLE} eine Rolle.` }];
+}
+const LEVEL_CHECK_FIGURE_ROLE_EXAMPLE = { actor: 'Spielfigur läuft nach rechts', baddie: 'Gegner läuft nach rechts', companion: 'Begleiter läuft nach rechts' };
+
+// A bomb's own pictures (trait „Bombe“): without „Explosion“ it explodes
+// unseen; without „Zündschnur“ it flies showing its first Zustand – bad only
+// when that is the explosion.
+function level_check_bomb_art(sprite, it) {
+    const explosion = level_check_bomb_state(sprite, 'explosion', 'explosion');
+    if (explosion < 0)
+        return [{ id: 'bomb_states', severity: 'problem',
+            text: `${it} ist eine Bombe, aber kein Zustand hat die Rolle „Explosion“. Sie macht Schaden, aber man sieht keine Explosion – sie ist einfach weg. Zeichne die Explosion als eigenen Zustand und gib ihm ${LEVEL_CHECK_HOW_ROLE} die Rolle „Explosion“.` }];
+    if (level_check_bomb_state(sprite, 'fuse', 'zündschnur') < 0 && explosion === 0)
+        return [{ id: 'bomb_fuse', severity: 'hint',
+            text: `${it} ist eine Bombe, aber kein Zustand hat die Rolle „Zündschnur“. Darum fliegt sie mit ihrem ersten Zustand – und das ist die Explosion. Zeichne die Bombe mit brennender Zündschnur als eigenen Zustand und gib ihm ${LEVEL_CHECK_HOW_ROLE} die Rolle „Zündschnur“.` }];
+    return [];
+}
+
+// A figure's attacks that throw a bomb (Angriff → „Bombe“): their sprite must
+// show the explosion. Said at the figure – the bomb sprite is not placed.
+function level_check_bombs(sprite, it, sprite_of) {
+    if (typeof sprite_of !== 'function') return [];
+    const out = [];
+    const told = new Set();
+    for (const attack of level_check_attacks(sprite)) {
+        if (!attack?.delivery?.detonation) continue;
+        const visual = attack.visual ?? {};
+        const bomb = sprite_of(visual.projectile_sprite_id ?? visual.projectile_sprite_index);
+        if (!bomb || told.has(bomb)) continue;
+        told.add(bomb);
+        if (level_check_bomb_state(bomb, 'explosion', 'explosion') >= 0) continue;
+        const bomb_name = typeof bomb?.properties?.name === 'string' && bomb.properties.name.trim() ? `»${bomb.properties.name.trim()}«` : 'ihr Sprite';
+        out.push({ id: 'bomb_no_explosion', severity: 'problem',
+            text: `${it} wirft eine Bombe, aber ${bomb_name} hat keinen Zustand mit der Rolle „Explosion“. Sie macht Schaden, aber man sieht keine Explosion. ${'bomb' in (bomb.traits ?? {}) ? 'Zeichne' : 'Gib dem Bomben-Sprite die Eigenschaft „Bombe“, zeichne'} die Explosion als eigenen Zustand und gib ihm ${LEVEL_CHECK_HOW_ROLE} die Rolle „Explosion“.` });
+    }
+    return out;
+}
+
+// A sprite's attacks, as game_ids.js attack_definitions (not loaded with the tests)
+function level_check_attacks(sprite) {
+    const traits = sprite?.traits ?? {};
+    const attacks = [traits.melee_attack?.attack, traits.ranged_attack?.attack];
+    for (const role of ['actor', 'baddie'])
+        if (Array.isArray(traits[role]?.attacks)) attacks.push(...traits[role].attacks);
+    return attacks.filter(attack => attack && typeof attack === 'object');
+}
+
 // The mistakes in one level (not in its sprites' Eigenschaften): Spielfigur,
 // layers, and what the Levelübersicht and the Signale-Übersicht warn about.
 // map: level_map(levels, traits_of) of the whole game (or null).
+// sprite_of(ref): the sprite (its Zustände), points_available: the points
+// there are in the whole game (level_check_points) – absent: not checked.
 // Returns [{ id, severity, text, place }] – place: { layer_index, placed_index } or null.
-function level_pitfalls(levels, level_index, { traits_of, name_of, map = null }) {
+function level_pitfalls(levels, level_index, { traits_of, name_of, map = null, sprite_of = null, points_available = null }) {
     const level = levels?.[level_index];
     const out = [];
     if (!level) return out;
@@ -229,6 +353,7 @@ function level_pitfalls(levels, level_index, { traits_of, name_of, map = null })
         out.push({ id: 'two_players', severity: 'problem', place: players[0],
             text: `In diesem Level gibt es ${players.length} Spielfiguren. Bewegen lässt sich nur die, die zuletzt gesetzt wurde – die anderen stehen nur da. Lösch die übrigen.` });
     }
+    out.push(...level_check_placed(level, { traits_of, name_of, sprite_of, points_available }));
     // the Levelübersicht's warnings (a draft – Level verwenden off – has none)
     for (const text of map?.nodes?.[level_index]?.warnings ?? [])
         out.push({ id: 'level_map', severity: 'problem', place: null, text });
@@ -276,6 +401,21 @@ function level_pitfalls(levels, level_index, { traits_of, name_of, map = null })
             }
             out.push({ id: 'door_never_opens', severity: 'problem', place: place_of(doors[0]), text });
         }
+        // a Zähler that counts to more than there is to count: each sender adds
+        // at most one at a time ("aus" counts back) – except a shop item one can
+        // buy again, which sends each time
+        for (const card of cards) {
+            if (!card.senders.length) continue;
+            const senders = card.senders.flatMap(line => line.objects);
+            if (senders.some(o => o.kind === 'sprite' && placed_at(o)?.[3]?.pickup?.buy_again === true && Number(placed_at(o)?.[3]?.pickup?.price) > 0)) continue;
+            const n = card.senders.reduce((sum, line) => sum + line.count, 0);
+            for (const counter of sprites_of(card.receivers, 'counter')) {
+                const needed = typeof counter_count === 'function' ? counter_count(placed_at(counter)?.[3]?.counter) : 3;
+                if (needed <= n) continue;
+                out.push({ id: 'counter_never_full', severity: 'problem', place: place_of(counter),
+                    text: `Der Zähler ${named(counter)} zählt bis ${needed}, aber in diesem Level ${n > 1 ? `senden nur ${n} Dinge` : 'sendet nur eins'} ${code_text_of(card.code)} (${card.senders.map(line => line.text).slice(0, 3).join('; ')}). Jedes zählt höchstens eins – so erreicht er seine Anzahl nie. Stell beim Zähler „Anzahl“ auf ${n} – oder gib mehr Dingen diesen Code.` });
+            }
+        }
         // doors with a key's Code that are not locked: the key changes nothing
         const open_doors = level_check_unlocked_doors(level, traits_of);
         for (const card of cards) {
@@ -307,6 +447,93 @@ function level_pitfalls(levels, level_index, { traits_of, name_of, map = null })
         }
     }
     return out;
+}
+
+// What the placed copies say (placed[3]), each sprite once with how often:
+// an empty sign, an exit "öffnet erst bei Signal" without its pictures, a
+// Zähler that cannot show its numbers, a shop item nobody can pay for.
+function level_check_placed(level, { traits_of, name_of, sprite_of, points_available }) {
+    const found = new Map();   // id + ref → { place, count, ... }
+    const note = (id, ref, place, more = {}) => {
+        const key = `${id}\u0000${ref}`;
+        const known = found.get(key);
+        if (known) { known.count++; return; }
+        found.set(key, { id, ref, place, count: 1, ...more });
+    };
+    (level?.layers ?? []).forEach((layer, li) => {
+        if (layer?.type !== 'sprites' || !Array.isArray(layer.sprites)) return;
+        layer.sprites.forEach((placed, pi) => {
+            const traits = traits_of(placed?.[0]);
+            if (!traits) return;
+            const props = placed?.[3] ?? {};
+            const place = { layer_index: li, placed_index: pi };
+            const sprite = typeof sprite_of === 'function' ? sprite_of(placed[0]) : null;
+            // speech.js: nothing to say, nothing is said ("|" only separates)
+            if ('text' in traits && props.text?.shop_keeper !== true &&
+                !String(props.text?.text ?? '').replace(/\|/g, '').trim())
+                note('sign_empty', placed[0], place);
+            if ('level_complete' in traits && props.level_complete?.opens_on_signal === true && sprite) {
+                const missing = ['closed', 'open'].filter(role => level_check_state_with(sprite, 'level_complete', role) < 0);
+                if (missing.length) note('exit_gate_states', placed[0], place, { missing });
+            }
+            if ('counter' in traits && sprite) {
+                const has = (role) => level_check_state_with(sprite, 'counter', role) >= 0;
+                const roles = ['waiting', ...Array.from({ length: 9 }, (_, i) => `count_${i + 1}`), 'done'];
+                // without any picture the Zähler is meant to be unseen
+                if (roles.some(has)) {
+                    const needed = typeof counter_count === 'function' ? counter_count(props.counter) : 3;
+                    const wanted = ['waiting', ...Array.from({ length: Math.min(needed - 1, 9) }, (_, i) => `count_${i + 1}`)];
+                    if (!has('done') && !(needed <= 9 && has(`count_${needed}`))) wanted.push('done');
+                    const missing = wanted.filter(role => !has(role));
+                    if (missing.length) note(`counter_states:${needed}`, placed[0], place, { missing, needed });
+                }
+            }
+            const price = Number(props.pickup?.price) || 0;
+            if ('pickup' in traits && price > 0 && Number.isFinite(points_available) && price > points_available)
+                note(`shop_unaffordable:${price}`, placed[0], place, { price });
+        });
+    });
+    const out = [];
+    for (const f of found.values()) {
+        const it = `»${name_of(f.ref)}«${f.count > 1 ? ` (${f.count}×)` : ''}`;
+        const roles = (trait) => level_check_and(f.missing.map(role => `„${level_check_role_label(trait, role)}“`));
+        const id = f.id.split(':')[0];
+        if (id === 'sign_empty')
+            out.push({ id, severity: 'hint', place: f.place,
+                text: `Das Schild ${it} hat keinen Text. Drückt man davor die Aktionstaste, passiert nichts. Wähl es im Level aus und schreib bei „Text“, was es sagen soll.` });
+        else if (id === 'exit_gate_states')
+            out.push({ id, severity: 'hint', place: f.place,
+                text: `Der Ausgang ${it} öffnet erst bei Signal, aber kein Zustand hat die Rolle${f.missing.length > 1 ? 'n' : ''} ${roles('level_complete')}. Er geht auf – aber man sieht nicht, ob er schon offen ist. Zeichne ${f.missing.length > 1 ? 'beide Bilder als eigene Zustände' : 'das Bild als eigenen Zustand'} und gib ${f.missing.length > 1 ? 'ihnen' : 'ihm'} ${LEVEL_CHECK_HOW_ROLE} die Rolle${f.missing.length > 1 ? 'n' : ''} ${roles('level_complete')}.` });
+        else if (id === 'counter_states')
+            out.push({ id, severity: 'hint', place: f.place,
+                text: `Der Zähler ${it} zählt bis ${f.needed} und zeigt dabei seine Zustände, aber es fehlen die Rolle${f.missing.length > 1 ? 'n' : ''} ${roles('counter')}. Wo ein Bild fehlt, zeigt er „Zähler wartet“ – fehlt auch das, bleibt das letzte Bild stehen. Zeichne ${f.missing.length > 1 ? 'die fehlenden Bilder als eigene Zustände' : 'das fehlende Bild als eigenen Zustand'} und gib ${f.missing.length > 1 ? 'ihnen' : 'ihm'} ${LEVEL_CHECK_HOW_ROLE} die Rolle${f.missing.length > 1 ? 'n' : ''}.` });
+        else if (id === 'shop_unaffordable')
+            out.push({ id, severity: 'problem', place: f.place,
+                text: `${it} kostet ${f.price} Punkte, aber im ganzen Spiel gibt es ${points_available > 0 ? `nur ${points_available} Punkte` : 'keine Punkte'} zu sammeln. So kann man es nie kaufen. Leg ${points_available > 0 ? 'mehr ' : ''}Sachen mit „gibt Punkte“ in die Level, zum Beispiel Münzen – oder mach den Preis kleiner.` });
+    }
+    return out;
+}
+
+// The points there are in the whole game (levels in use, layers that play):
+// what can be collected for free, and what defeated enemies leave behind.
+// Collected things never come back (app.js level_memory), and nothing else
+// gives points.
+function level_check_points(levels, traits_of) {
+    let total = 0;
+    for (const level of levels ?? []) {
+        if (!level?.properties?.use_level) continue;
+        for (const layer of level.layers ?? []) {
+            if (layer?.type !== 'sprites' || !level_check_layer_plays(layer)) continue;
+            for (const placed of layer.sprites ?? []) {
+                const traits = traits_of(placed?.[0]);
+                if (!traits) continue;
+                if ('pickup' in traits && !(Number(placed?.[3]?.pickup?.price) > 0)) total += Number(traits.pickup?.points) || 0;
+                const drop = traits.baddie?.drop;
+                if (drop && typeof drop === 'object') total += Number(traits_of(drop.sprite_id ?? drop.sprite_index)?.pickup?.points) || 0;
+            }
+        }
+    }
+    return total;
 }
 
 // A key (trait 'door': a locked door) with this Code in another level (that
@@ -369,6 +596,7 @@ function game_pitfalls(data, { index_of = null, level_indices = null } = {}) {
     };
     const traits_of = (ref) => { const i = index(ref); return Number.isInteger(i) ? sprites[i]?.traits ?? null : null; };
     const name_of = (ref) => { const i = index(ref); return Number.isInteger(i) && sprites[i] ? level_check_label(sprites[i], i) : 'Sprite'; };
+    const sprite_of = (ref) => { const i = index(ref); return Number.isInteger(i) ? sprites[i] ?? null : null; };
     const checked = (level_indices ?? levels.map((_, i) => i)).filter(i => levels[i]?.properties?.use_level);
     const findings = [];
     const seen = new Map();   // sprite index → where it is placed first
@@ -382,12 +610,13 @@ function game_pitfalls(data, { index_of = null, level_indices = null } = {}) {
         });
     }
     for (const [si] of [...seen].sort((a, b) => a[0] - b[0])) {
-        for (const finding of sprite_pitfalls(sprites[si], level_check_label(sprites[si], si), data?.properties ?? {}))
+        for (const finding of sprite_pitfalls(sprites[si], level_check_label(sprites[si], si), data?.properties ?? {}, { sprite_of }))
             findings.push({ ...finding, sprite_index: si, level_index: null, place: null });
     }
     const map = typeof level_map === 'function' ? level_map(levels, traits_of) : null;
+    const points_available = level_check_points(levels, traits_of);
     for (const li of checked) {
-        for (const finding of level_pitfalls(levels, li, { traits_of, name_of, map }))
+        for (const finding of level_pitfalls(levels, li, { traits_of, name_of, map, sprite_of, points_available }))
             findings.push({ ...finding, sprite_index: null, level_index: li });
     }
     return findings;
@@ -607,7 +836,11 @@ function show_sprite_pitfalls(studio_game) {
     const si = typeof canvas !== 'undefined' ? canvas.sprite_index : null;
     const sprite = studio_game?.data?.sprites?.[si];
     if (!anchor.length || !sprite) return;
-    const found = sprite_pitfalls(sprite, level_check_label(sprite, si), studio_game.data.properties ?? {});
+    const sprite_of = (ref) => {
+        const i = studio_game.sprite_index_for_ref?.(ref);
+        return Number.isInteger(i) ? studio_game.data.sprites[i] ?? null : null;
+    };
+    const found = sprite_pitfalls(sprite, level_check_label(sprite, si), studio_game.data.properties ?? {}, { sprite_of });
     if (!found.length) return;
     const box = $('<div class="trait-pitfalls">');
     for (const finding of found) {
@@ -634,5 +867,5 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { sprite_pitfalls, level_pitfalls, game_pitfalls, play_check_live, play_check_box,
-        LEVEL_CHECK_STATE_PAIRS, level_check_missing_states };
+        LEVEL_CHECK_STATE_PAIRS, level_check_missing_states, level_check_points };
 }

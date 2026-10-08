@@ -2690,6 +2690,16 @@ table.game-list tr.clickable_row {
     flex-shrink: 0;
 }
 
+/* studio.js offer_newer_versions: the tree in its dialog */
+.newer-versions-text {
+    font-size: 15px;
+    line-height: 1.4;
+    margin: 0 0 12px 0;
+}
+.newer-versions-tree {
+    overflow-x: auto;
+}
+
 .load-games-family {
     overflow-x: auto;
     padding: 6px;

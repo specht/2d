@@ -78,7 +78,7 @@ class PlaytestPDFTest < Minitest::Test
             "mood" => 5, "difficulty" => "easy", "reached" => "start", "bugs" => "none", "good" => "Die Figuren", "better" => "Gameplay" })
         Dir.mktmpdir do |dir|
             path = PlaytestPDF.render(state, File.join(dir, "r.pdf"), static: File.expand_path("../src/static", __dir__), gen: dir, games: dir)
-            # the handout, the back of its sheet for notes, and the teacher's overview
+            # one sheet (front and back) – nobody else was in a session on it – and the teacher's overview
             assert_equal 3, File.binread(path).scan(%r{/Type /Page\b}).size
         end
         assert submission
@@ -150,10 +150,44 @@ class PlaytestPDFTest < Minitest::Test
         Dir.mktmpdir do |dir|
             handout = PlaytestPDF::Handout.new(state, static: File.expand_path("../src/static", __dir__), gen: dir, games: dir)
             handout.render(File.join(dir, "r.pdf"))
+            # one sheet: front and back
             assert_equal [[1, 2]], handout.instance_variable_get(:@footers).map { |first, last, _| [first, last] }
             pdf = File.binread(File.join(dir, "r.pdf"))
-            # the handout and the overview
+            # the sheet and the overview
             assert_equal 3, pdf.scan(%r{/Type /Page\b}).size
+        end
+    end
+
+    # A sheet for every child of a team, with the name on it: everybody who
+    # was in the team's session, by the name typed there – not the author
+    # field split up.
+    def test_every_team_member_gets_a_sheet_with_the_name_on_it
+        state = Playtesting.fresh_state(true)
+        team, = Playtesting.submit(state, "aaaaaaa", { "properties" => { "title" => "Pip", "author" => "Die Pixelbande" } }, "b_lina")
+        Playtesting.join_team(state, "b_theo", "aaaaaaa")
+        Playtesting.join_team(state, "b_mia", "aaaaaaa")
+        Playtesting.join_team(state, "b_twice", "aaaaaaa")
+        Playtesting.remember_browser(state, "b_lina", { "session" => "Lina", "author" => "Die Pixelbande" })
+        # the name in the session counts, not the one given for testing
+        Playtesting.remember_browser(state, "b_theo", { "session" => "Theodor", "tester" => "Theo" })
+        # no session name known: the name it goes by
+        Playtesting.remember_browser(state, "b_mia", { "tester" => "Mia" })
+        # the same child on a second computer: one sheet
+        Playtesting.remember_browser(state, "b_twice", { "session" => "lina" })
+        solo, = Playtesting.submit(state, "bbbbbbb", { "properties" => { "title" => "Solo", "author" => "Anton und Ben" } }, "b_anton")
+        Playtesting.remember_browser(state, "b_anton", { "session" => "Anton" })
+        assert_equal %w(Lina Theodor Mia), PlaytestPDF.team_names(state, team)
+        # "Anton und Ben" as the author, but only Anton was ever in it: one sheet, no name
+        assert_equal [], PlaytestPDF.team_names(state, solo)
+        Dir.mktmpdir do |dir|
+            handout = PlaytestPDF::Handout.new(state, static: File.expand_path("../src/static", __dir__), gen: dir, games: dir,
+                                               link_root: "https://2d.example.org/")
+            handout.render(File.join(dir, "r.pdf"))
+            footers = handout.instance_variable_get(:@footers)
+            assert_equal [["Pip", "Lina"], ["Pip", "Theodor"], ["Pip", "Mia"], ["Solo", nil]],
+                         footers.map { |_, _, s, name| [s["title"], name] }.sort_by { |t, n| [t, %w(Lina Theodor Mia).index(n) || 9] }
+            footers.each { |first, last, _| assert_equal 1, last - first }
+            assert_equal "https://2d.example.org/?aaaaaaa", handout.tap { |h| h.instance_variable_set(:@current, team) }.game_link
         end
     end
 

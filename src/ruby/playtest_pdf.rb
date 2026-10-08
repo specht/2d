@@ -8,6 +8,11 @@
 
 require "prawn"
 require "zlib"
+# the QR code on the sheet (Gemfile); without it the link stands alone
+begin
+    require "rqrcode_core"
+rescue LoadError
+end
 require "base64"
 require_relative "playtesting"
 
@@ -160,6 +165,23 @@ module PlaytestPDF
         t.getlocal(t >= last_sunday.(3) && t < last_sunday.(10) ? "+02:00" : "+01:00")
     end
 
+    # Who is in a team, for a sheet each: everybody who was in the team's live
+    # session (the submission's owner and members – main.rb makes a child in
+    # the session of a submitted game one of its team at its next ping), by
+    # the name typed in the session, else the one they go by (name_of). Names
+    # that are the same are one ("Theo" and "theo"). One name or none: [] –
+    # one sheet, without a name.
+    def self.team_names(state, submission)
+        browsers = [submission["owner"], *(submission["members"] || [])].compact.uniq
+        names = []
+        browsers.each do |browser|
+            session_name = ((state["browsers"] || {})[browser] || {})["session"]
+            name = (session_name.is_a?(String) && !session_name.strip.empty? ? session_name : Playtesting.name_of(state, browser)).to_s.strip
+            names << name unless name.empty? || names.any? { |n| n.casecmp?(name) }
+        end
+        names.size >= 2 ? names : []
+    end
+
     # "Smilli und Charlie" are two: the handout says "ihr" and "euer".
     def self.several_authors?(author)
         author.to_s.match?(/\s(und|&|\+)\s|,/i)
@@ -182,6 +204,8 @@ module PlaytestPDF
             @gen = options[:gen] || "/gen"
             @games = options[:games] || "/gen/games"
             @round = options[:round] || state["round"]
+            # where the studio is (moderation.rb web_root): the link and QR code on the sheet
+            @link_root = options[:link_root].to_s.strip.sub(%r{/+\z}, "")
             @document = Prawn::Document.new(page_size: "A4", margin: [MARGIN, MARGIN, MARGIN + FOOTER, MARGIN],
                                             info: { Title: "Playtesting – Rückmeldungen", Creator: "2D Game Studio" })
             setup_fonts
@@ -229,9 +253,15 @@ module PlaytestPDF
             if submissions.empty?
                 font("Plex", size: 16) { text "In dieser Runde wurde noch kein Spiel eingereicht." }
             end
-            submissions.each_with_index do |submission, i|
-                start_new_page unless i.zero?
-                game_handout(submission)
+            # a sheet for every child of a team, with its name on it
+            first = true
+            submissions.each do |submission|
+                names = PlaytestPDF.team_names(@state, submission)
+                (names.empty? ? [nil] : names).each do |name|
+                    start_new_page unless first
+                    first = false
+                    game_handout(submission, name)
+                end
             end
             overview(submissions) unless submissions.empty?
             draw_footers
@@ -249,9 +279,11 @@ module PlaytestPDF
         # below them and go on on the back, the plan sits at the bottom of the
         # back. The comments are made to fit (comment_layout): smaller, in
         # two columns, shortened – never a third page.
-        def game_handout(submission)
+        def game_handout(submission, for_name = nil)
             @current = submission
-            @several = PlaytestPDF.several_authors?(submission["author"])
+            @for_name = for_name
+            # a team: "ihr" and "euer" (also when the author field names one)
+            @several = PlaytestPDF.several_authors?(submission["author"]) || !for_name.nil?
             first_page = page_number
             game = load_game(submission["tag"])
             summary = PlaytestPDF.summary(@state, submission)
@@ -277,7 +309,7 @@ module PlaytestPDF
             # what is left on the back above the plan: lines for notes
             notes_lines(layout[:free_top], PLAN_HEIGHT + 14) if layout[:free_top]
             plan_box
-            @footers << [first_page, page_number, submission]
+            @footers << [first_page, page_number, submission, for_name]
         end
 
         # Lines to write on, from top down to bottom (on the back of the sheet).
@@ -319,7 +351,19 @@ module PlaytestPDF
 
             text_width = bounds.width - tile - 20
             fill_color GREY
-            font("Pixel", size: 10) { draw_text "PLAYTESTING · RÜCKMELDUNGEN", at: [0, top - 9], character_spacing: 1.5 }
+            # whose sheet this is (one for every child of a team): in the heading,
+            # the name darker – "PLAYTESTING · RÜCKMELDUNGEN FÜR LINA"
+            name = @for_name ? printable(@for_name, "Pixel").upcase : ""
+            heading = name.empty? ? "PLAYTESTING · RÜCKMELDUNGEN" : "PLAYTESTING · RÜCKMELDUNGEN FÜR "
+            font("Pixel", size: 10) do
+                draw_text heading, at: [0, top - 9]
+                unless name.empty?
+                    x = width_of(heading)
+                    fill_color INK
+                    text_box name, at: [x, top + 1], width: text_width - x, height: 13, size: 12,
+                                   overflow: :shrink_to_fit, min_font_size: 7, single_line: true
+                end
+            end
             fill_color INK
             title = printable(submission["title"], "Pixel")
             title = "Ohne Titel" if title.empty?
@@ -862,8 +906,20 @@ module PlaytestPDF
             else
                 "Lies alles in Ruhe. Was sagen mehrere? Such dir drei Dinge aus, die du als Nächstes verbesserst – und hak sie ab, wenn sie fertig sind."
             end
+            # at the right: the game to open (link and QR code), to start right away
+            link = game_link
+            right = link ? 112 : 0
+            if link
+                qr = defined?(RQRCodeCore) ? 78 : 0
+                qr_box(link, bounds.width - pad - qr, top - pad + 4, qr) if qr > 0
+                fill_color GREY
+                font("Plex", size: 7.5) do
+                    text_box "Spiel öffnen:\n#{link.sub(%r{\Ahttps?://}, '')}", at: [bounds.width - pad - right, top - pad - qr], width: right,
+                                                                                height: 22, align: :right, overflow: :shrink_to_fit, min_font_size: 6
+                end
+            end
             fill_color GREY
-            font("Plex", size: 9.5) { text_box advice, at: [pad, top - pad - 20], width: bounds.width - 2 * pad, height: 26, leading: 1, overflow: :shrink_to_fit, min_font_size: 7 }
+            font("Plex", size: 9.5) { text_box advice, at: [pad, top - pad - 20], width: bounds.width - 2 * pad - right, height: 26, leading: 1, overflow: :shrink_to_fit, min_font_size: 7 }
             stroke_color GREY
             line_width 0.9
             3.times do |i|
@@ -872,11 +928,37 @@ module PlaytestPDF
                 fill_color INK
                 font("Plex", style: :bold, size: 11) { draw_text "#{i + 1}.", at: [pad, y + 1] }
                 stroke_rounded_rectangle [pad + 18, y + 11], 11, 11, 2
-                stroke_horizontal_line pad + 36, bounds.width - pad, at: y
+                stroke_horizontal_line pad + 36, bounds.width - pad - right - 6, at: y
             end
             fill_color INK
             stroke_color INK
             line_width 1
+        end
+
+        # The studio with this game (the version handed in last), or nil
+        # without an address for the studio.
+        def game_link
+            return nil if @link_root.empty? || !@current
+            "#{@link_root}/?#{@current['tag']}"
+        end
+
+        # A QR code: dark squares on a white tile (with its quiet zone).
+        def qr_box(text, x, y, size)
+            modules = RQRCodeCore::QRCode.new(text, level: :m).modules
+            count = modules.size + 4
+            cell = size.to_f / count
+            fill_color "ffffff"
+            fill_rounded_rectangle [x, y], size, size, 4
+            fill_color INK
+            modules.each_with_index do |row, r|
+                row.each_with_index do |dark, c|
+                    next unless dark
+                    # a hair bigger, so no seams show between the squares
+                    fill_rectangle [x + (c + 2) * cell - 0.05, y - (r + 2) * cell + 0.05], cell + 0.1, cell + 0.1
+                end
+            end
+        rescue StandardError
+            nil
         end
 
         # ------------------------------------------------ pages
@@ -893,20 +975,22 @@ module PlaytestPDF
             fill_color INK
             font("Pixel", size: 15) { draw_text printable(@current["title"], "Pixel"), at: [0, top - 12] }
             fill_color GREY
-            font("Plex", size: 9.5) { draw_text "von #{printable(@current['author'])} · Fortsetzung", at: [0, top - 26] }
+            whose = @for_name ? " · für #{printable(@for_name)}" : ""
+            font("Plex", size: 9.5) { draw_text "von #{printable(@current['author'])}#{whose} · Fortsetzung", at: [0, top - 26] }
             pixel_row(top - 34)
             fill_color INK
             move_cursor_to top - 48
         end
 
         def draw_footers
-            @footers.each do |first, last, submission|
+            @footers.each do |first, last, submission, for_name|
                 (first..last).each do |n|
                     go_to_page(n)
                     canvas do
                         fill_color GREY
                         font("Plex", size: 8.5) do
                             words = "#{printable(submission['title'])} · #{printable(submission['author'])}"
+                            words += " · für #{printable(for_name)}" if for_name
                             words += " · Seite #{n - first + 1} von #{last - first + 1}" if last > first
                             draw_text words, at: [MARGIN, 24]
                             label = "2D Game Studio · Playtesting"
@@ -930,7 +1014,7 @@ module PlaytestPDF
             font("Plex", size: 10) { text "Runde vom #{round_date || '?'} · #{submissions.size} Spiele · #{tests} Tests. Diese Seite muss nicht mit ausgeteilt werden." }
             fill_color INK
             move_down 14
-            columns = [["Spiel", 0, 190], ["von", 196, 120], ["Tests", 322, 40], ["Spaß", 368, 50], ["spielbar?", 424, 46], ["Code", 472, 60]]
+            columns = [["Spiel", 0, 170], ["von", 176, 120], ["Tests", 302, 36], ["Spaß", 342, 40], ["spielbar?", 386, 50], ["Blätter", 440, 38], ["Code", 482, 52]]
             row = lambda do |values, style, background|
                 ensure_space(20)
                 top = cursor
@@ -951,7 +1035,8 @@ module PlaytestPDF
                 summary = PlaytestPDF.summary(@state, s)
                 fun = summary["scales"]["fun"]["average"]
                 row.call([printable(s["title"]), printable(s["author"]), summary["tests"], fun ? PlaytestPDF.decimal(fun) : "–",
-                          summary["broken"].zero? ? "ja" : "#{summary['broken']}× nicht", s["tag"]], :normal, i.odd? ? LIGHT : nil)
+                          summary["broken"].zero? ? "ja" : "#{summary['broken']}× nicht", [PlaytestPDF.team_names(@state, s).size, 1].max, s["tag"]],
+                         :normal, i.odd? ? LIGHT : nil)
             end
             move_down 16
             ensure_space(60)

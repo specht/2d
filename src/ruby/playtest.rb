@@ -267,8 +267,10 @@ when "pdf"
     stamp = Time.now.strftime("%Y-%m-%d-%H%M")
     path = ARGV[1..].find { |a| a.end_with?(".pdf") } || File.join(DIR, "rueckmeldungen-#{stamp}.pdf")
     path = File.expand_path(path, DIR)
+    require_relative "moderation"
     PlaytestPDF.render(state, path, static: ENV["STATIC_PATH"] || "/static", gen: ENV["GEN_PATH"] || "/gen",
-                       games: File.join(ENV["GEN_PATH"] || "/gen", "games"))
+                       games: File.join(ENV["GEN_PATH"] || "/gen", "games"),
+                       link_root: Moderation.web_root(ENV["MODERATION_PATH"] || "/raw/moderation"))
     puts "#{c('Geschrieben:', :green)} #{path}"
     puts c("(auf dem Server: data/raw/playtesting/#{File.basename(path)})", :dim) if path.start_with?("/raw/playtesting/")
     next_steps((["./playtest.rb reset", "eine neue Runde (diese kommt ins Archiv)"] unless source))

@@ -992,7 +992,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
     // rescue.js: unsaved work from before the reload comes first; the game
     // from the address only when it does not come back
     const load_from_address = (restored) => {
-        if (!restored && tag.length === 7) game.load(tag);
+        if (!restored && tag.length === 7) {
+            game.load(tag);
+            // a printed link (Rückmeldungen) to a version that has been saved again since
+            offer_newer_versions(tag);
+        }
     };
     if (window.studio_rescue) window.studio_rescue.check_on_start(load_from_address);
     else load_from_address(false);
@@ -1212,6 +1216,54 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 
     // The family tree of a game and, below, a version with everything
     // before it; a click on a row loads that version.
+    // A game opened from its address (a printed Rückmeldung, a link) that was
+    // saved again since: the tree of its versions, the one opened marked,
+    // and the newest one to load instead – or a click on any other dot.
+    function offer_newer_versions(tag) {
+        api_call('/api/family', { tag: tag }, function (data) {
+            if (!data.success) return;
+            const nodes = data.nodes ?? [];
+            const newer = game_family_newer(nodes, tag);
+            if (!newer.length) return;
+            const newest = newer[0];
+            let chosen = newest.tag;
+            const tree = $('<div class="load-games-family newer-versions-tree">');
+            const words = $('<p class="newer-versions-text">');
+            const dialog = new ModalDialog({
+                title: 'Es gibt neuere Versionen',
+                width: '820px',
+                max_width: '94vw',
+                body: $('<div>').append(words, tree,
+                    $('<p class="load-games-hint">').text('Jeder Punkt ist eine gespeicherte Version, von links nach rechts so, wie sie gespeichert wurden. Umrandet ist die gewählte – am Anfang die, die du geöffnet hast. Klick einen anderen Punkt an, um ihn zu wählen.')),
+                footer: [
+                    { type: 'button', label: 'Diese Version behalten', callback: (self) => self.dismiss() },
+                    { type: 'button', label: 'Neueste Version laden', icon: 'fa-download', color: 'green', callback: (self) => {
+                        self.dismiss();
+                        if (chosen === tag) return;
+                        game.load(chosen);
+                        // the address follows, so a reload opens it again
+                        history.replaceState(history.state, '', `${window.location.pathname}?${chosen}${window.location.hash}`);
+                    } },
+                ],
+            });
+            dialog.show();
+            const load_button = dialog.dialog.find('.modal-footer button.green');
+            const describe = () => {
+                const when = (n) => game_list_date(n.ts_created);
+                const opened = nodes.find(n => n.tag === tag);
+                words.text(`Du hast die Version ${tag}${opened ? ` vom ${when(opened)}` : ''} geöffnet. Seitdem wurde das Spiel ${newer.length === 1 ? 'noch einmal' : `${newer.length}-mal`} gespeichert – zuletzt am ${when(newest)} (${newest.tag}).`);
+                load_button.contents().last()[0].textContent = chosen === newest.tag ? 'Neueste Version laden' : chosen === tag ? 'Diese Version behalten' : `Version ${chosen} laden`;
+            };
+            const family = new GameFamily({ container: tree[0], on_select: (t) => { chosen = t; describe(); } });
+            family.nodes = nodes;
+            family.title = newest.title ?? null;
+            family.layout = game_family_layout(nodes, { main_tag: newest.tag, keep: [tag], title: family.title, measure: family.measure });
+            family.select(tag);
+            chosen = newest.tag;
+            describe();
+        });
+    }
+
     function load_games_open_family(tag) {
         load_games_show_page('family');
         $('#games_sublist_graph').empty();
