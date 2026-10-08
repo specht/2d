@@ -2,6 +2,7 @@
 titel: Waffen einsammeln und wechseln
 kategorie: Kampf
 stufe: 3
+skala: 2
 kurz: Pip sammelt einen Bogen und eine Steinschleuder ein. Oben links stehen sie mit ihrer Zahl – mit 1 und 2 wählst du, womit K schießt.
 tasten_zeigen: true
 # the whole screen, so the HUD with the weapons and their numbers is in the picture

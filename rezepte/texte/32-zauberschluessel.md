@@ -2,6 +2,7 @@
 titel: Ein Schlüssel für das ganze Spiel
 kategorie: Türen & Schlüssel
 stufe: 3
+skala: 2
 kurz: Den Zauberschlüssel behält Pip für immer. In jedem Level, das danach fragt, öffnet er das Tor – auch wenn Pip ihn ganz woanders gefunden hat.
 # the whole screen: the key top left once Pip has it
 hud: true

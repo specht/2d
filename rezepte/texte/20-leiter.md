@@ -3,7 +3,6 @@ titel: Leitern hochklettern
 kategorie: Welt bauen
 stufe: 1
 skala: 2
-
 kurz: Pip klettert eine Leiter hoch und läuft oben weiter.
 schleife: true
 szene:

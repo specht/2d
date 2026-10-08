@@ -2,6 +2,7 @@
 titel: Die Schwerkraft drehen
 kategorie: Wasser & Weltall
 stufe: 3
+skala: 4
 kurz: In einem Bewegungsbereich kann die Schwerkraft nach links, oben oder rechts ziehen. Pip läuft dort die Wand hinauf – und die Kamera dreht sich mit. Oben ist der Bereich zu Ende, und alles dreht sich zurück.
 schritte: 2
 # the gallery card: Pip walks up the wall, the camera has turned

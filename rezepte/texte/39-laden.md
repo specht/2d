@@ -2,6 +2,7 @@
 titel: Ein Laden
 kategorie: Level gestalten
 stufe: 2
+skala: 2
 kurz: Über dem Trank und dem Schwert steht ein Preis. Pip schaut sich alles an, der Händler preist es mit Händen und Füßen an – und mit F kauft Pip für ihre Münzen.
 tasten_zeigen: true
 # the whole screen: the coins counting down and the new heart in the HUD
