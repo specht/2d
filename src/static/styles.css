@@ -7033,17 +7033,25 @@ body {
     }
 }
 
-/* Einstellungen (and the "Sprites holen" under the level's sprites): the
-   buttons as dark as the rest of the studio (panels, list items, switches)
-   instead of the grey of a plain <button> */
+/* The buttons as dark as the rest of the studio (panels, list items,
+   switches) instead of the grey of a plain <button>: in Einstellungen, the
+   "Sprites holen" under the level's sprites, and in the dialogs – their footer
+   (but the green one), plain buttons (no class of their own, so nothing styled
+   elsewhere is overridden) and the Versionen buttons in Spiel laden */
 #main_div_settings button:not(.btn):not(.btn-checkbox):not(.controls-key),
-.palette-hint button {
+.palette-hint button,
+.modal-footer button:not(.green),
+.modal-body button:not([class]),
+table.game-list button.game-list-versions {
     background: rgba(0, 0, 0, 0.35);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #ddd;
 }
 #main_div_settings button:not(.btn):not(.btn-checkbox):not(.controls-key):hover,
-.palette-hint button:hover {
+.palette-hint button:hover,
+.modal-footer button:not(.green):hover,
+.modal-body button:not([class]):hover,
+table.game-list button.game-list-versions:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.5);
     color: #fff;
