@@ -136,3 +136,74 @@ test('the HUD shows the items, each weapon with its number, the chosen one frame
     assert.ok(texts.some(([text]) => text === '25'));
     assert.equal(painter.price_tag(25, 2), tag, 'made once');
 });
+
+test('Vorrat: for later, numbered with the weapons, used one at a time', () => {
+    const feather = sprite({ store: true, speed_boost_duration: 6 });
+    const heart = sprite({ store: true, lives: 1 });
+    // a weapon is never Vorrat (it is held)
+    const stored_sword = sprite({ store: true, keep: true }, { melee_attack: { attack: sword } });
+    assert.equal(inv.stored_item(feather), true);
+    assert.equal(inv.stored_item(stored_sword), false);
+    assert.equal(inv.stored_item(sprites[4]), false);
+    const all = [...sprites, feather, heart];   // 6 feather, 7 heart
+    const inventory = [];
+    inv.inventory_add(inventory, 6);
+    inv.inventory_add(inventory, 1);            // the sword: Taste 3
+    inv.inventory_add(inventory, 7);
+    inv.inventory_add(inventory, 6);
+    assert.deepEqual(inv.item_keys(inventory, all), [{ sprite_index: 6, key: 1 }, { sprite_index: 1, key: 3 }, { sprite_index: 7, key: 2 }]);
+    // the weapons keep their numbers among themselves
+    assert.deepEqual(inv.weapon_keys(inventory, all), [{ sprite_index: 1, key: 3 }]);
+    assert.equal(inv.item_for_key(inventory, all, 2), 7);
+    assert.equal(inv.weapon_for_key(inventory, all, 2), null);
+    // used: one less, the last one goes
+    assert.equal(inv.inventory_take(inventory, 6), 1);
+    assert.equal(inv.inventory_take(inventory, 6), 0);
+    assert.equal(inv.inventory_count(inventory, 6), 0);
+    assert.equal(inventory.length, 2);
+    // a heart with all lives stays in the Vorrat – and can be bought for it
+    assert.equal(inv.stored_item_refusal(heart, { lives: 5, max_lives: 5 }), 'Ich habe schon alle Leben.');
+    assert.equal(inv.stored_item_refusal(heart, { lives: 4, max_lives: 5 }), null);
+    assert.equal(inv.stored_item_refusal(feather, { lives: 5, max_lives: 5 }), null);
+    assert.equal(inv.shop_refusal({ price: 10, points: 50, sprite: heart, held: 0, lives: 5, max_lives: 5 }), null);
+    // the HUD shows the row when something is Vorrat
+    assert.equal(hud.hud_plan({ sprites: [feather], properties: {}, levels: [] }).items.show, true);
+});
+
+test('a number stays with its thing: a Vorrat used up keeps its number free, and gets it back', () => {
+    const feather = sprite({ store: true, speed_boost_duration: 6 });
+    const heart = sprite({ store: true, lives: 1 });
+    const all = [feather, heart];
+    const given = new Map();
+    const inventory = [];
+    inv.inventory_add(inventory, 0);
+    inv.inventory_add(inventory, 1);
+    assert.deepEqual(inv.item_keys(inventory, all, given), [{ sprite_index: 0, key: 1 }, { sprite_index: 1, key: 2 }]);
+    inv.inventory_take(inventory, 0);
+    // the heart stays 2
+    assert.deepEqual(inv.item_keys(inventory, all, given), [{ sprite_index: 1, key: 2 }]);
+    assert.equal(inv.item_for_key(inventory, all, 1, given), null);
+    // a feather again: 1 again
+    inv.inventory_add(inventory, 0);
+    assert.deepEqual(inv.item_keys(inventory, all, given).map(w => [w.sprite_index, w.key]).sort(), [[0, 1], [1, 2]]);
+});
+
+test('Level testen brings along points and what stays from the levels before', () => {
+    const plays = { collision_detection: true };
+    const coin = sprite({ points: 10 });
+    const key = sprite({ keep: true });
+    const potion = sprite({ store: true, lives: 1, points: 5 });
+    const slime = { traits: { baddie: { drop: { sprite_index: 0 } } } };
+    const sprites = [coin, key, potion, slime];
+    const level = (sprites, more = {}) => ({ properties: { use_level: true, ...more }, layers: [{ type: 'sprites', properties: plays, sprites }] });
+    const data = { sprites, levels: [
+        level([[0, 0, 0], [0, 24, 0], [3, 48, 0], [2, 72, 0], [2, 96, 0, { pickup: { price: 30 } }]]),
+        level([[1, 0, 0], [0, 24, 0]], { use_level: false }),              // a draft: nothing from it
+        { properties: { use_level: true }, layers: [{ type: 'sprites', properties: { collision_detection: false }, sprites: [[1, 0, 0]] }] },
+        level([[1, 0, 0], [0, 24, 0]]),
+    ] };
+    // coins 2 × 10, the slime's coin 10, the potion 5 (bought ones do not count)
+    assert.deepEqual(inv.playtest_carry(data, 3), { points: 35, items: [{ sprite_index: 2, count: 1 }] });
+    assert.deepEqual(inv.playtest_carry(data, 0), { points: 0, items: [] });
+    assert.deepEqual(inv.playtest_carry(data, 4).items, [{ sprite_index: 2, count: 1 }, { sprite_index: 1, count: 1 }]);
+});

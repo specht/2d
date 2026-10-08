@@ -691,6 +691,30 @@ const LONG_PRESS_MS = 550;
     }, true);
 })();
 
+// A right-click anywhere in the studio opens the studio's own menu, never the
+// browser's: what has a menu opens it as always (it calls preventDefault);
+// anywhere else a small menu says there is nothing to do here. Text fields
+// keep the browser's menu (cut, copy, paste). The game frame has its own
+// rule (app.js: no browser menu over the game).
+const CONTEXT_MENU_NOTHING = 'Hier gibt es nichts zu tun';
+(function install_context_menu_fallback() {
+    if (typeof document === 'undefined') return;
+    document.addEventListener('contextmenu', (e) => {
+        if (e.target?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
+        // see whether something on the way handles it (its own menu or action)
+        let handled = false;
+        const prevent = e.preventDefault.bind(e);
+        e.preventDefault = () => { handled = true; prevent(); };
+        prevent();
+        const { clientX: x, clientY: y } = e;
+        const inside_menu = !!e.target?.closest?.('.context-menu');
+        setTimeout(() => {
+            if (handled || inside_menu || document.querySelector('.context-menu')) return;
+            show_context_menu(x, y, [{ label: CONTEXT_MENU_NOTHING, icon: 'fa-info-circle', disabled: true }]);
+        }, 0);
+    }, true);
+})();
+
 function close_context_menu() {
     if (context_menu_outside_press) {
         for (const type of ['mousedown', 'touchstart'])

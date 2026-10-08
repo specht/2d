@@ -49,7 +49,7 @@ Jeder Satz bleibt so lange stehen, dass man ihn lesen kann. Wer schneller ist, d
 
 ## Tipps
 
-- **Selbst bestimmen, was zusammen in eine Sprechblase kommt:** Setz ein **|** dorthin, wo eine neue Sprechblase beginnen soll – mit dem Knopf **Neue Sprechblase** unter dem Text (oder AltGr + <). Sobald ein **|** im Text steht, bestimmst du alle Sprechblasen selbst.
+- **Eine neue Sprechblase mitten im Satz:** Setz ein **|** dorthin, wo sie beginnen soll – mit dem Knopf **Neue Sprechblase** unter dem Text (oder AltGr + <). So wartet eine Pointe auf ihren Moment: „Und dann kam … | der Glibber!“ Jeder Satz bekommt trotzdem weiter seine eigene Sprechblase.
 - Unter **Einstellungen → Texte** suchst du die **Schrift** für dein ganzes Spiel aus, dazu **Textgröße**, **Lesetempo** und die **Textfarbe der Spielfigur**. Eine Vorschau zeigt, wie es aussieht.
 - Die Schrift ist immer gleich gut lesbar – egal, wie groß deine Pixel im Spiel sind.
 - Soll das Schild (oder eine Figur, die du gezeichnet hast) **selbst** sprechen, stell **Wer spricht** auf **das Sprite spricht selbst** und gib ihm eine eigene **Textfarbe**. Gib jeder Figur ihre eigene Farbe – dann sieht man sofort, wer redet.
@@ -59,8 +59,7 @@ Jeder Satz bleibt so lange stehen, dass man ihn lesen kann. Wer schneller ist, d
 
 - **Über dem Schild erscheint kein F:** Es liegt in einer Ebene ohne **Kollisionen erkennen**, oder ihm fehlt **Hinweistext**.
 - **Es passiert nichts, wenn ich F drücke:** Beim platzierten Schild ist **Text** noch leer.
-- **Alles kommt in einer Sprechblase:** Hinter dem Satz fehlt ein **.**, **!** oder **?** – oder es steht irgendwo ein **|** im Text: Dann gelten nur die **|**.
-- **Ein Satz wird mittendrin geteilt:** Setz **|** an die Stellen, an denen eine neue Sprechblase beginnen soll.
+- **Alles kommt in einer Sprechblase:** Hinter dem Satz fehlt ein **.**, **!** oder **?**.
 
 ## Mach mehr draus
 

@@ -10,22 +10,26 @@
 #   dorf    Abend im Dorf: Parallaxe, Fensterlicht, Glühwürmchen, ein Wichtel spricht
 #           (Signalbereich), Begleiter Bello, Hügel, Laden-Tür (F), Checkpoint,
 #           Hebel öffnet das Dorftor
-#   laden   Nebenlevel: Sigis Laden – Bogen, Feder, Heiltrank (öfter kaufen), zurück
+#   laden   Nebenlevel: Sigis Laden – Bogen, Feder und Heiltrank für den Vorrat
+#           (öfter kaufen, mit ihrer Zahl benutzen), zurück
 #   hoehle  Höhlendunkel und Leuchtpilze, Schwert im Lichtschacht, Bröckelbrücke über
 #           Stacheln, drei Hebel + Zähler öffnen ein Tor, Plattform über Lava, Aufzug
 #   burg    Gewitter und Regen, ein Wächter öffnet beim Besiegen das Tor, Druckplatte
 #           mit Tor auf Zeit, Stampfer, Leitern, Spuckpilz, Schlüssel + Schlosstür,
 #           Förderband, der Zauberschlüssel (bleibt fürs ganze Spiel)
 #   meer    Schwimmen und Tauchen, Quallen, ein Hai jagt, Strömung im Riffkanal
-#   turm    Nordlicht, das Tor öffnet nur der Zauberschlüssel („sendet, wenn die
-#           Spielfigur … hat“), Hebel: das Leuchtfeuer erscheint, das Boot fährt
-#           heim, der Wichtel spricht, ein Zähler beendet das Spiel
+#   turm    Nordlicht, ein Kamerabereich zeigt den ganzen Leuchtturm, das Tor
+#           öffnet nur der Zauberschlüssel („sendet, wenn die Spielfigur … hat“),
+#           Hebel: das Leuchtfeuer erscheint, das Boot fährt heim, der Wichtel
+#           spricht, ein Zähler beendet das Spiel
 titel: Pip und das letzte Licht
 autor: 2D Game Studio
 eigenschaften: {screen_pixel_height: 216, lives_at_begin: 3, max_lives: 5, show_energy: true, text_size: large}
 anpassen:
   schatten: {level_complete: {}}
   eingang: {level_complete: {}}
+  feder: {pickup: {store: true}}
+  heiltrank: {pickup: {store: true}}
   glibber: {baddie: {damage: 20}}
   schnecke: {baddie: {damage: 15}}
   fledermaus: {baddie: {damage: 15}}
@@ -284,7 +288,7 @@ level:
           pickup:
             price: 30
             buy_again: true
-            shop_text: Ein Heiltrank! Ein Schluck – und schwupp, ein Leben mehr!
+            shop_text: 'Ein Heiltrank für später! Wenn es brenzlig wird: seine Zahl drücken – und schwupp, ein Leben mehr.'
       O:
         sprite: bogen
         platziert:
@@ -297,7 +301,7 @@ level:
           pickup:
             price: 20
             buy_again: true
-            shop_text: 'Eine Feder: Ein paar Sekunden lang springst du viel höher.'
+            shop_text: Eine Feder für später! Drück ihre Zahl, und ein paar Sekunden lang springst du viel höher.
     ebenen:
     - name: Wand
       kollision: false
@@ -757,6 +761,8 @@ level:
     wenn_hat:
     - {sprite: zauberschluessel, code: 6}
     geschafft_bei: 10
+    kamerabereiche:
+    - {name: Leuchtturm, rechtecke: [[43, 3, 23, 6]]}
     legende:
       K: klippe
       F: fels

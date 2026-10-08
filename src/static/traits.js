@@ -611,7 +611,7 @@ var SPRITE_TRAITS = {
         placed_properties: {
             text: {
                 label: 'Text',
-                hint: 'Steht die Spielfigur davor und man drückt die Aktionstaste (F), wird dieser Text gesprochen – Satz für Satz, jeder Satz in einer eigenen Sprechblase. Willst du selbst bestimmen, wo eine neue Sprechblase beginnt, setze dort ein | (Knopf „Neue Sprechblase“ oder AltGr + <). Mit der Punkt-Taste (.) oder F geht es gleich zur nächsten Sprechblase.',
+                hint: 'Steht die Spielfigur davor und man drückt die Aktionstaste (F), wird dieser Text gesprochen – Satz für Satz, jeder Satz in einer eigenen Sprechblase. Soll mitten im Satz eine neue Sprechblase beginnen – zum Beispiel vor einer Pointe –, setze dort ein | (Knopf „Neue Sprechblase“ oder AltGr + <). Mit der Punkt-Taste (.) oder F geht es gleich zur nächsten Sprechblase.',
                 type: 'string',
                 options: {
                     multiline: true,
@@ -664,7 +664,7 @@ var SPRITE_TRAITS = {
             },
             shop_thanks: {
                 label: 'sagt beim Kaufen',
-                hint: 'Das sagt der Verkäufer, wenn die Spielfigur etwas gekauft hat. Leer: Er sagt nichts. Mit | teilst du es in mehrere Sprechblasen.',
+                hint: 'Das sagt der Verkäufer, wenn die Spielfigur etwas gekauft hat – Satz für Satz, jeder Satz in einer eigenen Sprechblase. Mit | beginnt auch mitten im Satz eine neue. Leer: Er sagt nichts.',
                 type: 'string',
                 default: 'Danke!',
                 entry_key: 'shop_thanks',
@@ -673,7 +673,7 @@ var SPRITE_TRAITS = {
             // absent = he does not greet, does not chat (app.js update_shop_keepers)
             shop_greeting: {
                 label: 'begrüßt',
-                hint: 'Das sagt der Verkäufer einmal, sobald die Spielfigur in seine Nähe kommt (etwa sechs Blöcke). Mit | teilst du es in mehrere Sprechblasen. Leer: Er grüßt nicht.',
+                hint: 'Das sagt der Verkäufer einmal, sobald die Spielfigur in seine Nähe kommt (etwa sechs Blöcke) – Satz für Satz, jeder Satz in einer eigenen Sprechblase. Mit | beginnt auch mitten im Satz eine neue. Leer: Er grüßt nicht.',
                 type: 'string',
                 options: { multiline: true },
                 default: '',
@@ -682,7 +682,7 @@ var SPRITE_TRAITS = {
             },
             shop_chatter: {
                 label: 'plaudert',
-                hint: 'Ist die Spielfigur in der Nähe und sagt ein paar Sekunden lang niemand etwas, plaudert der Verkäufer – jedes Mal die nächste Sprechblase, dann wieder von vorn. Trenn die Sprechblasen mit |. Leer: Er plaudert nicht.',
+                hint: 'Ist die Spielfigur in der Nähe und sagt ein paar Sekunden lang niemand etwas, plaudert der Verkäufer – jedes Mal den nächsten Spruch, dann wieder von vorn. Trenn die Sprüche mit |; jeder Satz eines Spruchs kommt in eine eigene Sprechblase. Leer: Er plaudert nicht.',
                 type: 'string',
                 options: { multiline: true, insert_button: { text: ' | ', label: 'Neue Sprechblase', icon: 'fa-comment-o' } },
                 default: '',

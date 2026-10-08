@@ -12,9 +12,10 @@
 //   coins    top right – the picture of the sprite that gives points and
 //            the number; only if something gives points
 //   items    under them, what stays for the whole game (inventory.js) – each
-//            thing's picture, "× n" when there are several; a weapon with its
-//            number key in front and a frame while it is chosen; only if
-//            something "bleibt fürs ganze Spiel"
+//            thing's picture, "× n" when there are several; a weapon or a
+//            Vorrat with its number key in front, a weapon framed while it is
+//            chosen; only if something "bleibt fürs ganze Spiel" or is Vorrat.
+//            A tap on a picture uses it (item_boxes, app.js hud_item_at)
 //   level    the level's name for a moment when it starts (if it has one)
 // Prices in a shop are drawn above what is for sale (price_tag), in the same
 // pixels: the coin's picture and the number.
@@ -113,7 +114,7 @@ function hud_plan(data) {
         energy: { show: props.show_energy !== false && hurts },
         coins: { show: coin_sprite !== null, sprite: coin_sprite },
         // "bleibt fürs ganze Spiel" (inventory.js): the row of items
-        items: { show: sprites.some(s => s?.traits?.pickup?.keep === true) },
+        items: { show: sprites.some(s => s?.traits?.pickup?.keep === true || s?.traits?.pickup?.store === true) },
     };
 }
 
@@ -404,6 +405,7 @@ class HudPainter {
 
         const M = HUD.MARGIN;
         const parts = [];        // what is drawn, for the key
+        const boxes = this.item_boxes = [];   // the items' places in screen pixels (hud_item_at)
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, width_px, height_px);
         ctx.setTransform(k, 0, 0, k, 0, 0);
@@ -466,6 +468,7 @@ class HudPainter {
             y += 1;   // room for a chosen weapon's frame
             for (const { item, icon } of row) {
                 const top = y + Math.floor((row_h - icon.height) / 2);
+                const x0 = x;
                 const hop = hop_of(last.item_at.get(item.sprite_index) ?? -10);
                 if (item.key !== null && item.key !== undefined) {
                     const label = this.text(String(item.key), item.chosen ? HUD.CHOSEN : HUD.TEXT);
@@ -486,6 +489,8 @@ class HudPainter {
                     this.draw_text(ctx, label, x + 1, this.label_y(label, icon, top));
                     x += label.width + 1;
                 }
+                // where it is on the screen, generous for a finger (app.js hud_item_at: a tap uses it)
+                boxes.push({ sprite_index: item.sprite_index, x0: (x0 - 2) * k, y0: (y - 3) * k, x1: (x + 2) * k, y1: (y + row_h + 3) * k });
                 x += HUD.ITEM_GAP;
                 parts.push('I', item.sprite_index, item.count, item.key, item.chosen, hop);
             }

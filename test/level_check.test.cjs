@@ -346,3 +346,9 @@ test('a shop item that costs more than there are points in the whole game', () =
     const none = game_pitfalls({ properties: {}, sprites: sprites.slice(0, 3), levels: [level([['pip', 0, 24], ['sword', 24, 24, { pickup: { price: 1 } }]])] });
     assert.match(none.find(f => f.id === 'shop_unaffordable').text, /gibt es keine Punkte zu sammeln\. So kann man es nie kaufen\. Leg Sachen mit „gibt Punkte“ in die Level/);
 });
+
+test('a Vorrat that gives nothing when used; a Leben in the Vorrat is collected with all lives', () => {
+    assert.deepEqual(ids(sprite_pitfalls({ traits: { pickup: { store: true, points: 5 } } }, 'Münze')), ['store_nothing']);
+    assert.deepEqual(sprite_pitfalls({ traits: { pickup: { store: true, speed_boost_duration: 6 } } }, 'Feder'), []);
+    assert.deepEqual(sprite_pitfalls({ traits: { pickup: { store: true, lives: 1 } } }, 'Herz', { lives_at_begin: 5, max_lives: 5 }), []);
+});

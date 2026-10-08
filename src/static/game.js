@@ -679,7 +679,7 @@ class Game {
         new CheckboxWidget({
             container: $('#game-settings-here'),
             label: 'Kathodenstrahlröhre:',
-            hint: `Simuliert einen alten CRT-Monitor mit Scanlines, Wölbung und Vignette für das ultimative Retro-Feedling.`,
+            hint: `Das Spiel sieht aus wie auf einem alten Röhrenfernseher: leicht gewölbtes Glas, Bildzeilen, ein feines Farbgitter und dunklere Ecken. Die Anzeigen oben und die Sprechblasen bleiben scharf.`,
             default: false,
             get: () => self.data.properties.crt_effect,
             set: (x) => {
@@ -1192,16 +1192,31 @@ class Game {
             get: () => pickup()?.keep === true,
             set: (value) => {
                 if (value) pickup().keep = true;
-                else { delete pickup().keep; delete pickup().weapon_key; }
+                else { delete pickup().keep; if (pickup().store !== true) delete pickup().weapon_key; }
                 setTimeout(() => this.build_sprite_traits_menu(), 0);
             },
         });
-        if (pickup()?.keep !== true || !is_weapon(this.data.sprites[si])) return;
+        // "für später aufheben" (inventory.js): not for a weapon – a weapon is held
+        if (!is_weapon(this.data.sprites[si]))
+            new CheckboxWidget({
+                container: div, label: 'für später aufheben',
+                hint: 'Ist das an, wirkt das Sprite nicht sofort: Beim Einsammeln oder Kaufen kommt es in den Vorrat oben links, mit einer Zahl davor. Drückt man diese Zahlentaste (oder tippt auf das Bild), benutzt die Spielfigur eins davon – genau dann, wenn sie es braucht. Gut für eine Feder, einen Trank, ein Herz oder einen Schutzschild, besonders im Laden. Punkte gibt es trotzdem sofort.',
+                get: () => pickup()?.store === true,
+                set: (value) => {
+                    if (value) pickup().store = true;
+                    else { delete pickup().store; if (pickup().keep !== true) delete pickup().weapon_key; }
+                    setTimeout(() => this.build_sprite_traits_menu(), 0);
+                },
+            });
+        const sprite = this.data.sprites[si];
+        if (!(pickup()?.keep === true && is_weapon(sprite)) && !stored_item(sprite)) return;
         const options = { auto: 'die nächste freie' };
         for (let n = 1; n <= WEAPON_KEYS_MAX; n++) options[String(n)] = String(n);
         new SelectWidget({
             container: div, label: 'Taste',
-            hint: 'Mit dieser Zahlentaste wählt man im Spiel die Waffe aus, wenn die Spielfigur mehrere hat. Die Zahl steht im Spiel oben links neben der Waffe. „die nächste freie“: Die erste Waffe, die man einsammelt, bekommt 1, die nächste 2 und so weiter. Eine neue Waffe ist sofort ausgewählt. Nahkampfwaffen greifen mit J an, Fernkampfwaffen mit K – ein Schwert und ein Bogen gehen also gleichzeitig.',
+            hint: is_weapon(sprite) ?
+                'Mit dieser Zahlentaste wählt man im Spiel die Waffe aus, wenn die Spielfigur mehrere hat. Die Zahl steht im Spiel oben links neben der Waffe. „die nächste freie“: Was man zuerst einsammelt (Waffe oder Vorrat), bekommt 1, das nächste 2 und so weiter. Eine neue Waffe ist sofort ausgewählt. Nahkampfwaffen greifen mit J an, Fernkampfwaffen mit K – ein Schwert und ein Bogen gehen also gleichzeitig.' :
+                'Mit dieser Zahlentaste benutzt die Spielfigur eins aus dem Vorrat. Die Zahl steht im Spiel oben links neben dem Bild. „die nächste freie“: Was man zuerst einsammelt (Waffe oder Vorrat), bekommt 1, das nächste 2 und so weiter.',
             options,
             get: () => Number.isInteger(pickup()?.weapon_key) ? String(pickup().weapon_key) : 'auto',
             set: (value) => {

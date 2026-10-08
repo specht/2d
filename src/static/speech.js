@@ -89,11 +89,23 @@ function split_sentences(line) {
     return parts.map(p => p.trim()).filter(p => p.length > 0);
 }
 
-function speech_parts(text) {
+// The text in groups of sentences: a | starts a new group (a Verkäufer's
+// "plaudert" says one group at a time), and every sentence is a bubble of its
+// own – also inside a group, so a punchline never shows before its moment.
+// Without |, every sentence is a group. (Before October 2026 a | also kept the
+// sentences between two | in one bubble.)
+function speech_groups(text) {
     if (typeof text !== 'string') return [];
     if (text.includes(SPEECH_SEPARATOR))
-        return text.split(SPEECH_SEPARATOR).map(part => part.replace(/\s+/g, ' ').trim()).filter(part => part.length > 0);
-    return text.split(/\r?\n/).flatMap(split_sentences);
+        return text.split(SPEECH_SEPARATOR)
+            .map(part => split_sentences(part.replace(/\s+/g, ' ').trim()))
+            .filter(group => group.length > 0);
+    return text.split(/\r?\n/).flatMap(split_sentences).map(part => [part]);
+}
+
+// Every bubble, one after the other.
+function speech_parts(text) {
+    return speech_groups(text).flat();
 }
 
 // Seconds a sentence stays: long enough to read it, at least 1.5 s.
@@ -248,7 +260,7 @@ function render_speech_bitmap(lines, font_id, k, color, make_canvas) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         SPEECH_FONTS, SPEECH_DEFAULT_FONT, SPEECH_SIZES, SPEECH_SPEEDS, SPEECH_PLAYER_COLOR, SPEECH_SELF_COLOR,
-        SPEECH_SPEAKERS, SPEECH_SEPARATOR, speech_color, speech_settings, speech_parts, speech_seconds, speech_scale, wrap_speech,
+        SPEECH_SPEAKERS, SPEECH_SEPARATOR, speech_color, speech_settings, speech_parts, speech_groups, speech_seconds, speech_scale, wrap_speech,
         Speech, render_speech_bitmap,
     };
 }

@@ -108,7 +108,6 @@ class Canvas {
         this.spray_pixels = null;
         this.spray_pixels_per_shot = 1;
         this.label_for_state = [];
-        this.role_for_state = [];
         this.draw_ex = false;
         $(this.element).css('overflow', 'hidden');
         $(this.element).css('cursor', 'crosshair');
@@ -1867,8 +1866,6 @@ class Canvas {
                             .toggleClass('unnamed', !state.properties.name);
                         self.label_for_state[index] = state_label;
                         state_div.append(state_label);
-                        // its role, small, when the name does not say it already
-                        self.role_for_state[index] = $('<span class="state-role">').text(self.state_role_text(state)).appendTo(state_div);
                         return state_div;
                     },
                     onclick: (e, index) => {
@@ -2096,23 +2093,6 @@ class Canvas {
         const state = this.game.data.sprites[this.sprite_index].states[this.state_index];
         const name = state.properties.name;
         this.label_for_state[this.state_index]?.text(name || `Zustand ${this.state_index + 1}`).toggleClass('unnamed', !name);
-        this.role_for_state?.[this.state_index]?.text(this.state_role_text(state));
-    }
-
-    // What the game uses a state for, in words ("laufen", "Tür geöffnet") –
-    // empty when it has no role or its name says it already.
-    state_role_text(state) {
-        const words = [];
-        for (const [sprite_trait, roles] of Object.entries(state?.traits ?? {}))
-            for (const role of Object.keys(roles ?? {})) {
-                const word = typeof role_state_name === 'function' ?
-                    role_state_name(sprite_trait, role, STATE_TRAITS?.[sprite_trait]?.[role]?.label) : STATE_TRAITS?.[sprite_trait]?.[role]?.label;
-                if (word && !words.includes(word)) words.push(word);
-            }
-        const name = String(state?.properties?.name ?? '').trim().toLowerCase();
-        const shown = words.filter(w => w.toLowerCase() !== name);
-        if (!shown.length) return '';
-        return shown.length > 2 ? `${shown.slice(0, 2).join(', ')} …` : shown.join(', ');
     }
 
     grow_image(image, width, height) {

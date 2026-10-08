@@ -16,7 +16,9 @@
 //   level: [ { id, name, nebenlevel?, szene } ]
 //       id      the level's id – what an exit's `target` names (level_flow.js)
 //       szene   a recipe scene (README.md "Writing a recipe"): karte or ebenen,
-//               legende, himmel, effekte, bereiche, bewegung …
+//               legende, himmel, effekte, bereiche, bewegung … – and
+//               kamerabereiche: [{ name, rechtecke: [[c, r, w, h]], seitlich }]
+//               (where the camera tends to look; tiles like bereiche)
 // A sprite is in the game once, however many levels use it.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -86,11 +88,15 @@ export async function build_demo(file) {
         if (level_ids.has(def.id)) throw new Error(`${where}: id doppelt`);
         level_ids.add(def.id);
         if (def.szene?.anpassen) throw new Error(`${where}: anpassen gilt fürs ganze Spiel – oben in der Datei, nicht im Level`);
+        // kamerabereiche: [{ name?, rechtecke: [[Spalte, Zeile von oben, Breite, Höhe]], seitlich? }] –
+        // Kamerabereiche (app.js camera_pull), not part of the recipe scenes
+        const camera_defs = def.szene?.kamerabereiche ?? [];
         // every level follows the figure with the game's screen height (the
         // parallax layers are placed for it)
         const height = spec.eigenschaften?.screen_pixel_height ?? 216;
+        const { kamerabereiche, ...scene } = def.szene ?? {};
         const recipe = { id: def.id, titel: def.name ?? def.id,
-            szene: { kamera: { bildhoehe: height }, ...def.szene, anpassen: spec.anpassen ?? {} } };
+            szene: { kamera: { bildhoehe: height }, ...scene, anpassen: spec.anpassen ?? {} } };
         const built = await build_game(catalog, recipe, repo);
         for (const [tag, png] of built.pngs) pngs.set(tag, png);
         // the scene's sprite ids (s0, s1 …) → catalogue ids → the game's ids
@@ -111,6 +117,16 @@ export async function build_demo(file) {
         const level = clone(built.data.levels[0]);
         rename_references(level, to_catalog);
         for (const layer of level.layers) if (layer.type === 'sprites') for (const placed of layer.sprites) placed[0] = to_catalog(placed[0]);
+        // in front of the other layers: the frontmost Kamerabereich wins
+        camera_defs.slice().reverse().forEach((c, i) => {
+            if (!Array.isArray(c?.rechtecke) || !c.rechtecke.length) throw new Error(`${where}: Kamerabereich ohne rechtecke`);
+            level.layers.unshift({
+                type: 'camera_region',
+                properties: { name: c.name ?? `Kamerabereich ${camera_defs.length - i}`, visible: true, parallax: 0, opacity: 1,
+                    ...(c.seitlich ? { sideways: true } : {}) },
+                rects: c.rechtecke.map(([col, row, w, h]) => ({ left: col * TILE - TILE / 2, bottom: (built.rows - row - h) * TILE, width: w * TILE, height: h * TILE })),
+            });
+        });
         level.id = def.id;
         level.properties.name = def.name ?? def.id;
         level.properties.use_level = true;

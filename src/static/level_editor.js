@@ -1,3 +1,7 @@
+// The layer types made of rectangles, and the colour of their outlines
+const REGION_LAYER_TYPES = ['backdrop', 'signal_area', 'movement_region', 'camera_region'];
+const REGION_COLOURS = { backdrop: 0x73eff7, signal_area: 0xffcd75, movement_region: 0x38b764, camera_region: 0xc287f0 };
+
 class LayerStruct {
     /*
     layer: only one sprite per position allowed
@@ -535,6 +539,7 @@ class LevelEditor {
                         ['Hintergrund', 'backdrop'],
                         ['Signalbereich', 'signal_area'],
                         ['Bewegungsbereich', 'movement_region'],
+                        ['Kamerabereich', 'camera_region'],
                         // ['Text', 'text'],
                     ],
                     gen_item: (layer, index) => {
@@ -598,6 +603,8 @@ class LevelEditor {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Signalbereich · '));
                         } else if (type === 'movement_region') {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Bewegungsbereich · '));
+                        } else if (type === 'camera_region') {
+                            layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Kamerabereich · '));
                         } else if (type === 'text') {
                             layer_div.append($(`<span style='margin-left: 0.5em;'>`).text('Text · '));
                         }
@@ -620,7 +627,7 @@ class LevelEditor {
                             // tools off for its handles): the tool from before
                             menus.level.handle_click(menus.level.groups.tool?.active ?? 'tool/pan');
                         }
-                        if (['backdrop', 'signal_area', 'movement_region'].includes(self.game.data.levels[self.level_index].layers[self.layer_index].type)) {
+                        if (REGION_LAYER_TYPES.includes(self.game.data.levels[self.level_index].layers[self.layer_index].type)) {
                             self.refresh_backdrop_controls();
                         }
                         self.setup_layer_properties();
@@ -651,6 +658,10 @@ class LevelEditor {
                             layer.properties = { name: `Bewegungsbereich ${count}` };
                             layer.movement = { mode: 'swim' };
                         }
+                        if (type === 'camera_region') {
+                            let count = self.game.data.levels[self.level_index].layers.filter(x => x.type === type).length + 1;
+                            layer.properties = { name: `Kamerabereich ${count}` };
+                        }
                         if (type === 'sprites' || type === 'backdrop') {
                             // "Ebene 3", "Hintergrund 2": a name to start with (default_names.js)
                             const word = type === 'sprites' ? 'Ebene' : 'Hintergrund';
@@ -661,7 +672,7 @@ class LevelEditor {
                         }
                         if (type === 'sprites') {
                             layer.sprites = [];
-                        } else if (type === 'backdrop' || type === 'signal_area' || type === 'movement_region') {
+                        } else if (REGION_LAYER_TYPES.includes(type)) {
                             let x0 = Math.round(self.camera_x - self.width * 0.45 / self.scale);
                             let x1 = Math.round(self.camera_x + self.width * 0.45 / self.scale);
                             let y0 = Math.round(self.camera_y - self.height * 0.45 / self.scale);
@@ -1039,7 +1050,8 @@ class LevelEditor {
     // each to edit that rectangle (its layer becomes the current one).
     region_menu_entries(touch) {
         const level = this.game.data.levels[this.level_index];
-        const kinds = { backdrop: ['Hintergrund', 'fa-picture-o'], signal_area: ['Signalbereich', 'fa-bolt'], movement_region: ['Bewegungsbereich', 'fa-tint'] };
+        const kinds = { backdrop: ['Hintergrund', 'fa-picture-o'], signal_area: ['Signalbereich', 'fa-bolt'], movement_region: ['Bewegungsbereich', 'fa-tint'],
+            camera_region: ['Kamerabereich', 'fa-video-camera'] };
         const entries = this.regions_at(touch)
             .filter(({ li, ri }) => !(li === this.layer_index && ri === this.rect_index && menus.level.active_key === null))
             .map(({ li, ri }) => {
@@ -1514,6 +1526,19 @@ class LevelEditor {
                 : [object.rect];
             for (const rect of rects) this.signal_link_frames.push({ rect, color: signal_link_color(object.code) });
         }
+        // the chosen Hintergrund, Signal-, Bewegungs- or Kamerabereich: the same
+        // marching frames in its colour (unless a signal frame is there already)
+        const current = level.layers[this.layer_index];
+        if (current && REGION_LAYER_TYPES.includes(current.type)) {
+            const parallax = current.properties?.parallax ?? 0;
+            for (const r of current.rects ?? []) {
+                if (!valid_signal_rect(r)) continue;
+                const rect = { x0: r.left, y0: r.bottom, x1: r.left + r.width, y1: r.bottom + r.height };
+                if (!parallax && this.signal_link_frames.some(f => !f.parallax && f.rect.x0 === rect.x0 && f.rect.y0 === rect.y0 &&
+                    f.rect.x1 === rect.x1 && f.rect.y1 === rect.y1)) continue;
+                this.signal_link_frames.push({ rect, color: REGION_COLOURS[current.type], parallax });
+            }
+        }
         for (const link of signal_links(objects, codes)) {
             this.signal_link_curves.push({ from: link.from.anchor, to: link.to.anchor, color: signal_link_color(link.code) });
             // a sender with a Verzögerung: its lines say how long
@@ -1603,7 +1628,9 @@ class LevelEditor {
         // frames: dashes marching around the outline
         for (const frame of this.signal_link_frames) {
             color.set(frame.color);
-            const pad = 3 * px, r = frame.rect;
+            // a layer with Parallaxe is drawn shifted with the camera
+            const sx = frame.parallax ? this.camera_x * frame.parallax : 0, sy = frame.parallax ? this.camera_y * frame.parallax : 0;
+            const pad = 3 * px, r = { x0: frame.rect.x0 + sx, y0: frame.rect.y0 + sy, x1: frame.rect.x1 + sx, y1: frame.rect.y1 + sy };
             const corners = [[r.x0 - pad, r.y0 - pad], [r.x1 + pad, r.y0 - pad], [r.x1 + pad, r.y1 + pad], [r.x0 - pad, r.y1 + pad], [r.x0 - pad, r.y0 - pad]]
                 .map(([x, y]) => ({ x, y }));
             const dash = 5 * px, period = 8 * px;
@@ -2670,7 +2697,7 @@ class LevelEditor {
             });
             self.add_layer_signal_controls(layer);
         }
-        if (layer.type === 'backdrop' || layer.type === 'signal_area' || layer.type === 'movement_region') {
+        if (REGION_LAYER_TYPES.includes(layer.type)) {
             let backdrop = layer;
             // -----------------------------------------------------------
             let rect_div = $('<div>').appendTo($('#menu_layer_properties'));
@@ -2727,6 +2754,8 @@ class LevelEditor {
 
             if (layer.type === 'signal_area') {
                 self.add_area_signal_controls(layer);
+            } else if (layer.type === 'camera_region') {
+                self.add_camera_region_controls(layer);
             } else if (layer.type === 'movement_region') {
                 layer.movement ??= { mode: 'swim' };
                 const box = $('<div>').appendTo($('#menu_layer_properties'));
@@ -2974,7 +3003,7 @@ class LevelEditor {
         }
         // a Hintergrund (darkness, an effect) can appear and disappear, too
         if (layer.type === 'backdrop') self.add_layer_signal_controls(layer);
-        if (layer.type !== 'signal_area' && layer.type !== 'movement_region') {
+        if (layer.type !== 'signal_area' && layer.type !== 'movement_region' && layer.type !== 'camera_region') {
         new NumberWidget({
             container: $('#menu_layer_properties'),
             label: 'Parallaxe',
@@ -3941,7 +3970,7 @@ class LevelEditor {
     region_outlines() {
         const group = new THREE.Group();
         const level = this.game.data.levels[this.level_index];
-        const colours = { backdrop: 0x73eff7, signal_area: 0xffcd75, movement_region: 0x38b764 };
+        const colours = REGION_COLOURS;
         level.layers.forEach((layer, li) => {
             if (!(layer.type in colours) || layer.properties?.visible === false) return;
             if (li === this.backdrop_index_shown && menus.level.active_key === null) return;
@@ -3962,18 +3991,56 @@ class LevelEditor {
             }
             for (const arrow of this.gravity_arrows(layer, new THREE.LineBasicMaterial({ color: colours[layer.type], transparent: true, opacity: 0.55 })))
                 layer_group.add(arrow);
+            for (const mark of this.camera_marks(layer, new THREE.LineBasicMaterial({ color: colours[layer.type], transparent: true, opacity: 0.7 })))
+                layer_group.add(mark);
             group.add(layer_group);
         });
         return group;
     }
 
-    // The layers with rectangles (Hintergrund, Signalbereich, Bewegungsbereich)
+    // A Kamerabereich (app.js camera_pull): a small camera frame in the middle
+    // of each rectangle – where the camera tends to look while the figure is in it.
+    camera_marks(layer, material) {
+        if (layer.type !== 'camera_region') return [];
+        const marks = [];
+        const w = 14 / this.scale, h = 9 / this.scale;
+        for (const rect of layer.rects ?? []) {
+            const r = normalized_rect(rect);
+            if (!(r.width > 0 && r.height > 0)) continue;
+            const cx = r.left + r.width / 2, cy = r.bottom + r.height / 2;
+            marks.push(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(cx - w, cy - h), new THREE.Vector3(cx + w, cy - h),
+                new THREE.Vector3(cx + w, cy + h), new THREE.Vector3(cx - w, cy + h)]), material));
+            marks.push(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(cx - 4 / this.scale, cy), new THREE.Vector3(cx + 4 / this.scale, cy),
+                new THREE.Vector3(cx, cy - 4 / this.scale), new THREE.Vector3(cx, cy + 4 / this.scale)]), material));
+        }
+        return marks;
+    }
+
+    // Settings of a Kamerabereich: sideways too, and on/off by Signal.
+    add_camera_region_controls(layer) {
+        const box = $('<div>').appendTo($('#menu_layer_properties'));
+        $('<p>').addClass('behavior-hint').text('Ist die Spielfigur in einem Rechteck dieses Bereichs, schaut die Kamera langsam zu seiner Mitte (dem kleinen Rahmen) – nur so weit, dass die Spielfigur im Bild bleibt. Verlässt sie den Bereich, folgt die Kamera ihr wieder wie immer. So zeigst du mehr Himmel über einem Turm oder den Abgrund unter einer Brücke.').appendTo(box);
+        new CheckboxWidget({
+            container: box, label: 'auch seitlich',
+            hint: 'Aus: Die Kamera geht nur nach oben oder unten zur Mitte des Rechtecks. An: auch nach links oder rechts – zum Beispiel, damit man sieht, was vor der Spielfigur liegt.',
+            get: () => layer.properties?.sideways === true,
+            set: (value) => {
+                layer.properties ??= {};
+                if (value) layer.properties.sideways = true; else delete layer.properties.sideways;
+            },
+        });
+        this.add_layer_signal_controls(layer, 'Der Kamerabereich kann an- und ausgehen, wenn etwas mit seinem Code ein Signal sendet: ein Schalter, eine Druckplatte, ein Schlüssel, ein Signalbereich oder ein besiegter Gegner. „erscheint“: am Anfang aus, beim ersten Signal „an“ an. „verschwindet“: am Anfang an, beim ersten Signal „an“ aus. „da, solange an“ und „weg, solange an“: folgt dem Signal. „wechselt“: jedes Signal schaltet ihn um.');
+    }
+
+    // The layers with rectangles (Hintergrund, Signalbereich, Bewegungsbereich, Kamerabereich)
     // that have one under the screen point: [{ li, ri }], the topmost first.
     regions_at(touch) {
         const level = this.game.data.levels[this.level_index];
         const found = [];
         level.layers.forEach((layer, li) => {
-            if (!['backdrop', 'signal_area', 'movement_region'].includes(layer.type) || layer.properties?.visible === false) return;
+            if (!REGION_LAYER_TYPES.includes(layer.type) || layer.properties?.visible === false) return;
             const parallax = layer.properties?.parallax ?? 0;
             const x = this.camera_x + (touch[0] - this.width / 2) / this.scale - this.camera_x * parallax;
             const y = this.camera_y - (touch[1] - this.height / 2) / this.scale - this.camera_y * parallax;
@@ -5127,7 +5194,7 @@ class LevelEditor {
         }
 
         this.backdrop_index = null;
-        if (['backdrop', 'signal_area', 'movement_region'].includes(this.game.data.levels[this.level_index].layers[this.layer_index].type))
+        if (REGION_LAYER_TYPES.includes(this.game.data.levels[this.level_index].layers[this.layer_index].type))
             this.backdrop_index = this.layer_index;
         this.backdrop_index_shown = this.backdrop_index;
         if (this.show_regions) this.scene.add(this.region_outlines());
@@ -5139,21 +5206,12 @@ class LevelEditor {
             // the rectangle and its handles sit where the layer is drawn (Parallaxe)
             const cursor_parallax = backdrop.properties?.parallax ?? 0;
             this.backdrop_cursor.position.set(this.camera_x * cursor_parallax, this.camera_y * cursor_parallax, 0);
-            if (backdrop.type === 'signal_area' || backdrop.type === 'movement_region') {
-                // all rectangles of the region, so one can see where it applies
-                const outline = new THREE.LineBasicMaterial({ color: backdrop.type === 'movement_region' ? 0x38b764 : 0xffcd75,
+            if (backdrop.type === 'signal_area' || backdrop.type === 'movement_region' || backdrop.type === 'camera_region') {
+                // (its rectangles get marching frames, build_signal_links)
+                const outline = new THREE.LineBasicMaterial({ color: REGION_COLOURS[backdrop.type],
                     linewidth: 1.0, transparent: true, opacity: 0.65 });
-                for (const rect of backdrop.rects) {
-                    if (!valid_signal_rect(rect)) continue;
-                    const points = [
-                        new THREE.Vector3(rect.left, rect.bottom),
-                        new THREE.Vector3(rect.left + rect.width, rect.bottom),
-                        new THREE.Vector3(rect.left + rect.width, rect.bottom + rect.height),
-                        new THREE.Vector3(rect.left, rect.bottom + rect.height),
-                    ];
-                    this.backdrop_cursor.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), outline));
-                }
                 for (const arrow of this.gravity_arrows(backdrop, outline)) this.backdrop_cursor.add(arrow);
+                for (const mark of this.camera_marks(backdrop, outline)) this.backdrop_cursor.add(mark);
             }
             let material = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1.5, transparent: true });
 

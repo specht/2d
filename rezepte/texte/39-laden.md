@@ -161,7 +161,7 @@ erwartet:
 5. Leg ein Schwert daneben, **Preis 120**, mit der Beschreibung „Dieses Schwert gehörte einem echten Helden. Oder seinem Nachbarn.“ So viel Geld hat die Spielfigur nicht – mal sehen, was der Händler dazu sagt.
 6. Stell den Händler hinter die Theke. Er hat **Hinweistext** und **Wer spricht: das Sprite spricht selbst**. Zeichne ihm einen Zustand **spricht gerade**: Darin fuchtelt er mit beiden Armen – beim Reden wird er gleich viel überzeugender. Klick ihn im Level an und stell **spricht im Laden** an. Jetzt kannst du ihm noch mehr Text geben:
    - **begrüßt:** „Hereinspaziert! Willkommen bei Sigis Sagenhaftem Sonderposten!“ – das sagt er einmal, sobald die Spielfigur in seine Nähe kommt.
-   - **plaudert:** Sprechblasen, getrennt mit **|**. Sagt ein paar Sekunden lang niemand etwas, sagt er die nächste: „Nur heute: Preise so niedrig, dass ich nachts weine! | Fass ruhig alles an. Kaputt gemacht heißt gekauft! | …“
+   - **plaudert:** Sprüche, getrennt mit **|**. Sagt ein paar Sekunden lang niemand etwas, sagt er den nächsten – Satz für Satz: „Nur heute: Preise so niedrig, dass ich nachts weine! | Fass ruhig alles an. Kaputt gemacht heißt gekauft! | …“
    - **sagt beim Kaufen:** „Danke, danke! Beehre mich bald wieder!“ – das sagt er bei allem, was keinen eigenen Satz hat.
 7. Probier es aus: Pip kommt mit 70 Münzen in den Laden, und der Händler grüßt. Vor dem Trank preist er den Trank an, vor dem Schwert das Schwert. Für das Schwert reicht das Geld nicht – er sagt, wie viel fehlt. Pip geht zurück zum Trank und drückt **F**: Die Münzen oben rechts zählen von 70 auf 40 herunter, oben links kommt ein Herz dazu, und der Händler freut sich.
 
