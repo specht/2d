@@ -1055,7 +1055,14 @@ class Game {
     build_sprite_traits_menu() {
         let self = this;
         let si = canvas.sprite_index;
-        this.door_state_help = null;
+        // Tür-, Schalter-, Druckplatten-Check (add_state_pair_help): drawn
+        // again when a Zustand gets or loses a role; so is the Spiel-Check
+        // above (level_check.js show_sprite_pitfalls)
+        this.state_pair_helps = [];
+        this.door_state_help = () => {
+            for (const update of this.state_pair_helps ?? []) update();
+            if (typeof show_sprite_pitfalls === 'function') { try { show_sprite_pitfalls(this); } catch (e) { } }
+        };
         // every picker belongs to the sprite it was built for: one left over
         // from an enemy shown before (or from the game before) read the Beute
         // of a sprite that is no enemy, and a game failed to load halfway
@@ -1170,7 +1177,7 @@ class Game {
         if (trait === 'ranged_attack') this.add_ranged_attack_trait_controls(div, si);
         if (trait === 'actor' || trait === 'baddie') this.add_hit_feedback_controls(div, si, trait);
         if (trait === 'baddie') this.add_drop_controls?.(div, si);
-        if (trait === 'door') this.add_door_state_help(div, si);
+        if (trait === 'door' || trait === 'switch' || trait === 'pressure_plate') this.add_state_pair_help(div, si, trait);
         if (trait === 'pickup') this.add_pickup_keep_controls(div, si);
         div.insertAfter(element);
     }
@@ -1263,10 +1270,15 @@ class Game {
     // Merely opening the editor does not add properties to saved game JSON.
     // Beute: what a defeated enemy leaves behind (traits.baddie.drop).
     add_drop_controls(div, si) {
-        const baddie = () => this.data.sprites[si].traits.baddie;
+        // the enemy by its id: when sprites are deleted or moved, the panel is
+        // still refreshed (refresh_sprite_reference_pickers) and its index may
+        // point to another sprite or past the end
+        const sprite_id = this.data.sprites[si]?.id;
+        const baddie = () => (sprite_id ? this.data.sprites.find(sprite => sprite.id === sprite_id) : this.data.sprites[si])?.traits?.baddie;
         const box = $('<div>').appendTo(div);
         const render = () => {
             box.empty();
+            if (!baddie()) return;
             this.drop_sprite_picker = new SpriteSelectWidget({
                 container: box, label: 'Beute:',
                 none_label: 'Keine Beute',
@@ -1280,6 +1292,7 @@ class Game {
                 },
                 set: (choice) => {
                     const index = Number(choice);
+                    if (!baddie()) return;
                     if (choice === 'none') delete baddie().drop;
                     else if (Number.isInteger(index) && this.data.sprites[index]) {
                         const { sprite_index, ...drop } = baddie().drop ?? {};
@@ -1671,38 +1684,35 @@ class Game {
         return help;
     }
 
-    add_door_state_help(div, si) {
-        let help = this.add_trait_help(div, 'Tür-Check');
+    // Tür-Check, Schalter-Check, Druckplatten-Check: which of the two pictures
+    // (Zustände with the roles, level_check.js LEVEL_CHECK_STATE_PAIRS) are
+    // there. While one is missing it is open and in warning colours.
+    add_state_pair_help(div, si, trait) {
+        const pair = typeof LEVEL_CHECK_STATE_PAIRS !== 'undefined' ? LEVEL_CHECK_STATE_PAIRS[trait] : null;
+        if (!pair) return;
+        const sprite_id = this.data.sprites[si]?.id;
+        let help = this.add_trait_help(div, pair.check).addClass('state-pair');
         let summary = help.children('summary');
         let status = $('<div>').appendTo(help);
-        let advice = $('<div>').css({
-            'margin-top': '6px',
-            'font-size': '0.9em',
-            'color': '#ffcc66',
-        }).appendTo(help);
-
-        this.door_state_help = () => {
-            let states = this.data.sprites[si].states;
+        let advice = $('<div>').addClass('state-pair-advice').appendTo(help);
+        const update = () => {
+            const sprite = this.data.sprites.find(s => s.id === sprite_id) ?? this.data.sprites[si];
+            if (!sprite) return;
+            const missing = level_check_missing_states(sprite, trait);
             status.empty();
-            let present_count = 0;
-            for (let [trait, label] of [['closed', 'geschlossen'], ['open', 'geöffnet']]) {
-                let present = states.some((state) => trait in (state.traits?.door ?? {}));
-                if (present) present_count++;
-                let row = $('<div>').css({
-                    'display': 'flex',
-                    'align-items': 'center',
-                    'gap': '7px',
-                    'margin-top': '5px',
-                }).appendTo(status);
-                $('<i>').addClass(present ? 'fa fa-check-circle' : 'fa fa-exclamation-circle')
-                    .css('color', present ? '#6dcd8d' : '#ffcc66').appendTo(row);
-                $('<span>').text(present ? `„${label}“ vorhanden` : `„${label}“ fehlt`).appendTo(row);
+            for (const [role, label] of pair.states) {
+                const present = !missing.some(([r]) => r === role);
+                $('<div>').addClass('state-pair-row').append(
+                    $('<i>').addClass(present ? 'fa fa-check-circle' : 'fa fa-exclamation-circle').toggleClass('missing', !present),
+                    $('<span>').text(present ? `„${label}“ vorhanden` : `„${label}“ fehlt`)).appendTo(status);
             }
-            summary.text(`Tür-Check: ${present_count}/2 Zustände`);
-            summary.css('color', present_count === 2 ? '#6dcd8d' : '#ffcc66');
-            advice.text(present_count < 2 ? 'Weise den fehlenden Zustand unter „Zustände“ zu.' : '');
+            summary.text(`${pair.check}: ${pair.states.length - missing.length}/${pair.states.length} Zustände`);
+            help.toggleClass('state-pair-missing', missing.length > 0);
+            if (missing.length) help.prop('open', true);
+            advice.text(missing.length ? 'Zeichne das fehlende Bild als eigenen Zustand und gib ihm unter „Zustände“ mit „Rolle zuweisen“ die Rolle.' : '');
         };
-        this.door_state_help();
+        this.state_pair_helps.push(update);
+        update();
     }
 
     add_state_trait(sprite_trait, trait) {

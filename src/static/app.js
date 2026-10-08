@@ -4739,6 +4739,9 @@ class Game {
 
 
 	handle_key_down(key) {
+		// no game (yet): the studio hands keys to the frame while a game is
+		// still loading (right after T in the level editor), or its loading failed
+		if (!this.data || !this.clock) return;
 		if (((this.running && this.lives === 0) || (this.level_index >= this.data.levels.length)) && key === 'Escape') {
 			this.stop();
 			return;
@@ -4771,7 +4774,9 @@ class Game {
 		// 1 … 9: choose a weapon (inventory.js) – unless the game uses that key itself
 		const weapon_number = this.running && !this.key_actions.has(key) ? weapon_key_number(key) : null;
 		if (weapon_number !== null) this.choose_weapon_key(weapon_number);
-		if (this.development) {
+		// only on a development server: in the studio's Spielen (?dev) a child's
+		// S (ladder down) shook the camera and "," slowed the game down
+		if (this.development && window.DEVELOPMENT === true && !this.key_actions.has(key)) {
 			if (key === 'Comma') {
 				this.clock.delta(-0.1);
 			}
@@ -4785,7 +4790,7 @@ class Game {
 	}
 
 	handle_key_up(key) {
-		for (const action of this.key_actions.get(key) ?? [])
+		for (const action of this.key_actions?.get(key) ?? [])
 			this.pressed_keys[ACTION_KEYS[action]] = false;
 	}
 

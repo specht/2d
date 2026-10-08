@@ -61,6 +61,25 @@ const LEVEL_CHECK_UNTOUCHED = {
     level_complete: 'wechselt das Level nie',
 };
 
+// Tür, Schalter, Druckplatte: each shows one of two pictures, given by the
+// role of a Zustand (Zustände → „Rolle zuweisen“; traits.js STATE_TRAITS).
+// app.js: a door without „geöffnet“ never opens (open_door_intent) and a
+// closed one without „geschlossen“ shows its first Zustand; a switch or plate
+// without its pictures works, but nothing on the screen changes.
+const LEVEL_CHECK_STATE_PAIRS = {
+    door: { check: 'Tür-Check', states: [['closed', 'geschlossen'], ['open', 'geöffnet']] },
+    switch: { check: 'Schalter-Check', states: [['off', 'Schalter ist aus'], ['on', 'Schalter ist an']] },
+    pressure_plate: { check: 'Druckplatten-Check', states: [['up', 'Druckplatte nicht gedrückt'], ['down', 'Druckplatte gedrückt']] },
+};
+
+// Which of a sprite's two pictures for this trait are missing: [[role, label], …]
+function level_check_missing_states(sprite, trait) {
+    const pair = LEVEL_CHECK_STATE_PAIRS[trait];
+    if (!pair) return [];
+    const states = Array.isArray(sprite?.states) ? sprite.states : [];
+    return pair.states.filter(([role]) => !states.some(state => role in (state?.traits?.[trait] ?? {})));
+}
+
 function level_check_trait_word(trait) {
     const label = (typeof SPRITE_TRAITS !== 'undefined' && SPRITE_TRAITS[trait]?.label) || LEVEL_CHECK_TRAIT_FALLBACK[trait] || trait;
     return `„${label}“`;
@@ -131,6 +150,28 @@ function sprite_pitfalls(sprite, name = 'Dieses Sprite', game_properties = null)
             text: `${it} ist eine Falle, auf der man stehen kann („man kann nicht von oben reinfallen“). Wer darauf landet, bekommt keinen Schaden – nur wer von der Seite hineinläuft. Soll sie auch beim Draufspringen schaden, nimm „man kann nicht von oben reinfallen“ weg.` });
     }
 
+    // the pictures of a door, a switch, a pressure plate
+    for (const trait of Object.keys(LEVEL_CHECK_STATE_PAIRS)) {
+        if (!has(trait)) continue;
+        const missing = level_check_missing_states(sprite, trait);
+        if (!missing.length) continue;
+        const roles = level_check_and(missing.map(([, label]) => `„${label}“`));
+        const how = `Zeichne ${missing.length > 1 ? 'beide Bilder als eigene Zustände' : 'das Bild als eigenen Zustand'} und gib ${missing.length > 1 ? 'ihnen' : 'ihm'} unter „Zustände“ mit „Rolle zuweisen“ die Rolle${missing.length > 1 ? 'n' : ''} ${roles}.`;
+        let why;
+        if (trait === 'door') {
+            const no_open = missing.some(([role]) => role === 'open');
+            const no_closed = missing.some(([role]) => role === 'closed');
+            why = (no_open ? 'Ohne „geöffnet“ geht die Tür nie auf – auch nicht mit dem richtigen Schlüssel. ' : '') +
+                (no_closed ? 'Ohne „geschlossen“ sieht die geschlossene Tür aus wie ihr erster Zustand – vielleicht offen, obwohl man nicht durchkommt. ' : '');
+        } else if (trait === 'switch') {
+            why = 'Der Schalter sendet zwar sein Signal, aber man sieht nicht, ob er an oder aus ist – es sieht aus, als passiere nichts. ';
+        } else {
+            why = 'Die Druckplatte sendet zwar ihr Signal, aber man sieht nicht, ob sie gedrückt ist. ';
+        }
+        out.push({ id: `${trait}_states`, severity: 'problem',
+            text: `${LEVEL_CHECK_STATE_PAIRS[trait].check}: ${it} ist ${trait === 'door' ? 'eine Tür' : trait === 'switch' ? 'ein Schalter' : 'eine Druckplatte'}, aber ${missing.length > 1 ? 'kein Zustand hat die Rollen' : 'kein Zustand hat die Rolle'} ${roles}. ${why}${how}` });
+    }
+
     const lives = Number(traits.pickup?.lives) || 0;
     if (lives > 0 && game_properties) {
         // game.js: absent = 5 and 5
@@ -194,23 +235,119 @@ function level_pitfalls(levels, level_index, { traits_of, name_of, map = null })
     // the Signale-Übersicht's: something waits for a Code nothing sends,
     // something sends what nothing reacts to (exits waiting: the Levelübersicht said so)
     if (typeof signal_rules === 'function') {
-        for (const card of signal_rules(level, traits_of, (ref) => name_of(ref))) {
-            const code_text = typeof signal_code_text === 'function' ? signal_code_text(card.code, card.name) : `Code ${card.code}`;
-            const place = (line) => {
-                const object = line?.objects?.find(o => o.kind === 'sprite');
-                return object ? { layer_index: object.layer_index, placed_index: object.placed_index } : null;
-            };
+        const cards = signal_rules(level, traits_of, (ref) => name_of(ref));
+        const code_text_of = (code) => {
+            const card = cards.find(c => c.code === code);
+            return typeof signal_code_text === 'function' ? signal_code_text(code, card?.name) : `Code ${code}`;
+        };
+        const place_of = (object) => object ? { layer_index: object.layer_index, placed_index: object.placed_index } : null;
+        const place = (line) => place_of(line?.objects?.find(o => o.kind === 'sprite'));
+        const placed_at = (object) => level.layers?.[object.layer_index]?.sprites?.[object.placed_index];
+        const named = (object) => `»${name_of(placed_at(object)?.[0])}«`;
+        const sprites_of = (lines, role) => lines.flatMap(line => line.objects).filter(o => o.kind === 'sprite' && o.role === role);
+        // the keys of this level, with their Codes
+        const keys_here = cards.flatMap(card => sprites_of(card.senders, 'key').map(object => ({ object, code: card.code })));
+        const key_codes_explained = new Set();
+        // Locked doors first: what keeps each of them shut (a key with another
+        // Code, a key in another level, no key at all) – said about the door
+        // and the key, instead of a Code waiting for a sender
+        const door_cards = new Set();
+        for (const card of cards) {
+            if (card.problem !== 'no_sender') continue;
+            const waiting = card.receivers.filter(line => !line.objects.every(o => o.role === 'level_complete' || o.setting === 'signal_level_complete'));
+            const doors = sprites_of(waiting, 'door').filter(o => (placed_at(o)?.[3]?.door?.door_reaction ?? 'unlock') === 'unlock');
+            if (!doors.length || waiting.some(line => line.objects.some(o => !doors.includes(o)))) continue;
+            door_cards.add(card);
+            const door = named(doors[0]) + (doors.length > 1 ? ` (und ${doors.length - 1} weitere)` : '');
+            const code_text = code_text_of(card.code);
+            const elsewhere = level_check_keys_elsewhere(levels, level_index, card.code, traits_of);
+            const other_keys = keys_here.filter(k => k.code !== card.code);
+            let text;
+            if (other_keys.length) {
+                const key = other_keys[0];
+                key_codes_explained.add(key.code);
+                text = `Die Tür ${door} ist verschließbar und wartet auf ${code_text}, aber der Schlüssel ${named(key.object)} hat ${code_text_of(key.code)}. So passen sie nicht zusammen, und die Tür geht nie auf. Gib beiden denselben Code.`;
+            } else if (elsewhere !== null) {
+                const other = levels[elsewhere];
+                const level_name = other?.properties?.name || `Level ${elsewhere + 1}`;
+                text = `Die Tür ${door} ist verschließbar und wartet auf ${code_text}. Ein Schlüssel mit diesem Code liegt in »${level_name}« – aber ein Schlüssel öffnet nur Türen in seinem eigenen Level. Leg einen Schlüssel in dieses Level. Soll einer fürs ganze Spiel gelten: Gib ihm „bleibt fürs ganze Spiel“ und nimm in den Einstellungen dieses Levels „sendet, wenn die Spielfigur … hat“.`;
+            } else {
+                text = `Die Tür ${door} ist verschließbar, aber in diesem Level gibt es keinen Schlüssel, Schalter und keine Druckplatte mit ${code_text}. So geht sie nie auf. Leg einen Schlüssel mit ${code_text} hinein – oder stell bei der Tür „ist verschließbar“ auf „nein“.`;
+            }
+            out.push({ id: 'door_never_opens', severity: 'problem', place: place_of(doors[0]), text });
+        }
+        // doors with a key's Code that are not locked: the key changes nothing
+        const open_doors = level_check_unlocked_doors(level, traits_of);
+        for (const card of cards) {
+            const code_text = code_text_of(card.code);
             if (card.problem === 'no_sender') {
+                if (door_cards.has(card)) continue;
                 const waiting = card.receivers.filter(line => !line.objects.every(o => o.role === 'level_complete' || o.setting === 'signal_level_complete'));
                 if (!waiting.length) continue;
                 out.push({ id: 'signal_no_sender', severity: 'problem', place: place(waiting[0]),
                     text: `Auf ${code_text} wartet etwas, aber nichts in diesem Level sendet ihn. Darum passiert nie: ${waiting[0].text}. Gib einem Schalter, Schlüssel oder Signalbereich denselben Code.` });
             } else if (card.problem === 'no_receiver' && card.senders.length) {
-                out.push({ id: 'signal_no_receiver', severity: 'hint', place: place(card.senders[0]),
-                    text: `Wenn ${card.senders[0].text}, wird ${code_text} gesendet – aber nichts in diesem Level reagiert darauf. Gib einer Tür, Ebene oder einem Ausgang denselben Code.` });
+                const keys = sprites_of(card.senders, 'key');
+                if (keys.length && key_codes_explained.has(card.code)) continue;
+                const unlocked = open_doors.find(d => d.code === card.code);
+                if (keys.length && unlocked) {
+                    out.push({ id: 'key_door_unlocked', severity: 'hint', place: place_of(keys[0]),
+                        text: `Der Schlüssel ${named(keys[0])} hat denselben Code wie die Tür ${named(unlocked.object)} – aber die Tür ist nicht verschließbar und geht auch ohne Schlüssel auf. Soll man den Schlüssel brauchen: Stell bei der Tür „ist verschließbar“ auf „ja“.` });
+                } else if (keys.length) {
+                    const elsewhere = level_check_keys_elsewhere(levels, level_index, card.code, traits_of, 'door');
+                    const where = elsewhere === null ? '' :
+                        ` Die Tür mit diesem Code liegt in »${levels[elsewhere]?.properties?.name || `Level ${elsewhere + 1}`}« – aber ein Schlüssel öffnet nur Türen in seinem eigenen Level.`;
+                    out.push({ id: 'key_no_door', severity: elsewhere === null ? 'hint' : 'problem', place: place_of(keys[0]),
+                        text: `Der Schlüssel ${named(keys[0])} hat ${code_text}, aber keine Tür in diesem Level wartet darauf – er öffnet nichts.${where || ' Gib ihm den Code der Tür, die er öffnen soll.'}` });
+                } else {
+                    out.push({ id: 'signal_no_receiver', severity: 'hint', place: place(card.senders[0]),
+                        text: `Wenn ${card.senders[0].text}, wird ${code_text} gesendet – aber nichts in diesem Level reagiert darauf. Gib einer Tür, Ebene oder einem Ausgang denselben Code.` });
+                }
             }
         }
     }
+    return out;
+}
+
+// A key (trait 'door': a locked door) with this Code in another level (that
+// level's index), or null. Only levels in use; a key opens doors only in its
+// own level (app.js found_keys).
+function level_check_keys_elsewhere(levels, level_index, code, traits_of, trait = 'key') {
+    for (let li = 0; li < (levels ?? []).length; li++) {
+        if (li === level_index || !levels[li]?.properties?.use_level) continue;
+        for (const layer of levels[li].layers ?? []) {
+            if (layer?.type !== 'sprites') continue;
+            for (const placed of layer.sprites ?? []) {
+                const traits = traits_of(placed?.[0]);
+                if (!traits || !(trait in traits) || typeof placed_signal_roles !== 'function') continue;
+                if (trait === 'door') {
+                    const props = placed?.[3]?.door ?? {};
+                    const locked = typeof door_setting === 'function' ? door_setting(props.lockable, traits.door?.lockable) : true;
+                    if (!locked || (props.door_reaction ?? 'unlock') !== 'unlock') continue;
+                }
+                if (placed_signal_roles(placed, traits, traits_of).some(r => r.role.trait === trait && r.code === code)) return li;
+            }
+        }
+    }
+    return null;
+}
+
+// The doors of a level that react to a key by unlocking but are not locked
+// (they open anyway): [{ object, code }]
+function level_check_unlocked_doors(level, traits_of) {
+    const out = [];
+    (level?.layers ?? []).forEach((layer, li) => {
+        if (layer?.type !== 'sprites') return;
+        (layer.sprites ?? []).forEach((placed, pi) => {
+            const traits = traits_of(placed?.[0]);
+            if (!traits || !('door' in traits)) return;
+            const props = placed?.[3]?.door ?? {};
+            if ((props.door_reaction ?? 'unlock') !== 'unlock') return;
+            if (typeof door_setting === 'function' ? door_setting(props.lockable, traits.door?.lockable) : traits.door?.lockable) return;
+            const code = typeof stored_signal_code === 'function' ? stored_signal_code(props.signal_code) : Number(props.signal_code ?? 0);
+            if (code !== null) out.push({ object: { kind: 'sprite', layer_index: li, placed_index: pi, role: 'door' }, code });
+        });
+    });
     return out;
 }
 
@@ -496,5 +633,6 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { sprite_pitfalls, level_pitfalls, game_pitfalls, play_check_live, play_check_box };
+    module.exports = { sprite_pitfalls, level_pitfalls, game_pitfalls, play_check_live, play_check_box,
+        LEVEL_CHECK_STATE_PAIRS, level_check_missing_states };
 }

@@ -284,7 +284,16 @@
         -webkit-touch-callout: none;
       }
     </style>
-    <script>window.CACHE_BUSTER = '#{@@cache_buster}';</script>
+    <script>
+        window.CACHE_BUSTER = '#{@@cache_buster}';
+        window.DEVELOPMENT = '#{DEVELOPMENT ? '1' : '0'}' === '1';
+        // a script that did not arrive (the server restarting while the page
+        // loads): the game cannot run – the studio loads its Spielen frame
+        // again before it plays (studio.js)
+        window.addEventListener('error', function (e) {
+            if (e.target && e.target.tagName === 'SCRIPT') window.frame_broken = true;
+        }, true);
+    </script>
     <script src="three.min.js?#{@@cache_buster}"></script>
     <script src="jquery-3.6.0.min.js"></script>
     <script src="misc.js?#{@@cache_buster}"></script>

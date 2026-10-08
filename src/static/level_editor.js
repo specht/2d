@@ -1073,7 +1073,8 @@ class LevelEditor {
         this.placed_properties_for = null;
         this.refresh();
         $('#menu_placed_properties .selection-replace').show();
-        $('#menu_placed_properties')[0]?.scrollTo?.({ top: 0 });
+        // the column scrolls (styles.css .level-right-column): the choice in view
+        $('#menu_placed_properties .selection-replace')[0]?.scrollIntoView?.({ block: 'nearest' });
         this.show_level_notice?.('Wähle rechts unter „Auswahl“ das neue Sprite.');
     }
 

@@ -702,6 +702,18 @@ document.addEventListener("DOMContentLoaded", async function (event) {
             // if the game frame's graphics fail, the same run starts again (webgl_recovery.js)
             window.studio_last_playtest = playtest;
             $('#play_iframe').hide();
+            // a frame whose scripts did not all arrive cannot play: load it
+            // again first, then this run (at most every 30 s – no endless loop)
+            const iframe = $('#play_iframe')[0];
+            let broken = false;
+            try { broken = !!iframe.contentWindow.frame_broken || typeof iframe.contentWindow.THREE === 'undefined' || !iframe.contentWindow.game; } catch { }
+            if (broken && iframe.contentDocument?.readyState === 'complete' && Date.now() - (window.play_frame_reloaded_at ?? 0) > 30000) {
+                window.play_frame_reloaded_at = Date.now();
+                window.studio_pending_playtest = playtest;
+                iframe.addEventListener('load', () => { if (current_pane === 'play') { current_pane = null; show_pane('play'); } }, { once: true });
+                try { iframe.contentWindow.location.reload(); } catch { iframe.src = iframe.src; }
+                return changed;
+            }
             // the game as it is, without saving it: a play copy (play_copies.rb),
             // no version of anything – only Speichern makes one
             api_call('/api/play_copy', { game: game.data }, function (data) {

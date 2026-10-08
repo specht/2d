@@ -134,10 +134,12 @@ test('the Levelübersicht and the Signale-Übersicht speak here, too', () => {
     const found = game_pitfalls(data);
     const a = found.filter(f => f.level_index === 0);
     assert.ok(a.some(f => f.id === 'level_map' && /nicht mehr gibt/.test(f.text)), JSON.stringify(a));
-    const waiting = a.find(f => f.id === 'signal_no_sender');
+    // a locked door that waits for a Code: said about the door
+    const waiting = a.find(f => f.id === 'door_never_opens');
     assert.ok(waiting, JSON.stringify(a));
-    assert.match(waiting.text, /Auf Code 4 wartet etwas/);
+    assert.match(waiting.text, /Die Tür »Tür« ist verschließbar, aber in diesem Level gibt es keinen Schlüssel, Schalter und keine Druckplatte mit Code 4/);
     assert.deepEqual(waiting.place, { layer_index: 0, placed_index: 1 });
+    assert.ok(!a.some(f => f.id === 'signal_no_sender'));
     const b = found.filter(f => f.level_index === 1);
     assert.deepEqual(b.map(f => [f.id, f.severity]), [['signal_no_receiver', 'hint']]);
     assert.match(b[0].text, /Code 7 gesendet – aber nichts in diesem Level reagiert darauf/);
@@ -176,4 +178,45 @@ test('while the game runs: a Leben the figure walks over with all its lives, an 
     game.running = false;
     touch.level_complete.exit_open = false;
     assert.deepEqual(play_check_live(game, name_of), []);
+});
+
+test('Tür-, Schalter- und Druckplatten-Check: both pictures are needed', () => {
+    const state = (traits) => ({ traits, frames: [{}], properties: {} });
+    const door = (states) => sprite_pitfalls({ traits: { door: {} }, states }, 'Tor');
+    assert.deepEqual(ids(door([state({ door: { closed: {} } }), state({ door: { open: {} } })])), []);
+    const no_open = door([state({ door: { closed: {} } })]);
+    assert.deepEqual(ids(no_open), ['door_states']);
+    assert.match(no_open[0].text, /^Tür-Check: »Tor« ist eine Tür, aber kein Zustand hat die Rolle „geöffnet“\. Ohne „geöffnet“ geht die Tür nie auf/);
+    assert.match(no_open[0].text, /„Rolle zuweisen“ die Rolle „geöffnet“\.$/);
+    const none = door([state({})]);
+    assert.match(none[0].text, /die Rollen „geschlossen“ und „geöffnet“/);
+    const lever = sprite_pitfalls({ traits: { switch: {} }, states: [state({ switch: { off: {} } })] }, 'Hebel');
+    assert.deepEqual(lever.map(f => [f.id, f.severity]), [['switch_states', 'problem']]);
+    assert.match(lever[0].text, /^Schalter-Check: .*„Schalter ist an“/);
+    const plate = sprite_pitfalls({ traits: { pressure_plate: {} }, states: [] }, 'Platte');
+    assert.match(plate[0].text, /^Druckplatten-Check: .*„Druckplatte nicht gedrückt“ und „Druckplatte gedrückt“/);
+});
+
+test('a key and a door that do not work together', () => {
+    const state = (traits) => ({ traits, frames: [{}], properties: {} });
+    const both = [state({ door: { closed: {} } }), state({ door: { open: {} } })];
+    const sprites = [sprite('pip', 'Pip', { actor: {} }), { ...sprite('door', 'Tor', { door: { lockable: true } }), states: both },
+        { ...sprite('gate', 'Gartentor', { door: { lockable: false } }), states: both }, sprite('key', 'Schlüssel', { key: {} })];
+    const check = (levels) => game_pitfalls({ properties: {}, sprites, levels }).filter(f => f.level_index !== null);
+    // another Code: one finding about the pair, nothing about a Code nobody sends
+    const mismatch = check([level([['pip', 0, 24], ['door', 48, 0, { door: { signal_code: 3 } }], ['key', 24, 0, { key: { signal_code: 2 } }]])]);
+    assert.deepEqual(mismatch.map(f => f.id), ['door_never_opens']);
+    assert.match(mismatch[0].text, /wartet auf Code 3, aber der Schlüssel »Schlüssel« hat Code 2\. .* Gib beiden denselben Code\./);
+    // the same Code: nothing to say
+    assert.deepEqual(check([level([['pip', 0, 24], ['door', 48, 0, { door: { signal_code: 3 } }], ['key', 24, 0, { key: { signal_code: 3 } }]])]), []);
+    // the key in one level, the door in the next: a key opens doors only in its own level
+    const apart = check([level([['pip', 0, 24], ['key', 24, 0, { key: { signal_code: 5 } }]], { id: 'a', name: 'Wald' }),
+        level([['pip', 0, 24], ['door', 48, 0, { door: { signal_code: 5 } }]], { id: 'b', name: 'Burg' })]);
+    assert.deepEqual(apart.map(f => [f.id, f.level_index, f.severity]), [['key_no_door', 0, 'problem'], ['door_never_opens', 1, 'problem']]);
+    assert.match(apart[0].text, /Die Tür mit diesem Code liegt in »Burg«/);
+    assert.match(apart[1].text, /liegt in »Wald« – aber ein Schlüssel öffnet nur Türen in seinem eigenen Level/);
+    // a door that is not locked opens anyway: the key is not needed
+    const unlocked = check([level([['pip', 0, 24], ['gate', 48, 0, { door: { signal_code: 1 } }], ['key', 24, 0, { key: { signal_code: 1 } }]])]);
+    assert.deepEqual(unlocked.map(f => [f.id, f.severity]), [['key_door_unlocked', 'hint']]);
+    assert.match(unlocked[0].text, /»Gartentor« – aber die Tür ist nicht verschließbar/);
 });

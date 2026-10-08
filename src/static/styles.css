@@ -575,6 +575,39 @@ body {
     content: '▾';
 }
 
+/* Tür-, Schalter-, Druckplatten-Check (game.js add_state_pair_help): green
+   when both pictures are there, open and in warning colours while one is missing */
+.menu .trait-help.state-pair > summary {
+    color: #6dcd8d;
+}
+.menu .trait-help.state-pair-missing {
+    border: 1px solid rgba(255, 205, 117, 0.55);
+    border-radius: 6px;
+    background: rgba(255, 205, 117, 0.08);
+    padding-bottom: 6px;
+}
+.menu .trait-help.state-pair-missing > summary {
+    color: #ffcd75;
+    font-weight: 600;
+}
+.menu .trait-help .state-pair-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 5px;
+}
+.menu .trait-help .state-pair-row .fa {
+    color: #6dcd8d;
+}
+.menu .trait-help .state-pair-row .fa.missing {
+    color: #ffcd75;
+}
+.menu .trait-help .state-pair-advice {
+    margin-top: 6px;
+    font-size: 0.9em;
+    color: #ffcc66;
+}
+
 .menu .trait-warning {
     margin: 4px 0 8px 0;
     color: #ffcd75;
@@ -6454,7 +6487,11 @@ button.resize-cell.active {
     margin-top: 6px;
 }
 
-/* Level pane, right: levels, layers, and the selection taking the rest of the height */
+/* Level pane, right: levels, layers, and the selection taking the rest of the
+   height. One scrollbar only: the column's. When everything fits, the
+   selection fills the rest; when it does not (settings unfolded, a long
+   selection), the selection keeps its full height and the column scrolls –
+   no second scrolling box inside it. */
 .level-right-column {
     max-height: none;
     height: calc(100vh - 92px);
@@ -6466,22 +6503,20 @@ button.resize-cell.active {
     flex: none;
 }
 .level-right-column > .selection-group {
-    flex: 1 1 auto;
+    flex: 1 0 auto;
     min-height: 140px;
     display: flex;
     flex-direction: column;
 }
 .selection-group > #menu_placed_properties_container {
-    flex: 1 1 auto;
-    min-height: 0;
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
     margin-bottom: 0;
 }
 .selection-group #menu_placed_properties {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
+    flex: 1 0 auto;
+    overflow: visible;
 }
 .level-list {
     max-height: min(196px, 22vh);

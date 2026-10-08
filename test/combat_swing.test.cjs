@@ -312,7 +312,7 @@ test('Generic Nahkampfangriff editor displays and edits modern and legacy attack
     const { melee_attack_for_editor, add_melee_trait } = require('../src/static/combat_melee_trait.js');
     const source = fs.readFileSync(path.join(__dirname, '../src/static/game.js'), 'utf8');
     const start = source.indexOf('    add_melee_attack_trait_controls(div, si) {');
-    const end = source.indexOf('    add_door_state_help(div, si) {', start);
+    const end = source.indexOf('    add_state_pair_help(div, si, trait) {', start);
     assert.ok(start >= 0 && end > start, 'Missing generic editor controls');
     const controls = [];
     const widget = (type) => class {
@@ -402,6 +402,7 @@ test('Generic Nahkampfangriff editor displays and edits modern and legacy attack
 test('Door and melee share compact disclosure help, with live door-state status', () => {
     const fs = require('node:fs');
     const path = require('node:path');
+    const { LEVEL_CHECK_STATE_PAIRS, level_check_missing_states } = require('../src/static/level_check.js');
     const source = fs.readFileSync(path.join(__dirname, '../src/static/game.js'), 'utf8');
     const start = source.indexOf('    add_trait_help(div, label, explanation = null) {');
     const end = source.indexOf('    add_state_trait(sprite_trait, trait) {', start);
@@ -410,41 +411,51 @@ test('Door and melee share compact disclosure help, with live door-state status'
     const nodes = [];
     function $ (markup) {
         const node = {
-            tag: markup.slice(1, -1), nodes: [], value: '', styles: {},
+            tag: markup.slice(1, -1), nodes: [], value: '', classes: new Set(), props: {},
             appendTo(parent) { parent.nodes.push(this); return this; },
-            css(name, value) {
-                if (typeof name === 'string') this.styles[name] = value;
-                else Object.assign(this.styles, name);
-                return this;
-            },
+            append(...children) { this.nodes.push(...children); return this; },
             text(value) { if (value === undefined) return this.value;
                 this.value = value; return this; },
             children(tag) { return this.nodes.find(node => node.tag === tag); },
             empty() { this.nodes = []; return this; },
-            addClass() { return this; },
+            addClass(c) { for (const name of String(c).split(' ')) this.classes.add(name); return this; },
+            toggleClass(c, on) { if (on) this.classes.add(c); else this.classes.delete(c); return this; },
+            prop(name, value) { this.props[name] = value; return this; },
         };
         nodes.push(node);
         return node;
     }
-    const Editor = new Function('$', `return class Editor { ${source.slice(start, end)} };`)($);
+    const Editor = new Function('$', 'LEVEL_CHECK_STATE_PAIRS', 'level_check_missing_states',
+        `return class Editor { ${source.slice(start, end)} };`)($, LEVEL_CHECK_STATE_PAIRS, level_check_missing_states);
     const editor = new Editor();
     const root = $('root');
     const melee = editor.add_trait_help(root, 'Hinweise zum Nahkampfangriff', 'Nur die Figurenbilder reichen.');
     assert.equal(melee.tag, 'details');
     assert.equal(melee.children('summary').text(), 'Hinweise zum Nahkampfangriff');
-    assert.ok(!('open' in melee), 'Help is initially collapsed');
+    assert.ok(!('open' in melee.props), 'Help is initially collapsed');
     assert.equal(melee.nodes.find(n => n.tag === 'p').text(), 'Nur die Figurenbilder reichen.');
 
-    editor.data = { sprites: [{ states: [{ traits: { door: { closed: {} } } }] }] };
-    editor.add_door_state_help(root, 0);
+    editor.data = { sprites: [{ id: 'tor', states: [{ traits: { door: { closed: {} } } }] }] };
+    editor.state_pair_helps = [];
+    editor.add_state_pair_help(root, 0, 'door');
     const door = root.nodes.find(node => node !== melee && node.tag === 'details');
     assert.ok(door, 'Door checklist uses the same disclosure');
     const summary = door.children('summary');
     assert.equal(summary.text(), 'Tür-Check: 1/2 Zustände');
-    assert.equal(summary.styles.color, '#ffcc66');
+    // something missing: open and in warning colours, with what to do
+    assert.ok(door.classes.has('state-pair-missing'));
+    assert.equal(door.props.open, true);
+    const advice = () => door.nodes.find(node => node.classes.has('state-pair-advice')).text();
+    assert.match(advice(), /Rolle zuweisen/);
     editor.data.sprites[0].states.push({ traits: { door: { open: {} } } });
-    editor.door_state_help();
+    for (const update of editor.state_pair_helps) update();
     assert.equal(summary.text(), 'Tür-Check: 2/2 Zustände');
-    assert.equal(summary.styles.color, '#6dcd8d');
-    assert.equal(door.nodes.find(node => node.tag === 'div' && node.styles.color === '#ffcc66').text(), '');
+    assert.ok(!door.classes.has('state-pair-missing'));
+    assert.equal(advice(), '');
+
+    // a switch has its own check
+    editor.data.sprites.push({ id: 'hebel', states: [{ traits: { switch: { off: {} } } }] });
+    editor.add_state_pair_help(root, 1, 'switch');
+    const lever = root.nodes.filter(node => node.tag === 'details').at(-1);
+    assert.equal(lever.children('summary').text(), 'Schalter-Check: 1/2 Zustände');
 });
