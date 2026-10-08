@@ -89,9 +89,88 @@ function key_warning(code) {
     return null;
 }
 
+// ------------------------------------------------ the key over a door or a sign
+// In the game, a small key cap above a door, a sign, a switch … says which key
+// does it (app.js). It is drawn like the F cap the game always had: a pixel font
+// 5 rows high (most letters 3 wide), on a cap 9 pixels high and as wide as its
+// label – the F cap comes out pixel for pixel as before.
+const KEY_CAP_GLYPHS = {
+    A: ['.#.', '#.#', '###', '#.#', '#.#'], B: ['##.', '#.#', '##.', '#.#', '##.'],
+    C: ['.##', '#..', '#..', '#..', '.##'], D: ['##.', '#.#', '#.#', '#.#', '##.'],
+    E: ['###', '#..', '##.', '#..', '###'], F: ['###', '#..', '##.', '#..', '#..'],
+    G: ['.##', '#..', '#.#', '#.#', '.##'], H: ['#.#', '#.#', '###', '#.#', '#.#'],
+    I: ['###', '.#.', '.#.', '.#.', '###'], J: ['..#', '..#', '..#', '#.#', '.#.'],
+    K: ['#.#', '#.#', '##.', '#.#', '#.#'], L: ['#..', '#..', '#..', '#..', '###'],
+    M: ['#...#', '##.##', '#.#.#', '#...#', '#...#'], N: ['#..#', '##.#', '#.##', '#..#', '#..#'],
+    O: ['.#.', '#.#', '#.#', '#.#', '.#.'], P: ['##.', '#.#', '##.', '#..', '#..'],
+    Q: ['.#.', '#.#', '#.#', '##.', '.##'], R: ['##.', '#.#', '##.', '#.#', '#.#'],
+    S: ['.##', '#..', '.#.', '..#', '##.'], T: ['###', '.#.', '.#.', '.#.', '.#.'],
+    U: ['#.#', '#.#', '#.#', '#.#', '###'], V: ['#.#', '#.#', '#.#', '#.#', '.#.'],
+    W: ['#...#', '#...#', '#.#.#', '##.##', '#...#'], X: ['#.#', '#.#', '.#.', '#.#', '#.#'],
+    Y: ['#.#', '#.#', '.#.', '.#.', '.#.'], Z: ['###', '..#', '.#.', '#..', '###'],
+    0: ['###', '#.#', '#.#', '#.#', '###'], 1: ['.#.', '##.', '.#.', '.#.', '###'],
+    2: ['##.', '..#', '.#.', '#..', '###'], 3: ['##.', '..#', '.#.', '..#', '##.'],
+    4: ['#.#', '#.#', '###', '..#', '..#'], 5: ['###', '#..', '##.', '..#', '##.'],
+    6: ['.##', '#..', '###', '#.#', '###'], 7: ['###', '..#', '.#.', '.#.', '.#.'],
+    8: ['###', '#.#', '###', '#.#', '###'], 9: ['###', '#.#', '###', '..#', '##.'],
+    // a sixth row on top: the dots (they sit in the row above the letters)
+    'Ä': ['#.#', '.#.', '#.#', '###', '#.#', '#.#'], 'Ö': ['#.#', '.#.', '#.#', '#.#', '#.#', '.#.'],
+    'Ü': ['#.#', '...', '#.#', '#.#', '#.#', '###'], 'ß': ['.#.', '#.#', '##.', '#.#', '##.'],
+    ',': ['..', '..', '..', '.#', '#.'], '.': ['.', '.', '.', '.', '#'], '-': ['...', '...', '###', '...', '...'],
+    '+': ['...', '.#.', '###', '.#.', '...'], '#': ['#.#', '###', '#.#', '###', '#.#'],
+    '<': ['..#', '.#.', '#..', '.#.', '..#'], '^': ['.#.', '#.#', '...', '...', '...'],
+    '´': ['.#', '#.', '..', '..', '..'], '?': ['##.', '..#', '.#.', '...', '.#.'],
+    '←': ['..#..', '.#...', '#####', '.#...', '..#..'], '→': ['..#..', '...#.', '#####', '...#.', '..#..'],
+    '↑': ['..#..', '.###.', '#.#.#', '..#..', '..#..'], '↓': ['..#..', '..#..', '#.#.#', '.###.', '..#..'],
+};
+
+// What the cap says: short (it stands above a door), in capitals.
+function key_cap_text(code) {
+    const short = {
+        Space: 'LEER', Enter: 'ENTER', NumpadEnter: 'ENTER', Tab: 'TAB', Backspace: 'RÜCK',
+        ShiftLeft: 'SHIFT', ShiftRight: 'SHIFT', ControlLeft: 'STRG', ControlRight: 'STRG',
+        AltLeft: 'ALT', AltRight: 'ALTGR', MetaLeft: 'WIN', MetaRight: 'WIN', CapsLock: 'FEST',
+        Insert: 'EINFG', Delete: 'ENTF', Home: 'POS1', End: 'ENDE', PageUp: 'BILD↑', PageDown: 'BILD↓',
+    };
+    if (short[code]) return short[code];
+    const m = String(code).match(/^Numpad(\d)$/);
+    if (m) return m[1];
+    const text = [...key_label(String(code)).toUpperCase()].filter(ch => ch in KEY_CAP_GLYPHS).join('').slice(0, 6);
+    return text || '?';
+}
+
+// The cap as rows of pixels, one letter per colour (app.js paints them):
+// a b c / g – the corners (half see-through), b – light edge (top, left),
+// e – dark edge (bottom, right), d – the face, f – the label.
+// → { width, height: 9, rows: [string × 9] }
+function key_cap_pixels(text) {
+    const glyphs = [...String(text)].map(ch => KEY_CAP_GLYPHS[ch] ?? KEY_CAP_GLYPHS['?']);
+    const label_width = glyphs.reduce((sum, g) => sum + g[0].length, 0) + Math.max(0, glyphs.length - 1);
+    const width = label_width + 6, height = 9;
+    const rows = Array.from({ length: height }, (_, y) => {
+        if (y === 0) return 'a' + 'b'.repeat(width - 2) + 'c';
+        if (y === height - 1) return 'c' + 'e'.repeat(width - 2) + 'g';
+        return ('b' + 'd'.repeat(width - 2) + 'e').split('');
+    });
+    let x = 3;
+    for (const glyph of glyphs) {
+        // the letters in rows 2 … 6; a sixth glyph row (umlaut dots) in row 1
+        const top = 7 - glyph.length;
+        glyph.forEach((line, gy) => [...line].forEach((ch, gx) => { if (ch === '#') rows[top + gy][x + gx] = 'f'; }));
+        x += glyph[0].length + 1;
+    }
+    return { width, height, rows: rows.map(r => (Array.isArray(r) ? r.join('') : r)) };
+}
+
+const KEY_CAP_COLORS = {
+    a: [112, 117, 117, 139], b: [112, 118, 118, 255], c: [72, 77, 77, 139], d: [71, 77, 77, 255],
+    e: [32, 35, 35, 255], f: [207, 208, 210, 255], g: [31, 35, 35, 139],
+};
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         GAME_CONTROLS, MAX_KEYS_PER_CONTROL, RESERVED_KEYS, DEFAULT_CONTROL_KEYS,
         valid_key_code, resolve_controls, controls_key_map, key_label, key_warning,
+        KEY_CAP_GLYPHS, KEY_CAP_COLORS, key_cap_text, key_cap_pixels,
     };
 }

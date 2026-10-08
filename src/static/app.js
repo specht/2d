@@ -2491,22 +2491,12 @@ class Game {
 
 		this.overlay_icons_material = {};
 		for (let key in OVERLAY_ICONS) {
-			let texture = new THREE.Texture();
 			let image = new Image();
 			image.src = OVERLAY_ICONS[key][2];
-			texture.image = image;
-			texture.needsUpdate = true;
-			let material = new THREE.ShaderMaterial({
-				uniforms: {
-					texture1: { value: texture },
-				},
-				transparent: true,
-				vertexShader: shaders.get('basic.vs'),
-				fragmentShader: shaders.get('texture.fs'),
-				side: THREE.DoubleSide,
-			});
-			this.overlay_icons_material[key] = material;
+			this.overlay_icons_material[key] = this.overlay_icon_material(image);
 		}
+		// the key cap over doors and signs is made for the game's own key (setup)
+		this.action_icon = null;
 
 		// only games with music need the YouTube player
 		if ((this.data.properties.yt_tag ?? '').length > 0 ||
@@ -3099,9 +3089,11 @@ class Game {
 			}
 		}
 
+		this.action_icon = this.action_key_icon();
 		for (let key in OVERLAY_ICONS) {
-			let width = OVERLAY_ICONS[key][0];
-			let height = OVERLAY_ICONS[key][1];
+			const own = key === 'f_key' ? this.action_icon : null;
+			let width = own ? own.width : OVERLAY_ICONS[key][0];
+			let height = own ? own.height : OVERLAY_ICONS[key][1];
 			let geometry = new THREE.PlaneGeometry(width, height);
 			geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
 			geometry.scale(0.25, -0.25, 1.0);
@@ -3110,7 +3102,7 @@ class Game {
 			uv.setXY(1, 1.0, 0.0);
 			uv.setXY(2, 0.0, 1.0);
 			uv.setXY(3, 1.0, 1.0);
-			let material = this.overlay_icons_material[key];
+			let material = own ? own.material : this.overlay_icons_material[key];
 			let mesh = new THREE.Mesh(geometry, material);
 			this.overlay_mesh_catalogue[key] = mesh;
 		}
@@ -4597,7 +4589,7 @@ class Game {
 			['Laufen', ['linker Kreis']],
 			...(uses.up ? [['Leiter', ['linker Kreis hoch / runter']]] : []),
 			['Springen', ['⤒']],
-			...(uses.action ? [[action_label, ['auf das F tippen']]] : []),
+			...(uses.action ? [[action_label, [`auf das ${key_cap_text(resolve_controls(this.data.properties).action[0])} tippen`]]] : []),
 			...(uses.melee ? [['Nahkampf', ['⚔']]] : []),
 			...(uses.ranged ? [['Fernkampf', ['➶']]] : []),
 		] : (() => {
@@ -4670,7 +4662,47 @@ class Game {
 		this.touch_ranged_button?.bg_element.css(melee ? { right: '13vh', bottom: '33vh' } : { right: '33vh', bottom: '6vh' });
 	}
 
-	// A tap (or click) on a visible "F" box above a door or a sign works like
+	// The material of an icon over a sprite (the key cap over doors and signs).
+	overlay_icon_material(image) {
+		let texture = new THREE.Texture();
+		texture.image = image;
+		texture.needsUpdate = true;
+		return new THREE.ShaderMaterial({
+			uniforms: {
+				texture1: { value: texture },
+			},
+			transparent: true,
+			vertexShader: shaders.get('basic.vs'),
+			fragmentShader: shaders.get('texture.fs'),
+			side: THREE.DoubleSide,
+		});
+	}
+
+	// The key cap over doors, signs, switches and things for sale: the game's
+	// own action key (Einstellungen → Steuerung). F keeps the picture it always
+	// had; another key gets a cap drawn the same way (controls.js
+	// key_cap_pixels), as wide as its name. null: the F picture.
+	action_key_icon() {
+		const code = resolve_controls(this.data.properties).action?.[0] ?? 'KeyF';
+		if (code === 'KeyF' || typeof document === 'undefined') return null;
+		if (this.action_icon?.code === code) return this.action_icon;
+		const SCALE = 4;   // like the F picture: 4 × 4 image pixels per cap pixel
+		const cap = key_cap_pixels(key_cap_text(code));
+		const canvas = document.createElement('canvas');
+		canvas.width = cap.width * SCALE;
+		canvas.height = cap.height * SCALE;
+		const context = canvas.getContext('2d');
+		cap.rows.forEach((row, y) => [...row].forEach((ch, x) => {
+			const [r, g, b, a] = KEY_CAP_COLORS[ch];
+			context.fillStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+			context.fillRect(x * SCALE, y * SCALE, SCALE, SCALE);
+		}));
+		this.action_icon?.material.uniforms.texture1.value.dispose();
+		this.action_icon?.material.dispose();
+		return { code, width: canvas.width, height: canvas.height, material: this.overlay_icon_material(canvas) };
+	}
+
+	// A tap (or click) on a visible key cap above a door or a sign works like
 	// the action key.
 	action_box_at(clientX, clientY) {
 		const rect = this.renderer?.domElement?.getBoundingClientRect?.();
@@ -4682,8 +4714,9 @@ class Game {
 		for (const mesh of this.overlay_meshes ?? []) {
 			if (!mesh.visible) continue;
 			mesh.getWorldPosition(p);
-			// generous: a fingertip is much bigger than the box
-			if (Math.abs(p.x - x) <= 16 && Math.abs(p.y - y) <= 16) return true;
+			// generous: a fingertip is much bigger than the box (a wide cap: wider)
+			const half = Math.max(16, (this.action_icon?.width ?? 0) / 8 + 4);
+			if (Math.abs(p.x - x) <= half && Math.abs(p.y - y) <= 16) return true;
 		}
 		return false;
 	}

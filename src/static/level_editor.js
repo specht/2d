@@ -3457,6 +3457,9 @@ class LevelEditor {
     // that opens only on a Signal says so (and is a receiver on that Code's card).
     build_complete_card(body, rule, interactive) {
         const level = this.game.data.levels[this.level_index];
+        // the game's own action key (Einstellungen → Steuerung)
+        const action_key_name = typeof resolve_controls === 'function' ?
+            key_label(resolve_controls(this.game.data.properties).action[0]) : 'F';
         const box = $('<div class="signal-rule signal-rule-complete">').toggleClass('signal-rule-problem', !!rule.problem).appendTo(body);
         $('<div class="signal-rule-name signal-rule-name-text">').text('Level geschafft').appendTo(box);
         const row = $('<div class="signal-rule-row">').appendTo(box);
@@ -3490,8 +3493,8 @@ class LevelEditor {
                 select.val(current);
                 select.on('change', () => this.set_complete_line(line, { target: select.val() }));
                 if (line.kind === 'exit')
-                    $('<button type="button" class="signal-complete-key">').text('nur mit F').toggleClass('active', line.action_key)
-                        .attr('title', 'An: Die Spielfigur geht erst durch diesen Ausgang, wenn man davor die Aktionstaste (F) drückt.')
+                    $('<button type="button" class="signal-complete-key">').text(`nur mit ${action_key_name}`).toggleClass('active', line.action_key)
+                        .attr('title', `An: Die Spielfigur geht erst durch diesen Ausgang, wenn man davor die Aktionstaste (${action_key_name}) drückt.`)
                         .on('click', () => this.set_complete_line(line, { action_key: !line.action_key })).appendTo(where);
             } else {
                 $('<span>').text(choices.find(([value]) => value === current)?.[1] ?? 'zum nächsten Level').appendTo(where);
