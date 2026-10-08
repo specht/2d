@@ -606,5 +606,19 @@ module Playtesting
                 state.replace(fresh)
             end
         end
+
+        ARCHIVE_NAME = /\A\d{4}-\d{2}-\d{2}-\d{6}\z/
+
+        # The rounds before (reset), newest first: their names (UTC time of the reset).
+        def archives
+            Dir[File.join(@dir, "archive", "*.json")].map { |p| File.basename(p, ".json") }.grep(ARCHIVE_NAME).sort.reverse
+        end
+
+        # One of them, or nil (a name that is not one of them, too).
+        def read_archive(name)
+            return nil unless name.is_a?(String) && name =~ ARCHIVE_NAME
+            path = File.join(@dir, "archive", "#{name}.json")
+            File.exist?(path) ? JSON.parse(File.read(path)) : nil
+        end
     end
 end

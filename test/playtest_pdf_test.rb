@@ -78,10 +78,26 @@ class PlaytestPDFTest < Minitest::Test
             "mood" => 5, "difficulty" => "easy", "reached" => "start", "bugs" => "none", "good" => "Die Figuren", "better" => "Gameplay" })
         Dir.mktmpdir do |dir|
             path = PlaytestPDF.render(state, File.join(dir, "r.pdf"), static: File.expand_path("../src/static", __dir__), gen: dir, games: dir)
-            # the handout and the teacher's overview
-            assert_equal 2, File.binread(path).scan(%r{/Type /Page\b}).size
+            # the handout, the back of its sheet for notes, and the teacher's overview
+            assert_equal 3, File.binread(path).scan(%r{/Type /Page\b}).size
         end
         assert submission
+    end
+
+    # Printed on both sides: every game's handout is a whole number of
+    # sheets, so each team gets its own packet.
+    def test_every_handout_has_an_even_number_of_pages
+        state, = round
+        Dir.mktmpdir do |dir|
+            handout = PlaytestPDF::Handout.new(state, static: File.expand_path("../src/static", __dir__), gen: dir, games: dir)
+            handout.render(File.join(dir, "r.pdf"))
+            ranges = handout.instance_variable_get(:@footers).map { |first, last, _| [first, last] }
+            assert_equal 2, ranges.size
+            ranges.each { |first, last| assert (last - first + 1).even?, ranges.inspect }
+            # one after the other, the first on page 1
+            assert_equal 1, ranges.first.first
+            ranges.each_cons(2) { |(_, a), (b, _)| assert_equal a + 1, b }
+        end
     end
 
     def test_writes_a_pdf_with_a_page_per_game_and_the_overview

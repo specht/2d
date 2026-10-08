@@ -162,6 +162,8 @@
     #feedback .filter { color: var(--muted); font-size: 13px; margin: -2px 0 6px; }
     .pt-controls { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
     .pt-controls .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .pt-controls .pt-pdf { margin-top: 10px; }
+    .pt-controls .pt-pdf .hint { margin: 0; }
     .pt-code { display: inline-flex; align-items: center; gap: 10px; padding: 4px 6px 4px 12px; border: 2px solid var(--accent); border-radius: 10px; margin-right: 6px; }
     .pt-code .label { color: var(--muted); font-size: 13px; }
     .pt-code .value { font: 700 28px/1.1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.12em; color: var(--accent); }
@@ -866,7 +868,61 @@ function playtest_controls(data, in_pot, kids) {
             onclick: (e) => act('new_code', {}, e.currentTarget) }, 'Neuer Code')) : null;
     return el('section', { class: 'pt-section pt-controls' },
         el('div', { class: 'row' }, code, main_button, el('label', {}, 'Ein Test dauert ', minutes), off),
-        el('div', { class: 'hint' }, step, ' Eine neue Runde und die Rückmeldungen zum Drucken: ./playtest.rb reset und ./playtest.rb pdf.'));
+        playtest_pdf_row(data),
+        el('div', { class: 'hint' }, step, ' Eine neue Runde: ./playtest.rb reset (die alte bleibt im Archiv und lässt sich hier weiter drucken).'));
+}
+
+// The Rückmeldungen to print (playtest_pdf.rb): this round or one before. Every
+// game's handout has an even number of pages – printed on both sides, each
+// team gets its own sheets.
+function playtest_pdf_row(data) {
+    const round = el('select', { title: 'Welche Runde' },
+        el('option', { value: '' }, 'diese Runde'),
+        ...(data.archives ?? []).map(name => {
+            // name: the UTC time of the reset (2026-10-08-104512)
+            const m = name.match(/^(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})$/);
+            const when = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6])) : null;
+            return el('option', { value: name }, when ? `Runde bis ${when.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : name);
+        }));
+    if (pt.pdf_round !== undefined) round.value = pt.pdf_round;
+    round.addEventListener('change', () => { pt.pdf_round = round.value; });
+    // the view is drawn again every few seconds: what is going on lives in pt
+    const message = el('span', { class: 'hint pt-pdf-message' }, pt.pdf_message ?? '');
+    const say = (text) => { pt.pdf_message = text; for (const m of document.querySelectorAll('.pt-pdf-message')) m.textContent = text; };
+    const button = el('button', { type: 'button', class: 'pt-pdf-button', disabled: pt.pdf_busy === true,
+        title: 'Für jedes Spiel seine Rückmeldungen zum Austeilen, am Ende eine Übersicht für dich. Beidseitig drucken: Jedes Team bekommt eigene Blätter.',
+        onclick: async () => {
+            pt.pdf_busy = true;
+            for (const b of document.querySelectorAll('.pt-pdf-button')) b.disabled = true;
+            say('Das PDF wird gemacht …');
+            try {
+                const response = await fetch('/api/moderation/playtest_pdf', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: TOKEN, ...(round.value ? { archive: round.value } : {}) }),
+                });
+                if (response.status === 403) { closed(); return; }
+                if (!response.ok) throw new Error(`Der Server antwortet mit ${response.status}.`);
+                if (!(response.headers.get('Content-Type') ?? '').includes('application/pdf')) {
+                    const result = await response.json().catch(() => ({}));
+                    throw new Error(result.error === 'no_prawn' ? 'Auf dem Server fehlt Prawn – den Ruby-Container neu bauen (./config.rb build ruby).' :
+                        result.error === 'unknown_round' ? 'Diese Runde gibt es nicht mehr.' : 'Das PDF ließ sich nicht machen.');
+                }
+                const blob = await response.blob();
+                const name = (response.headers.get('Content-Disposition') ?? '').match(/filename="([^"]+)"/)?.[1] ?? 'rueckmeldungen.pdf';
+                const link = el('a', { href: URL.createObjectURL(blob), download: name });
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+                say(`${name} ist heruntergeladen – beidseitig drucken.`);
+            } catch (e) {
+                say(e.message);
+            } finally {
+                pt.pdf_busy = false;
+                for (const b of document.querySelectorAll('.pt-pdf-button')) b.disabled = false;
+            }
+        } }, '⎙ Rückmeldungen als PDF');
+    return el('div', { class: 'row pt-pdf' }, button, round, message);
 }
 
 // every survey, the newest first; new ones light up

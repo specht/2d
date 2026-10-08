@@ -6,6 +6,7 @@ require "faye/websocket"
 Faye::WebSocket.load_adapter("thin")
 require 'fileutils'
 require "json"
+require "tmpdir"
 require "neo4j_bolt"
 require "sinatra/base"
 require "sinatra/cookies"
@@ -1785,7 +1786,27 @@ class Main < Sinatra::Base
             state = @@playtesting.read
         end
         view = Playtesting.class_view(state, sessions: sessions, seen: seen)
-        respond(view.merge(:now => Time.now.utc.iso8601))
+        respond(view.merge(:now => Time.now.utc.iso8601, :archives => @@playtesting.archives.first(12)))
+    end
+
+    # The Rückmeldungen to print (as ./playtest.rb pdf): of this round, or of
+    # one before ({ archive: name } from the list above). The PDF itself, as a
+    # download; { error } when it cannot be made.
+    post "/api/moderation/playtest_pdf" do
+        data = moderation_request
+        begin
+            require_relative "playtest_pdf"
+        rescue LoadError
+            return respond(:error => "no_prawn")
+        end
+        archive = data["archive"]
+        state = archive ? @@playtesting.read_archive(archive) : @@playtesting.read
+        return respond(:error => "unknown_round") unless state
+        Dir.mktmpdir do |dir|
+            path = PlaytestPDF.render(state, File.join(dir, "rueckmeldungen.pdf"), static: "/static", gen: "/gen", games: "/gen/games")
+            stamp = archive ? archive[0, 15] : Time.now.strftime("%Y-%m-%d-%H%M")
+            respond_raw_with_mimetype_and_filename(File.binread(path), "application/pdf", "rueckmeldungen-#{stamp}.pdf")
+        end
     end
 
     post "/api/moderation/games" do

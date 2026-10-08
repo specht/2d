@@ -252,7 +252,32 @@ module PlaytestPDF
             comments("Das könnte noch besser werden", "better", :arrow, ORANGE, summary)
             comments("Diese Fehler sind aufgefallen", "bug_text", :warning, RED, summary)
             plan_box
+            # printed on both sides, every game gets whole sheets: an odd
+            # number of pages gets a page for notes on the back of its last
+            # sheet (the next handout and the overview start on a new sheet)
+            if (page_number - first_page + 1).odd?
+                start_new_page
+                notes_page
+            end
             @footers << [first_page, page_number, submission]
+        end
+
+        # The back of a handout's last sheet: room for notes.
+        def notes_page
+            continuation_header
+            fill_color GREY
+            font("Plex", style: :bold, size: 13) { text "Platz für #{@several ? 'eure' : 'deine'} Notizen" }
+            fill_color INK
+            move_down 10
+            stroke_color "c9d1db"
+            line_width 0.6
+            y = cursor - 22
+            while y > 10
+                stroke_horizontal_line 0, bounds.width, at: y
+                y -= 26
+            end
+            stroke_color INK
+            line_width 1
         end
 
         def load_game(tag)

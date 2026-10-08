@@ -344,4 +344,18 @@ class PlaytestingTest < Minitest::Test
         Playtesting.control(old, "on")
         assert_equal 4, old["code"].size
     end
+
+    # The moderation page prints rounds before, too: only real archive names
+    def test_the_rounds_before_can_be_read_back_by_name
+        Dir.mktmpdir do |dir|
+            store = Playtesting::Store.new(File.join(dir, "playtesting"))
+            store.transaction { |state| state["minutes"] = 7 }
+            store.reset
+            names = store.archives
+            assert_equal 1, names.size
+            assert_match(/\A\d{4}-\d{2}-\d{2}-\d{6}\z/, names.first)
+            assert_equal 7, store.read_archive(names.first)["minutes"]
+            [nil, "", "../state", "#{names.first}.json", "2026-01-01-000000"].each { |bad| assert_nil store.read_archive(bad) }
+        end
+    end
 end
