@@ -47,6 +47,10 @@ module Playtesting
     # a test that was started but never finished counts as running this long
     # after its time is up (somebody may still be filling in the survey)
     GRACE_MINUTES = 10
+    # „Ich brauche mehr Zeit“: a game that gets good only after a while – a
+    # tester may play on, MORE_TIME_STEP minutes at a time, MORE_TIME_MAX in all
+    MORE_TIME_STEP = 2
+    MORE_TIME_MAX = 4
     # how long a test runs unless the teacher says otherwise (playtest.rb minutes)
     DEFAULT_MINUTES = 3
 
@@ -250,7 +254,28 @@ module Playtesting
     def self.running?(assignment, minutes, now)
         return false if assignment["finished_at"]
         started = Time.parse(assignment["started_at"])
-        now - started < (minutes + GRACE_MINUTES) * 60
+        now - started < (minutes + extra_minutes(assignment) + GRACE_MINUTES) * 60
+    end
+
+    # The minutes a tester asked for on top (more_time).
+    def self.extra_minutes(assignment)
+        assignment["extra_minutes"].to_i.clamp(0, MORE_TIME_MAX)
+    end
+
+    # When the playing of a test ends (then comes the survey).
+    def self.play_ends(assignment, minutes)
+        Time.parse(assignment["started_at"]) + (minutes + extra_minutes(assignment)) * 60
+    end
+
+    # „Ich brauche mehr Zeit“: MORE_TIME_STEP minutes more for this tester's
+    # running test. Returns [assignment, nil] or [nil, error].
+    def self.more_time(state, assignment_id, browser, now = Time.now)
+        assignment = state["assignments"][assignment_id.to_s]
+        return [nil, "unknown_assignment"] unless assignment && assignment["browser"] == browser
+        return [nil, "finished"] if assignment["finished_at"]
+        return [nil, "no_more_time"] if extra_minutes(assignment) + MORE_TIME_STEP > MORE_TIME_MAX
+        assignment["extra_minutes"] = extra_minutes(assignment) + MORE_TIME_STEP
+        [assignment, nil]
     end
 
     def self.feedback_of(state, submission_id)
@@ -387,7 +412,7 @@ module Playtesting
         running = assignments.select { |a| running?(a, minutes, now) && state["submissions"][a["submission"]] }
                              .sort_by { |a| a["started_at"].to_s }.map do |a|
             submission = state["submissions"][a["submission"]]
-            ends = Time.parse(a["started_at"]) + minutes * 60
+            ends = play_ends(a, minutes)
             left = (ends - now).round
             { "name" => a["name"].to_s, "title" => submission["title"], "author" => submission["author"],
               "phase" => left > 0 ? "play" : "survey", "seconds_left" => [left, 0].max, "seconds_over" => [-left, 0].max }
@@ -487,7 +512,7 @@ module Playtesting
             list = assignments.select { |a| a["browser"] == browser }
             running = list.find { |a| running?(a, minutes, now) && state["submissions"][a["submission"]] }
             running_info = running && begin
-                left = ((Time.parse(running["started_at"]) + minutes * 60) - now).round
+                left = (play_ends(running, minutes) - now).round
                 { "title" => state["submissions"][running["submission"]]["title"],
                   "phase" => left > 0 ? "play" : "survey", "seconds_left" => [left, 0].max }
             end
@@ -534,10 +559,13 @@ module Playtesting
 
     def self.assignment_for_client(state, assignment, now = Time.now)
         submission = state["submissions"][assignment["submission"]]
-        ends = Time.parse(assignment["started_at"]) + state["minutes"].to_i * 60
+        minutes = state["minutes"].to_i
+        ends = play_ends(assignment, minutes)
+        extra = extra_minutes(assignment)
         { "id" => assignment["id"], "tag" => assignment["tag"], "title" => submission["title"],
           "author" => submission["author"], "seconds_left" => [(ends - now).round, 0].max,
-          "seconds_total" => state["minutes"].to_i * 60 }
+          "seconds_total" => (minutes + extra) * 60, "extra_minutes" => extra,
+          "more_time" => extra + MORE_TIME_STEP <= MORE_TIME_MAX ? MORE_TIME_STEP : 0 }
     end
 
     # ------------------------------------------------ the file

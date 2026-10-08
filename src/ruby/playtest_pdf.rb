@@ -121,7 +121,9 @@ module PlaytestPDF
     def self.summary(state, submission)
         feedback = Playtesting.feedback_of(state, submission["id"])
         played = feedback.reject { |a| a["answers"]["broken"] }
-        result = { "tests" => feedback.size, "broken" => feedback.size - played.size, "scales" => {}, "choices" => {}, "texts" => {} }
+        result = { "tests" => feedback.size, "broken" => feedback.size - played.size, "scales" => {}, "choices" => {}, "texts" => {},
+                   # „Ich brauche mehr Zeit“: they wanted to play on
+                   "more_time" => feedback.count { |a| Playtesting.extra_minutes(a) > 0 } }
         Playtesting::QUESTIONS.each do |q|
             case q["type"]
             when "scale"
@@ -147,6 +149,15 @@ module PlaytestPDF
     # The words of the scale for an average: 3,6 → "gut".
     def self.scale_word(average)
         Playtesting::SCALE_LABELS[[[average.round, 1].max, 5].min - 1]
+    end
+
+    # A time as the class reads it (German time, also in a container that runs
+    # on UTC): summer time from the last Sunday in March to the last Sunday
+    # in October, 01:00 UTC each.
+    def self.berlin(time)
+        t = time.utc
+        last_sunday = ->(month) { day = Time.utc(t.year, month, 31); day - day.wday * 86400 + 3600 }
+        t.getlocal(t >= last_sunday.(3) && t < last_sunday.(10) ? "+02:00" : "+01:00")
     end
 
     # "Smilli und Charlie" are two: the handout says "ihr" and "euer".
@@ -233,6 +244,11 @@ module PlaytestPDF
 
         # ------------------------------------------------ one game
 
+        # One sheet per game, printed on both sides: the front has the
+        # numbers (header, ratings, the quick questions), the comments start
+        # below them and go on on the back, the plan sits at the bottom of the
+        # back. The comments are made to fit (comment_layout): smaller, in
+        # two columns, shortened – never a third page.
         def game_handout(submission)
             @current = submission
             @several = PlaytestPDF.several_authors?(submission["author"])
@@ -241,6 +257,7 @@ module PlaytestPDF
             summary = PlaytestPDF.summary(@state, submission)
             header(submission, game)
             stats(summary)
+            tested_versions_line(submission)
             if summary["tests"].zero?
                 move_down 16
                 font("Plex", size: 13) do
@@ -248,36 +265,36 @@ module PlaytestPDF
                 end
             end
             ratings(summary) if summary["tests"] > summary["broken"]
-            comments("Das war richtig gut", "good", :star, GREEN, summary)
-            comments("Das könnte noch besser werden", "better", :arrow, ORANGE, summary)
-            comments("Diese Fehler sind aufgefallen", "bug_text", :warning, RED, summary)
+            front_top = cursor - 4
+            start_new_page
+            continuation_header
+            back_top = cursor
+            regions = [{ page: first_page, top: front_top, bottom: 0 },
+                       { page: page_number, top: back_top, bottom: PLAN_HEIGHT + 14 }]
+            layout = comment_layout(comment_sections(summary), regions)
+            draw_comment_layout(layout)
+            go_to_page(first_page + 1)
+            # what is left on the back above the plan: lines for notes
+            notes_lines(layout[:free_top], PLAN_HEIGHT + 14) if layout[:free_top]
             plan_box
-            # printed on both sides, every game gets whole sheets: an odd
-            # number of pages gets a page for notes on the back of its last
-            # sheet (the next handout and the overview start on a new sheet)
-            if (page_number - first_page + 1).odd?
-                start_new_page
-                notes_page
-            end
             @footers << [first_page, page_number, submission]
         end
 
-        # The back of a handout's last sheet: room for notes.
-        def notes_page
-            continuation_header
+        # Lines to write on, from top down to bottom (on the back of the sheet).
+        def notes_lines(top, bottom)
+            return if top - bottom < 70
             fill_color GREY
-            font("Plex", style: :bold, size: 13) { text "Platz für #{@several ? 'eure' : 'deine'} Notizen" }
-            fill_color INK
-            move_down 10
+            font("Plex", style: :bold, size: 11) { draw_text "Platz für #{@several ? 'eure' : 'deine'} Notizen", at: [0, top - 14] }
             stroke_color "c9d1db"
             line_width 0.6
-            y = cursor - 22
-            while y > 10
+            y = top - 40
+            while y > bottom + 4
                 stroke_horizontal_line 0, bounds.width, at: y
-                y -= 26
+                y -= 24
             end
             stroke_color INK
             line_width 1
+            fill_color INK
         end
 
         def load_game(tag)
@@ -311,11 +328,10 @@ module PlaytestPDF
             end
             font("Plex", style: :bold, size: 15) { text_box "von #{printable(submission['author'])}", at: [0, top - 66], width: text_width, height: 20, overflow: :shrink_to_fit }
             fill_color GREY
-            versions = (submission["tags"] || []).size
-            details = "Spiel-Code #{submission['tag']}"
-            details += " · #{versions} Versionen getestet" if versions > 1 && tested_versions(submission) > 1
-            details += " · Runde vom #{round_date}" if round_date
-            font("Plex", size: 9.5) { text_box details, at: [0, top - 83], width: text_width, height: 14 }
+            font("Plex", size: 9.5) do
+                text_box version_details(submission), at: [0, top - 83], width: text_width, height: 14,
+                         overflow: :shrink_to_fit, min_font_size: 7
+            end
             pixel_row(top - tile - 10)
             fill_color INK
             move_cursor_to top - tile - 22
@@ -331,12 +347,62 @@ module PlaytestPDF
             fill_color INK
         end
 
-        def tested_versions(submission)
-            Playtesting.feedback_of(@state, submission["id"]).map { |a| a["tag"] }.uniq.size
+        # The versions the testers played (each test plays the version that
+        # was the newest when it began), oldest first: [[code, saved at, tests], …]
+        def tested_list(submission)
+            counts = Hash.new(0)
+            Playtesting.feedback_of(@state, submission["id"]).each { |a| counts[a["tag"]] += 1 }
+            order = submission["tags"] || [submission["tag"]]
+            counts.keys.sort_by { |tag| [order.index(tag) || order.size, saved_at(tag) || Time.at(0)] }
+                  .map { |tag| [tag, saved_at(tag), counts[tag]] }
+        end
+
+        # When a version was saved: its game file is written then, and never again.
+        def saved_at(tag)
+            path = File.join(@games, "#{tag}.json")
+            File.exist?(path) ? File.mtime(path) : nil
+        rescue StandardError
+            nil
+        end
+
+        def when_text(time, year: true)
+            return nil unless time
+            local = PlaytestPDF.berlin(time)
+            local.strftime(year ? "%d.%m.%Y um %H:%M" : "%d.%m., %H:%M")
+        end
+
+        # Under the title: which version was tested (its Spiel-Code, to load it
+        # in the studio, and when it was saved), and the round.
+        def version_details(submission)
+            list = tested_list(submission)
+            saved = ->(time) { time ? ", gespeichert am #{when_text(time)}" : "" }
+            words = if list.empty?
+                "Eingereicht: Spiel-Code #{submission['tag']}#{saved.(saved_at(submission['tag']))}"
+            elsif list.size == 1
+                "Getestet: Spiel-Code #{list[0][0]}#{saved.(list[0][1])}"
+            else
+                "Getestet: #{list.size} Versionen, zuletzt Spiel-Code #{list[-1][0]}#{saved.(list[-1][1])}"
+            end
+            words += " · Runde vom #{round_date}" if round_date
+            words
+        end
+
+        # Several versions tested (the game was saved again during the round):
+        # each with its Spiel-Code, when it was saved, and how many tested it.
+        def tested_versions_line(submission)
+            list = tested_list(submission)
+            return if list.size < 2
+            parts = list.map do |tag, time, n|
+                "#{tag}#{time ? " (#{when_text(time, year: false)})" : ''}: #{n} #{n == 1 ? 'Test' : 'Tests'}"
+            end
+            move_down 6
+            fill_color GREY
+            font("Plex", size: 9) { text "Getestete Versionen – #{parts.join('  ·  ')}", leading: 1 }
+            fill_color INK
         end
 
         def round_date
-            Time.parse(@round.to_s).localtime.strftime("%d.%m.%Y")
+            PlaytestPDF.berlin(Time.parse(@round.to_s)).strftime("%d.%m.%Y")
         rescue StandardError
             nil
         end
@@ -381,6 +447,8 @@ module PlaytestPDF
             chips << [nil, "Spaß", fun["average"]] if fun && fun["average"]
             reached = summary["choices"]["reached"]&.last&.last.to_i
             chips << [reached.to_s, reached == 1 ? "hat es bis zum Ende geschafft" : "haben es bis zum Ende geschafft", nil] if reached > 0
+            more = summary["more_time"].to_i
+            chips << [more.to_s, more == 1 ? "wollte länger spielen" : "wollten länger spielen", nil] if more > 0
             chips << [summary["broken"].to_s, "× ließ es sich gar nicht spielen", nil] if summary["broken"] > 0
             gap = 10
             height = 42
@@ -395,9 +463,13 @@ module PlaytestPDF
                 stroke_rounded_rectangle [x, top], width, height, 8
                 fill_color INK
                 if stars_value
-                    font("Plex", style: :bold, size: 10) { draw_text label, at: [x + 12, top - 15] }
-                    stars(x + 12, top - 28, stars_value, 8)
-                    font("Plex", style: :bold, size: 10) { draw_text PlaytestPDF.scale_word(stars_value), at: [x + 12 + 5 * 18 + 6, top - 32] }
+                    # "Spaß: geht so" above, the stars as big as the chip allows below
+                    font("Plex", size: 10) do
+                        formatted_text_box [{ text: "#{label}: ", styles: [:bold] }, { text: PlaytestPDF.scale_word(stars_value) }],
+                                           at: [x + 12, top - 6], width: width - 24, height: 13, overflow: :shrink_to_fit, min_font_size: 7
+                    end
+                    star_size = [(width - 24) / (4 * 2.25 + 2), 8].min
+                    stars(x + 12, top - 29, stars_value, star_size)
                 else
                     font("Plex", style: :bold, size: 24) { draw_text number, at: [x + 12, top - 30] }
                     number_width = in_font("Plex", style: :bold, size: 24) { width_of(number) }
@@ -552,7 +624,7 @@ module PlaytestPDF
         # The three quick questions: a box per answer with how many chose it;
         # the most chosen one has a tick and a thick frame.
         def choices(summary)
-            label_width = 170
+            label_width = 150
             gap = 6
             Playtesting::QUESTIONS.each do |q|
                 next unless q["type"] == "choice"
@@ -563,7 +635,7 @@ module PlaytestPDF
                 colors = CHOICE_COLORS[q["id"]] || [SKY, GREEN, ORANGE]
                 ensure_space(30)
                 top = cursor
-                font("Plex", style: :bold, size: 11) { text_box q["label"], at: [0, top - 5], width: label_width, height: 15, overflow: :shrink_to_fit, min_font_size: 8 }
+                font("Plex", style: :bold, size: 11) { text_box q["label"], at: [0, top - 5], width: label_width - 10, height: 15, overflow: :shrink_to_fit, min_font_size: 8 }
                 width = (bounds.width - label_width - gap * (counts.size - 1)) / counts.size
                 counts.each_with_index do |(label, count), i|
                     x = label_width + i * (width + gap)
@@ -608,45 +680,173 @@ module PlaytestPDF
             color.scan(/../).map { |c| (c.to_i(16) + (255 - c.to_i(16)) * amount).round.clamp(0, 255) }.map { |v| format("%02x", v) }.join
         end
 
-        # The comments as speech bubbles with the tester's name, flowing over pages.
-        def comments(title, id, kind, color, summary)
-            items = summary["texts"][id] || []
-            items = items.map { |item| item.merge("text" => printable(item["text"])) }.reject { |item| item["text"].empty? }
-            return if items.empty?
-            section_title(title, kind, color)
-            gap = 6
-            tail = 7
-            items.each do |item|
-                name = printable(item["name"])
-                name = "jemand" if name.empty?
-                signature = "   – #{name}#{item['old'] ? ' (zu einer älteren Version)' : ''}"
-                parts = [{ text: item["text"], size: 11.5, color: INK }, { text: signature, size: 9.5, styles: [:italic], color: GREY }]
-                inner = bounds.width - 28
-                height = in_font("Plex") { height_of_formatted(parts, width: inner, leading: 2.5) } + 14
-                ensure_space(height + tail + gap)
-                top = cursor
-                fill_color "f7f8fa"
-                stroke_color "8b97a8"
-                line_width 1
-                fill_rounded_rectangle [0, top], bounds.width, height, 9
-                stroke_rounded_rectangle [0, top], bounds.width, height, 9
-                # the tail of the bubble, pointing down-left
-                fill_color "f7f8fa"
-                fill_polygon [14, top - height + 1], [30, top - height + 1], [12, top - height - tail]
-                stroke_line [14, top - height], [12, top - height - tail]
-                stroke_line [12, top - height - tail], [30, top - height]
-                font("Plex") { formatted_text_box parts, at: [14, top - 7], width: inner, height: height - 8, leading: 2.5 }
-                fill_color INK
-                move_cursor_to top - height - tail - gap + 3
-            end
+        # ------------------------------------------------ the comments
+
+        COMMENT_SECTIONS = [["Das war richtig gut", "good", :star, GREEN],
+                            ["Das könnte noch besser werden", "better", :arrow, ORANGE],
+                            ["Diese Fehler sind aufgefallen", "bug_text", :warning, RED]].freeze
+        # tried one after the other until everything fits: columns, font size
+        COMMENT_STYLES = [[1, 10.5], [1, 10], [1, 9.5], [2, 10], [2, 9.5], [2, 9], [2, 8.5], [2, 8]].freeze
+        COLUMN_GAP = 14
+        HEADING_HEIGHT = 24
+        BUBBLE_PAD_X = 9
+        BUBBLE_PAD_TOP = 6.5
+        BUBBLE_PAD_BOTTOM = 4.5
+        BUBBLE_TAIL = 5
+        BUBBLE_GAP = 4
+
+        # [{ title, kind, color, items: [{ text, name, old }], hidden }] – sections with something in them
+        def comment_sections(summary)
+            COMMENT_SECTIONS.map do |title, id, kind, color|
+                items = (summary["texts"][id] || []).map do |item|
+                    name = printable(item["name"])
+                    { "text" => printable(item["text"]), "name" => name.empty? ? "jemand" : name, "old" => item["old"] }
+                end.reject { |item| item["text"].empty? }
+                { title: title, kind: kind, color: color, items: items, hidden: 0 }
+            end.reject { |section| section[:items].empty? }
         end
 
-        # What the child makes of it: three things to do next.
+        # The words of one bubble: the comment, then who wrote it.
+        def bubble_parts(item, size, max_chars = nil)
+            text = item["text"]
+            text = "#{text[0, max_chars].sub(/\s+\S*\z/, '')} …" if max_chars && text.size > max_chars
+            signature = "  – #{item['name']}#{item['old'] ? ' · zu einer älteren Version' : ''}"
+            [{ text: text, size: size, color: INK }, { text: signature, size: size - 1.5, styles: [:italic], color: GREY }]
+        end
+
+        def bubble_height(parts, width)
+            in_font("Plex") { height_of_formatted(parts, width: width - 2 * BUBBLE_PAD_X, leading: 1.5) } +
+                BUBBLE_PAD_TOP + BUBBLE_PAD_BOTTOM
+        end
+
+        # Where everything goes: the first style (COMMENT_STYLES) with which all
+        # bubbles fit into the regions; failing that, long comments shortened,
+        # and at last the last answers of the longest sections left out (with
+        # a line saying how many). regions: [{ page, top, bottom }] in the
+        # margin box. Returns { placed: [[page, x, y, width, kind, payload]],
+        # size:, free_top: (y on the back where nothing is, one column only) }.
+        def comment_layout(sections, regions)
+            return { placed: [], free_top: regions.last[:top] } if sections.empty?
+            COMMENT_STYLES.each do |columns, size|
+                result = place_comments(sections, regions, columns, size)
+                return result if result
+            end
+            columns, size = COMMENT_STYLES.last
+            [160, 90].each do |max_chars|
+                result = place_comments(sections, regions, columns, size, max_chars)
+                return result if result
+            end
+            sections = sections.map { |section| section.merge(items: section[:items].dup) }
+            loop do
+                longest = sections.max_by { |section| section[:items].size }
+                break if longest[:items].size <= 1
+                longest[:items].pop
+                longest[:hidden] += 1
+                result = place_comments(sections, regions, columns, size, 90)
+                return result if result
+            end
+            place_comments(sections, regions, columns, size, 60, force: true)
+        end
+
+        # One try: nil when something does not fit (force: what does not fit
+        # is left out – the last resort, never seen in a real round).
+        def place_comments(sections, regions, columns, size, max_chars = nil, force: false)
+            width = (bounds.width - COLUMN_GAP * (columns - 1)) / columns
+            slots = regions.flat_map { |r| (0...columns).map { |c| r.merge(x: c * (width + COLUMN_GAP)) } }
+            back_first = slots.index { |slot| slot[:page] == regions.last[:page] }
+            slot = 0
+            y = slots[0][:top]
+            placed = []
+            fits = ->(height) { y - height >= slots[slot][:bottom] }
+            # on to the next column (or region); false when there is none
+            advance = lambda do
+                return false if slot + 1 >= slots.size
+                slot += 1
+                y = slots[slot][:top]
+                true
+            end
+            catch(:full) do
+                sections.each do |section|
+                    bubbles = section[:items].map do |item|
+                        parts = bubble_parts(item, size, max_chars)
+                        [parts, bubble_height(parts, width), :bubble]
+                    end
+                    if section[:hidden] > 0
+                        note = [{ text: "… und #{section[:hidden]} weitere #{section[:hidden] == 1 ? 'Antwort' : 'Antworten'}", size: size - 1, styles: [:italic], color: GREY }]
+                        bubbles << [note, bubble_height(note, width), :note]
+                    end
+                    # a heading never stands alone at the bottom of a column
+                    gap_before = y < slots[slot][:top] ? 8 : 0
+                    unless fits.(gap_before + HEADING_HEIGHT + bubbles.first[1] + BUBBLE_TAIL)
+                        throw :full unless advance.call
+                        gap_before = 0
+                    end
+                    y -= gap_before
+                    placed << [slots[slot][:page], slots[slot][:x], y, width, :heading, section]
+                    y -= HEADING_HEIGHT
+                    bubbles.each do |parts, height, kind|
+                        unless fits.(height + BUBBLE_TAIL)
+                            throw :full unless advance.call
+                            # taller than a whole column: only shortened
+                            throw :full unless fits.(height + BUBBLE_TAIL)
+                        end
+                        placed << [slots[slot][:page], slots[slot][:x], y, width, kind, [parts, height]]
+                        y -= height + BUBBLE_TAIL + BUBBLE_GAP
+                    end
+                end
+                # everything placed: where the back is still free (one column only)
+                free = slot < back_first ? regions.last[:top] : (columns == 1 ? y : nil)
+                return { placed: placed, size: size, free_top: free }
+            end
+            return nil unless force
+            { placed: placed, size: size, free_top: nil }
+        end
+
+        def draw_comment_layout(layout)
+            layout[:placed].each do |page, x, y, width, kind, payload|
+                go_to_page(page)
+                case kind
+                when :heading
+                    icon(payload[:kind], x, y - 3, payload[:color])
+                    fill_color INK
+                    font("Plex", style: :bold, size: 13.5) do
+                        text_box payload[:title], at: [x + 23, y - 3], width: width - 23, height: 17, overflow: :shrink_to_fit, min_font_size: 9
+                    end
+                when :note
+                    parts, = payload
+                    font("Plex") { formatted_text_box parts, at: [x + BUBBLE_PAD_X, y - BUBBLE_PAD_TOP], width: width - 2 * BUBBLE_PAD_X }
+                else
+                    parts, height = payload
+                    speech_bubble(x, y, width, height)
+                    font("Plex") do
+                        formatted_text_box parts, at: [x + BUBBLE_PAD_X, y - BUBBLE_PAD_TOP], width: width - 2 * BUBBLE_PAD_X,
+                                                  height: height - BUBBLE_PAD_TOP + 2, leading: 1.5, overflow: :shrink_to_fit, min_font_size: 6
+                    end
+                end
+            end
+            fill_color INK
+        end
+
+        # A light speech bubble with a small tail at the bottom left.
+        def speech_bubble(x, y, width, height)
+            fill_color "f6f7f9"
+            stroke_color "9aa5b5"
+            line_width 0.8
+            fill_rounded_rectangle [x, y], width, height, 6
+            stroke_rounded_rectangle [x, y], width, height, 6
+            fill_polygon [x + 10, y - height + 0.6], [x + 21, y - height + 0.6], [x + 9, y - height - BUBBLE_TAIL]
+            stroke_line [x + 10, y - height], [x + 9, y - height - BUBBLE_TAIL]
+            stroke_line [x + 9, y - height - BUBBLE_TAIL], [x + 21, y - height]
+        end
+
+        # What the child makes of it: three things to do next – at the bottom
+        # of the back, the same place on every sheet.
+        PLAN_HEIGHT = 132
+
         def plan_box
-            height = 104
-            ensure_space(height + 10)
-            move_down 8
-            top = cursor
+            height = PLAN_HEIGHT
+            top = bounds.bottom + height
+            pad = 14
             fill_color "fff4dc"
             fill_rounded_rectangle [0, top], bounds.width, height, 10
             stroke_color INK
@@ -654,27 +854,29 @@ module PlaytestPDF
             dash(5, space: 4)
             stroke_rounded_rectangle [0, top], bounds.width, height, 10
             undash
-            icon(:star, 14, top - 12, YELLOW)
+            icon(:star, pad, top - pad + 1, YELLOW)
             fill_color INK
-            font("Plex", style: :bold, size: 14) { draw_text @several ? "Unser Plan" : "Mein Plan", at: [38, top - 25] }
+            font("Plex", style: :bold, size: 14) { draw_text @several ? "Unser Plan" : "Mein Plan", at: [pad + 24, top - pad - 12] }
             advice = if @several
                 "Lest alles in Ruhe. Was sagen mehrere? Sucht euch drei Dinge aus, die ihr als Nächstes verbessert – und hakt sie ab, wenn sie fertig sind."
             else
                 "Lies alles in Ruhe. Was sagen mehrere? Such dir drei Dinge aus, die du als Nächstes verbesserst – und hak sie ab, wenn sie fertig sind."
             end
             fill_color GREY
-            font("Plex", size: 10) { text_box advice, at: [14, top - 33], width: bounds.width - 28, height: 28, leading: 1 }
+            font("Plex", size: 9.5) { text_box advice, at: [pad, top - pad - 20], width: bounds.width - 2 * pad, height: 26, leading: 1, overflow: :shrink_to_fit, min_font_size: 7 }
             stroke_color GREY
             line_width 0.9
             3.times do |i|
-                y = top - 70 - i * 14
+                # the writing lines, the last one as far from the bottom as the title from the top
+                y = top - 74 - i * 21
                 fill_color INK
-                font("Plex", style: :bold, size: 11) { draw_text "#{i + 1}.", at: [14, y - 3] }
-                stroke_rounded_rectangle [32, y + 7], 11, 11, 2
-                stroke_horizontal_line 50, bounds.width - 14, at: y - 4
+                font("Plex", style: :bold, size: 11) { draw_text "#{i + 1}.", at: [pad, y + 1] }
+                stroke_rounded_rectangle [pad + 18, y + 11], 11, 11, 2
+                stroke_horizontal_line pad + 36, bounds.width - pad, at: y
             end
             fill_color INK
-            move_cursor_to top - height
+            stroke_color INK
+            line_width 1
         end
 
         # ------------------------------------------------ pages

@@ -93,10 +93,67 @@ class PlaytestPDFTest < Minitest::Test
             handout.render(File.join(dir, "r.pdf"))
             ranges = handout.instance_variable_get(:@footers).map { |first, last, _| [first, last] }
             assert_equal 2, ranges.size
-            ranges.each { |first, last| assert (last - first + 1).even?, ranges.inspect }
+            # exactly one sheet (front and back) per game
+            ranges.each { |first, last| assert_equal 2, last - first + 1, ranges.inspect }
             # one after the other, the first on page 1
             assert_equal 1, ranges.first.first
             ranges.each_cons(2) { |(_, a), (b, _)| assert_equal a + 1, b }
+        end
+    end
+
+    # The handout says which version was tested: its Spiel-Code and when it
+    # was saved (German time) – and every version, when it was saved again.
+    def test_the_tested_versions_with_their_code_and_time
+        Dir.mktmpdir do |dir|
+            state = Playtesting.fresh_state(true)
+            first = { "properties" => { "title" => "Pip", "author" => "Lea" } }
+            submission, = Playtesting.submit(state, "aaaaaaa", first, "owner")
+            File.write(File.join(dir, "aaaaaaa.json"), "{}")
+            File.utime(Time.utc(2026, 10, 7, 11, 52), Time.utc(2026, 10, 7, 11, 52), File.join(dir, "aaaaaaa.json"))
+            test = lambda do |tester|
+                a = Playtesting.next_assignment(state, tester, tester.upcase)
+                Playtesting.give_feedback(state, a["id"], tester, { "fun" => 4, "looks" => 4, "animation" => 3, "controls" => 4, "fair" => 4,
+                    "story" => 3, "mood" => 4, "difficulty" => "right", "reached" => "end", "bugs" => "none",
+                    "good" => "Schön", "better" => "Mehr" })
+            end
+            handout = PlaytestPDF::Handout.new(state, static: File.expand_path("../src/static", __dir__), gen: dir, games: dir)
+            # not tested yet: the version handed in
+            assert_match(/\AEingereicht: Spiel-Code aaaaaaa, gespeichert am 07\.10\.2026 um 13:52/, handout.version_details(submission))
+            test.("t1")
+            assert_match(/\AGetestet: Spiel-Code aaaaaaa, gespeichert am 07\.10\.2026 um 13:52/, handout.version_details(submission))
+            # saved again (in winter: an hour less to German time), tested twice more
+            Playtesting.after_save(state, "bbbbbbb", first.merge("parent" => "aaaaaaa"))
+            File.write(File.join(dir, "bbbbbbb.json"), "{}")
+            File.utime(Time.utc(2026, 12, 1, 9, 5), Time.utc(2026, 12, 1, 9, 5), File.join(dir, "bbbbbbb.json"))
+            %w(t2 t3).each { |t| test.(t) }
+            assert_equal [["aaaaaaa", 1], ["bbbbbbb", 2]], handout.tested_list(submission).map { |tag, _, n| [tag, n] }
+            assert_match(/\AGetestet: 2 Versionen, zuletzt Spiel-Code bbbbbbb, gespeichert am 01\.12\.2026 um 10:05/, handout.version_details(submission))
+            handout.render(File.join(dir, "r.pdf"))
+        end
+    end
+
+    # Many testers with long answers still make one sheet: smaller, in two
+    # columns, shortened – and who wanted to play longer is counted.
+    def test_lots_of_long_answers_still_fit_on_two_pages
+        state = Playtesting.fresh_state(true)
+        submission, = Playtesting.submit(state, "aaaaaaa", { "properties" => { "title" => "Viel", "author" => "Max und Tom" } }, "owner")
+        long = "Das Spiel ist richtig toll, die Level sind abwechslungsreich und die Musik passt super, aber manchmal weiß man nicht, wohin. " * 3
+        14.times do |i|
+            answers = { "fun" => 4, "looks" => 4, "animation" => 3, "controls" => 4, "fair" => 4, "story" => 3, "mood" => 4,
+                        "difficulty" => "right", "reached" => "end", "bugs" => "small", "good" => long, "better" => long, "bug_text" => long }
+            id = "a#{i}"
+            state["assignments"][id] = { "id" => id, "submission" => submission["id"], "tag" => "aaaaaaa", "browser" => "b#{i}", "name" => "T#{i}",
+                                         "started_at" => "2026-10-08T08:00:00Z", "finished_at" => "2026-10-08T08:#{10 + i}:00Z", "answers" => answers,
+                                         "extra_minutes" => i < 3 ? 2 : 0 }
+        end
+        assert_equal 3, PlaytestPDF.summary(state, submission)["more_time"]
+        Dir.mktmpdir do |dir|
+            handout = PlaytestPDF::Handout.new(state, static: File.expand_path("../src/static", __dir__), gen: dir, games: dir)
+            handout.render(File.join(dir, "r.pdf"))
+            assert_equal [[1, 2]], handout.instance_variable_get(:@footers).map { |first, last, _| [first, last] }
+            pdf = File.binread(File.join(dir, "r.pdf"))
+            # the handout and the overview
+            assert_equal 3, pdf.scan(%r{/Type /Page\b}).size
         end
     end
 

@@ -1091,6 +1091,16 @@ class Main < Sinatra::Base
         respond(error ? { :assignment => nil, :error => error } : { :assignment => result })
     end
 
+    # „Ich brauche mehr Zeit“: the running test goes on a little longer.
+    post "/api/playtest/more_time" do
+        data = playtest_request(:assignment)
+        result, error = @@playtesting.transaction do |state|
+            assignment, error = Playtesting.more_time(state, data[:assignment], data[:browser])
+            [assignment ? Playtesting.assignment_for_client(state, assignment) : nil, error]
+        end
+        respond(error ? { :error => error } : { :assignment => result })
+    end
+
     post "/api/playtest/feedback" do
         data = playtest_request(:assignment, :answers)
         _, error = @@playtesting.transaction do |state|

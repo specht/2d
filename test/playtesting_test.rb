@@ -358,4 +358,25 @@ class PlaytestingTest < Minitest::Test
             [nil, "", "../state", "#{names.first}.json", "2026-01-01-000000"].each { |bad| assert_nil store.read_archive(bad) }
         end
     end
+
+    # „Ich brauche mehr Zeit“: two minutes at a time, four in all, only for
+    # one's own running test; the test runs (and counts as running) that long
+    def test_a_tester_may_ask_for_more_time
+        state = Playtesting.fresh_state(true, 3)
+        Playtesting.submit(state, "aaaaaaa", { "properties" => { "title" => "Pip", "author" => "Lea" } }, "owner")
+        t0 = Time.utc(2026, 10, 8, 9, 0)
+        a = Playtesting.next_assignment(state, "t1", "Tom", t0)
+        client = Playtesting.assignment_for_client(state, a, t0)
+        assert_equal [180, 180, 0, 2], client.values_at("seconds_left", "seconds_total", "extra_minutes", "more_time")
+        assert_equal [nil, "unknown_assignment"], Playtesting.more_time(state, a["id"], "someone_else", t0)
+        Playtesting.more_time(state, a["id"], "t1", t0 + 60)
+        client = Playtesting.assignment_for_client(state, a, t0 + 60)
+        assert_equal [240, 300, 2, 2], client.values_at("seconds_left", "seconds_total", "extra_minutes", "more_time")
+        Playtesting.more_time(state, a["id"], "t1", t0 + 120)
+        assert_equal 0, Playtesting.assignment_for_client(state, a, t0 + 120)["more_time"]
+        assert_equal [nil, "no_more_time"], Playtesting.more_time(state, a["id"], "t1", t0 + 130)
+        # still running after the usual end plus the grace minutes
+        assert Playtesting.running?(a, 3, t0 + (3 + Playtesting::GRACE_MINUTES + 3) * 60)
+        refute Playtesting.running?(a, 3, t0 + (3 + Playtesting::GRACE_MINUTES + 5) * 60)
+    end
 end

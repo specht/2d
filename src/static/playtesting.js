@@ -348,7 +348,17 @@ class Playtesting {
     render_run(root) {
         const a = this.assignment;
         const run = $('<div class="pt-run">').appendTo(root);
-        const bar = $('<div class="pt-run-bar">').appendTo(run);
+        this.run_bar().appendTo(run);
+        const frame = $('<iframe class="pt-frame" allow="fullscreen">').attr('src', `/standalone#${a.tag}`).appendTo(run);
+        frame.on('load', () => { try { frame[0].focus(); frame[0].contentWindow.focus(); } catch (e) { } });
+        $('<p class="pt-hint">').text('Klick ins Spiel, damit es deine Tasten bekommt.').appendTo(run);
+    }
+
+    // The bar above the game: title, time, Fertig, and "mehr Zeit" (drawn
+    // again when the time grows; the game keeps running underneath).
+    run_bar() {
+        const a = this.assignment;
+        const bar = $('<div class="pt-run-bar">');
         $('<div class="pt-run-title">').append($('<b>').text(`»${a.title}«`), $('<span>').text(` von ${a.author}`)).appendTo(bar);
         const clock = $('<div class="pt-clock">').appendTo(bar);
         const progress = $('<div class="pt-progress">').append($('<div>')).appendTo(bar);
@@ -357,21 +367,37 @@ class Playtesting {
             this.answers.broken = true;
             this.to_survey();
         }).appendTo(bar);
-        const frame = $('<iframe class="pt-frame" allow="fullscreen">').attr('src', `/standalone#${a.tag}`).appendTo(run);
-        frame.on('load', () => { try { frame[0].focus(); frame[0].contentWindow.focus(); } catch (e) { } });
-        $('<p class="pt-hint">').text('Klick ins Spiel, damit es deine Tasten bekommt.').appendTo(run);
+        // a game that gets good only after a while: play on a little (playtesting.rb more_time)
+        if (a.more_time > 0) {
+            $('<button class="pt-button pt-quiet pt-more-time">').text(`Ich brauche mehr Zeit (+${a.more_time} min)`)
+                .attr('title', 'Manche Spiele werden erst nach einer Weile richtig spannend. Dann spiel noch ein bisschen weiter – die Umfrage kommt danach.')
+                .on('click', async (e) => {
+                    $(e.currentTarget).prop('disabled', true);
+                    const result = await this.api('more_time', { assignment: a.id });
+                    if (this.view !== 'run' || this.assignment?.id !== a.id) return;
+                    if (result.success && result.assignment) {
+                        this.assignment = result.assignment;
+                        this.ends_at = Date.now() + result.assignment.seconds_left * 1000;
+                        bar.replaceWith(this.run_bar());
+                    } else {
+                        $(e.currentTarget).remove();
+                    }
+                }).appendTo(bar);
+        }
         const tick = () => {
             const left = (this.ends_at - Date.now()) / 1000;
-            const total = a.seconds_total || 1;
+            const total = this.assignment.seconds_total || 1;
             clock.text(playtest_clock(left));
             progress.children().css('width', `${Math.max(0, Math.min(100, (1 - left / total) * 100))}%`);
-            const early = left <= total / 2;
+            // asked for more time: may stop whenever the game is done
+            const early = left <= total / 2 || this.assignment.extra_minutes > 0;
             done.prop('disabled', !early).attr('title', early ? '' : `Ab ${playtest_clock(total / 2)} Restzeit geht es zur Umfrage – spiel bis dahin weiter.`);
             if (left <= 0) this.to_survey();
         };
         clearInterval(this.timer);
         this.timer = setInterval(tick, 500);
         tick();
+        return bar;
     }
 
     to_survey() {
