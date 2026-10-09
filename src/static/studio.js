@@ -338,7 +338,9 @@ function refresh_current_color_chip() {
         for (const command of Object.values(color_menu.commands)) {
             const data = String(command.data ?? '').toLowerCase();
             const same = transparent ? (data.length === 9 && data.endsWith('00')) :
-                (data.slice(0, 7) === hex && (data.length < 9 || data.slice(7, 9) === 'ff'));
+                // the palette's colours are opaque: a see-through one (the bottom row
+                // of the variations) is none of them
+                (rgba[3] === 255 && data.slice(0, 7) === hex && (data.length < 9 || data.slice(7, 9) === 'ff'));
             command.button?.toggleClass('active', same && !found);
             if (same) found = true;
         }

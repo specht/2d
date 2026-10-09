@@ -872,7 +872,8 @@ function signal_rules(level, traits_of, name_of) {
         } else if (layer_reacts_to_signals(layer?.properties)) {
             const reaction = layer.properties.signal_reaction;
             const what = layer.type === 'sprites' ? `die Ebene »${layer_name}«` :
-                layer.type === 'movement_region' ? `der Bewegungsbereich »${layer_name}«` : `der Hintergrund »${layer_name}«`;
+                layer.type === 'movement_region' ? `der Bewegungsbereich »${layer_name}«` :
+                layer.type === 'camera_region' ? `der Kamerabereich »${layer_name}«` : `der Hintergrund »${layer_name}«`;
             const target = card(code);
             add(target.receivers, SIGNAL_LAYER_TEXT[reaction](what), { kind: 'layer', layer_index: li });
             if (SIGNAL_OFF_REACTIONS.has(reaction)) target.reacts_to_off = true;

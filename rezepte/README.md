@@ -29,6 +29,17 @@ npm run anleitungen              # guides that changed (node anleitungen.mjs <id
 
 From the repository root, `./rebuild.sh` does both and restarts the server.
 
+### Das Demospiel
+
+`demo/letztes-licht.yaml` is a whole game made from the Sprite-Katalog – „Pip und das letzte Licht“, five levels and a shop that show most of what the studio can do. Each level is a recipe scene (same `szene` format); `tools/demo.mjs` builds them into one game. Nothing is recorded.
+
+```bash
+npm run demo                                        # → src/static/rezepte/spiele/demo-letztes-licht.json
+npm run demo -- --speichern http://localhost:8025   # also saves it like Speichern: prints the Spiel-Code
+```
+
+The saved game is an ordinary game: open it by its code, share the link, or continue it as an own game. Levels name each other by `id` (an exit's `target`, `nebenlevel: true` for a side level); `anpassen` is for the whole game.
+
 - **Only what changed:** every recording stores a content fingerprint (`quelle`). Recipes depend on their YAML head, their built game and the engine (`standalone.html` and its scripts, `traits.js`, `baddie_ai.js`, `game_ids.js`, `game.js`, shaders, `build/record/game.mjs`). Guides depend on their head, their start game and all of `src/static`. A checkout rebuilds nothing.
 - **Everything checks itself:** a recipe's `erwartet` must hold; a guide's selectors must appear and its `pruefen` must be true; page errors fail too. A failure exits with status 1 and writes `tools/fehler-<id>.webp`.
 - **Deterministic:** recipes run on a manual game clock with seeded randomness. Guides run on the guide clock (`studio.mjs`): page time moves only through `pass_time`, after everything the page loads has arrived; randomness is seeded and Chromium draws with `BROWSER_ARGS`. The same steps give the same files byte for byte, so guides record in parallel (`ANLEITUNG_PARALLEL=n`). **Never wait with real time** (`waitForTimeout`) – use `GuidePlayer.pass`.

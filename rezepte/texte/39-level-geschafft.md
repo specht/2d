@@ -118,7 +118,7 @@ Beide Wege gehen auch zusammen: Das Ziel funktioniert weiter, auch wenn das Leve
 - Beim Ziel kannst du im Level einstellen, wohin es **führt**: normalerweise **zum nächsten Level**. Du kannst auch ein bestimmtes Level wählen – so führen zwei Türen in zwei verschiedene Level – oder **zurück, woher man kam** und **zum Spielende**. Kommt die Figur durch so eine Tür in ein Level, steht sie dort an der Tür, die zurückführt.
 - Mit **nur mit Aktionstaste** geht die Figur erst durch das Ziel, wenn man davor **F** drückt – wie bei einer Tür. Dann kann man auch daran vorbeilaufen.
 - Ein **Nebenlevel** (bei den Level-Eigenschaften) ist ein Laden, ein Bonuslevel oder ein Geheimraum: Nach dem Level davor geht es nicht dort weiter, man kommt nur durch ein Ziel hinein, das genau dorthin führt. Ein Ziel im Nebenlevel führt von selbst zurück.
-- Auf dem Bildschirm steht danach **Geschafft!** – und „Weiter mit:“ und der Name des nächsten Levels, wenn es einen hat. Gib deinen Levels gute Namen: Der Name steht auch am Anfang des Levels groß da.
+- Auf dem Bildschirm steht danach **Geschafft!** – und „Weiter mit:“ und der Name des nächsten Levels, wenn es einen hat. In ein Nebenlevel hinein und wieder heraus geht es wie durch eine Tür: Da steht kurz nur der Name des Levels, und es geht von selbst weiter. Gib deinen Levels gute Namen: Der Name steht auch am Anfang des Levels groß da.
 
 ## Wenn's nicht klappt
 

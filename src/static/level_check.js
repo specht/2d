@@ -228,8 +228,16 @@ function sprite_pitfalls(sprite, name = 'Dieses Sprite', game_properties = null,
 
     if (has('bomb')) out.push(...level_check_bomb_art(sprite, it));
 
+    // "für später aufheben" on something that gives nothing when it is used
+    // (points come at once; a weapon is held, never Vorrat: inventory.js)
+    if (traits.pickup?.store === true && !(traits.melee_attack || traits.ranged_attack) &&
+        !['lives', 'energy', 'invincible', 'speed_boost_duration'].some(k => (Number(traits.pickup[k]) || 0) > 0))
+        out.push({ id: 'store_nothing', severity: 'hint',
+            text: `${it} ist „für später aufheben“, gibt beim Benutzen aber nichts – kein Leben, keine Energie, nicht unverwundbar, nicht schneller. Im Vorrat liegt es nur herum. Gib ihm etwas davon – oder nimm „für später aufheben“ weg.` });
+
     const lives = Number(traits.pickup?.lives) || 0;
-    if (lives > 0 && game_properties) {
+    // (a Vorrat is collected anyway: inventory.js)
+    if (lives > 0 && game_properties && traits.pickup?.store !== true) {
         // game.js: absent = 5 and 5
         const start = Number(game_properties.lives_at_begin ?? 5);
         const max = Number(game_properties.max_lives ?? 5);
@@ -641,7 +649,7 @@ function play_check_live(game, name_of) {
     const pickup = player.has_trait_at(['pickup'], ...box, (e) => !(e.shop_price > 0));
     if (pickup) {
         const sprite = game.data.sprites[pickup.sprite_index];
-        if ((Number(sprite?.traits?.pickup?.lives) || 0) > 0 && game.lives >= props.max_lives) {
+        if ((Number(sprite?.traits?.pickup?.lives) || 0) > 0 && sprite.traits.pickup.store !== true && game.lives >= props.max_lives) {
             const it = `»${name_of(pickup.sprite_index)}«`;
             out.push({ key: `lives_full:${pickup.sprite_index}`,
                 text: `${it} gibt Leben, aber die Spielfigur hat schon ${game.lives} – mehr als ${props.max_lives} geht nicht („Leben maximal“ in den Einstellungen). Darum bleibt ${it} liegen, bis sie ein Leben verloren hat.` });
@@ -731,11 +739,14 @@ class PlayCheck {
                 window.focus_play_frame?.();
             }).appendTo(head);
         const body = $('<div class="signal-overview-body">').appendTo(panel);
+        // Level testen: what the figure brought along from the levels before
+        run.carry_box = $('<div class="play-check-carry">').appendTo(body);
+        if (run.carry) this.show_carry(run);
         run.live_box = $('<div class="play-check-live">').appendTo(body);
         if (run.live.size) for (const hint of run.live.values()) this.show_live(run, hint);
         this.build_findings(run, body);
         // the game must keep the keys: clicks on the panel give them back
-        panel.on('mouseup', (e) => { if (!$(e.target).closest('.play-check-show').length) window.focus_play_frame?.(); });
+        panel.on('mouseup', (e) => { if (!$(e.target).closest('.play-check-show, .play-check-carry button').length) window.focus_play_frame?.(); });
     }
 
     build_findings(run, body) {
@@ -786,6 +797,15 @@ class PlayCheck {
         let game = null;
         try { game = $('#play_iframe')[0]?.contentWindow?.game ?? null; } catch (e) { return; }
         if (!game) return;
+        // Level testen: what came along (app.js start_playtest) – once per start
+        const carried = game.playtest?.carried ?? null;
+        if (Number.isInteger(run.level_index) && carried && carried !== run.carry_seen) {
+            run.carry_seen = carried;
+            run.carry = { ...carried, on: game.playtest.carry !== false };
+            const something = carried.points > 0 || carried.items.length > 0;
+            if (something && !run.panel && !run.closed) this.build(run);
+            else this.show_carry(run);
+        }
         const sprites = run.studio_game.data?.sprites ?? [];
         const name_of = (si) => level_check_label(sprites[si] ?? game.data?.sprites?.[si], si);
         let hints = [];
@@ -802,6 +822,40 @@ class PlayCheck {
             else this.show_live(run, entry);
         }
         run.touching = now;
+    }
+
+    // "Mitgebracht": the points and things from the levels before this one,
+    // and a button to test without them (or with them again)
+    show_carry(run) {
+        const box = run.carry_box;
+        if (!box) return;
+        box.empty();
+        const carry = run.carry;
+        if (!carry || !(carry.points > 0 || carry.items.length)) return;
+        const sprites = run.studio_game.data?.sprites ?? [];
+        const things = carry.items.map(item => `»${level_check_label(sprites[item.sprite_index], item.sprite_index)}«${item.count > 1 ? ` × ${item.count}` : ''}`);
+        if (carry.points > 0) things.unshift(`${carry.points} Punkte`);
+        const text = carry.on ?
+            `Mitgebracht aus den Leveln davor: ${level_check_and(things)} – so viel kann die Spielfigur hier schon haben.` :
+            `Ohne Mitgebrachtes getestet. Aus den Leveln davor könnte die Spielfigur ${level_check_and(things)} haben.`;
+        $('<div class="play-check-item play-check-hint">')
+            .append($('<i class="fa fa-suitcase">'))
+            .append($('<div class="play-check-text">').text(text)
+                .append($('<button class="play-check-show">').text(carry.on ? 'Ohne testen' : 'Mit testen')
+                    .attr('title', carry.on ? 'Den Test neu starten, ohne Punkte und Sachen aus den Leveln davor' : 'Den Test neu starten, mit den Punkten und Sachen aus den Leveln davor')
+                    .on('click', () => this.restart_with_carry(run, !carry.on))))
+            .appendTo(box);
+    }
+
+    restart_with_carry(run, on) {
+        let game = null;
+        try { game = $('#play_iframe')[0]?.contentWindow?.game ?? null; } catch (e) { return; }
+        if (!game?.playtest) return;
+        const options = { level_index: game.playtest.level_index, start: game.playtest.start, carry: on };
+        // a new start: the same run, the figure back at its start
+        if (window.studio_last_playtest) window.studio_last_playtest = options;
+        game.start_playtest(options);
+        window.focus_play_frame?.();
     }
 
     // a hint from the game: on top, it flashes each time it happens again

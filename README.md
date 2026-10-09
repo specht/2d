@@ -6,17 +6,17 @@ A browser studio for making small 2D games, built for school: children draw and 
 
 - **Sprites:** pixel art with animation states, onion skin, preview, mirrored drawing, selections, recolouring, outlines, undo; pictures can be pasted (background, pixel size and frames are detected); the Sprite-Katalog and other games' codes provide ready-made pictures; a whole game can be converted to a palette.
 - **Behaviour by traits:** player characters, enemies with several behaviours, companions (Begleiter), collectibles, hazards, ladders, slopes, conveyors, moving platforms and lifts, water and other movement regions (also gravity turned left, up or right, with a camera that turns along), melee and ranged combat, bombs.
-- **Inventar, weapons and shops:** collectibles can stay for the whole game (shown in the HUD); one with an attack is a weapon (J or K, several chosen with 1–9, the number set by the author); a placed collectible with a Preis is bought with F and can describe itself, optionally with a Verkäufer who greets, chats and thanks; a level can send a Code when the figure has an item (a key for the whole game).
-- **Levels:** layers on one grid, parallax, gradients, lighting and weather effects; doors, keys, checkpoints; exits that lead to chosen levels (hubs, shops, Nebenlevel); a level entered again looks as it was left.
+- **Inventar, weapons and shops:** collectibles can stay for the whole game (shown in the HUD); one with an attack is a weapon (J or K, several chosen with 1–9, the number set by the author); others can be kept für später (a Vorrat used with its number or by tapping it); a placed collectible with a Preis is bought with F and can describe itself, optionally with a Verkäufer who greets, chats and thanks; a level can send a Code when the figure has an item (a key for the whole game).
+- **Levels:** layers on one grid, parallax, gradients, lighting and weather effects, Kamerabereiche that pull the camera towards a spot; doors, keys, checkpoints; exits that lead to chosen levels (hubs, shops, Nebenlevel); a level entered again looks as it was left.
 - **Signale:** switches, pressure plates, keys, areas, enemies and timers send a Code; doors, layers, signs, platforms and the level react – with names, delays, Zähler and an overview of every rule.
-- **For the player:** speech bubbles in pixel fonts, a HUD that shows only what the game uses, German start and level screens.
+- **For the player:** speech bubbles in pixel fonts, a HUD that shows only what the game uses, German start and level screens, an optional CRT look (Röhrenbildschirm).
 - **Help:** the Hilfe tab has twelve *Erste Schritte* guides and the *Rezepte* – videos recorded from the real studio and engine, so they always match (`rezepte/README.md`). Every recipe scene opens in the studio.
 
 ## Using the studio
 
 - **Keys:** Strg+Z / Strg+Y undo, Strg+S save, Strg+O Spiel laden, F11 full screen, H help. Tools follow the keyboard rows (Q W E R T …); view switches have keys (sprite editor: O onion skin, P preview, M mirror; level editor: G grid, S Signale, M map, L Levelübersicht, A animate, B areas, D highlight layer). X switches between the colour and transparent (the level pen: erase).
 - **Right-click** (or a long press on a tablet) opens a menu everywhere; the right button never paints.
-- **Level testen (T)** plays the current level from the mouse position; Esc returns, nothing is saved.
+- **Level testen (T)** plays the current level from the mouse position, with the points and items of the levels before it; Esc returns, nothing is saved.
 - **Dialogs** close with Esc and confirm with Enter when they have one confirming button.
 - Made for 1920 × 1080, works down to about 1366 × 768 and on tablets in landscape (two fingers zoom and pan).
 

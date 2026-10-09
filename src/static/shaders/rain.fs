@@ -38,15 +38,19 @@ float value_noise(vec2 x) {
 // density ("Menge", 1 = normal): fewer streaks below 1, narrower columns above.
 uniform float density;
 
-void main() {
-    vec2 p = floor(vuv);
+// The streaks are the same in both looks: per depth k, cells in a sheared grid
+// (q), one streak at a random place in some of them.
+//   pixelig (pixel_size > 0, backdrops.js): one game pixel wide, in steps –
+//   exactly the rain as it always was
+//   smooth: thin slanted lines with soft edges, at the screen's resolution
+float rain(vec2 world, bool pixels) {
     float s = max(scale, 0.1);
     float amount = clamp(density, 0.0, 4.0);
     float a = 0.0;
     for (int k = 0; k < 3; k++) {
         float fk = float(k);
         float speed = 240.0 + 90.0 * fk;
-        vec2 q = vec2(p.x + p.y * 0.25, p.y + time * speed);
+        vec2 q = vec2(world.x + world.y * 0.25, world.y + time * speed);
         vec2 cell_size = vec2((7.0 + 2.0 * fk) * s / max(amount, 1.0), (70.0 + 20.0 * fk) * s);
         // Every column of cells starts at its own height: no horizontal bands.
         float column = floor(q.x / cell_size.x);
@@ -58,8 +62,23 @@ void main() {
         float len = (5.0 + 2.0 * fk) * s;
         float x0 = floor(r.x * cell_size.x);
         float y0 = floor(r.y * max(cell_size.y - len, 1.0));
-        if (abs(floor(local.x) - x0) < 0.5 && local.y >= y0 && local.y < y0 + len)
-            a = max(a, 0.45 + 0.2 * fk);
+        float strength = 0.45 + 0.2 * fk;
+        if (pixels) {
+            if (abs(floor(local.x) - x0) < 0.5 && local.y >= y0 && local.y < y0 + len)
+                a = max(a, strength);
+        } else {
+            // across: a core of half a game pixel, soft beyond; along: soft ends
+            float across = 1.0 - smoothstep(0.2, 0.55, abs(local.x - (x0 + 0.5)));
+            float along = smoothstep(y0, y0 + 1.5, local.y) * (1.0 - smoothstep(y0 + len - 1.5, y0 + len, local.y));
+            a = max(a, strength * across * along);
+        }
     }
+    return a;
+}
+
+void main() {
+    // pixel_size: declared by backdrops.js (backdrop_fragment_shader), which
+    // also puts vuv on the centre of its game pixel when it is > 0
+    float a = pixel_size > 0.0 ? rain(floor(vuv), true) : rain(vuv, false);
     gl_FragColor = vec4(color.rgb, color.a * a * fade());
 }

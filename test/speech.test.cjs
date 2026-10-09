@@ -29,9 +29,17 @@ test('without |: every sentence is a bubble of its own', () => {
     assert.deepEqual(sp.speech_parts('„Lauf!“ Sie rannte.'), ['„Lauf!“', 'Sie rannte.']);
 });
 
-test('with |: the child decides where a new bubble begins', () => {
+test('with |: a new bubble there, too – and still one bubble per sentence', () => {
     assert.equal(sp.SPEECH_SEPARATOR, '|');
-    assert.deepEqual(sp.speech_parts('Hallo! Ich bin Pip. | Und das\nist mein Wald.|'), ['Hallo! Ich bin Pip.', 'Und das ist mein Wald.']);
+    // the punchline waits for its own bubble
+    assert.deepEqual(sp.speech_parts('Hallo! Ich bin Pip. | Und das\nist mein Wald.|'), ['Hallo!', 'Ich bin Pip.', 'Und das ist mein Wald.']);
+    // a | in the middle of a sentence
+    assert.deepEqual(sp.speech_parts('Und dann kam … | der Glibber!'), ['Und dann kam …', 'der Glibber!']);
+    // groups: what a Verkäufer says at once when he chats
+    assert.deepEqual(sp.speech_groups('Nur heute! | Psst! Der Trank ist im Angebot. Wie gestern.'),
+        [['Nur heute!'], ['Psst!', 'Der Trank ist im Angebot.', 'Wie gestern.']]);
+    // without |: every sentence is a group
+    assert.deepEqual(sp.speech_groups('Eins. Zwei.'), [['Eins.'], ['Zwei.']]);
 });
 
 test('a sentence stays long enough to read it, at least 1.5 s; the reading speed scales it', () => {

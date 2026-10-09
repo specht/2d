@@ -17,6 +17,14 @@
 // its kind while it is chosen. Attack ids are given a prefix per weapon, so
 // cooldowns of different weapons never mix.
 //
+// "für später aufheben" (traits.pickup.store: true; absent = it works the
+// moment it is collected, as always): collected or bought, the sprite goes into
+// the Inventar instead – the Vorrat – and does nothing yet. It gets a number
+// like a weapon (the same numbers, the same rule); pressing it, or tapping its
+// picture, uses one: the figure gets what it gives (Leben, Energie,
+// unverwundbar, schneller). Points and "sendet, wenn eingesammelt" come at
+// once, as always. A weapon is never Vorrat: it is held.
+//
 // The inventory: [{ sprite_index, count }] in the order collected. The choice:
 // { nah: sprite index | null, fern: sprite index | null }.
 
@@ -37,6 +45,10 @@ function weapon_attacks(sprite) {
 
 function is_weapon(sprite) {
     return weapon_attacks(sprite).length > 0;
+}
+
+function stored_item(sprite) {
+    return sprite?.traits?.pickup?.store === true && !is_weapon(sprite);
 }
 
 // The key an attack is used with: 'nah' (swing) or 'fern' (projectile); null
@@ -69,31 +81,70 @@ function inventory_add(inventory, si) {
     return 1;
 }
 
-// The weapons held and their numbers: [{ sprite_index, key }] in the order
-// collected. A number the author chose is kept (the first weapon collected
-// wins if two have the same one); the others get the smallest free number.
-// More than nine weapons: the rest have none (null).
-function weapon_keys(inventory, sprites) {
-    const weapons = (inventory ?? []).filter(item => is_weapon(sprites?.[item.sprite_index]));
+// Used up: one less of this sprite; returns how many are left (the entry goes at 0).
+function inventory_take(inventory, si) {
+    const i = inventory.findIndex(item => item.sprite_index === si);
+    if (i < 0) return 0;
+    const left = --inventory[i].count;
+    if (left <= 0) inventory.splice(i, 1);
+    return Math.max(0, left);
+}
+
+// What has a number – the weapons held and the Vorrat – and which: [{
+// sprite_index, key }] in the order collected. A number the author chose is
+// kept (the first one collected wins if two have the same one); the others get
+// the smallest free number. More than nine: the rest have none (null).
+// given: a Map sprite index → number the game gave before (Game.item_numbers):
+// a number stays with its thing for the whole game – a Vorrat used up and
+// collected again gets it back, and the others never move up. New numbers
+// are written into it.
+function item_keys(inventory, sprites, given = null) {
+    const weapons = (inventory ?? []).filter(item => is_weapon(sprites?.[item.sprite_index]) || stored_item(sprites?.[item.sprite_index]));
     const taken = new Set();
     const keys = new Map();
     for (const item of weapons) {
         const n = authored_weapon_key(sprites[item.sprite_index]);
         if (n !== null && !taken.has(n)) { keys.set(item.sprite_index, n); taken.add(n); }
     }
+    // numbers given before are kept (and stay reserved while their thing is gone)
+    for (const [si, n] of given ?? []) {
+        if (keys.has(si) || taken.has(n)) continue;
+        taken.add(n);
+        if (weapons.some(item => item.sprite_index === si)) keys.set(si, n);
+    }
     for (const item of weapons) {
         if (keys.has(item.sprite_index)) continue;
         let n = 1;
         while (taken.has(n)) n++;
         keys.set(item.sprite_index, n <= WEAPON_KEYS_MAX ? n : null);
-        if (n <= WEAPON_KEYS_MAX) taken.add(n);
+        if (n <= WEAPON_KEYS_MAX) { taken.add(n); given?.set(item.sprite_index, n); }
     }
     return weapons.map(item => ({ sprite_index: item.sprite_index, key: keys.get(item.sprite_index) }));
+}
+
+// The weapons held and their numbers (without Vorrat: as before October 2026).
+function weapon_keys(inventory, sprites, given = null) {
+    return item_keys(inventory, sprites, given).filter(w => is_weapon(sprites?.[w.sprite_index]));
+}
+
+// What has this number (1…9) – a weapon or Vorrat –, or null.
+function item_for_key(inventory, sprites, n, given = null) {
+    return item_keys(inventory, sprites, given).find(w => w.key === n)?.sprite_index ?? null;
 }
 
 // The weapon with this number (1…9), or null.
 function weapon_for_key(inventory, sprites, n) {
     return weapon_keys(inventory, sprites).find(w => w.key === n)?.sprite_index ?? null;
+}
+
+// Why a Vorrat cannot be used now, as the figure says it – or null. It only
+// gives Leben, and there is no room for more: it stays in the Vorrat.
+function stored_item_refusal(sprite, { lives, max_lives }) {
+    const pickup = sprite?.traits?.pickup ?? {};
+    const gives_lives = (Number(pickup.lives) || 0) > 0;
+    const gives_more = ['energy', 'invincible', 'speed_boost_duration'].some(k => (Number(pickup[k]) || 0) > 0);
+    if (gives_lives && !gives_more && lives >= max_lives) return 'Ich habe schon alle Leben.';
+    return null;
 }
 
 // Choosing a weapon: it takes every kind it has (a sword the melee key, a
@@ -137,17 +188,52 @@ function shop_refusal({ price, points, sprite, held, lives, max_lives }) {
     if (is_weapon(sprite) && held > 0) return 'Das hast du schon.';
     // only lives, and there is no room for more
     const gives_lives = (Number(pickup.lives) || 0) > 0;
-    const gives_more = ['points', 'energy', 'invincible', 'speed_boost_duration'].some(k => (Number(pickup[k]) || 0) > 0) || kept_item(sprite);
+    const gives_more = ['points', 'energy', 'invincible', 'speed_boost_duration'].some(k => (Number(pickup[k]) || 0) > 0) ||
+        kept_item(sprite) || stored_item(sprite);
     if (gives_lives && !gives_more && lives >= max_lives) return 'Du hast schon alle Leben.';
     const missing = price - points;
     if (missing > 0) return missing === 1 ? 'Dafür fehlt dir noch 1 Münze.' : `Dafür fehlen dir noch ${missing} Münzen.`;
     return null;
 }
 
+// ------------------------------------------------------------ Level testen
+// What the figure could have when it comes to this level (Level testen,
+// app.js start_playtest): the points and what stays – "bleibt fürs ganze
+// Spiel" and Vorrat, weapons too – lying free (no Preis) in the levels in use
+// before it, also what defeated enemies leave behind there. Only layers that
+// play (Kollisionen, no Parallaxe). data: the game as the engine holds it
+// (placed sprites refer to sprite indices). Returns { points, items:
+// [{ sprite_index, count }] } in the order they lie.
+function playtest_carry(data, level_index) {
+    const sprites = data?.sprites ?? [];
+    const out = { points: 0, items: [] };
+    const add = (si) => {
+        const sprite = sprites[si];
+        if (!sprite?.traits?.pickup) return;
+        out.points += Number(sprite.traits.pickup.points) || 0;
+        if (kept_item(sprite) || stored_item(sprite)) inventory_add(out.items, si);
+    };
+    (data?.levels ?? []).forEach((level, li) => {
+        if (li >= level_index || !level?.properties?.use_level) return;
+        for (const layer of level.layers ?? []) {
+            if (layer?.type !== 'sprites' || !layer.properties?.collision_detection) continue;
+            if (Math.abs(Number(layer.properties.parallax) || 0) >= 0.0001) continue;
+            for (const placed of layer.sprites ?? []) {
+                if (!Array.isArray(placed) || !Number.isInteger(placed[0])) continue;
+                const traits = sprites[placed[0]]?.traits ?? {};
+                if ('pickup' in traits && !(Number(placed[3]?.pickup?.price) > 0)) add(placed[0]);
+                const drop = traits.baddie?.drop;
+                if (drop && Number.isInteger(drop.sprite_index)) add(drop.sprite_index);
+            }
+        }
+    });
+    return out;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        WEAPON_KEYS_MAX, kept_item, weapon_attacks, is_weapon, weapon_attack_slot, weapon_slots,
-        authored_weapon_key, inventory_count, inventory_add, weapon_keys, weapon_for_key, choose_weapon,
-        attacks_with_weapons, weapon_key_number, shop_refusal,
+        WEAPON_KEYS_MAX, kept_item, weapon_attacks, is_weapon, stored_item, weapon_attack_slot, weapon_slots,
+        authored_weapon_key, inventory_count, inventory_add, inventory_take, item_keys, weapon_keys, item_for_key,
+        weapon_for_key, stored_item_refusal, choose_weapon, attacks_with_weapons, weapon_key_number, shop_refusal, playtest_carry,
     };
 }

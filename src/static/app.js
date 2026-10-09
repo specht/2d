@@ -1,4 +1,9 @@
 let SIMULATION_RATE = 60;
+// Kamerabereiche (Game.camera_pull): how fast the camera glides (per second),
+// and how far from the middle of the screen the figure may be meanwhile (share
+// of half the screen)
+const CAMERA_PULL_RATE = 2.5;
+const CAMERA_PULL_ROOM = 0.75;
 let KEY_UP = 'up';
 let KEY_DOWN = 'down';
 let KEY_LEFT = 'left';
@@ -587,23 +592,30 @@ void main() {
 			this.game.remember_send?.(stored_signal_code(entry.pickup_signal_code), true);
 		}
 		this.game.points += sprite.traits.pickup.points ?? 0;
-		this.game.lives += sprite.traits.pickup.lives ?? 0;
+		// "für später aufheben" (inventory.js): into the Vorrat, used with its number
+		const store = typeof stored_item === 'function' && stored_item(sprite);
+		if (!store) this.apply_pickup_effects(sprite.traits.pickup, t);
+		// "bleibt fürs ganze Spiel" (absent = gone, as always)
+		if (sprite.traits.pickup.keep === true || store) this.game.keep_item?.(entry.sprite_index, t);
+		this.game.update_stats();
+	}
+
+	// What a pickup gives the figure: Leben, Energie, unverwundbar, schneller.
+	apply_pickup_effects(pickup, t) {
+		this.game.lives += pickup.lives ?? 0;
 		if (this.game.lives > this.game.data.properties.max_lives)
 			this.game.lives = this.game.data.properties.max_lives;
-		this.game.energy += sprite.traits.pickup.energy ?? 0;
+		this.game.energy += pickup.energy ?? 0;
 		if (this.game.energy > this.game.data.properties.max_energy)
 			this.game.energy = this.game.data.properties.max_energy;
-		if ((sprite.traits.pickup.invincible ?? 0) > 0.0) {
-			this.invincible_until = t + sprite.traits.pickup.invincible;
+		if ((pickup.invincible ?? 0) > 0.0) {
+			this.invincible_until = t + pickup.invincible;
 		}
-		if ((sprite.traits.pickup.speed_boost_duration ?? 0) > 0.0) {
-			this.accelerated_until = t + sprite.traits.pickup.speed_boost_duration;
-			this.speed_boost_vrun = sprite.traits.pickup.speed_boost_vrun;
-			this.speed_boost_vjump = sprite.traits.pickup.speed_boost_vjump;
+		if ((pickup.speed_boost_duration ?? 0) > 0.0) {
+			this.accelerated_until = t + pickup.speed_boost_duration;
+			this.speed_boost_vrun = pickup.speed_boost_vrun;
+			this.speed_boost_vjump = pickup.speed_boost_vjump;
 		}
-		// "bleibt fürs ganze Spiel" (absent = gone, as always)
-		if (sprite.traits.pickup.keep === true) this.game.keep_item?.(entry.sprite_index, t);
-		this.game.update_stats();
 	}
 
 	// accept(entry): optional, only entries it says yes to (a shop item is no free pickup)
@@ -1465,6 +1477,8 @@ void main() {
 			});
 		} else {
 			this.game.curtain.show_screen('lost_life', { lives: this.game.lives }, 0.5, 1.0, function () {
+				// a crumbled bridge is back, so the level stays possible (an intentional fix)
+				self.game.restore_fallen_blocks();
 				self.reset_gravity();
 				self.mesh.position.x = self.initial_position[0];
 				self.mesh.position.y = self.initial_position[1];
@@ -1617,8 +1631,12 @@ void main() {
 					}
 					if ((!(sprite.traits.falls_down.accumulates)) || (this.game.active_level_sprites[entry.entry_index].accumulated >= sprite.traits.falls_down.timeout * SIMULATION_RATE)) {
 						let t = sprite.traits.falls_down.accumulates ? 0.0 : sprite.traits.falls_down.timeout;
-						this.game.active_level_sprites[entry.entry_index].falling = true;
-						this.game.future_event_list.insert(this.game.clock.getElapsedTime() + t, { action: 'falls_down', entry_index: entry.entry_index });
+						const falling_entry = this.game.active_level_sprites[entry.entry_index];
+						falling_entry.falling = true;
+						// where it was (Game.restore_fallen_blocks), and which fall this is
+						falling_entry.fall_home ??= [entry.mesh.position.x, entry.mesh.position.y];
+						falling_entry.fall_seq = (falling_entry.fall_seq ?? 0) + 1;
+						this.game.future_event_list.insert(this.game.clock.getElapsedTime() + t, { action: 'falls_down', entry_index: entry.entry_index, seq: falling_entry.fall_seq });
 						if (!sprite.traits.falls_down.accumulates) {
 							this.game.state_for_mesh[entry.mesh.uuid].t0 = this.game.clock.getElapsedTime();
 							this.game.state_for_mesh[entry.mesh.uuid].t1 = this.game.clock.getElapsedTime() + sprite.traits.falls_down.timeout;
@@ -1894,7 +1912,8 @@ void main() {
 			if (entry) {
 				let sprite = this.game.data.sprites[entry.sprite_index];
 				let entry_lives = sprite.traits.pickup.lives;
-				if (!(entry_lives > 0 && this.game.lives >= this.game.data.properties.max_lives))
+				// with all lives a Leben stays where it is – unless it goes into the Vorrat
+				if (!(entry_lives > 0 && this.game.lives >= this.game.data.properties.max_lives) || stored_item(sprite))
 					this.collect_pickup(entry, t);
 			}
 
@@ -2056,10 +2075,30 @@ void main() {
 				let safe_zone_x1 = wx + safe_x;
 				let safe_zone_y0 = wy - safe_y;
 				let safe_zone_y1 = wy + safe_y;
-				if (this.game.camera_x < safe_zone_x0) this.game.camera_x = safe_zone_x0;
-				if (this.game.camera_x > safe_zone_x1) this.game.camera_x = safe_zone_x1;
-				if (this.game.camera_y < safe_zone_y0) this.game.camera_y = safe_zone_y0;
-				if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
+				// a Kamerabereich (camera_pull) pulls the camera towards its middle;
+				// the figure may then be further from the middle of the screen
+				const pull = this.game.camera_pull?.(wx, wy) ?? null;
+				if (pull || this.game.camera_pulled) {
+					const ease = 1 - Math.exp(-CAMERA_PULL_RATE / SIMULATION_RATE);
+					const wide_x = (this.game.width / 2 / scale) * CAMERA_PULL_ROOM, wide_y = (this.game.height / 2 / scale) * CAMERA_PULL_ROOM;
+					const toward = (from, to) => from + (to - from) * ease;
+					const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+					// sideways only when the Bereich says so; otherwise the usual rule there
+					const x_goal = pull?.sideways ? pull.x : clamp(this.game.camera_x, safe_zone_x0, safe_zone_x1);
+					const y_goal = pull ? pull.y : clamp(this.game.camera_y, safe_zone_y0, safe_zone_y1);
+					this.game.camera_x = pull && !pull.sideways ? x_goal : toward(this.game.camera_x, x_goal);
+					this.game.camera_y = toward(this.game.camera_y, y_goal);
+					// never so far that the figure leaves the picture
+					this.game.camera_x = clamp(this.game.camera_x, wx - wide_x, wx + wide_x);
+					this.game.camera_y = clamp(this.game.camera_y, wy - wide_y, wy + wide_y);
+					// out of the Bereich and back to the usual: as always from now on
+					this.game.camera_pulled = !!pull || Math.abs(this.game.camera_x - x_goal) > 0.5 || Math.abs(this.game.camera_y - y_goal) > 0.5;
+				} else {
+					if (this.game.camera_x < safe_zone_x0) this.game.camera_x = safe_zone_x0;
+					if (this.game.camera_x > safe_zone_x1) this.game.camera_x = safe_zone_x1;
+					if (this.game.camera_y < safe_zone_y0) this.game.camera_y = safe_zone_y0;
+					if (this.game.camera_y > safe_zone_y1) this.game.camera_y = safe_zone_y1;
+				}
 			}
 			if (!this.dead()) {
 				// fallen out of the level – where its gravity pulls
@@ -2154,9 +2193,15 @@ class Curtain {
 
 	// A screen of screens.js (in German, in the game's pixel font): kind and
 	// info as curtain_screen takes them; the prompt comes from the game.
-	show_screen(kind, info, text_delay, key_delay, oncomplete) {
+	// auto: after so many seconds it goes on by itself (a door into a Nebenlevel).
+	show_screen(kind, info, text_delay, key_delay, oncomplete, auto = null) {
 		const game = this.game;
 		const token = this.token = (this.token ?? 0) + 1;
+		if (Number.isFinite(auto)) setTimeout(() => {
+			if (!this.showing || token !== this.token) return;
+			this.oncomplete?.();
+			this.hide();
+		}, auto * 1000.0);
 		const screen = curtain_screen(kind, { prompt: game.continue_prompt?.(), ...(info ?? {}) });
 		const font = speech_settings(game.data?.properties).font;
 		setTimeout(() => {
@@ -2337,6 +2382,8 @@ class Game {
 		// what stays for the whole game, and the weapons chosen (inventory.js):
 		// only a new game (or game over) empties it, not a lost life
 		this.inventory = [];
+		// the numbers the weapons and the Vorrat got (inventory.js item_keys): they stay
+		this.item_numbers = new Map();
 		this.weapon_choice = { nah: null, fern: null };
 		this.handle_resize();
 		this.stop();
@@ -2539,26 +2586,34 @@ class Game {
 	// delta 1, signal_level_complete_target). Once per level (reached_flag); the
 	// camera zooms onto the figure, then the curtain leads to where the exit
 	// leads (level_flow.js: the next level in use unless something else was
-	// chosen) – or THE END.
+	// chosen) – or THE END. Into or out of a Nebenlevel it is only a door: a
+	// short curtain with where it leads, without "Geschafft!" (an intentional fix).
 	complete_level(delta = 1, target = null) {
 		if (this.reached_flag || this.replaying_memory) return false;
 		this.reached_flag = true;
-		this.ts_zoom_actor = this.clock.getElapsedTime();
 		let self = this;
 		const levels = self.data.levels;
 		const here = levels[self.level_index];
 		const result = resolve_level_exit(levels, self.level_index, { target, delta }, self.level_trail);
-		if (!result.end) {
+		const go_on = function () {
 			const next = levels[result.index];
-			this.curtain.show_screen('level_complete', { next_name: next.properties.name }, 0.5, 1.0, function () {
-				self.level_trail = next_level_trail(self.level_trail, here?.id ?? null, result, next.id ?? null);
-				// the figure arrives at the exit that leads back here (setup: place_player_on_arrival)
-				self.arrived_from = here?.id ?? null;
-				self.level_index = result.index;
-				self.setup();
-				self.run();
-			});
+			self.level_trail = next_level_trail(self.level_trail, here?.id ?? null, result, next.id ?? null);
+			// the figure arrives at the exit that leads back here (setup: place_player_on_arrival)
+			self.arrived_from = here?.id ?? null;
+			self.level_index = result.index;
+			self.setup();
+			self.run();
+		};
+		if (!result.end && (level_is_side(here) || level_is_side(levels[result.index]))) {
+			// into or out of a Nebenlevel (a shop, a secret room): a door, not a
+			// level geschafft – no zoom, no "Geschafft!", only where it leads, and
+			// it goes on by itself (a key goes on sooner)
+			this.curtain.show_screen('level_change', { level_name: levels[result.index].properties.name }, 0.15, 0.3, go_on, 1.2);
+		} else if (!result.end) {
+			this.ts_zoom_actor = this.clock.getElapsedTime();
+			this.curtain.show_screen('level_complete', { next_name: levels[result.index].properties.name }, 0.5, 1.0, go_on);
 		} else {
+			this.ts_zoom_actor = this.clock.getElapsedTime();
 			this.curtain.show_screen('the_end', this.end_screen_info(), 0.5, 2.0, function () {
 				self.stop();
 				$('#screen').hide();
@@ -2656,23 +2711,50 @@ class Game {
 		this.update_touch_buttons();
 	}
 
-	// A number key: the weapon with that number, if the figure has one.
+	// A number key: the weapon with that number is chosen, a Vorrat with it used.
 	choose_weapon_key(n) {
-		const si = weapon_for_key(this.inventory, this.data.sprites, n);
+		const si = item_for_key(this.inventory, this.data.sprites, n, this.item_numbers);
 		if (si === null) return false;
-		this.weapon_choice = choose_weapon(this.weapon_choice, this.data.sprites, si);
-		this.apply_weapons();
+		return this.use_item(si);
+	}
+
+	// A weapon (inventory.js) is chosen; one of a Vorrat is used up: the figure
+	// gets what it gives – unless that would change nothing (all lives), then
+	// the figure says so and keeps it. False if nothing happened.
+	use_item(si) {
+		const sprite = this.data.sprites[si];
+		if (is_weapon(sprite)) {
+			this.weapon_choice = choose_weapon(this.weapon_choice, this.data.sprites, si);
+			this.apply_weapons();
+			return true;
+		}
+		const pc = this.player_character;
+		if (!stored_item(sprite) || !pc || pc.dead?.() || !this.running || inventory_count(this.inventory, si) <= 0) return false;
+		const t = this.clock.getElapsedTime();
+		const refusal = stored_item_refusal(sprite, { lives: this.lives, max_lives: this.data.properties.max_lives });
+		if (refusal) {
+			if (!(this.speech?.active && !String(this.speech.current?.source ?? '').startsWith('shop')))
+				this.shop_say(null, [refusal], 'shop', t);
+			return false;
+		}
+		const left = inventory_take(this.inventory, si);
+		pc.apply_pickup_effects(sprite.traits.pickup, t);
+		// "sendet, wenn die Spielfigur … hat": the last one is gone
+		if (left === 0)
+			for (const item of this.item_signals ?? [])
+				if (item.sprite_index === si) this.signals?.send(item.signal_code, false, t);
+		this.update_stats();
 		return true;
 	}
 
 	// What the HUD shows of the inventory: [{ sprite_index, count, key, chosen }]
 	hud_items() {
 		if (!this.inventory?.length) return [];
-		const keys = new Map(weapon_keys(this.inventory, this.data.sprites).map(w => [w.sprite_index, w.key]));
+		const keys = new Map(item_keys(this.inventory, this.data.sprites, this.item_numbers).map(w => [w.sprite_index, w.key]));
 		return this.inventory.map(item => ({
 			sprite_index: item.sprite_index, count: item.count,
 			key: keys.has(item.sprite_index) ? keys.get(item.sprite_index) : null,
-			chosen: keys.has(item.sprite_index) &&
+			chosen: keys.has(item.sprite_index) && is_weapon(this.data.sprites[item.sprite_index]) &&
 				(this.weapon_choice?.nah === item.sprite_index || this.weapon_choice?.fern === item.sprite_index),
 		}));
 	}
@@ -2758,11 +2840,12 @@ class Game {
 					continue;
 				}
 			}
-			const chatter = speech_parts(entry.shop_chatter ?? '');
+			// one remark at a time (between two |), sentence by sentence
+			const chatter = speech_groups(entry.shop_chatter ?? '');
 			if (!chatter.length || this.speech.active || t - this.shop_quiet_since < SHOP_CHAT_PAUSE) continue;
-			const part = chatter[keeper.chat_index % chatter.length];
+			const parts = chatter[keeper.chat_index % chatter.length];
 			keeper.chat_index += 1;
-			this.shop_say(keeper.entry_index, [part], 'shop_chat', t);
+			this.shop_say(keeper.entry_index, parts, 'shop_chat', t);
 			this.shop_quiet_since = t;
 		}
 	}
@@ -3013,6 +3096,13 @@ class Game {
 			// (speech.js) and continues after the curtain, like a key would.
 			if (touch && (this.speech?.active || this.curtain?.showing)) {
 				this.handle_key_down('Tap');
+				return;
+			}
+			// a picture in the HUD's row of items: choose that weapon, use that Vorrat
+			const item = this.running ? this.hud_item_at(event.clientX, event.clientY) : null;
+			if (item !== null) {
+				event.preventDefault?.();
+				this.use_item(item);
 				return;
 			}
 			if (this.running && this.action_box_at?.(event.clientX, event.clientY)) {
@@ -3299,6 +3389,13 @@ class Game {
 		this.shop_quiet_since = null;
 		// Bewegungsbereiche: swimming, floating, other gravity, currents (player and walking enemies)
 		this.movement_regions = typeof MovementRegions !== 'undefined' ? MovementRegions.resolve(level) : null;
+		// Kamerabereiche (camera_pull): where the camera tends to look
+		this.camera_regions = (level.layers ?? []).flatMap((layer, li) => layer?.type === 'camera_region' ?
+			[{ li, sideways: layer.properties?.sideways === true,
+				rects: (layer.rects ?? []).filter(r => r && r.width !== 0 && r.height !== 0).map(r => ({
+					x0: Math.min(r.left, r.left + r.width), x1: Math.max(r.left, r.left + r.width),
+					y0: Math.min(r.bottom, r.bottom + r.height), y1: Math.max(r.bottom, r.bottom + r.height) })) }] : []);
+		this.camera_pulled = false;
 		// Bewegte Plattformen und Aufzüge (platforms.js; old games have none)
 		this.moving_platforms = typeof MovingPlatforms !== 'undefined' ? MovingPlatforms.setup(this) : [];
 		// Signale (signals.js): who listens to which Code in this level
@@ -3314,19 +3411,21 @@ class Game {
 
 		if (this.data.properties.crt_effect) {
 			// stencil: overlapping backdrop rectangles are drawn once (union_of_rects)
-			this.render_target = new THREE.WebGLRenderTarget(this.width, this.height, { magFilter: THREE.NearestFilter, stencilBuffer: true });
+			// (sized to the screen in fit_crt, every frame: full screen, a turned phone)
+			this.render_target?.dispose?.();
+			this.render_target = new THREE.WebGLRenderTarget(1, 1, { magFilter: THREE.NearestFilter, minFilter: THREE.NearestFilter, stencilBuffer: true });
 			this.screen_scene = new THREE.Scene();
-			let geometry = new THREE.PlaneGeometry(this.width, this.height);
-			let material = new THREE.ShaderMaterial({
+			this.screen_material = new THREE.ShaderMaterial({
 				uniforms: {
 					texture1: { value: this.render_target.texture },
-					resolution: { value: [this.data.properties.screen_pixel_height / 9.0 * 16.0, this.data.properties.screen_pixel_height] },
+					resolution: { value: [1, 1] },
 				},
 				vertexShader: shaders.get('basic.vs'),
 				fragmentShader: shaders.get('screen.fs'),
 				side: THREE.DoubleSide,
 			});
-			this.screen_scene.add(new THREE.Mesh(geometry, material));
+			this.screen_mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.screen_material);
+			this.screen_scene.add(this.screen_mesh);
 		}
 
 		// let material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
@@ -4385,6 +4484,7 @@ class Game {
 		// this.renderer.gammaFactor = 2.2;
 		// this.renderer.outputEncoding = THREE.sRGBEncoding;
 
+		if (this.data.properties.crt_effect) this.fit_crt();
 		this.renderer.setRenderTarget(this.data.properties.crt_effect ? this.render_target : null);
 		// figures in the middle of a turn are drawn turning (Character.visual_angle)
 		const turning = this.show_turning_figures();
@@ -4410,6 +4510,51 @@ class Game {
 			this.render_frame = requestAnimationFrame((t) => this.render());
 	}
 
+	// The CRT effect follows the screen: the picture is rendered at the
+	// screen's own resolution (device pixels), the glass covers the whole
+	// canvas, and the shader reads the game's pixels – as many as the screen
+	// shows, but each at least two device pixels wide (shaders/screen.fs).
+	fit_crt() {
+		const ratio = this.renderer.getPixelRatio();
+		const w = Math.max(1, Math.round(this.width * ratio)), h = Math.max(1, Math.round(this.height * ratio));
+		if (this.render_target.width !== w || this.render_target.height !== h) this.render_target.setSize(w, h);
+		this.screen_mesh.scale.set(this.width, this.height, 1);
+		const game_h = this.data.properties.screen_pixel_height;
+		const shrink = Math.min(1, h / (game_h * 2));
+		this.screen_material.uniforms.resolution.value = [
+			Math.max(1, Math.floor(game_h * (this.width / this.height) * shrink)), Math.max(1, Math.floor(game_h * shrink))];
+	}
+
+	// After a lost life every block that crumbled or fell (falls_down) is back
+	// where it was, whole – as when the level is entered again (level memory).
+	restore_fallen_blocks() {
+		for (const [index, entry] of (this.active_level_sprites ?? []).entries()) {
+			if (!entry?.fall_home || !(entry.falling || entry.accumulated)) continue;
+			const sprite = this.data.sprites[entry.sprite_index];
+			const [x, y] = entry.fall_home;
+			if (entry.fallen) {
+				this.interval_tree_x.insert([x - sprite.width / 2, x + sprite.width / 2], index);
+				this.interval_tree_y.insert([y, y + sprite.height], index);
+			}
+			delete this.falling_sprite_indices[index];
+			entry.falling = false;
+			entry.fallen = false;
+			entry.accumulated = 0;
+			entry.fall_seq = (entry.fall_seq ?? 0) + 1;
+			entry.mesh.position.x = x;
+			entry.mesh.position.y = y;
+			entry.mesh.visible = true;
+			const state = this.state_for_mesh[entry.mesh.uuid];
+			if (state) {
+				state.state_index = 0;
+				state.frame_index = 0;
+				state.loop = true;
+				delete state.t0;
+				delete state.t1;
+			}
+		}
+	}
+
 	resume_game() {
 		if (this.lives > 0) {
 			this.ts_zoom_actor = -1;
@@ -4431,13 +4576,23 @@ class Game {
 	// "Level testen" in the studio: straight into one level, without the
 	// start screen and the curtain, optionally with the figure at a chosen
 	// point (start: { x, y }, its feet there). Nothing about the game changes.
-	start_playtest({ level_index = 0, start = null } = {}) {
+	// carry (absent = true): the figure brings along what it could have by then –
+	// points and what stays from the levels before (inventory.js playtest_carry);
+	// playtest.carried says what (the studio's Level-Check shows it).
+	start_playtest({ level_index = 0, start = null, carry = true } = {}) {
 		if (!this.data) return;
 		const count = this.data.levels?.length ?? 0;
-		this.playtest = { level_index: Math.max(0, Math.min(count - 1, level_index | 0)), start };
+		this.playtest = { level_index: Math.max(0, Math.min(count - 1, level_index | 0)), start, carry: carry !== false };
 		this.reset();
 		this.level_index = this.playtest.level_index;
 		this.setup();
+		const carried = typeof playtest_carry === 'function' ? playtest_carry(this.data, this.playtest.level_index) : { points: 0, items: [] };
+		this.playtest.carried = carried;
+		if (this.playtest.carry) {
+			this.points = carried.points;
+			for (const item of carried.items)
+				for (let i = 0; i < item.count; i++) this.keep_item(item.sprite_index, 0);
+		}
 		const pc = this.player_character;
 		if (pc && start && Number.isFinite(start.x) && Number.isFinite(start.y)) {
 			pc.mesh.position.x = start.x;
@@ -4582,6 +4737,8 @@ class Game {
 			melee: actor_attack('nah', 'swing') || weapon('nah'),
 			ranged: actor_attack('fern', 'projectile') || weapon('fern'),
 			weapons: sprites.filter(sp => is_weapon(sp)).length > 1,
+			// Vorrat (inventory.js): placed, sold or dropped
+			stored: sprites.some(sp => stored_item(sp)),
 		};
 		const action_label = ['Tür', ...(uses.switch ? ['Schalter'] : []), 'Text', ...(uses.shop ? ['Kaufen'] : [])].join(', ');
 		const touch = this.touch_seen || window.matchMedia?.('(pointer: coarse)')?.matches;
@@ -4592,6 +4749,8 @@ class Game {
 			...(uses.action ? [[action_label, [`auf das ${key_cap_text(resolve_controls(this.data.properties).action[0])} tippen`]]] : []),
 			...(uses.melee ? [['Nahkampf', ['⚔']]] : []),
 			...(uses.ranged ? [['Fernkampf', ['➶']]] : []),
+			...(uses.weapons || uses.stored ? [[uses.weapons && uses.stored ? 'Waffe wählen, Vorrat benutzen' :
+				uses.stored ? 'Vorrat benutzen' : 'Waffe wählen', ['Bild oben links antippen']]] : []),
 		] : (() => {
 			const keys = resolve_controls(this.data.properties);
 			// first keys first (← →), the second keys of the same actions as the alternative (A D)
@@ -4605,7 +4764,8 @@ class Game {
 				...(uses.melee ? [['Nahkampf', ...k('melee')]] : []),
 				...(uses.ranged ? [['Fernkampf', ...k('ranged')]] : []),
 				// several weapons: the number keys choose (the number stands beside each in the HUD)
-				...(uses.weapons ? [['Waffe wählen', ['1 … 9']]] : []),
+				...(uses.weapons || uses.stored ? [[uses.weapons && uses.stored ? 'Waffe wählen, Vorrat benutzen' :
+					uses.stored ? 'Vorrat benutzen' : 'Waffe wählen', ['1 … 9']]] : []),
 			];
 		})();
 		for (const [label, keys, alternative] of rows) {
@@ -4704,6 +4864,32 @@ class Game {
 
 	// A tap (or click) on a visible key cap above a door or a sign works like
 	// the action key.
+	// Kamerabereiche (layer type camera_region): while the figure's feet are in
+	// one of its rectangles, the camera tends to look at that rectangle's middle
+	// – up and down; with "auch seitlich" (properties.sideways) also left and
+	// right – as far as the figure stays in the picture (CAMERA_PULL_ROOM).
+	// Leaving it, the camera glides back to following as always. The frontmost
+	// layer wins; a layer that is away (Signale) does nothing; with a turned
+	// gravity the camera follows as always. Returns { x, y, sideways } or null.
+	camera_pull(wx, wy) {
+		if (!this.camera_regions?.length || (this.view_angle ?? 0) !== 0) return null;
+		for (const region of this.camera_regions) {
+			if (this.signal_hidden_layers?.has(region.li)) continue;
+			const r = region.rects.find(r => wx >= r.x0 && wx <= r.x1 && wy >= r.y0 && wy <= r.y1);
+			if (r) return { x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2, sideways: region.sideways };
+		}
+		return null;
+	}
+
+	// The item (a sprite index) whose picture in the HUD is at this point, or null.
+	hud_item_at(clientX, clientY) {
+		const rect = this.renderer?.domElement?.getBoundingClientRect?.();
+		if (!rect || !(rect.width > 0) || !this.hud?.item_boxes?.length) return null;
+		const x = (clientX - rect.left) * this.width / rect.width, y = (clientY - rect.top) * this.height / rect.height;
+		const box = this.hud.item_boxes.find(b => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1);
+		return box ? box.sprite_index : null;
+	}
+
 	action_box_at(clientX, clientY) {
 		const rect = this.renderer?.domElement?.getBoundingClientRect?.();
 		if (!rect || !(rect.width > 0) || !this.camera) return false;
@@ -4911,9 +5097,12 @@ class Game {
 		let next_fel_entry = this.future_event_list.peek();
 		while ((next_fel_entry !== null) && (next_fel_entry <= t)) {
 			let fel_entry = this.future_event_list.pop();
-			if (fel_entry.action === 'falls_down') {
-				let sprite = this.data.sprites[this.active_level_sprites[fel_entry.entry_index].sprite_index];
-				let mesh = this.active_level_sprites[fel_entry.entry_index].mesh;
+			// (a block put back after a lost life: its old fall is over)
+			const falling_entry = fel_entry.action === 'falls_down' ? this.active_level_sprites[fel_entry.entry_index] : null;
+			if (falling_entry && falling_entry.falling && (fel_entry.seq === undefined || fel_entry.seq === falling_entry.fall_seq)) {
+				falling_entry.fallen = true;
+				let sprite = this.data.sprites[falling_entry.sprite_index];
+				let mesh = falling_entry.mesh;
 				this.falling_sprite_indices[fel_entry.entry_index] = { vy: 0.0, damage: sprite.traits.falls_down.damage, width: sprite.width };
 				let x = mesh.position.x;
 				let y = mesh.position.y;
@@ -5251,6 +5440,11 @@ document.addEventListener("DOMContentLoaded", async function (event) {
 	await shaders.load();
 
 	window.game = new Game();
+	// no browser menu over the game (a right-click is not part of playing);
+	// a text field (a name to type) keeps its own
+	document.addEventListener('contextmenu', (e) => {
+		if (!e.target?.closest?.('input, textarea, select')) e.preventDefault();
+	});
 	window.game.reset();
 
 	let tag = window.location.hash.substring(1);

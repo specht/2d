@@ -6674,19 +6674,6 @@ input.dnd-rename {
     outline: 2px dashed #6f9fe0;
     outline-offset: -3px;
 }
-/* a state's role in the list, small (canvas.js state_role_text) */
-.menu_state_item .state-role {
-    position: absolute;
-    right: 22px;
-    top: 8px;
-    font-size: 11.5px;
-    color: #8fb0d0;
-    max-width: 45%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    pointer-events: none;
-}
 .menu_state_item .state_label.unnamed {
     font-style: italic;
     color: #9aa;
