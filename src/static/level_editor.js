@@ -724,6 +724,9 @@ class LevelEditor {
                 const [deleted] = self.game.data.levels.splice(index, 1);
                 self.label_for_level.splice(index, 1);
                 self.level_index = 0;
+                // the layer and the selection were the deleted level's (406512)
+                self.layer_index = 0;
+                self.selection = [];
                 window.collaboration?.structure_changed?.('level', 'delete', deleted?.id);
             },
             on_move_item: (from, to) => {
@@ -869,6 +872,46 @@ class LevelEditor {
 
     // Shows the level again after its data was replaced (undo, or a change
     // from a collaboration session), keeping the camera and the selected layer.
+    // The level or layer shown may be gone: deleted here or by a partner in a
+    // Zusammenarbeiten session, or the whole game replaced (Sitzung verlassen)
+    // while the Signale animation still draws. Then the nearest one that is
+    // there is shown instead of reading what does not exist (f67138, 42895b).
+    // false: there is nothing to show at all.
+    view_indices_valid() {
+        const levels = this.game.data?.levels ?? [];
+        if (!levels.length) return false;
+        let moved = false;
+        if (!(Number.isInteger(this.level_index) && this.level_index >= 0 && this.level_index < levels.length)) {
+            this.level_index = Math.max(0, Math.min(levels.length - 1, Number.isInteger(this.level_index) ? this.level_index : 0));
+            this.layer_index = 0;
+            moved = true;
+        }
+        const layers = levels[this.level_index]?.layers ?? [];
+        if (!layers.length) return false;
+        if (!(Number.isInteger(this.layer_index) && this.layer_index >= 0 && this.layer_index < layers.length)) {
+            this.layer_index = 0;
+            moved = true;
+        }
+        if (moved) {
+            this.selection = [];
+            this.rect_index = 0;
+            this.placed_properties_for = null;
+            this.backdrop_controls_setup_for = null;
+            // the lists show it too – once, after what is running now
+            if (!this.view_repair_pending) {
+                this.view_repair_pending = true;
+                setTimeout(() => {
+                    this.view_repair_pending = false;
+                    const widget = this.levels_widget;
+                    if (widget?.options?.items !== this.game.data?.levels || !this.view_indices_valid()) return;
+                    widget.rebuild();
+                    widget.select_index(this.level_index);
+                }, 0);
+            }
+        }
+        return true;
+    }
+
     reload_level_keeping_view(index) {
         const view = {
             camera_x: this.camera_x, camera_y: this.camera_y,
@@ -4787,6 +4830,7 @@ class LevelEditor {
 
     // exact: the world point unrounded (for snapping it afterwards)
     ui_to_world(p, snap, exact = false) {
+        this.view_indices_valid();
         let layer = this.game.data.levels[this.level_index].layers[this.layer_index];
         let wx = this.camera_x + (p[0] - (this.width / 2)) / this.scale - this.camera_x * layer.properties.parallax;
         let wy = this.camera_y - (p[1] - (this.height / 2)) / this.scale - this.camera_y * layer.properties.parallax;
@@ -4843,6 +4887,7 @@ class LevelEditor {
     }
 
     render() {
+        if (!this.view_indices_valid()) return;
 
         let layer = this.game.data.levels[this.level_index].layers[this.layer_index];
 
@@ -5098,6 +5143,7 @@ class LevelEditor {
 
     refresh() {
         let self = this;
+        if (!this.view_indices_valid()) return;
         // every label that names the level, the layer or the selection
         // follows what is shown now (after switching, renaming, undo …)
         this.update_layer_label();

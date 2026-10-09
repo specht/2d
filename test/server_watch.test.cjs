@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { server_unavailable_status, server_status_after } = require('../src/static/server_watch.js');
+const { server_unavailable_status, server_status_after, upload_refused } = require('../src/static/server_watch.js');
 
 test('which answers mean the server is away', () => {
     for (const status of [0, 502, 503, 504]) assert.equal(server_unavailable_status(status), true, String(status));
@@ -22,4 +22,11 @@ test('down, back, and a new version', () => {
     assert.equal(server_status_after('down', { type: 'up', version: null }, 'v1'), 'back');
     assert.equal(server_status_after('ok', { type: 'up', version: 'v2' }, null), 'ok');
     assert.equal(server_status_after('back', { type: 'up', version: 'v1' }, 'v1'), 'ok');
+});
+
+test('a game the server will not take: a proxy\'s 413 or the app\'s own limit', () => {
+    assert.equal(upload_refused(413, '<html>413 Request Entity Too Large</html>'), true);
+    assert.equal(upload_refused(500, '{"error":"too_much_data"}'), true);
+    assert.equal(upload_refused(500, '{"error":"assertion failed"}'), false);
+    assert.equal(upload_refused(502, ''), false);
 });

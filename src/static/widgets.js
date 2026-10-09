@@ -697,6 +697,17 @@ const LONG_PRESS_MS = 550;
 // keep the browser's menu (cut, copy, paste). The game frame has its own
 // rule (app.js: no browser menu over the game).
 const CONTEXT_MENU_NOTHING = 'Hier gibt es nichts zu tun';
+// Coloris (coloris.min.js) measures its colour area when it opens. Its hue
+// and alpha sliders moved before that (a key on a slider that kept the focus,
+// in Firefox) read the missing measurement and throw (fea8b2). Until the
+// picker is open, nothing on it reacts.
+(function guard_color_picker_sliders() {
+    if (typeof document === 'undefined') return;
+    document.addEventListener('input', (e) => {
+        if (e.target?.closest?.('#clr-picker') && !document.querySelector('#clr-picker.clr-open')) e.stopImmediatePropagation();
+    }, true);
+})();
+
 (function install_context_menu_fallback() {
     if (typeof document === 'undefined') return;
     document.addEventListener('contextmenu', (e) => {

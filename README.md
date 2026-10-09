@@ -38,7 +38,7 @@ cp env.template.rb env.rb     # defaults are fine for development
 ./config.rb up                # http://localhost:8025
 ```
 
-Data lives in `./data` (games, pictures, database), logs in `./logs`. Static files are mounted, so a browser reload shows changes; the Ruby server restarts itself on changes. After a pull, `./rebuild.sh` records outdated recipes and guides and restarts the server. For production set `DEVELOPMENT = false` and real values in `env.rb`.
+Data lives in `./data` (games, pictures, database), logs in `./logs`. Static files are mounted, so a browser reload shows changes; the Ruby server restarts itself on changes. After a pull, `./rebuild.sh` records outdated recipes and guides and restarts the server. For production set `DEVELOPMENT = false` and real values in `env.rb`. Behind nginx-proxy (`VIRTUAL_HOST`), set `NGINX_PROXY_VHOST_PATH` to its `vhost.d` folder: `config.rb` then raises the proxy's request limit for the site (`<host>_location`) (default 1 MB – bigger games could neither be saved nor played).
 
 ## In class: the teacher's scripts
 

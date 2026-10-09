@@ -24,6 +24,15 @@ function server_unavailable_status(status) {
     return status === 0 || status === 502 || status === 503 || status === 504;
 }
 
+// A game too big for the server to take (Speichern, Spielen): 413 from nginx
+// or a proxy in front of it, or main.rb's own limit (too_much_data).
+function upload_refused(status, response_text) {
+    return status === 413 || String(response_text ?? '').includes('too_much_data');
+}
+
+const UPLOAD_REFUSED_TEXT = 'Dein Spiel ist gerade zu groß für den Server – Speichern und Spielen gehen deshalb nicht. ' +
+    'Deine Arbeit ist hier im Browser gesichert. Sag deiner Lehrkraft Bescheid.';
+
 // 'ok' | 'down' | 'back' (just returned, same version) | 'updated' (a newer
 // version is running than the one this page was loaded from)
 function server_status_after(status, event, client_version) {
@@ -52,10 +61,21 @@ class ServerWatch {
             $(document).ajaxError((event, jqxhr, settings) => {
                 if (jqxhr.statusText === 'abort' || window.studio_reloading) return;
                 const url = String(settings?.url ?? '');
+                const save = url.includes('/api/save_game') && !url.includes('_temp');
+                const play = url.includes('/api/play_copy');
                 if (server_unavailable_status(jqxhr.status)) {
-                    if (url.includes('/api/save_game') && !url.includes('_temp')) this.save_failed = true;
+                    if (save) this.save_failed = true;
                     this.went_down();
-                } else if (url.includes('/api/save_game') && !url.includes('_temp')) {
+                } else if ((save || play) && upload_refused(jqxhr.status, jqxhr.responseText)) {
+                    // the server is there, but the game is bigger than it takes
+                    // (a proxy's limit: the teacher can raise it, config.rb)
+                    this.notice(UPLOAD_REFUSED_TEXT);
+                    window.crash_reporter?.report_problem?.('game_too_large', { status: jqxhr.status, url,
+                        bytes: typeof settings?.data === 'string' ? settings.data.length : null });
+                } else if (play) {
+                    this.notice('Spielen hat nicht geklappt. Deine Arbeit ist hier im Browser gesichert – versuch es gleich noch einmal.');
+                    window.crash_reporter?.report_problem?.('play_failed', { status: jqxhr.status, error: String(jqxhr.responseText ?? '').slice(0, 300) });
+                } else if (save) {
                     // the server is there but did not take it: a bug to fix
                     this.notice('Speichern hat nicht geklappt. Deine Arbeit ist hier im Browser gesichert – versuch es gleich noch einmal.');
                     window.crash_reporter?.report_problem?.('save_failed', { status: jqxhr.status, error: String(jqxhr.responseText ?? '').slice(0, 300) });
@@ -189,5 +209,5 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { server_unavailable_status, server_status_after, ServerWatch };
+    module.exports = { server_unavailable_status, server_status_after, upload_refused, ServerWatch };
 }

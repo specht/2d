@@ -6,6 +6,11 @@ require 'yaml'
 require './env.rb'
 
 DEV_NGINX_PORT = DEVELOPMENT ? 8025 : 8020
+# The most one request may carry (a whole game for Speichern and Spielen; main.rb
+# takes up to 20 MB): for the app's nginx, and for nginx-proxy in front of it on
+# the live server (env.rb NGINX_PROXY_VHOST_PATH) – its default of 1 MB turns
+# away every game above 1 MB with 413.
+MAX_REQUEST_SIZE = '32m'
 DEV_NEO4J_PORT = 8041
 NEO4J_DATA_PATH = File::join(DATA_PATH, 'neo4j')
 NEO4J_LOGS_PATH = File::join(LOGS_PATH, 'neo4j')
@@ -63,7 +68,7 @@ nginx_config = <<~eos
         listen 80;
         server_name localhost;
         server_tokens off;
-        client_max_body_size 32M;
+        client_max_body_size #{MAX_REQUEST_SIZE};
 
         access_log /var/log/nginx/access.log custom;
 
@@ -205,6 +210,30 @@ FileUtils::mkpath(File.join(GEN_FILES_PATH, 'png'))
 FileUtils::mkpath(File.join(GEN_FILES_PATH, 'games'))
 FileUtils::mkpath(NEO4J_DATA_PATH)
 FileUtils::mkpath(NEO4J_LOGS_PATH)
+
+# nginx-proxy (VIRTUAL_HOST above) reads extra settings for the site's
+# location from <host>_location in its vhost.d folder: the same request size as
+# the app's nginx. Not the file named like the host: that one would replace
+# vhost.d/default for the site, where the acme companion may keep the
+# Let's Encrypt challenge. Other lines in the file stay as they are.
+if !DEVELOPMENT && defined?(NGINX_PROXY_VHOST_PATH) && NGINX_PROXY_VHOST_PATH
+    vhost_file = File::join(NGINX_PROXY_VHOST_PATH, "#{WEBSITE_HOST}_location")
+    line = "client_max_body_size #{MAX_REQUEST_SIZE};\n"
+    begin
+        old = File.exist?(vhost_file) ? File.read(vhost_file) : ''
+        kept = old.lines.map { |l| l.end_with?("\n") ? l : l + "\n" }.reject { |l| l =~ /^\s*client_max_body_size\b/ }
+        wanted = (kept + [line]).join
+        if wanted != old
+            FileUtils::mkpath(NGINX_PROXY_VHOST_PATH)
+            File.write(vhost_file, wanted)
+            puts "#{vhost_file}: #{line.strip}"
+            puts "nginx-proxy übernimmt das, wenn er neu startet: docker restart <nginx-proxy-Container>"
+        end
+    rescue SystemCallError => e
+        puts "Konnte #{vhost_file} nicht schreiben (#{e.message})."
+        puts "Bitte dort von Hand eintragen: #{line.strip}"
+    end
+end
 
 `docker compose 2> /dev/null`
 DOCKER_COMPOSE = ($? == 0) ? 'docker compose' : 'docker-compose'

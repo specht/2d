@@ -28,3 +28,9 @@ LETSENCRYPT_EMAIL = 'specht@gymnasiumsteglitz.de'
 # Produktionsumgebungen angepasst werden
 LOGS_PATH = './logs'
 DATA_PATH = './data'
+
+# Nur für Produktionsumgebungen hinter nginx-proxy (VIRTUAL_HOST): der Ordner,
+# der im nginx-proxy-Container als /etc/nginx/vhost.d eingebunden ist. Dann
+# trägt config.rb dort ein, wie groß ein Spiel beim Speichern und Spielen sein
+# darf – sonst lässt nginx-proxy nur 1 MB durch. nil: nichts eintragen.
+NGINX_PROXY_VHOST_PATH = nil
