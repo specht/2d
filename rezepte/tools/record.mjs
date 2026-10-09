@@ -74,7 +74,9 @@ export async function record(browser, repo, game, recipe) {
         if (!file.startsWith(static_root) || !fs.existsSync(file) || fs.statSync(file).isDirectory())
             return route.fulfill({ status: 404, body: '' });
         let body = fs.readFileSync(file);
-        if (file.endsWith('.html')) body = body.toString().replace(/#\{@@cache_buster\}/g, 'rezepte');
+        // the server's template placeholders: #{@@cache_buster}, and any other
+        // (#{DEVELOPMENT …}) as nothing – a Ruby expression is no JavaScript
+        if (file.endsWith('.html')) body = body.toString().replace(/#\{@@cache_buster\}/g, 'rezepte').replace(/#\{[^}]*\}/g, '');
         return reply(body, MIME[path.extname(file)] ?? 'application/octet-stream');
     });
     await page.addInitScript(() => {

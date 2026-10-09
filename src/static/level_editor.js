@@ -5274,6 +5274,11 @@ class LevelEditor {
                     return placed[3][trait];
                 };
                 const widgets = {};
+                // which settings the panel shows now (a rebuild is needed only when that changes)
+                const shown = () => Object.keys(sprite.traits).flatMap(trait =>
+                    Object.entries(SPRITE_TRAITS[trait]?.placed_properties ?? {})
+                        .filter(([, p]) => !p.visible || p.visible(sprite.traits, traits_of, props_of(trait), level))
+                        .map(([key]) => `${trait}/${key}`)).join(' ');
                 for (let trait in sprite.traits) {
                     for (let key in ((SPRITE_TRAITS[trait] ?? {}).placed_properties ?? {})) {
                         let property = SPRITE_TRAITS[trait].placed_properties[key];
@@ -5283,6 +5288,7 @@ class LevelEditor {
                         const get = () => props_of(trait)[key] ?? (property.default_for ? property.default_for(sprite.traits) : property.default);
                         const set = (value) => {
                             const props = writable_props_of(trait);
+                            const shown_before = property.rebuilds_panel ? shown() : null;
                             props[key] = value;
                             // "sendet, wenn besiegt": an enemy without a Code gets a free one
                             if (trait === 'baddie' && key === 'signal_on_defeat') {
@@ -5303,9 +5309,16 @@ class LevelEditor {
                             // the exit's line in the Signale-Übersicht changes with its settings
                             if (trait === 'level_complete') this.refresh_signal_overview?.();
                             // a setting that shows or hides others ("Wer spricht" → Textfarbe)
-                            if (property.rebuilds_panel) {
+                            // – a number field (Preis) is set at every key press: there only
+                            // when what is shown changes, and the cursor stays in the field
+                            const typing = widget?.input?.[0]?.is?.(':focus') ? `${trait}/${key}` : null;
+                            if (property.rebuilds_panel && (!typing || shown() !== shown_before)) {
                                 this.placed_properties_for = null;
-                                setTimeout(() => this.refresh(), 0);
+                                setTimeout(() => {
+                                    this.placed_refocus = typing;
+                                    this.refresh();
+                                    this.placed_refocus = null;
+                                }, 0);
                             }
                             this.update_signal_links?.();
                             // the Weg of a platform is drawn in the level
@@ -5476,6 +5489,13 @@ class LevelEditor {
                     }
                 }
                 this.add_signal_links(sprite, entry_index);
+                // back into the field that was being typed in, the cursor at the end
+                const refocus = this.placed_refocus ? widgets[this.placed_refocus]?.input?.[0] : null;
+                if (refocus?.length) {
+                    refocus.trigger('focus');
+                    const end = refocus.val().length;
+                    refocus[0].setSelectionRange?.(end, end);
+                }
                 // a Preis in a game where nothing gives points: nobody could buy it
                 if ('pickup' in sprite.traits && Number(props_of('pickup').price) > 0 &&
                     !this.game.data.sprites.some(other => (Number(other?.traits?.pickup?.points) || 0) > 0))
