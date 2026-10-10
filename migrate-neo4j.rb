@@ -11,7 +11,7 @@
 #
 #   ./config.rb exec -T ruby ruby db-fingerprint.rb > fingerprint-vorher.txt
 #   ./config.rb stop
-#   ./migrate-neo4j.rb
+#   ./migrate-neo4j.rb            # sudo, if data/neo4j belongs to another user
 #   ./config.rb build && ./config.rb up -d
 #   ./config.rb exec -T ruby ruby db-fingerprint.rb > fingerprint-nachher.txt
 
@@ -38,9 +38,9 @@ end
 def run_in(image, data_path, logs_name, *command)
     logs_path = File.join(WORK_PATH, logs_name)
     FileUtils.mkpath(logs_path)
-    # run as root with another UID for the containers: they must write here
-    FileUtils.chown_R(UID, nil, WORK_PATH) if Process.uid == 0 && UID != 0
-    args = ['docker', 'run', '--rm', '--user', UID.to_s,
+    # run with sudo: the containers (as the owner of the database) write here
+    FileUtils.chown_R(RUN_UID, nil, WORK_PATH) if Process.uid == 0 && RUN_UID != 0
+    args = ['docker', 'run', '--rm', '--user', RUN_UID.to_s,
             '-v', "#{data_path}:/data", '-v', "#{WORK_PATH}:/backups", '-v', "#{logs_path}:/logs",
             image, *command]
     puts "== #{command.join(' ')} (#{image})"
@@ -59,9 +59,35 @@ if File.exist?(OLD_DATA_PATH)
         Zurück zu 4.4: ./config.rb stop; mv #{NEO4J_DATA_PATH} #{NEO4J_DATA_PATH}-5; mv #{OLD_DATA_PATH} #{NEO4J_DATA_PATH}; dann den alten Stand bauen und starten.
     END_OF_TEXT
 end
-unless File.directory?(File.join(NEO4J_DATA_PATH, 'databases', 'neo4j'))
-    fail_with "In #{NEO4J_DATA_PATH} ist keine Datenbank: Nichts umzuziehen, Neo4j 5 legt eine neue an."
+databases_path = File.join(NEO4J_DATA_PATH, 'databases')
+fail_with "In #{NEO4J_DATA_PATH} ist keine Datenbank: Nichts umzuziehen, Neo4j 5 legt eine neue an." unless File.directory?(databases_path)
+# The containers run as the owner of the database (normally UID in env.rb):
+# they read the 4.4 store, and the new one belongs to the same user.
+RUN_UID = File.stat(databases_path).uid
+if Process.uid != RUN_UID && Process.uid != 0
+    fail_with <<~END_OF_TEXT
+        #{databases_path} gehört UID #{RUN_UID}, dieser Benutzer ist UID #{Process.uid}.
+        Bitte so: sudo ./migrate-neo4j.rb
+    END_OF_TEXT
 end
+puts "Achtung: Die Datenbank gehört UID #{RUN_UID}, env.rb setzt UID = #{UID} (so läuft Neo4j)." if RUN_UID != UID && !(Process.uid == 0 && UID == 0)
+begin
+    names = Dir.children(databases_path).select { |name| File.directory?(File.join(databases_path, name)) } - ['system']
+rescue Errno::EACCES
+    fail_with "#{databases_path} ist nicht lesbar (#{File.stat(databases_path).mode.to_s(8)[-3..]}). Bitte so: sudo ./migrate-neo4j.rb"
+end
+# Neo4j's default database is neo4j; an older setup may name it differently.
+# Neo4j 5 gets it as neo4j, its default, whatever it was called before.
+SOURCE_DATABASE = if ARGV[0]
+    names.include?(ARGV[0]) ? ARGV[0] : fail_with("#{ARGV[0]} gibt es nicht in #{databases_path} (da: #{names.join(', ')}).")
+elsif names.include?('neo4j') || names.size == 1
+    names.include?('neo4j') ? 'neo4j' : names.first
+elsif names.empty?
+    fail_with "In #{databases_path} ist keine Datenbank: Nichts umzuziehen, Neo4j 5 legt eine neue an."
+else
+    fail_with "In #{databases_path} liegen mehrere Datenbanken: #{names.join(', ')}. Welche gehört zum Studio? ./migrate-neo4j.rb <Name>"
+end
+puts "Datenbank: #{SOURCE_DATABASE} (UID #{RUN_UID})"
 running, error, status = Open3.capture3('docker', 'ps', '-q',
     '--filter', "label=com.docker.compose.project=#{PROJECT_NAME}",
     '--filter', 'label=com.docker.compose.service=neo4j')
@@ -71,7 +97,7 @@ fail_with "#{WORK_PATH} gibt es schon (ein früherer Versuch?). Bitte ansehen un
 
 FileUtils.mkpath(NEW_DATA_PATH)
 run_in(SOURCE_IMAGE, NEO4J_DATA_PATH, 'logs-4.4',
-    'neo4j-admin', 'dump', '--database=neo4j', '--to=/backups/neo4j.dump')
+    'neo4j-admin', 'dump', "--database=#{SOURCE_DATABASE}", '--to=/backups/neo4j.dump')
 fail_with "Der Dump fehlt: #{DUMP_FILE}" unless File.size?(DUMP_FILE)
 run_in(TARGET_IMAGE, NEW_DATA_PATH, 'logs-5',
     'neo4j-admin', 'database', 'load', 'neo4j', '--from-path=/backups')

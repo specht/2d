@@ -45,7 +45,7 @@ Data lives in `./data` (games, pictures, database), logs in `./logs`. Static fil
 ```bash
 ./config.rb exec -T ruby ruby db-fingerprint.rb > fingerprint-vorher.txt
 ./config.rb stop
-./migrate-neo4j.rb            # keeps the 4.4 database untouched in data/neo4j-4.4
+./migrate-neo4j.rb            # keeps the 4.4 database untouched in data/neo4j-4.4 (sudo if it belongs to another user)
 ./config.rb build && ./config.rb up -d
 ./config.rb exec -T ruby ruby db-fingerprint.rb > fingerprint-nachher.txt
 diff fingerprint-vorher.txt fingerprint-nachher.txt   # the SHA-256 line must be the same
