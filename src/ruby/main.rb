@@ -1446,7 +1446,7 @@ class Main < Sinatra::Base
                 s = string.downcase
                 if s.include?(part)
                     neo4j_query(<<~END_OF_QUERY, {:string => string}).each do |row|
-                        MATCH (g:Game)-[:AUTHOR|:TITLE]->(s:String {content: $string})
+                        MATCH (g:Game)-[:AUTHOR|TITLE]->(s:String {content: $string})
                         RETURN g.tag AS tag;
                     END_OF_QUERY
                         result_tags << row['tag']

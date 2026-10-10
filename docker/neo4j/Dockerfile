@@ -1,4 +1,5 @@
-FROM neo4j:4.4-community
+# Neo4j 5.26 LTS. A 4.4 database moves over with ./migrate-neo4j.rb (README).
+FROM neo4j:5.26-community
 
 ENV TZ=Europe/Berlin
 

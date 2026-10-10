@@ -40,6 +40,19 @@ cp env.template.rb env.rb     # defaults are fine for development
 
 Data lives in `./data` (games, pictures, database), logs in `./logs`. Static files are mounted, so a browser reload shows changes; the Ruby server restarts itself on changes. After a pull, `./rebuild.sh` records outdated recipes and guides and restarts the server. For production set `DEVELOPMENT = false` and real values in `env.rb`. Behind nginx-proxy (`VIRTUAL_HOST`), set `NGINX_PROXY_VHOST_PATH` to its `vhost.d` folder: `config.rb` then raises the proxy's request limit for the site (`<host>_location`) (default 1 MB – bigger games could neither be saved nor played).
 
+**From Neo4j 4.4 to 5.** The database runs on Neo4j 5.26 LTS, which cannot open a 4.4 database (it refuses to start). A database from before moves over once, with the old code still running for the first fingerprint:
+
+```bash
+./config.rb exec -T ruby ruby db-fingerprint.rb > fingerprint-vorher.txt
+./config.rb stop
+./migrate-neo4j.rb            # keeps the 4.4 database untouched in data/neo4j-4.4
+./config.rb build && ./config.rb up -d
+./config.rb exec -T ruby ruby db-fingerprint.rb > fingerprint-nachher.txt
+diff fingerprint-vorher.txt fingerprint-nachher.txt   # the SHA-256 line must be the same
+```
+
+Going back: stop, move `data/neo4j-4.4` back to `data/neo4j`, build and start the previous code.
+
 ## In class: the teacher's scripts
 
 Run inside the Ruby container (`./config.rb exec ruby sh`), or from outside as `./config.rb exec ruby ruby <script> …`.
