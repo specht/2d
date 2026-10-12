@@ -95,6 +95,8 @@ function assign_new_game_id(data, key, item, random = random_game_id) {
 // - placed sprites in level layers: [sprite_id, x, y, properties?]
 // - attack visuals: hit_sprite_id, attack_sprite_id, projectile_sprite_id
 // - enemy drops: traits.baddie.drop.sprite_id
+// - a Truhe's Inhalt: traits.chest.loot.sprite_id, and a placed copy's own
+//   (placed properties chest.loot.sprite_id)
 // - need_sprite level conditions: properties.sprite_id
 // - "sendet, wenn die Spielfigur … hat": level.properties.item_signals[].sprite_id
 //
@@ -138,6 +140,11 @@ function for_each_sprite_reference_in_sprite(sprite, visit) {
     if (baddie?.drop && typeof baddie.drop === 'object') {
         visit(baddie.drop, 'sprite_index', 'sprite_id', () => { delete baddie.drop; });
     }
+    // a Truhe without its Inhalt is empty
+    const chest = sprite?.traits?.chest;
+    if (chest?.loot && typeof chest.loot === 'object') {
+        visit(chest.loot, 'sprite_index', 'sprite_id', () => { delete chest.loot; });
+    }
 }
 
 // Calls visit(container, index_key, id_key, clear) for every keyed sprite
@@ -154,6 +161,19 @@ function for_each_keyed_sprite_reference(data, visit) {
                 delete properties.sprite_index;
                 delete properties.sprite_id;
             });
+        }
+        // a placed Truhe's own Inhalt: without its sprite, the drawing's again
+        for (const layer of Array.isArray(level?.layers) ? level.layers : []) {
+            if (layer?.type !== 'sprites' || !Array.isArray(layer.sprites)) continue;
+            for (const placed of layer.sprites) {
+                const props = Array.isArray(placed) ? placed[3] : null;
+                const loot = props?.chest?.loot;
+                if (!loot || typeof loot !== 'object') continue;
+                visit(loot, 'sprite_index', 'sprite_id', () => {
+                    delete props.chest.loot;
+                    if (!Object.keys(props.chest).length) delete props.chest;
+                });
+            }
         }
         // a level setting per item (inventory.js): without its sprite it goes
         const items = level?.properties?.item_signals;

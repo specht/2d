@@ -263,3 +263,23 @@ test('item signals refer to their sprite by id, and go with the sprite', () => {
     ids.remove_sprite_references(data, 'a');
     assert.equal('item_signals' in data.levels[0].properties, false, 'nothing left: the setting goes');
 });
+
+test('a Truhe\'s Inhalt – on the drawing and on a placed copy – is a sprite reference', () => {
+    const data = {
+        sprites: [
+            { id: 'truhe', traits: { chest: { loot: { sprite_id: 'stein', signal_code: 4 } } } },
+            { id: 'stein', traits: { pickup: {} } },
+            { id: 'herz', traits: { pickup: {} } },
+        ],
+        levels: [{ id: 'l1', layers: [{ type: 'sprites', sprites: [
+            ['truhe', 0, 0], ['truhe', 48, 0, { chest: { loot: { sprite_id: 'herz' } } }]] }] }],
+    };
+    const played = ids.resolve_sprite_references_to_indices(JSON.parse(JSON.stringify(data)));
+    assert.deepEqual(played.sprites[0].traits.chest.loot, { sprite_index: 1, signal_code: 4 });
+    assert.deepEqual(played.levels[0].layers[0].sprites[1][3].chest.loot, { sprite_index: 2 });
+    // the Inhalt deleted: the drawing is empty, the copy holds what the drawing holds
+    ids.remove_sprite_references(data, 'herz');
+    assert.deepEqual(data.levels[0].layers[0].sprites[1], ['truhe', 48, 0, {}]);
+    ids.remove_sprite_references(data, 'stein');
+    assert.equal(data.sprites[0].traits.chest.loot, undefined);
+});

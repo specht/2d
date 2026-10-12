@@ -772,6 +772,7 @@ class Game {
             }
         }
         this.drop_sprite_picker?.refresh();
+        this.chest_sprite_picker?.refresh();
         if (typeof refresh_who_shows_what_pictures === 'function') refresh_who_shows_what_pictures();
         this.attack_sprite_picker?.refresh();
         this.hit_sprite_picker?.refresh();
@@ -939,6 +940,7 @@ class Game {
     // or deleted they need to look up their (ID-based) choice again.
     refresh_sprite_reference_pickers() {
         this.drop_sprite_picker?.refresh();
+        this.chest_sprite_picker?.refresh();
         this.attack_sprite_picker?.refresh();
         this.hit_sprite_picker?.refresh();
         this.ranged_projectile_picker?.refresh();
@@ -1067,6 +1069,7 @@ class Game {
         // from an enemy shown before (or from the game before) read the Beute
         // of a sprite that is no enemy, and a game failed to load halfway
         this.drop_sprite_picker = null;
+        this.chest_sprite_picker = null;
         this.attack_sprite_picker = null;
         this.hit_sprite_picker = null;
         this.ranged_projectile_picker = null;
@@ -1179,6 +1182,8 @@ class Game {
         if (trait === 'baddie') this.add_drop_controls?.(div, si);
         if (trait === 'door' || trait === 'switch' || trait === 'pressure_plate') this.add_state_pair_help(div, si, trait);
         if (trait === 'pickup') this.add_pickup_keep_controls(div, si);
+        if (trait === 'chest') this.add_chest_controls(div, si);
+        if (trait === 'actor' || trait === 'baddie') this.add_fall_damage_controls(div, si, trait);
         div.insertAfter(element);
     }
 
@@ -1283,6 +1288,108 @@ class Game {
 
     // Target-owned visual feedback, independent of weapon/attack settings.
     // Merely opening the editor does not add properties to saved game JSON.
+    // Truhe: what pops out when it opens (traits.chest.loot = { sprite_id,
+    // signal_code }; absent = empty). A placed copy may hold something else
+    // (level_editor.js: placed chest.loot).
+    add_chest_controls(div, si) {
+        const sprite_id = this.data.sprites[si]?.id;
+        const chest = () => (sprite_id ? this.data.sprites.find(sprite => sprite.id === sprite_id) : this.data.sprites[si])?.traits?.chest;
+        const box = $('<div>').appendTo(div);
+        const render = () => {
+            box.empty();
+            if (!chest()) return;
+            this.chest_sprite_picker = new SpriteSelectWidget({
+                container: box, label: 'Inhalt:',
+                none_label: 'Leer',
+                hint: 'Das springt heraus, wenn die Truhe aufgeht – zum Beispiel ein Edelstein, ein Extraleben, ein Schlüssel oder eine Waffe: ein Sprite mit „man kann es einsammeln“ oder „ist ein Schlüssel“. Oder eine Überraschung: Ein Gegner springt heraus und greift an. Im Level kannst du jeder Truhe einen eigenen Inhalt geben: Klick sie an und wähl „Inhalt dieser Truhe“.',
+                sprites: () => this.data.sprites,
+                get: () => {
+                    const id = chest()?.loot?.sprite_id;
+                    const index = typeof id === 'string' ? this.data.sprites.findIndex(sprite => sprite.id === id) : -1;
+                    return index >= 0 ? String(index) : 'none';
+                },
+                set: (choice) => {
+                    const index = Number(choice);
+                    if (!chest()) return;
+                    if (choice === 'none') delete chest().loot;
+                    else if (Number.isInteger(index) && this.data.sprites[index]) {
+                        const { sprite_index, ...loot } = chest().loot ?? {};
+                        chest().loot = { ...loot, sprite_id: this.data.sprites[index].id };
+                    }
+                    render();
+                },
+            });
+            const chosen_id = chest().loot?.sprite_id;
+            const chosen = typeof chosen_id === 'string' ? this.data.sprites.find(sprite => sprite.id === chosen_id) : null;
+            if (!chosen) return;
+            if ('key' in chosen.traits) {
+                new NumberWidget({
+                    container: box, label: 'Schlüssel-Code',
+                    hint: 'Der Schlüssel aus der Truhe öffnet Türen mit diesem Code.',
+                    min: 0, max: 1000, step: 1, decimalPlaces: 0,
+                    get: () => chest().loot?.signal_code ?? 0,
+                    set: (x) => { chest().loot.signal_code = Math.round(x); },
+                });
+            } else if ('baddie' in chosen.traits) {
+                $('<div>').css({ margin: '4px 5px 8px', color: 'rgba(255, 255, 255, 0.7)', 'font-size': '0.9em' })
+                    .text('Ein Gegner: Er springt zur Seite heraus – weg von der Spielfigur – und greift dann an, wie er es immer tut.')
+                    .appendTo(box);
+            } else if (!('pickup' in chosen.traits)) {
+                $('<div>').css({ margin: '4px 5px 8px', color: '#d8b34d', 'font-size': '0.9em' })
+                    .text('Dieses Sprite kann man nicht einsammeln. Gib ihm „man kann es einsammeln“ oder „ist ein Schlüssel“ – oder nimm einen Gegner.')
+                    .appendTo(box);
+            }
+        };
+        render();
+    }
+
+    // Fallschaden (app.js Character.track_fall): how deep the figure or the
+    // enemy may fall – from where it last stood to where it lands. Stored
+    // only when set (absent or 0 = falling never hurts, as always):
+    // fall_damage_height and fall_death_height in pixels, fall_damage in energy.
+    add_fall_damage_controls(div, si, trait) {
+        const traits = () => this.data.sprites[si]?.traits?.[trait];
+        const figure = trait === 'actor' ? 'die Spielfigur' : 'der Gegner';
+        const set_or_clear = (key) => (x) => {
+            const t = traits();
+            if (!t) return;
+            const n = Math.round(Number(x) || 0);
+            if (n > 0) t[key] = n; else delete t[key];
+        };
+        const details = $('<details>').addClass('trait-advanced').appendTo(div);
+        $('<summary>').text('Fallschaden').appendTo(details);
+        if ((Number(traits()?.fall_damage_height) || 0) > 0 || (Number(traits()?.fall_death_height) || 0) > 0) details.prop('open', true);
+        const box = $('<div>').appendTo(details);
+        new NumberWidget({
+            container: box, label: 'Schaden ab', suffix: 'px', width: '3.5em',
+            hint: `Fällt ${figure} mindestens so tief, tut es weh – gemessen von da, wo ${trait === 'actor' ? 'sie' : 'er'} zuletzt stand, bis da, wo ${trait === 'actor' ? 'sie' : 'er'} landet (24 Pixel sind ein Block). Ein Sprung auf derselben Höhe tut nie weh. Wasser, Weltall und Leitern fangen auf. 0: Fallen tut nie weh.`,
+            min: 0, max: 9600, step: 24, decimalPlaces: 0,
+            get: () => Number(traits()?.fall_damage_height) || 0,
+            set: set_or_clear('fall_damage_height'),
+        });
+        new NumberWidget({
+            container: box, label: 'Schaden', width: '3.5em',
+            hint: `So viel Energie verliert ${figure} bei so einem Sturz.`,
+            min: 1, max: 1000, step: 5, decimalPlaces: 0,
+            get: () => Number(traits()?.fall_damage) || FALL_DAMAGE_DEFAULT,
+            set: (x) => {
+                const t = traits();
+                if (!t) return;
+                const n = Math.round(Number(x) || 0);
+                if (n > 0 && n !== FALL_DAMAGE_DEFAULT) t.fall_damage = n; else delete t.fall_damage;
+            },
+        });
+        new NumberWidget({
+            container: box, label: 'tödlich ab', suffix: 'px', width: '3.5em',
+            hint: trait === 'actor' ?
+                'Fällt die Spielfigur mindestens so tief, verliert sie ein Leben – egal, wie viel Energie sie hat. 0: Kein Sturz ist tödlich (nur der Schaden oben zählt).' :
+                'Fällt der Gegner mindestens so tief, ist er besiegt. 0: Kein Sturz ist tödlich (nur der Schaden oben zählt).',
+            min: 0, max: 9600, step: 24, decimalPlaces: 0,
+            get: () => Number(traits()?.fall_death_height) || 0,
+            set: set_or_clear('fall_death_height'),
+        });
+    }
+
     // Beute: what a defeated enemy leaves behind (traits.baddie.drop).
     add_drop_controls(div, si) {
         // the enemy by its id: when sprites are deleted or moved, the panel is

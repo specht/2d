@@ -352,3 +352,31 @@ test('a Vorrat that gives nothing when used; a Leben in the Vorrat is collected 
     assert.deepEqual(sprite_pitfalls({ traits: { pickup: { store: true, speed_boost_duration: 6 } } }, 'Feder'), []);
     assert.deepEqual(sprite_pitfalls({ traits: { pickup: { store: true, lives: 1 } } }, 'Herz', { lives_at_begin: 5, max_lives: 5 }), []);
 });
+
+test('a Truhe: empty, an Inhalt nobody can collect, no picture of it open', () => {
+    const states = [{ traits: { chest: { closed: {} } } }];
+    const of = { stein: { traits: { pickup: {} } }, deko: { traits: {} }, fledermaus: { traits: { baddie: {} } } };
+    const sprite_of = (ref) => of[ref] ?? null;
+    const check = (traits) => ids(sprite_pitfalls({ traits, states }, 'Truhe', null, { sprite_of }));
+    assert.deepEqual(check({ chest: {} }), ['chest_empty', 'chest_open_state']);
+    assert.deepEqual(check({ chest: { loot: { sprite_id: 'deko' } } }), ['chest_loot_not_collectable', 'chest_open_state']);
+    // an enemy springs out: that is fine
+    assert.deepEqual(check({ chest: { loot: { sprite_id: 'fledermaus' } } }), ['chest_open_state']);
+    assert.deepEqual(ids(sprite_pitfalls({ traits: { chest: { loot: { sprite_id: 'stein' } } },
+        states: [{ traits: { chest: { closed: {} } } }, { traits: { chest: { open: {} } } }] }, 'Truhe', null, { sprite_of })), []);
+});
+
+test('Fallschaden: a deadly fall that is not deeper than a hurting one', () => {
+    const fall = (actor) => ids(sprite_pitfalls({ traits: { actor }, states: [] }, 'Pip')).filter(id => id.startsWith('fall'));
+    assert.deepEqual(fall({ fall_damage_height: 96, fall_death_height: 72 }), ['fall_death_first']);
+    assert.deepEqual(fall({ fall_damage_height: 96, fall_death_height: 240 }), []);
+    assert.deepEqual(fall({ fall_death_height: 72 }), []);
+});
+
+test('a Trampolin needs a top to stand on, and a picture while it charges', () => {
+    const check = (traits, states = []) => ids(sprite_pitfalls({ traits, states }, 'Trampolin')).filter(id => id.startsWith('bounce'));
+    assert.deepEqual(check({ bounce: { power: 10 } }), ['bounce_no_top']);
+    assert.deepEqual(check({ bounce: { power: 10 }, block_above: {} }), []);
+    assert.deepEqual(check({ bounce: { delay: 0.8 }, block_above: {} }, [{ traits: { bounce: { idle: {} } } }]), ['bounce_charge_state']);
+    assert.deepEqual(check({ bounce: { delay: 0.8 }, block_above: {} }, [{ traits: { bounce: { idle: {} } } }, { traits: { bounce: { charge: {} } } }]), []);
+});

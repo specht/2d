@@ -341,6 +341,34 @@ sprites:
     groesse: [48, 24]
     traits: { block_above: {}, moving: { speed: 1.5, pause: 1.5 } }
     states: [{ strip: welt/aufzug, fps: 6 }]
+  # Trampoline (traits.js bounce, app.js bounce_on_trampoline): the bed is at the
+  # top of the sprite – figures stand on its top edge, "von oben" only. While it
+  # charges ("lädt auf", over "wirft nach") the drawing presses the bed down by
+  # the Federweg and the figure is drawn sinking with it (frame for frame);
+  # "federt" plays once when it throws. The Sprungfeder that charges longer
+  # lights its lamps one by one.
+  trampolin:
+    label: Trampolin
+    groesse: [48, 24]
+    traits: { block_above: {}, bounce: { power: 10, delay: 0.15, sink: 6 } }
+    states:
+      - { strip: welt/trampolin, traits: { bounce: [idle] } }
+      - { strip: welt/trampolin_federt, fps: 24, traits: { bounce: [spring] } }
+      - { strip: welt/trampolin_laedt, traits: { bounce: [charge] } }
+  sprungfeder:
+    label: Sprungfeder
+    traits: { block_above: {}, bounce: { power: 12, delay: 0.12, sink: 8 } }
+    states:
+      - { strip: welt/sprungfeder, traits: { bounce: [idle] } }
+      - { strip: welt/sprungfeder_federt, fps: 20, traits: { bounce: [spring] } }
+      - { strip: welt/sprungfeder_drueckt, traits: { bounce: [charge] } }
+  sprungfeder_spannt:
+    label: Sprungfeder (spannt sich erst)
+    traits: { block_above: {}, bounce: { power: 12, delay: 0.8, sink: 8 } }
+    states:
+      - { strip: welt/sprungfeder, traits: { bounce: [idle] } }
+      - { strip: welt/sprungfeder_federt, fps: 20, traits: { bounce: [spring] } }
+      - { strip: welt/sprungfeder_laedt, traits: { bounce: [charge] } }
   eis:
     label: Eis
     traits: { block_above: {}, block_sides: {}, block_below: {} }
@@ -723,6 +751,14 @@ sprites:
   koralle: { label: Koralle, states: [{ strip: meer/koralle }] }
   koralle_gruen: { label: Grüne Koralle, states: [{ strip: meer/koralle_gruen }] }
   truhe: { label: Schatztruhe, states: [{ strip: meer/truhe }] }
+  # the same chest to open (traits.js chest, app.js open_chest): its Inhalt is
+  # chosen in the game – this one only knows how it looks shut and open
+  schatztruhe:
+    label: Schatztruhe zum Öffnen
+    traits: { chest: {} }
+    states:
+      - { strip: meer/truhe, traits: { chest: [closed] } }
+      - { strip: meer/truhe_offen, traits: { chest: [open] } }
   schlot: { label: Schlot, groesse: [48, 24], states: [{ strip: meer/schlot }] }
   # a soft glow for jellyfish in the deep sea (Leuchten)
   quallenlicht: { label: Quallenlicht, mischmodus: leuchten, states: [{ strip: meer/qualle_licht, fps: 5 }] }
@@ -1364,13 +1400,13 @@ sammlung:
   - Spielfiguren: [pip, pip_einfach, pip_schwert, pip_bogen, pip_bogen_schraeg, pip_wurf, pip_bombe, pip_taucher, astronaut, fisch, u_boot]
   - Gegner: [glibber, schnecke, spuckpilz, kaefer, keiler, frosch, fledermaus, klotz, klotz_einmal, maus, waschbaer, katze, geist, strohpuppe, qualle, hai]
   - Begleiter: [hund, kaetzchen, vogel, eule, roboter]
-  - Zum Einsammeln: [muenze, edelstein, herz, trank, heiltrank, schutzschild, feder, krone, geldsack, perle, stern, schluessel, zauberschluessel]
+  - Zum Einsammeln: [muenze, edelstein, herz, trank, heiltrank, schutzschild, feder, krone, geldsack, perle, stern, schluessel, zauberschluessel, schatztruhe]
   - Waffen zum Einsammeln: [schwert, bogen, schleuder]
   - Laden: [haendler, theke_links, theke, theke_rechts, markise, stange, laden_wand, dielen, regal_traenke, regal_glaeser, regal_buecher, laden_schild]
   - Essen: [apfel, kirschen, erdbeere, banane, karotte, kuchen, eiswaffel]
   - Fallen und Gefahren: [stacheln, lava, broeckel, broeckel_klein, saege, lagerfeuer, dornen]
   - Boden und Blöcke: [boden, erde, boden_schnee, boden_tot, wurzeln, mauer, mauer_fenster, dach, kiste, eis, strohballen, block_rot, block_gruen]
-  - Plattformen, Leitern und Schrägen: [brett, wolkenplattform, plattform, aufzug, leiter, schraege, treppe, eishang, hang_flach, hang_flach_ab, hang_fuss, hang_fuss_ab, huegel_steil, huegel_steil_ab, huegel_steil_fuss, huegel_steil_fuss_ab]
+  - Plattformen, Leitern und Schrägen: [brett, wolkenplattform, plattform, aufzug, trampolin, sprungfeder, sprungfeder_spannt, leiter, schraege, treppe, eishang, hang_flach, hang_flach_ab, hang_fuss, hang_fuss_ab, huegel_steil, huegel_steil_ab, huegel_steil_fuss, huegel_steil_fuss_ab]
   - Förderbänder: [band, band_anfang, band_ende, band_links, band_links_anfang, band_links_ende, rolltreppe, rolltreppe_gehaeuse, maschine]
   - Türen und Schalter: [tuer, schlosstuer, haustuer, gittertor, schalter, druckplatte, zaehler, zaehler_5, umriss_rot, umriss_gruen]
   - Schilder, Checkpoints und Ziel: [schild, wichtel, fahne, ziel]

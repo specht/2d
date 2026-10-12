@@ -1494,6 +1494,108 @@ void main() {
 		}
 	}
 
+	// Trampolin (traits.bounce): standing on it throws the figure up with its
+	// Sprungkraft (a little more when the jump key was pressed on it, "höher mit
+	// Sprungtaste") – after its Verzögerung, while "lädt auf" plays and the
+	// figure is drawn sinking in by the Federweg (show_sunk_figures); whoever
+	// steps off first is not thrown. The Spielfigur always, enemies only with
+	// "wirft auch Gegner".
+	trampoline_below() {
+		if (this.character_trait !== 'actor' && this.character_trait !== 'baddie') return null;
+		const entry = this.has_trait_at(['bounce'], -0.5, 0.5, -1.0, -0.01);
+		if (!entry) return null;
+		const bounce = this.game.data.sprites[entry.sprite_index].traits.bounce ?? {};
+		if (this.character_trait === 'baddie' && bounce.baddies !== true) return null;
+		return { entry, bounce };
+	}
+
+	bounce_on_trampoline(t) {
+		if (this.ai_no_gravity || this.traits.affected_by_gravity === false || this.dead() || this.vy > 0.5) return;
+		const below = this.trampoline_below();
+		if (!below) { this.bounce_jump = false; return; }
+		const { entry, bounce } = below;
+		if (this.pressed_keys[KEY_JUMP]) this.bounce_jump = true;
+		const delay = Number(bounce.delay) || 0;
+		if (delay > 0 && !this.game.charge_trampoline(entry.entry_index, this, t, delay)) return;
+		const power = Number(bounce.power) > 0 ? Number(bounce.power) : 10;
+		const boost = bounce.boost !== false && this.bounce_jump ? 1.25 : 1;
+		this.bounce_jump = false;
+		this.vy = Math.max(this.vy, power * boost);
+		this.bounced_until = t + 0.1;
+		this.just_bounced = true;
+		this.game.spring_trampoline(entry.entry_index, t);
+	}
+
+	// Fallschaden (traits fall_damage_height / fall_death_height, absent = never;
+	// FALL_DAMAGE_DEFAULT in traits.js): how deep the figure fell – from where
+	// it last stood (or left a ladder, the water, space) to where it lands, in
+	// its own coordinates (a turned gravity starts over). A jump that lands at
+	// the same height never hurts. Spielfigur and Gegner, each by its drawing.
+	track_fall(fluid, climbing) {
+		const traits = this.traits ?? {};
+		const hurts = Number(traits.fall_damage_height) > 0, kills = Number(traits.fall_death_height) > 0;
+		if (!hurts && !kills) return;
+		if (this.character_trait !== 'actor' && this.character_trait !== 'baddie') return;
+		const y = this.mesh.position.y;
+		const frame = this.gravity_k ?? 0;
+		// nothing counts: in the water or in space, on a ladder, flying or
+		// stomping by itself, without gravity, dead – or the gravity just turned
+		if (fluid || climbing || this.ai_no_gravity || traits.affected_by_gravity === false || this.dead() ||
+			!this.active || frame !== this.fall_frame || this.has_trait_at(['ladder'], -0.5, 0.5, -1.1, 1.1)) {
+			this.fall_frame = frame;
+			this.fall_from = null;
+			return;
+		}
+		// thrown up by a Trampolin: the fall starts over from here
+		if (this.just_bounced) {
+			this.just_bounced = false;
+			this.fall_from = y;
+			this.fall_airborne = true;
+			return;
+		}
+		const grounded = this.touching_ground();
+		if (this.fall_from === null || this.fall_from === undefined || grounded) {
+			const drop = (this.fall_airborne && grounded && Number.isFinite(this.fall_from)) ? this.fall_from - y : 0;
+			this.fall_from = grounded || !Number.isFinite(this.fall_from) ? y : this.fall_from;
+			this.fall_airborne = !grounded;
+			// a Trampolin catches the fall
+			if (drop > 0 && !this.trampoline_below()) this.landed_after_fall(drop);
+			return;
+		}
+		this.fall_airborne = true;
+	}
+
+	landed_after_fall(drop) {
+		const traits = this.traits;
+		const deadly = Number(traits.fall_death_height) > 0 && drop >= traits.fall_death_height;
+		const hurt = Number(traits.fall_damage_height) > 0 && drop >= traits.fall_damage_height;
+		if (!deadly && !hurt) return;
+		const damage = Number(traits.fall_damage) > 0 ? Number(traits.fall_damage) : FALL_DAMAGE_DEFAULT;
+		if (this.character_trait === 'baddie') {
+			// take_damage honours "unverwundbar"
+			this.take_damage(deadly ? Math.max(this.energy, 1) : damage);
+			if (this.active) this.flash_on_hit?.();
+			return;
+		}
+		// the Spielfigur: like something that hurts – not while it blinks or is unverwundbar
+		if (!this.game.running || this.game.reached_flag || this.dead() || this.invincible()) return;
+		if (deadly) {
+			this.game.energy = 0;
+			this.game.update_stats();
+			this.die(null, null);
+			return;
+		}
+		this.game.energy = Math.max(0, this.game.energy - damage);
+		this.game.update_stats();
+		if (this.game.energy === 0) {
+			this.die(null, null);
+		} else {
+			this.invincible_until = this.game.clock.getElapsedTime() + 1.0;
+			this.show_combat_visual('hit');
+			this.flash_on_hit();
+		}
+	}
+
 	take_damage_from_sprite(sprite, trait) {
 		// for actor
 		if ((!this.game.running) || this.dead() || this.game.reached_flag) return;
@@ -1881,14 +1983,18 @@ void main() {
 				}
 			}
 		} else {
-		// if we're standing, we can jump
+		// if we're standing, we can jump (not right after a Trampolin threw it:
+		// the coyote time would take the throw back)
 		if (this.character_trait === 'baddie' || this.traits.can_jump) {
-			if (this.standing_on_ground()) {
+			if (this.standing_on_ground() && !(this.bounced_until > t)) {
 				this.vy = 0;
-				if (this.pressed_keys[KEY_JUMP])
+				// on a Trampolin the jump key makes its throw higher instead (bounce_on_trampoline)
+				if (this.pressed_keys[KEY_JUMP] && !this.trampoline_below())
 					this.vy = this.traits.vjump * this.vjump_factor();
 			}
 		}
+
+		this.bounce_on_trampoline(t);
 
 		if (this.traits.affected_by_gravity && !this.ai_no_gravity) {
 			let dy = this.try_move_y(this.vy);
@@ -1902,6 +2008,7 @@ void main() {
 		if (move && move.current.y) this.try_move_y(move.current.y);
 		}
 
+		this.track_fall(fluid, climbing);
 		this.update_state_and_direction(state, direction);
 
 		if (this.character_trait === 'actor') {
@@ -1982,6 +2089,24 @@ void main() {
 				this.game.active_level_sprites[entry.entry_index].overlay_mesh.visible = true;
 				this.game.action_key_targets.switch ??= [];
 				this.game.action_key_targets.switch.push(entry.entry_index);
+			}
+
+			// Truhe (Game.open_chest): "beim Berühren" opens at once, else the F
+			// hint and a fresh press (below)
+			const closed_chest = (opens_by_touch) => (e) => !e.chest_open &&
+				(this.game.data.sprites[e.sprite_index]?.traits?.chest?.opens === 'touch') === opens_by_touch;
+			entry = this.has_trait_at(['chest'], -this.traits.ex_left * this.sprite.width * 0.5 + 0.1,
+				this.traits.ex_right * this.sprite.width * 0.5 - 0.1, 0.1, this.traits.ex_top * this.sprite.height - 0.1, closed_chest(true));
+			if (entry && !this.dead()) this.game.open_chest(entry.entry_index, this, t);
+			entry = this.has_trait_at(['chest'],
+				-this.traits.ex_left * this.sprite.width * 0.5 - 10,
+				this.traits.ex_right * this.sprite.width * 0.5 + 10,
+				-10,
+				this.traits.ex_top * this.sprite.height + 10, closed_chest(false));
+			if (entry) {
+				const overlay = this.game.active_level_sprites[entry.entry_index].overlay_mesh;
+				if (overlay) overlay.visible = true;
+				this.game.action_key_targets.chest = [entry.entry_index];
 			}
 
 			entry = this.has_trait_at(['text'],
@@ -2111,9 +2236,12 @@ void main() {
 			if (switch_flipped(action_pressed, this.action_was_pressed)) {
 				for (let entry_index of (this.game.action_key_targets.switch ?? []))
 					this.game.flip_switch(entry_index, t);
+				// a Truhe: open it (that is what F did then)
+				const chest_index = (this.game.action_key_targets.chest ?? [])[0];
+				const opened = chest_index !== undefined && !this.dead() && this.game.open_chest(chest_index, this, t);
 				// a shop: buy what the figure stands at (or say why not); else a sign:
 				// read it out – or, while somebody speaks, the next sentence
-				if (!this.game.shop_action?.(this, t))
+				if (!opened && !this.game.shop_action?.(this, t))
 					this.game.speech_action?.(t);
 				// an exit "nur mit Aktionstaste" – not with F still held from the level before
 				const exit_index = (this.game.action_key_targets.exit ?? [])[0];
@@ -2429,7 +2557,8 @@ class Game {
 	// leaves a sprite behind that can be collected like a placed one – a key
 	// (with the placed enemy's baddie.drop_code, else the drawing's Code) or
 	// anything "man kann es einsammeln". Absent = nothing.
-	spawn_drop(owner) {
+	// later: not collectable yet (the Inhalt of a Truhe on its way: place_level_entry)
+	spawn_drop(owner, { later = false } = {}) {
 		const drop = owner?.traits?.drop;
 		const si = drop?.sprite_index;
 		const sprite = Number.isInteger(si) ? this.data.sprites[si] : null;
@@ -2457,12 +2586,299 @@ class Game {
 		this.active_level_sprites.push(entry);
 		// the enemy knows its loot (the level memory keeps it if nobody collects it)
 		remembered_owner.drop_entry = entry;
-		this.interval_tree_x.insert([x - sprite.width / 2, x + sprite.width / 2], index);
-		this.interval_tree_y.insert([y, y + sprite.height], index);
+		if (!later) this.place_level_entry(entry);
 		// animated like placed sprites (coins spin, keys glint)
 		this.meshes_for_sprite[si].push(mesh);
 		this.state_for_mesh[mesh.uuid] = { state_index: 0, frame_offset: 0, frame_index: 0, loop: true };
 		return entry;
+	}
+
+	// A level sprite becomes something to collide with and collect where its mesh is.
+	place_level_entry(entry) {
+		const index = this.active_level_sprites.indexOf(entry);
+		const sprite = this.data.sprites[entry.sprite_index];
+		if (index < 0 || !sprite) return;
+		const x = entry.mesh.position.x, y = entry.mesh.position.y;
+		this.interval_tree_x.insert([x - sprite.width / 2, x + sprite.width / 2], index);
+		this.interval_tree_y.insert([y, y + sprite.height], index);
+	}
+
+	// -------------------------------------------------------------- Trampolin
+	// A Trampolin shows one of its Zustände once (state roles of traits.bounce),
+	// then "ruhig" again (update_trampolines).
+	show_trampoline_state(entry_index, role, t, seconds = 0) {
+		const entry = this.active_level_sprites[entry_index];
+		const sprite = entry ? this.data.sprites[entry.sprite_index] : null;
+		const mesh_state = entry ? this.state_for_mesh[entry.mesh.uuid] : null;
+		if (!mesh_state) return;
+		let sti = sprite.states.findIndex(state => role in (state.traits?.bounce ?? {}));
+		if (sti < 0 && role !== 'idle') return;
+		if (role === 'idle') {
+			mesh_state.state_index = Math.max(0, sti);
+			mesh_state.loop = true;
+			delete mesh_state.t0;
+			delete mesh_state.t1;
+			return;
+		}
+		mesh_state.state_index = sti;
+		mesh_state.frame_index = 0;
+		mesh_state.loop = false;
+		mesh_state.t0 = t;
+		mesh_state.t1 = t + Math.max(0.05, seconds);
+	}
+
+	// Somebody stands on a Trampolin with a Verzögerung: true once it is time to throw.
+	charge_trampoline(entry_index, figure, t, delay) {
+		const entry = this.active_level_sprites[entry_index];
+		if (!entry.bounce_charge || entry.bounce_charge.figure !== figure) {
+			entry.bounce_charge = { figure, at: t };
+			this.show_trampoline_state(entry_index, 'charge', t, delay);
+			(this.trampolines_busy ??= new Set()).add(entry_index);
+		}
+		entry.bounce_charge.seen = this.frame;
+		if (t - entry.bounce_charge.at < delay) return false;
+		entry.bounce_charge = null;
+		return true;
+	}
+
+	// Federweg (traits.bounce.sink): while a Trampolin charges, the figure on it
+	// is drawn that many pixels deeper at the end of „wirft nach“ – in step
+	// with the frames of „lädt auf“ (the drawing shows the plate going down),
+	// evenly without them. Only drawn: where it stands and what it touches stay
+	// as they are. Returns [mesh, x, y] to put back after drawing.
+	show_sunk_figures() {
+		const back = [];
+		if (!this.trampolines_busy?.size) return back;
+		const now = this.clock.getElapsedTime();
+		for (const entry_index of this.trampolines_busy) {
+			const entry = this.active_level_sprites[entry_index];
+			const figure = entry?.bounce_charge?.figure;
+			if (!figure?.mesh || figure.gravity_k || figure.gravity_turn) continue;
+			const sprite = this.data.sprites[entry.sprite_index];
+			const bounce = sprite.traits.bounce ?? {};
+			const sink = Number(bounce.sink) || 0, delay = Number(bounce.delay) || 0;
+			if (!(sink > 0) || !(delay > 0)) continue;
+			const mesh_state = this.state_for_mesh[entry.mesh.uuid];
+			const state = sprite.states[mesh_state?.state_index];
+			const frames = state && 'charge' in (state.traits?.bounce ?? {}) ? state.frames.length : 0;
+			const part = frames > 1 ? Math.min(mesh_state.frame_index, frames - 1) / (frames - 1) :
+				Math.min(1, Math.max(0, (now - entry.bounce_charge.at) / delay));
+			const p = figure.mesh.position;
+			back.push([figure.mesh, p.x, p.y]);
+			p.y -= Math.round(sink * part);
+		}
+		return back;
+	}
+
+	// It throws: "federt" plays once (its frames at its fps).
+	spring_trampoline(entry_index, t) {
+		const entry = this.active_level_sprites[entry_index];
+		const sprite = this.data.sprites[entry.sprite_index];
+		const state = sprite.states.find(s => 'spring' in (s.traits?.bounce ?? {}));
+		const seconds = state ? state.frames.length / (Number(state.properties?.fps) || 8) : 0;
+		this.show_trampoline_state(entry_index, 'spring', t, seconds);
+		entry.bounce_until = t + seconds;
+		(this.trampolines_busy ??= new Set()).add(entry_index);
+	}
+
+	// Back to "ruhig": after "federt", or when somebody stepped off while it charged.
+	update_trampolines(t) {
+		if (!this.trampolines_busy?.size) return;
+		for (const entry_index of [...this.trampolines_busy]) {
+			const entry = this.active_level_sprites[entry_index];
+			if (entry?.bounce_charge && entry.bounce_charge.seen < this.frame - 1) entry.bounce_charge = null;
+			else if (entry?.bounce_charge || (entry?.bounce_until ?? 0) > t) continue;
+			if (entry) {
+				entry.bounce_until = 0;
+				this.show_trampoline_state(entry_index, 'idle', t);
+			}
+			this.trampolines_busy.delete(entry_index);
+		}
+	}
+
+	// ----------------------------------------------------------------- Truhe
+	// traits.chest (traits.js): opened once by the Spielfigur – with F or by
+	// touching it – it shows „Truhe offen“, and its Inhalt (the copy's own
+	// placed chest.loot, else the drawing's chest.loot) springs out: it hovers
+	// above the Truhe or falls beside it to the ground, and can be collected
+	// where it comes to rest. The level memory keeps the Truhe open and the
+	// Inhalt lying there until it is collected (memory.opened, memory.drops).
+	open_chest(entry_index, figure, t) {
+		const entry = this.active_level_sprites[entry_index];
+		const sprite = entry ? this.data.sprites[entry.sprite_index] : null;
+		if (!entry || !sprite?.traits?.chest || entry.chest_open) return false;
+		entry.chest_open = true;
+		this.show_trait_state(entry, 'chest', 'open');
+		if (entry.overlay_mesh) entry.overlay_mesh.visible = false;
+		if (this.memory_now && entry.place) (this.memory_now.opened ??= []).push(entry.place);
+		const own = entry.chest_loot, drawn = sprite.traits.chest.loot;
+		const si = Number.isInteger(own?.sprite_index) ? own.sprite_index : drawn?.sprite_index;
+		if (!Number.isInteger(si)) return true;
+		// an enemy (a Mimic, a bat in the chest): it springs out to the side
+		if ('baddie' in (this.data.sprites[si]?.traits ?? {})) {
+			this.chest_foe_out(entry, si, figure, t);
+			return true;
+		}
+		const drop = { sprite_index: si, signal_code: Number.isInteger(drawn?.signal_code) ? drawn.signal_code : 0 };
+		const cx = entry.mesh.position.x, cy = entry.mesh.position.y;
+		const owner = { traits: { drop }, placed_signal: null,
+			mesh: { position: { x: cx, y: cy }, userData: { blend: entry.mesh.userData?.blend ?? null }, parent: entry.mesh.parent } };
+		const loot = this.spawn_drop(owner, { later: true });
+		if (!loot) return true;
+		const loot_sprite = this.data.sprites[si];
+		const fall = sprite.traits.chest.loot_motion === 'fall';
+		const from = [cx, cy + Math.max(0, sprite.height - loot_sprite.height) * 0.5];
+		const to = (fall ? this.chest_loot_landing(entry, loot_sprite, figure) : null) ?? [cx, cy + sprite.height + 2];
+		loot.mesh.position.set(from[0], from[1], loot.mesh.position.z);
+		// it lies there (once at rest) until somebody collects it, also when the level is entered again
+		if (this.memory_now && entry.place) {
+			loot.drop_of = entry.place;
+			this.memory_now.drops[entry.place] = { x: to[0], y: to[1], drop, placed_signal: null,
+				layer_index: entry.layer_index, blend: entry.mesh.userData?.blend ?? null };
+		}
+		// a flight: hovering springs up and settles; falling flies in an arc
+		const flight = { loot, from, to, t0: t, hover: !fall };
+		if (fall) {
+			const g = 900, peak = Math.max(from[1], to[1]) + 30;
+			flight.g = g;
+			flight.vy = Math.sqrt(2 * g * (peak - from[1]));
+			flight.seconds = flight.vy / g + Math.sqrt(2 * (peak - to[1]) / g);
+		} else {
+			flight.seconds = 0.5;
+		}
+		this.chest_loot_flights.push(flight);
+		return true;
+	}
+
+	// Where the Inhalt of a Truhe falls: beside it, on the side of the figure
+	// (else the other side, else on top) – the first place whose way out is
+	// free – on the highest ground below. null: nowhere (it hovers instead).
+	// away: on the other side first (an enemy does not land on the figure).
+	chest_loot_landing(entry, loot_sprite, figure, away = false) {
+		const chest = this.data.sprites[entry.sprite_index];
+		const cx = entry.mesh.position.x, cy = entry.mesh.position.y;
+		const fx = figure?.world_xy ? figure.world_xy()[0] : (figure?.mesh?.position.x ?? cx);
+		const side = (fx < cx ? -1 : 1) * (away ? -1 : 1);
+		const reach = chest.width / 2 + loot_sprite.width / 2 + 2;
+		for (const dx of [side * reach, -side * reach, 0]) {
+			const x = cx + dx;
+			const blocked = dx !== 0 && this.collision_candidates(x - loot_sprite.width / 2 + 1, x + loot_sprite.width / 2 - 1, cy + 1, cy + chest.height - 1)
+				.some(i => 'block_sides' in (this.data.sprites[this.active_level_sprites[i].sprite_index]?.traits ?? {}));
+			if (blocked) continue;
+			const top = cy + chest.height;
+			let ground = null;
+			for (const i of this.collision_candidates(x - 1, x + 1, cy - this.screen_pixel_height * 2, top)) {
+				const other = this.active_level_sprites[i];
+				const sprite = this.data.sprites[other.sprite_index];
+				if (other === entry && dx !== 0) continue;
+				let y = null;
+				if ('block_above' in sprite.traits) y = other.mesh.position.y + sprite.height;
+				else if ('slope' in sprite.traits) {
+					let tx = (x - (other.mesh.position.x - sprite.width * 0.5)) / sprite.width;
+					if (sprite.traits.slope.direction === 'negative') tx = 1.0 - tx;
+					y = other.mesh.position.y + tx.clamp(0.0, 1.0) * sprite.height;
+				}
+				if (y !== null && y <= top + 0.5 && (ground === null || y > ground)) ground = y;
+			}
+			if (ground !== null) return [x, ground];
+		}
+		return null;
+	}
+
+	// An enemy in a Truhe: it flies out in an arc, away from the figure, and
+	// becomes an enemy where it lands (update_chest_loot) – only then does it
+	// count (for "alle Gegner besiegt" too). The level memory brings it back
+	// there, unless it was defeated (memory.chest_foes, memory.defeated).
+	chest_foe_out(entry, si, figure, t) {
+		const chest = this.data.sprites[entry.sprite_index], foe = this.data.sprites[si];
+		const blend = entry.mesh.userData?.blend ?? null;
+		const mesh = this.sprite_mesh(si, blend);
+		if (!mesh) return;
+		const cx = entry.mesh.position.x, cy = entry.mesh.position.y;
+		const from = [cx, cy + Math.max(0, chest.height - foe.height) * 0.5];
+		const to = this.chest_loot_landing(entry, foe, figure, true) ?? [cx, cy + chest.height];
+		mesh.position.set(from[0], from[1], 0);
+		(entry.mesh.parent ?? this.scene).add(mesh);
+		const place = `${entry.place}:inhalt`;
+		if (this.memory_now && entry.place)
+			(this.memory_now.chest_foes ??= {})[entry.place] = { si, x: to[0], y: to[1], layer_index: entry.layer_index, blend };
+		const g = 900, peak = Math.max(from[1], to[1]) + 36;
+		const vy = Math.sqrt(2 * g * (peak - from[1]));
+		this.chest_loot_flights.push({ foe: { si, layer_index: entry.layer_index, place }, mesh, from, to, t0: t, g, vy,
+			seconds: vy / g + Math.sqrt(2 * (peak - to[1]) / g) });
+	}
+
+	// A mesh of a sprite's first picture, as setup() makes one for a placed sprite.
+	sprite_mesh(si, blend = null) {
+		const base = this.mesh_catalogue[si];
+		if (!base) return null;
+		const mesh = base.clone();
+		mesh.geometry = mesh.geometry.clone();
+		mesh.geometry.setAttribute('opacity', new THREE.BufferAttribute(new Float32Array([1.0, 1.0, 1.0, 1.0]), 1));
+		if (blend) {
+			mesh.material = this.blend_material(this.geometry_and_material_for_frame[si][0][0].sheet, blend);
+			mesh.userData.blend = blend;
+		}
+		this.meshes_for_sprite[si].push(mesh);
+		this.state_for_mesh[mesh.uuid] = { state_index: 0, frame_offset: 0, frame_index: 0, loop: true };
+		return mesh;
+	}
+
+	// An enemy that was not placed in the level (out of a Truhe): like a placed one.
+	// (while a level is set up, setup_signals decides about layers that are away)
+	add_baddie(si, mesh, layer_index, place, { during_setup = false } = {}) {
+		const baddie = new Character(this, si, mesh);
+		baddie.layer_index = layer_index;
+		baddie.place = place;
+		baddie.placed_signal = null;
+		if (!during_setup) {
+			if (this.signal_layer_fades?.has(layer_index)) mesh.userData.signal_layer = layer_index;
+			baddie.signal_hidden = this.signal_hidden_layers?.has(layer_index) ?? false;
+		}
+		this.baddies.push(baddie);
+		this.dynamic_interval_frame = -1;
+		return baddie;
+	}
+
+	// The Inhalt on its way out, then at rest (collectable; hovering gently).
+	update_chest_loot(t) {
+		if (!this.chest_loot_flights?.length) return;
+		this.chest_loot_flights = this.chest_loot_flights.filter((flight) => {
+			if (flight.foe) {
+				const u = Math.min(1, Math.max(0, t - flight.t0) / flight.seconds), s = u * flight.seconds;
+				flight.mesh.position.x = flight.from[0] + (flight.to[0] - flight.from[0]) * u;
+				flight.mesh.position.y = u < 1 ? flight.from[1] + flight.vy * s - flight.g * s * s / 2 : flight.to[1];
+				if (u < 1) return true;
+				flight.mesh.position.x = flight.to[0];
+				this.add_baddie(flight.foe.si, flight.mesh, flight.foe.layer_index, flight.foe.place);
+				return false;
+			}
+			const { loot, from, to } = flight;
+			if (loot.collected || !loot.mesh.visible) return false;
+			const age = Math.max(0, t - flight.t0);
+			if (!flight.landed) {
+				const u = Math.min(1, age / flight.seconds);
+				if (flight.hover) {
+					// springs up a little too far and settles (ease out back)
+					const c1 = 1.70158, c3 = c1 + 1, e = 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2);
+					loot.mesh.position.x = to[0];
+					loot.mesh.position.y = from[1] + (to[1] - from[1]) * e;
+				} else {
+					const s = u * flight.seconds;
+					loot.mesh.position.x = from[0] + (to[0] - from[0]) * u;
+					loot.mesh.position.y = u < 1 ? from[1] + flight.vy * s - flight.g * s * s / 2 : to[1];
+				}
+				if (u < 1) return true;
+				loot.mesh.position.x = to[0];
+				loot.mesh.position.y = to[1];
+				flight.landed = t;
+				this.place_level_entry(loot);
+				return flight.hover;
+			}
+			// hovering: up and down a little (the place to collect it stays)
+			loot.mesh.position.y = to[1] + 1.5 * Math.sin((t - flight.landed) * 4);
+			return true;
+		});
 	}
 
 	// Material for a frame, honouring a layer's Mischmodus (stored on the mesh).
@@ -3074,6 +3490,10 @@ class Game {
 		this.overlay_meshes = [];
 		this.action_key_targets = {};
 		this.falling_sprite_indices = {};
+		// the Inhalt of a Truhe on its way out (open_chest)
+		this.chest_loot_flights = [];
+		// Trampoline that charge or spring (update_trampolines)
+		this.trampolines_busy = new Set();
 		this.future_event_list = new FutureEventList();
 		// Bewegte Plattformen und Aufzüge (platforms.js)
 		this.moving_platforms = [];
@@ -3246,6 +3666,11 @@ class Game {
 							this.interval_tree_y.insert([y0, y1], this.active_level_sprites.length);
 							// place: which placed sprite this is (the level memory)
 							active_entry = { layer_index: li, sprite_index: si, mesh: mesh, place: `${li}:${spi}` };
+							// a Truhe: closed, and what this copy holds if it has its own Inhalt
+							if ('chest' in sprite.traits) {
+								active_entry.chest_open = false;
+								active_entry.chest_loot = placed_properties.chest?.loot ?? null;
+							}
 							this.active_level_sprites.push(active_entry);
 						}
 						for (let trait of Object.keys(sprite.traits)) {
@@ -3264,7 +3689,8 @@ class Game {
 						// …and so does something with a Preis (a shop: placed pickup.price)
 						if (active_entry !== null && ('door' in sprite.traits || 'text' in sprite.traits || 'switch' in sprite.traits ||
 							('level_complete' in sprite.traits && active_entry.exit_action_key === true) ||
-							('pickup' in sprite.traits && active_entry.shop_price > 0))) {
+							('pickup' in sprite.traits && active_entry.shop_price > 0) ||
+							('chest' in sprite.traits && sprite.traits.chest.opens !== 'touch'))) {
 							active_entry.door_state = 'idle';
 							let overlay_mesh = this.overlay_mesh_catalogue['f_key'].clone();
 							overlay_mesh.geometry = overlay_mesh.geometry.clone();
@@ -3562,6 +3988,8 @@ class Game {
 			}
 			if ('switch' in traits)
 				this.show_trait_state(entry, 'switch', entry.switch_on ? 'on' : 'off');
+			if ('chest' in traits)
+				this.show_trait_state(entry, 'chest', entry.chest_open ? 'open' : 'closed');
 			if ('pressure_plate' in traits) {
 				entry.plate_down = false;
 				this.show_trait_state(entry, 'pressure_plate', 'up');
@@ -3668,7 +4096,7 @@ class Game {
 	level_memory_record(level) {
 		if (!level?.id) return null;
 		this.level_memory ??= {};
-		return this.level_memory[level.id] ??= { gone: [], defeated: [], switches: {}, drops: {}, sends: [] };
+		return this.level_memory[level.id] ??= { gone: [], defeated: [], switches: {}, drops: {}, sends: [], opened: [], chest_foes: {} };
 	}
 
 	remember_send(code, value) {
@@ -3703,7 +4131,9 @@ class Game {
 		this.memory_now = memory;
 		this.memory_to_replay = null;
 		if (!memory || !(memory.gone.length || memory.defeated.length || Object.keys(memory.switches).length ||
-			Object.keys(memory.drops).length || memory.sends.length)) return;
+			Object.keys(memory.drops).length || memory.sends.length || memory.opened?.length ||
+			Object.keys(memory.chest_foes ?? {}).length)) return;
+		const opened = new Set(memory.opened ?? []);
 		const gone = new Set(memory.gone);
 		this.active_level_sprites.forEach((entry) => {
 			if (entry.place && gone.has(entry.place)) {
@@ -3717,6 +4147,8 @@ class Game {
 				if ('key' in sprite.traits && entry.signal_code !== null) this.found_keys[entry.signal_code] = true;
 			}
 			if (entry.place && entry.place in memory.switches) entry.switch_on = memory.switches[entry.place];
+			// an opened Truhe stays open (its Inhalt, if nobody took it: memory.drops)
+			if (entry.place && opened.has(entry.place)) entry.chest_open = true;
 		});
 		const defeated = new Set(memory.defeated);
 		this.baddies = this.baddies.filter(baddie => {
@@ -3726,6 +4158,16 @@ class Game {
 			baddie.mesh.parent?.remove(baddie.mesh);
 			return false;
 		});
+		// an enemy out of a Truhe that nobody defeated: where it landed
+		for (const [chest_place, foe] of Object.entries(memory.chest_foes ?? {})) {
+			const place = `${chest_place}:inhalt`;
+			if (defeated.has(place)) continue;
+			const mesh = this.sprite_mesh(foe.si, foe.blend);
+			if (!mesh) continue;
+			mesh.position.set(foe.x, foe.y, 0);
+			(this.layers[foe.layer_index] ?? this.scene).add(mesh);
+			this.add_baddie(foe.si, mesh, foe.layer_index, place, { during_setup: true });
+		}
 		for (const [place, drop] of Object.entries(memory.drops)) {
 			const owner = { traits: { drop: drop.drop }, placed_signal: drop.placed_signal,
 				mesh: { position: { x: drop.x, y: drop.y }, userData: { blend: drop.blend }, parent: this.layers[drop.layer_index] ?? null } };
@@ -4487,11 +4929,13 @@ class Game {
 		if (this.data.properties.crt_effect) this.fit_crt();
 		this.renderer.setRenderTarget(this.data.properties.crt_effect ? this.render_target : null);
 		// figures in the middle of a turn are drawn turning (Character.visual_angle)
-		const turning = this.show_turning_figures();
+		// who stands on a charging Trampolin sinks in with it (only drawn)
+		const turning = this.show_sunk_figures();
+		turning.push(...this.show_turning_figures());
 		// coins, hearts, keys: upright on the screen, however the camera has turned
 		turning.push(...this.show_upright_items(this.view_angle ?? 0));
 		this.renderer.render(this.scene, this.camera);
-		for (const [mesh, x, y] of turning) mesh.position.set(x, y, mesh.position.z);
+		for (const [mesh, x, y] of turning.reverse()) mesh.position.set(x, y, mesh.position.z);
 
 		if (this.data.properties.crt_effect) {
 			this.screen_camera.left = -this.width * 0.5;
@@ -5094,6 +5538,8 @@ class Game {
 			this.request_ranged_attacks(t);
 		}
 
+		this.update_chest_loot(t);
+		this.update_trampolines(t);
 		let next_fel_entry = this.future_event_list.peek();
 		while ((next_fel_entry !== null) && (next_fel_entry <= t)) {
 			let fel_entry = this.future_event_list.pop();

@@ -11,8 +11,8 @@ const SPRITE_KINDS = [
     { id: 'figur', label: 'Figuren', traits: ['actor'] },
     { id: 'begleiter', label: 'Begleiter', traits: ['companion'] },
     { id: 'gegner', label: 'Gegner', traits: ['baddie', 'trap'] },
-    { id: 'block', label: 'Blöcke', traits: ['block_above', 'block_sides', 'block_below', 'slope', 'ladder', 'conveyor', 'moving', 'falls_down'] },
-    { id: 'sammeln', label: 'Sammeln', traits: ['pickup', 'key'] },
+    { id: 'block', label: 'Blöcke', traits: ['block_above', 'block_sides', 'block_below', 'slope', 'ladder', 'conveyor', 'moving', 'falls_down', 'bounce'] },
+    { id: 'sammeln', label: 'Sammeln', traits: ['pickup', 'key', 'chest'] },
     { id: 'schalter', label: 'Türen & Schalter', traits: ['door', 'switch', 'pressure_plate', 'counter', 'level_complete', 'checkpoint', 'text'] },
     { id: 'deko', label: 'Deko', traits: [] },
 ];

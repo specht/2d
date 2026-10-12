@@ -174,9 +174,11 @@ const WSW_OBJECT_ROLES = {
     falls_down: [['crumbling', 'zerbröselt']],
     bomb: [['fuse', 'Zündschnur'], ['explosion', 'Explosion']],
     text: [['speaking', 'spricht']],
+    chest: [['closed', 'zu'], ['open', 'offen']],
+    bounce: [['idle', 'ruhig'], ['charge', 'lädt auf'], ['spring', 'federt']],
 };
 const WSW_TRAIT_LABELS = { door: 'Tür', switch: 'Schalter', pressure_plate: 'Druckplatte', counter: 'Zähler',
-    checkpoint: 'Checkpoint', falls_down: 'Bröckelt', bomb: 'Bombe', text: 'Schild' };
+    checkpoint: 'Checkpoint', falls_down: 'Bröckelt', bomb: 'Bombe', text: 'Schild', chest: 'Truhe', bounce: 'Trampolin' };
 
 function object_state_roles(sprite) {
     const states = sprite?.states ?? [];

@@ -5749,10 +5749,15 @@ button.pt-quiet {
     transition: width 0.5s linear;
 }
 
+/* 16:9 like Spielen (.play_container_inner): as wide as fits, and no taller
+   than the room under the bar – a wider frame showed more of the level */
 .pt-frame {
-    width: 100%;
-    height: calc(100vh - 250px);
-    min-height: 300px;
+    display: block;
+    width: min(100%, calc((100vh - 250px) * 16 / 9));
+    min-width: min(100%, 534px);
+    aspect-ratio: 16 / 9;
+    height: auto;
+    margin: 0 auto;
     border: none;
     border-radius: 10px;
     background: #000;

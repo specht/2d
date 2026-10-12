@@ -65,7 +65,7 @@ const TRAIT_SPRITE_NAMES = {
     actor: 'Spielfigur', baddie: 'Gegner', companion: 'Begleiter', door: 'Tür', key: 'Schlüssel',
     switch: 'Schalter', pressure_plate: 'Druckplatte', counter: 'Zähler', level_complete: 'Ausgang',
     checkpoint: 'Checkpoint', ladder: 'Leiter', moving: 'Plattform', text: 'Schild', trap: 'Falle',
-    conveyor: 'Förderband', slope: 'Schräge', bomb: 'Bombe',
+    conveyor: 'Förderband', slope: 'Schräge', bomb: 'Bombe', chest: 'Truhe', bounce: 'Trampolin',
 };
 
 function trait_sprite_name(trait) {

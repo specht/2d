@@ -37,14 +37,14 @@ const LEVEL_CHECK_TOUCHED = ['key', 'checkpoint', 'trap', 'level_complete'];
 const LEVEL_CHECK_FIGURES = ['actor', 'baddie', 'companion'];
 // what does nothing on a figure (Spielfigur, Gegner, Begleiter)
 const LEVEL_CHECK_OBJECT_TRAITS = ['pickup', 'key', 'level_complete', 'checkpoint', 'trap', 'door', 'switch',
-    'pressure_plate', 'block_above', 'block_sides', 'block_below', 'slope', 'ladder', 'conveyor', 'moving', 'falls_down'];
+    'pressure_plate', 'block_above', 'block_sides', 'block_below', 'slope', 'ladder', 'conveyor', 'moving', 'falls_down', 'chest', 'bounce'];
 // what is only a picture in a layer without Kollisionen (an exit: level_map.js says so already)
-const LEVEL_CHECK_PLAYING_TRAITS = ['pickup', 'key', 'checkpoint', 'trap', 'door', 'switch', 'pressure_plate', 'baddie', 'companion'];
+const LEVEL_CHECK_PLAYING_TRAITS = ['pickup', 'key', 'checkpoint', 'trap', 'door', 'switch', 'pressure_plate', 'baddie', 'companion', 'chest', 'bounce'];
 
 const LEVEL_CHECK_FIGURE_WORDS = { actor: 'die Spielfigur', baddie: 'ein Gegner', companion: 'ein Begleiter' };
 const LEVEL_CHECK_TRAIT_FALLBACK = {
     pickup: 'man kann es einsammeln', key: 'ist ein Schlüssel', level_complete: 'Levelwechsel', checkpoint: 'Checkpoint',
-    trap: 'Falle', actor: 'Spielfigur', baddie: 'Gegner', companion: 'Begleiter',
+    trap: 'Falle', actor: 'Spielfigur', baddie: 'Gegner', companion: 'Begleiter', chest: 'Truhe', bounce: 'Trampolin',
 };
 // what never happens, after "darum"
 const LEVEL_CHECK_TAKEN = {
@@ -85,6 +85,8 @@ function level_check_missing_states(sprite, trait) {
 const LEVEL_CHECK_ROLE_LABELS = {
     checkpoint: { active: 'Checkpoint aktiviert' },
     level_complete: { closed: 'Ausgang zu', open: 'Ausgang offen' },
+    chest: { closed: 'Truhe zu', open: 'Truhe offen' },
+    bounce: { idle: 'ruhig', charge: 'lädt auf', spring: 'federt' },
     bomb: { fuse: 'Zündschnur', explosion: 'Explosion' },
     counter: { waiting: 'Zähler wartet', done: 'Zähler erreicht' },
 };
@@ -159,6 +161,12 @@ function sprite_pitfalls(sprite, name = 'Dieses Sprite', game_properties = null,
                 text: `${it} ist ${LEVEL_CHECK_FIGURE_WORDS[figure]}. ${level_check_and(objects.map(level_check_trait_word))} ${objects.length > 1 ? 'wirken' : 'wirkt'} bei einer Figur nicht – nur bei Sprites, die keine Figur sind. Nimm ${objects.length > 1 ? 'sie' : 'es'} weg oder mach dafür ein eigenes Sprite.` });
         out.push(...level_check_figure_states(sprite, figure, it));
         out.push(...level_check_bombs(sprite, it, sprite_of));
+        // Fallschaden (app.js track_fall): a deadly fall that is not deeper than a hurting one
+        const fall = traits[figure] ?? {};
+        const hurt_from = Number(fall.fall_damage_height) || 0, death_from = Number(fall.fall_death_height) || 0;
+        if (hurt_from > 0 && death_from > 0 && death_from <= hurt_from)
+            out.push({ id: 'fall_death_first', severity: 'hint',
+                text: `${it}: Beim Fallschaden ist „tödlich ab“ (${death_from} px) nicht tiefer als „Schaden ab“ (${hurt_from} px). Dann ist jeder Sturz, der weh tut, gleich tödlich – der Schaden kommt nie vor. Stell „tödlich ab“ tiefer ein.` });
         // the rest is about objects
         return out;
     }
@@ -211,9 +219,9 @@ function sprite_pitfalls(sprite, name = 'Dieses Sprite', game_properties = null,
     }
 
     // both pictures in one Zustand: it never looks different
-    for (const trait of [...Object.keys(LEVEL_CHECK_STATE_PAIRS), 'level_complete']) {
+    for (const trait of [...Object.keys(LEVEL_CHECK_STATE_PAIRS), 'level_complete', 'chest']) {
         if (!has(trait)) continue;
-        const roles = trait === 'level_complete' ? ['closed', 'open'] : LEVEL_CHECK_STATE_PAIRS[trait].states.map(([role]) => role);
+        const roles = (trait === 'level_complete' || trait === 'chest') ? ['closed', 'open'] : LEVEL_CHECK_STATE_PAIRS[trait].states.map(([role]) => role);
         const [a, b] = roles.map(role => level_check_state_with(sprite, trait, role));
         if (a < 0 || a !== b) continue;
         const labels = roles.map(role => `„${level_check_role_label(trait, role)}“`);
@@ -227,6 +235,33 @@ function sprite_pitfalls(sprite, name = 'Dieses Sprite', game_properties = null,
             text: `${it} ist ein Checkpoint, aber kein Zustand hat die Rolle „Checkpoint aktiviert“. Er funktioniert – aber man sieht nicht, dass die Spielfigur ihn erreicht hat. Zeichne zum Beispiel eine gehisste Fahne als eigenen Zustand und gib ihm ${LEVEL_CHECK_HOW_ROLE} die Rolle „Checkpoint aktiviert“.` });
 
     if (has('bomb')) out.push(...level_check_bomb_art(sprite, it));
+
+    // a Trampolin (app.js bounce_on_trampoline): one stands on it only from above
+    if (has('bounce')) {
+        const bounce = traits.bounce ?? {};
+        if (!has('block_above'))
+            out.push({ id: 'bounce_no_top', severity: 'problem',
+                text: `${it} ist ein Trampolin, aber man kann nicht darauf stehen – die Figur fällt hindurch und wird nie hochgeworfen. Gib ihm auch „man kann nicht von oben reinfallen“.` });
+        if ((Number(bounce.delay) || 0) > 0 && Array.isArray(sprite?.states) && sprite.states.length && level_check_state_with(sprite, 'bounce', 'charge') < 0)
+            out.push({ id: 'bounce_charge_state', severity: 'hint',
+                text: `${it} wirft erst nach ${Number(bounce.delay).toLocaleString('de-DE')} s, aber kein Zustand hat die Rolle „lädt auf“. Es funktioniert – aber man sieht nicht, dass gleich etwas passiert. Zeichne, wie sich die Feder spannt, und gib dem Zustand ${LEVEL_CHECK_HOW_ROLE} die Rolle „lädt auf“.` });
+    }
+
+    // a Truhe (app.js open_chest): what springs out, and that one sees it open
+    if (has('chest')) {
+        const loot = traits.chest?.loot;
+        const ref = loot?.sprite_id ?? loot?.sprite_index;
+        const inside = ref !== undefined && sprite_of ? sprite_of(ref) : null;
+        if (ref === undefined)
+            out.push({ id: 'chest_empty', severity: 'hint',
+                text: `${it} ist eine Truhe ohne Inhalt: Geht sie auf, springt nichts heraus – außer du gibst einer Truhe im Level ihren eigenen Inhalt (anklicken, „Inhalt dieser Truhe“). Wähl unter „Inhalt“ zum Beispiel einen Edelstein.` });
+        else if (inside && !['pickup', 'key', 'baddie'].some(trait => trait in (inside.traits ?? {})))
+            out.push({ id: 'chest_loot_not_collectable', severity: 'problem',
+                text: `${it}: Der Inhalt der Truhe kann nicht eingesammelt werden – er springt nicht einmal heraus. Gib dem Sprite „man kann es einsammeln“ oder „ist ein Schlüssel“ – oder nimm einen Gegner, der herausspringt.` });
+        if (Array.isArray(sprite?.states) && sprite.states.length && level_check_state_with(sprite, 'chest', 'open') < 0)
+            out.push({ id: 'chest_open_state', severity: 'hint',
+                text: `${it} ist eine Truhe, aber kein Zustand hat die Rolle „Truhe offen“. Sie geht auf und der Inhalt springt heraus – aber sie sieht danach noch zu aus. Zeichne die offene Truhe als eigenen Zustand und gib ihm ${LEVEL_CHECK_HOW_ROLE} die Rolle „Truhe offen“.` });
+    }
 
     // "für später aufheben" on something that gives nothing when it is used
     // (points come at once; a weapon is held, never Vorrat: inventory.js)

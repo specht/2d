@@ -44,6 +44,7 @@ var SPRITE_TRAITS_ORDER = [
         'Plattformen',
         [
             'moving',
+            'bounce',
         ],
     ],
     [
@@ -76,6 +77,7 @@ var SPRITE_TRAITS_ORDER = [
         'Einsammeln',
         [
             'pickup',
+            'chest',
         ],
     ],
     [
@@ -169,6 +171,8 @@ var STATE_TRAITS_ORDER = {
     falls_down: [
         'crumbling',
     ],
+    // Trampolin (app.js bounce_on_trampoline): ruhig, lädt auf (with a Verzögerung), federt
+    bounce: ['idle', 'charge', 'spring'],
     door: [
         'closed',
         'open',
@@ -176,6 +180,7 @@ var STATE_TRAITS_ORDER = {
     ],
     switch: ['off', 'on'],
     level_complete: ['closed', 'open'],
+    chest: ['closed', 'open'],
     pressure_plate: ['up', 'down'],
     // a Zähler: "zeigt 1" … "zeigt 9" while it counts (only the ones drawn), "erreicht" when full
     counter: ['waiting', ['Zählt', ['count_1', 'count_2', 'count_3', 'count_4', 'count_5', 'count_6', 'count_7', 'count_8', 'count_9']], 'done'],
@@ -201,8 +206,36 @@ function signal_delay_placed_property(hint) {
     };
 }
 
+// Fallschaden (actor / baddie: fall_damage_height, fall_damage, fall_death_height;
+// app.js Character.track_fall): the energy a deep fall costs when no Schaden is set
+var FALL_DAMAGE_DEFAULT = 25;
+
 var SPRITE_TRAITS = {
     bomb: { label: 'Bombe' },
+    // Truhe (app.js open_chest): opened once, its Inhalt (traits.chest.loot =
+    // { sprite_id, signal_code }, a placed copy may have its own:
+    // placed chest.loot = { sprite_id }; game.js / level_editor.js) pops out
+    // and can be collected – or, an enemy, springs out and attacks
+    // (chest_foe_out). Absent Inhalt: it only opens.
+    chest: {
+        label: 'Truhe',
+        properties: {
+            opens: {
+                label: 'geht auf',
+                hint: 'Wann die Truhe aufgeht: wenn die Spielfigur davorsteht und die Aktionstaste (F) drückt – oder schon, wenn sie die Truhe berührt. Eine Truhe geht nur einmal auf.',
+                type: 'select',
+                options: { action: 'mit der Aktionstaste (F)', touch: 'beim Berühren' },
+                default: 'action',
+            },
+            loot_motion: {
+                label: 'Inhalt springt',
+                hint: 'Was der Inhalt macht, wenn die Truhe aufgeht: Er springt heraus und schwebt über der Truhe – oder er springt im Bogen heraus und fällt neben der Truhe auf den Boden. Dann sammelt die Spielfigur ihn ein. Ein Gegner springt immer im Bogen zur Seite, weg von der Spielfigur.',
+                type: 'select',
+                options: { float: 'hoch und schwebt', fall: 'heraus und fällt' },
+                default: 'float',
+            },
+        },
+    },
     ranged_attack: {
         label: 'Fernkampfangriff',
     },
@@ -724,6 +757,56 @@ var SPRITE_TRAITS = {
                 default: 0,
                 min: 0,
                 max: 1000,
+            },
+        },
+    },
+    // Trampolin / Sprungfeder (app.js bounce_on_trampoline): whoever stands on
+    // it is thrown up. It needs „man kann nicht von oben reinfallen“ to be
+    // stood on (Spiel-Check says so).
+    bounce: {
+        label: 'Trampolin',
+        properties: {
+            power: {
+                label: 'Sprungkraft',
+                hint: 'So kräftig wirft das Trampolin hoch – wie die Sprungkraft einer Spielfigur: Pip springt mit 7 etwa 3 Blöcke hoch, mit 10 etwa 6, mit 12 etwa 9.',
+                type: 'float',
+                min: 1,
+                max: 30,
+                step: 0.5,
+                decimalPlaces: 1,
+                default: 10,
+            },
+            boost: {
+                label: 'höher mit Sprungtaste',
+                hint: 'Ist das an, fliegt die Spielfigur noch ein Stück höher, wenn man auf dem Trampolin die Sprungtaste drückt. (Normal springen kann man darauf nicht – die Sprungtaste macht den Wurf höher.)',
+                type: 'bool',
+                default: true,
+            },
+            delay: {
+                label: 'wirft nach',
+                hint: 'So lange muss man draufstehen, bevor es hochwirft – wie eine Sprungfeder, die erst gespannt wird. Zeichne dazu den Zustand „lädt auf“: Seine Frames laufen in dieser Zeit genau einmal ab. Wer vorher heruntergeht, wird nicht geworfen. 0: sofort.',
+                type: 'float',
+                suffix: 's',
+                min: 0,
+                max: 10,
+                step: 0.1,
+                decimalPlaces: 1,
+                default: 0,
+            },
+            sink: {
+                label: 'Federweg',
+                hint: 'So viele Pixel sinkt die Figur ein, während das Trampolin auflädt („wirft nach“) – passend zu den Frames von „lädt auf“, in denen du die Platte nach unten malst. Nur zu sehen: Wo die Figur steht, ändert sich nicht. 0: sie sinkt nicht ein.',
+                type: 'int',
+                suffix: 'px',
+                min: 0,
+                max: 24,
+                default: 0,
+            },
+            baddies: {
+                label: 'wirft auch Gegner',
+                hint: 'Ist das an, springen auch Gegner, die darauf laufen, in die Höhe.',
+                type: 'bool',
+                default: false,
             },
         },
     },
@@ -1608,10 +1691,20 @@ var STATE_TRAITS = {
     falls_down: {
         crumbling: { label: 'zerbröselt' },
     },
+    bounce: {
+        idle: { label: 'ruhig' },
+        charge: { label: 'lädt auf' },
+        spring: { label: 'federt' },
+    },
     door: {
         closed: { label: 'geschlossen' },
         open: { label: 'geöffnet' },
         transition: { label: 'Übergang' },
+    },
+    // a Truhe before and after it was opened (app.js open_chest)
+    chest: {
+        closed: { label: 'Truhe zu' },
+        open: { label: 'Truhe offen' },
     },
     // an exit that opens only on a Signal ("öffnet erst bei Signal"): what it shows
     level_complete: {

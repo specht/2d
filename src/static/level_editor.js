@@ -5593,6 +5593,36 @@ class LevelEditor {
                     }
                 }
                 this.add_signal_links(sprite, entry_index);
+                // a Truhe: this copy's own Inhalt (placed chest.loot; absent = the drawing's)
+                if ('chest' in sprite.traits) {
+                    const sprites = this.game.data.sprites;
+                    const drawn_id = sprite.traits.chest?.loot?.sprite_id;
+                    const drawn = typeof drawn_id === 'string' ? sprites.find(other => other.id === drawn_id) : null;
+                    new SpriteSelectWidget({
+                        container: div, label: 'Inhalt dieser Truhe:',
+                        none_label: drawn ? `wie die Truhe: ${sprite_label(drawn, sprites.indexOf(drawn))}` : 'wie die Truhe: leer',
+                        hint: 'Was aus dieser einen Truhe springt. So hat jede Truhe im Level ihren eigenen Inhalt, auch wenn alle gleich aussehen. Ohne eigene Wahl springt heraus, was bei der Truhe im Sprite-Editor eingestellt ist. Zur Wahl: alles, was man einsammeln kann, Schlüssel – und Gegner, die herausspringen und angreifen.',
+                        sprites: () => this.game.data.sprites,
+                        filter: (other) => ['pickup', 'key', 'baddie'].some(trait => trait in (other?.traits ?? {})),
+                        get: () => {
+                            const id = props_of('chest').loot?.sprite_id;
+                            const index = typeof id === 'string' ? this.game.data.sprites.findIndex(other => other.id === id) : -1;
+                            return index >= 0 ? String(index) : 'none';
+                        },
+                        set: (choice) => {
+                            const chosen = this.game.data.sprites[Number(choice)];
+                            if (choice === 'none' || !chosen) {
+                                const placed = placed_now();
+                                if (placed?.[3]?.chest) {
+                                    delete placed[3].chest.loot;
+                                    if (!Object.keys(placed[3].chest).length) delete placed[3].chest;
+                                }
+                                return;
+                            }
+                            writable_props_of('chest').loot = { sprite_id: chosen.id };
+                        },
+                    });
+                }
                 // back into the field that was being typed in, the cursor at the end
                 const refocus = this.placed_refocus ? widgets[this.placed_refocus]?.input?.[0] : null;
                 if (refocus?.length) {
