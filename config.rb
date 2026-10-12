@@ -137,6 +137,9 @@ env << 'COLLABORATION=0' if defined?(COLLABORATION) && !COLLABORATION
 # an env.rb from before WEB_ROOT: the live site's host
 SITE_ROOT = defined?(WEB_ROOT) ? WEB_ROOT : (!DEVELOPMENT && defined?(WEBSITE_HOST) ? "https://#{WEBSITE_HOST}" : nil)
 env << "WEB_ROOT=#{SITE_ROOT}" if SITE_ROOT
+# neo4j_bolt gives up waiting for Neo4j after this many seconds (default 30)
+# and the server would not start; Neo4j 5 can take longer after an update
+env << 'NEO4J_BOLT_WAIT_ATTEMPTS=180'
 docker_compose[:services][:ruby] = {
     :build => './docker/ruby',
     :volumes => ['./src/ruby:/app:ro',
@@ -158,10 +161,10 @@ docker_compose[:services][:neo4j] = {
     :volumes => ["#{NEO4J_DATA_PATH}:/data",
                  "#{NEO4J_LOGS_PATH}:/logs"]
 }
+# Neo4j 5 refuses to start with a setting it does not know (the 4.4 ones
+# dbms.allow_upgrade and dbms.logs.timezone are gone): add only current names.
 docker_compose[:services][:neo4j][:environment] = [
     'NEO4J_AUTH=none',
-    'NEO4J_dbms_logs__timezone=SYSTEM',
-    'NEO4J_dbms_allow__upgrade=true',
 ]
 docker_compose[:services][:neo4j][:user] = "#{UID}"
 docker_compose[:services][:ruby][:user] = "#{UID}"

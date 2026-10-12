@@ -1,6 +1,7 @@
 source 'https://rubygems.org'
 
-gem 'neo4j_bolt', '>=0.1.11'
+# 0.5 speaks Bolt 5 (0.3 misreads nodes from Neo4j 5) and needs Ruby 3.4
+gem 'neo4j_bolt', '0.5.0'
 # playtest.rb pdf: the printed feedback of the classroom playtesting
 gem 'prawn'
 # its QR code: the game to open
