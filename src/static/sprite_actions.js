@@ -79,6 +79,14 @@ function sprite_context_menu(si) {
         { label: 'Umbenennen', icon: 'fa-pencil', hint: 'Der Titel steht oben bei „Sprite“.', callback: () => rename_sprite(si) },
         { label: 'Duplizieren', icon: 'fa-clone', callback: () => duplicate_sprite(si),
             hint: 'Eine Kopie mit allen Zuständen, Frames und Eigenschaften – gleich dahinter in der Liste.' },
+        // image_export.js: pixel for pixel as a PNG, like Funktionen › Sprite › Als Bild speichern
+        { label: 'Als Bild speichern', icon: 'fa-download',
+            hint: 'Speichert die Pixel des Sprites als PNG-Datei auf deinem Computer, mit durchsichtigem Hintergrund – zum Beispiel als Textur für ein eigenes Spiel.',
+            children: [
+                { label: 'erster Frame', hint: 'Das Bild, das hier in der Liste steht', callback: () => export_sprite_images('frame', { sprite_index: si, state_index: 0, frame_index: 0 }) },
+                { label: 'erster Zustand, die Frames nebeneinander', hint: 'Ein Streifen: die Frames des ersten Zustands von links nach rechts', callback: () => export_sprite_images('state', { sprite_index: si, state_index: 0, frame_index: 0 }) },
+                { label: 'alle Frames (eine Zeile pro Zustand)', hint: 'Jeder Zustand eine Zeile, die Frames von links nach rechts', callback: () => export_sprite_images('sprite', { sprite_index: si, state_index: 0, frame_index: 0 }) },
+            ] },
         show_in_level_item(si),
         '-',
         { label: 'Sprites holen (Katalog oder anderes Spiel) …', icon: 'fa-shopping-basket', callback: () => { if (typeof show_sprite_basket === 'function') show_sprite_basket(); } },

@@ -1,6 +1,6 @@
 // A sprite's pictures as a PNG file (Funktionen › Sprite › Als Bild
-// speichern): the frame on the canvas, the frames of its state side by side,
-// or every state of the sprite as one row. Pixel for pixel, with
+// speichern, or a right click on a sprite in the list): one frame, the
+// frames of a state side by side, or every state of the sprite as one row. Pixel for pixel, with
 // transparency, so the picture can be used elsewhere (a texture, a website)
 // and read back with »Bilder öffnen« (image_import.js finds the frames of a
 // strip). Only reads the game; editor-only, the engine never loads this file.
@@ -62,13 +62,20 @@ function export_load_image(src) {
     });
 }
 
-async function export_sprite_images(scope) {
-    const si = canvas?.sprite_index, sti = canvas?.state_index, fi = canvas?.frame_index;
+// scope: 'frame', 'state' or 'sprite'. at: { sprite_index, state_index,
+// frame_index } of another sprite (the list's right-click menu); without it,
+// what the canvas shows.
+async function export_sprite_images(scope, at = null) {
+    const on_canvas = !at || (at.sprite_index === canvas?.sprite_index &&
+        at.state_index === canvas?.state_index && at.frame_index === canvas?.frame_index);
+    const si = at?.sprite_index ?? canvas?.sprite_index;
+    const sti = at?.state_index ?? canvas?.state_index;
+    const fi = at?.frame_index ?? canvas?.frame_index;
     const sprite = game?.data?.sprites?.[si];
-    if (!sprite || sti === null || fi === null) return;
+    if (!sprite || sti === null || sti === undefined || fi === null || fi === undefined) return;
     const rows = export_rows(game.data, {
         sprite_index: si, state_index: sti, frame_index: fi,
-        current_src: typeof canvas.toUrl === 'function' ? canvas.toUrl() : null,
+        current_src: on_canvas && typeof canvas.toUrl === 'function' ? canvas.toUrl() : null,
     }, scope);
     const images = await Promise.all(rows.map(row => Promise.all(row.map(export_load_image))));
     const layout = export_layout(images.map(row => row.map(image => image ? { width: image.naturalWidth, height: image.naturalHeight } : null)));
