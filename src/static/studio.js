@@ -869,6 +869,17 @@ document.addEventListener("DOMContentLoaded", async function (event) {
                     callback: () => choose_image_files(),
                 },
                 {
+                    // image_export.js: pixel for pixel as a PNG, for elsewhere
+                    // (a texture, a website); »Bilder öffnen« reads it back
+                    label: 'Als Bild speichern',
+                    hint: 'Speichert die Pixel des Sprites als PNG-Datei auf deinem Computer, mit durchsichtigem Hintergrund – zum Beispiel als Textur für ein eigenes Spiel. Mit »Bilder öffnen …« holst du sie wieder herein.',
+                    children: [
+                        { label: 'diesen Frame', hint: 'Ein Bild in der Größe des Sprites', callback: () => export_sprite_images('frame') },
+                        { label: 'alle Frames dieses Zustands nebeneinander', hint: 'Ein Streifen: die Frames von links nach rechts', callback: () => export_sprite_images('state') },
+                        { label: 'alle Frames des Sprites', hint: 'Eine Zeile pro Zustand, die Frames von links nach rechts', callback: () => export_sprite_images('sprite') },
+                    ],
+                },
+                {
                     // canvas.js outline_frames: one pixel in the current colour around everything drawn
                     label: 'Umriss zeichnen',
                     hint: 'Zeichnet einen Rand von einem Pixel in der gewählten Farbe um alles, was im Bild ist – gut gegen Figuren, die im Hintergrund verschwinden. Strg+Z nimmt ihn wieder weg.',
